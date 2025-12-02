@@ -8,6 +8,7 @@ import os
 with open("api_map.json", "r", encoding="utf8") as f:
     API_MAP = json.load(f)["apis"]
 
+
 def split_args(arg_str):
     args = []
     current = ""
@@ -208,6 +209,8 @@ def convert_call(code_line, prefix):
     ]
     return "\n".join(converted_lines)
 
+
+
 def fix_missing_commas(lines):
     fixed = []
 
@@ -242,6 +245,8 @@ def fix_missing_commas(lines):
 
     return fixed
 
+
+
 def convert_code(code):
     prefix = detect_mindspore_prefix(code)
     output = []
@@ -254,6 +259,8 @@ def convert_code(code):
     output = fix_missing_commas(output)
 
     return "\n".join(output)
+
+
 
 
 def generate_diff(old, new):
