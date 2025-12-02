@@ -1,221 +1,212 @@
 {
   "schema_version": 1,
-  "apis": {
-    "Conv2d": {
-      "pytorch": "torch.nn.Conv2d",
-      "mindspore": "mindspore.nn.Conv2d",
-      "params": [
-        {
-          "logical": "in_channels",
-          "pytorch": { "name": "in_channels", "default": null },
-          "mindspore": { "name": "in_channels", "default": null },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "out_channels",
-          "pytorch": { "name": "out_channels", "default": null },
-          "mindspore": { "name": "out_channels", "default": null },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "kernel_size",
-          "pytorch": { "name": "kernel_size", "default": null },
-          "mindspore": { "name": "kernel_size", "default": null },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "stride",
-          "pytorch": { "name": "stride", "default": 1 },
-          "mindspore": { "name": "stride", "default": 1 },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "padding",
-          "pytorch": { "name": "padding", "default": 0 },
-          "mindspore": { "name": "padding", "default": 0 },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "dilation",
-          "pytorch": { "name": "dilation", "default": 1 },
-          "mindspore": { "name": "dilation", "default": 1 },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "groups",
-          "pytorch": { "name": "groups", "default": 1 },
-          "mindspore": { "name": "group", "default": 1 },
-          "name_equal": false,
-          "default_equal": true
-        },
-        {
-          "logical": "bias",
-          "pytorch": { "name": "bias", "default": true },
-          "mindspore": { "name": "has_bias", "default": false },
-          "name_equal": false,
-          "default_equal": false
-        },
-        {
-          "logical": "padding_mode/pad_mode",
-          "pytorch": { "name": "padding_mode", "default": "zeros" },
-          "mindspore": { "name": "pad_mode", "default": "same" },
-          "name_equal": false,
-          "default_equal": false
-        }
-      ]
-    },
+  "apis": 
+  {
+  "Conv1d": {
+    "pytorch": "torch.nn.Conv1d",
+    "mindspore": "mindspore.mint.nn.Conv1d",
+    "params": [
+      { "logical": "in_channels",  "pytorch": {"name":"in_channels","default":null}, "mindspore":{"name":"in_channels","default":null} },
+      { "logical": "out_channels", "pytorch": {"name":"out_channels","default":null}, "mindspore":{"name":"out_channels","default":null} },
+      { "logical": "kernel_size",  "pytorch": {"name":"kernel_size","default":null}, "mindspore":{"name":"kernel_size","default":null} },
+      { "logical": "stride",       "pytorch": {"name":"stride","default":1},        "mindspore":{"name":"stride","default":1} },
+      { "logical": "padding",      "pytorch": {"name":"padding","default":0},       "mindspore":{"name":"padding","default":0} },
+      { "logical": "dilation",     "pytorch": {"name":"dilation","default":1},      "mindspore":{"name":"dilation","default":1} },
+      { "logical": "groups",       "pytorch": {"name":"groups","default":1},        "mindspore":{"name":"groups","default":1} },
+      { "logical": "bias",         "pytorch": {"name":"bias","default":true},       "mindspore":{"name":"bias","default":true} },
+      { "logical": "padding_mode", "pytorch": {"name":"padding_mode","default":"zeros"}, "mindspore":{"name":"padding_mode","default":"zeros"} }
+    ]
+  },
 
-    "Linear(Dense)": {
-      "pytorch": "torch.nn.Linear",
-      "mindspore": "mindspore.nn.Dense",
-      "params": [
-        {
-          "logical": "in_features",
-          "pytorch": { "name": "in_features", "default": null },
-          "mindspore": { "name": "in_channels", "default": null },
-          "name_equal": false,
-          "default_equal": true
-        },
-        {
-          "logical": "out_features",
-          "pytorch": { "name": "out_features", "default": null },
-          "mindspore": { "name": "out_channels", "default": null },
-          "name_equal": false,
-          "default_equal": true
-        },
-        {
-          "logical": "bias",
-          "pytorch": { "name": "bias", "default": true },
-          "mindspore": { "name": "has_bias", "default": true },
-          "name_equal": false,
-          "default_equal": true
-        },
-        {
-          "logical": "activation",
-          "pytorch": { "name": null, "default": null },
-          "mindspore": { "name": "activation", "default": null },
-          "name_equal": false,
-          "default_equal": true
-        }
-      ]
-    },
+  "Conv2d": {
+    "pytorch": "torch.nn.Conv2d",
+    "mindspore": "mindspore.mint.nn.Conv2d",
+    "params": [
+      { "logical":"in_channels","pytorch":{"name":"in_channels","default":null}, "mindspore":{"name":"in_channels","default":null}},
+      { "logical":"out_channels","pytorch":{"name":"out_channels","default":null}, "mindspore":{"name":"out_channels","default":null}},
+      { "logical":"kernel_size","pytorch":{"name":"kernel_size","default":null}, "mindspore":{"name":"kernel_size","default":null}},
+      { "logical":"stride","pytorch":{"name":"stride","default":1}, "mindspore":{"name":"stride","default":1}},
+      { "logical":"padding","pytorch":{"name":"padding","default":0}, "mindspore":{"name":"padding","default":0}},
+      { "logical":"dilation","pytorch":{"name":"dilation","default":1}, "mindspore":{"name":"dilation","default":1}},
+      { "logical":"groups","pytorch":{"name":"groups","default":1}, "mindspore":{"name":"groups","default":1}},
+      { "logical":"bias","pytorch":{"name":"bias","default":true}, "mindspore":{"name":"bias","default":true}},
+      { "logical":"padding_mode","pytorch":{"name":"padding_mode","default":"zeros"}, "mindspore":{"name":"padding_mode","default":"zeros"} }
+    ]
+  },
 
-    "ReLU": {
-      "pytorch": "torch.nn.ReLU",
-      "mindspore": "mindspore.nn.ReLU",
-      "params": [
-        {
-          "logical": "inplace",
-          "pytorch": { "name": "inplace", "default": false },
-          "mindspore": { "name": null, "default": null },
-          "name_equal": false,
-          "default_equal": false
-        }
-      ]
-    },
+  "Conv3d": {
+    "pytorch": "torch.nn.Conv3d",
+    "mindspore": "mindspore.mint.nn.Conv3d",
+    "params": [
+      { "logical":"in_channels","pytorch":{"name":"in_channels","default":null}, "mindspore":{"name":"in_channels","default":null}},
+      { "logical":"out_channels","pytorch":{"name":"out_channels","default":null}, "mindspore":{"name":"out_channels","default":null}},
+      { "logical":"kernel_size","pytorch":{"name":"kernel_size","default":null}, "mindspore":{"name":"kernel_size","default":null}},
+      { "logical":"stride","pytorch":{"name":"stride","default":1}, "mindspore":{"name":"stride","default":1}},
+      { "logical":"padding","pytorch":{"name":"padding","default":0}, "mindspore":{"name":"padding","default":0}},
+      { "logical":"dilation","pytorch":{"name":"dilation","default":1}, "mindspore":{"name":"dilation","default":1}},
+      { "logical":"groups","pytorch":{"name":"groups","default":1}, "mindspore":{"name":"groups","default":1}},
+      { "logical":"bias","pytorch":{"name":"bias","default":true}, "mindspore":{"name":"bias","default":true}},
+      { "logical":"padding_mode","pytorch":{"name":"padding_mode","default":"zeros"}, "mindspore":{"name":"padding_mode","default":"zeros"} }
+    ]
+  },
+  "ConvTranspose1d": {
+    "pytorch": "torch.nn.ConvTranspose1d",
+    "mindspore": "mindspore.mint.nn.ConvTranspose1d",
+    "params": [
+      { "logical":"in_channels","pytorch":{"name":"in_channels","default":null}, "mindspore":{"name":"in_channels","default":null}},
+      { "logical":"out_channels","pytorch":{"name":"out_channels","default":null}, "mindspore":{"name":"out_channels","default":null}},
+      { "logical":"kernel_size","pytorch":{"name":"kernel_size","default":null}, "mindspore":{"name":"kernel_size","default":null}},
+      { "logical":"stride","pytorch":{"name":"stride","default":1}, "mindspore":{"name":"stride","default":1}},
+      { "logical":"padding","pytorch":{"name":"padding","default":0}, "mindspore":{"name":"padding","default":0}},
+      { "logical":"output_padding","pytorch":{"name":"output_padding","default":0}, "mindspore":{"name":"output_padding","default":0}},
+      { "logical":"groups","pytorch":{"name":"groups","default":1}, "mindspore":{"name":"groups","default":1}},
+      { "logical":"bias","pytorch":{"name":"bias","default":true}, "mindspore":{"name":"bias","default":true}}
+    ]
+  },
 
-    "BatchNorm2d": {
-      "pytorch": "torch.nn.BatchNorm2d",
-      "mindspore": "mindspore.nn.BatchNorm2d",
-      "params": [
-        {
-          "logical": "num_features",
-          "pytorch": { "name": "num_features", "default": null },
-          "mindspore": { "name": "num_features", "default": null },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "eps",
-          "pytorch": { "name": "eps", "default": 1e-5 },
-          "mindspore": { "name": "eps", "default": 1e-5 },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "momentum",
-          "pytorch": { "name": "momentum", "default": 0.1 },
-          "mindspore": { "name": "momentum", "default": 0.9 },
-          "name_equal": true,
-          "default_equal": false
-        },
-        {
-          "logical": "affine",
-          "pytorch": { "name": "affine", "default": true },
-          "mindspore": { "name": "affine", "default": true },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "track_running_stats",
-          "pytorch": { "name": "track_running_stats", "default": true },
-          "mindspore": { "name": "use_batch_statistics", "default": null },
-          "name_equal": false,
-          "default_equal": false
-        }
-      ]
-    },
+  "ConvTranspose2d": {
+    "pytorch": "torch.nn.ConvTranspose2d",
+    "mindspore": "mindspore.mint.nn.ConvTranspose2d",
+    "params": [
+      { "logical":"in_channels","pytorch":{"name":"in_channels"}, "mindspore":{"name":"in_channels"} },
+      { "logical":"out_channels","pytorch":{"name":"out_channels"}, "mindspore":{"name":"out_channels"} },
+      { "logical":"kernel_size","pytorch":{"name":"kernel_size"}, "mindspore":{"name":"kernel_size"} },
+      { "logical":"stride","pytorch":{"name":"stride","default":1}, "mindspore":{"name":"stride","default":1} },
+      { "logical":"padding","pytorch":{"name":"padding","default":0}, "mindspore":{"name":"padding","default":0} },
+      { "logical":"output_padding","pytorch":{"name":"output_padding","default":0}, "mindspore":{"name":"output_padding","default":0} },
+      { "logical":"groups","pytorch":{"name":"groups","default":1}, "mindspore":{"name":"groups","default":1} },
+      { "logical":"bias","pytorch":{"name":"bias","default":true}, "mindspore":{"name":"bias","default":true} }
+    ]
+  },
+  "Linear": {
+    "pytorch": "torch.nn.Linear",
+    "mindspore": "mindspore.mint.nn.Linear",
+    "params": [
+      { "logical":"in_features",  "pytorch":{"name":"in_features","default":null}, "mindspore":{"name":"in_features","default":null} },
+      { "logical":"out_features", "pytorch":{"name":"out_features","default":null}, "mindspore":{"name":"out_features","default":null} },
+      { "logical":"bias",         "pytorch":{"name":"bias","default":true},       "mindspore":{"name":"bias","default":true} }
+    ]
+  },
+  "BatchNorm1d": {
+    "pytorch": "torch.nn.BatchNorm1d",
+    "mindspore": "mindspore.mint.nn.BatchNorm1d",
+    "params": [
+      { "logical":"num_features","pytorch":{"name":"num_features"}, "mindspore":{"name":"num_features"} },
+      { "logical":"eps","pytorch":{"name":"eps","default":1e-5}, "mindspore":{"name":"eps","default":1e-5} },
+      { "logical":"momentum","pytorch":{"name":"momentum","default":0.1}, "mindspore":{"name":"momentum","default":0.1} },
+      { "logical":"affine","pytorch":{"name":"affine","default":true}, "mindspore":{"name":"affine","default":true} },
+      { "logical":"track_running_stats","pytorch":{"name":"track_running_stats","default":true}, "mindspore":{"name":"use_batch_statistics","default":true} }
+    ]
+  },
 
-    "Adam": {
-      "pytorch": "torch.optim.Adam",
-      "mindspore": "mindspore.nn.Adam",
-      "params": [
-        {
-          "logical": "learning_rate",
-          "pytorch": { "name": "lr", "default": 0.001 },
-          "mindspore": { "name": "learning_rate", "default": 0.001 },
-          "name_equal": false,
-          "default_equal": true
-        },
-        {
-          "logical": "beta1",
-          "pytorch": { "name": "betas[0]", "default": 0.9 },
-          "mindspore": { "name": "beta1", "default": 0.9 },
-          "name_equal": false,
-          "default_equal": true
-        },
-        {
-          "logical": "beta2",
-          "pytorch": { "name": "betas[1]", "default": 0.999 },
-          "mindspore": { "name": "beta2", "default": 0.999 },
-          "name_equal": false,
-          "default_equal": true
-        },
-        {
-          "logical": "eps",
-          "pytorch": { "name": "eps", "default": 1e-8 },
-          "mindspore": { "name": "eps", "default": 1e-8 },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "weight_decay",
-          "pytorch": { "name": "weight_decay", "default": 0.0 },
-          "mindspore": { "name": "weight_decay", "default": 0.0 },
-          "name_equal": true,
-          "default_equal": true
-        },
-        {
-          "logical": "amsgrad",
-          "pytorch": { "name": "amsgrad", "default": false },
-          "mindspore": { "name": null, "default": null },
-          "name_equal": false,
-          "default_equal": false
-        },
-        {
-          "logical": "use_nesterov",
-          "pytorch": { "name": null, "default": null },
-          "mindspore": { "name": "use_nesterov", "default": false },
-          "name_equal": false,
-          "default_equal": false
-        }
-      ]
-    }
+  "BatchNorm2d": {
+    "pytorch": "torch.nn.BatchNorm2d",
+    "mindspore": "mindspore.mint.nn.BatchNorm2d",
+    "params": [
+      { "logical":"num_features","pytorch":{"name":"num_features"}, "mindspore":{"name":"num_features"} },
+      { "logical":"eps","pytorch":{"name":"eps","default":1e-5}, "mindspore":{"name":"eps","default":1e-5} },
+      { "logical":"momentum","pytorch":{"name":"momentum","default":0.1}, "mindspore":{"name":"momentum","default":0.1} },
+      { "logical":"affine","pytorch":{"name":"affine","default":true}, "mindspore":{"name":"affine","default":true} },
+      { "logical":"track_running_stats","pytorch":{"name":"track_running_stats","default":true}, "mindspore":{"name":"use_batch_statistics","default":true} }
+    ]
+  },
+
+  "LayerNorm": {
+    "pytorch": "torch.nn.LayerNorm",
+    "mindspore": "mindspore.mint.nn.LayerNorm",
+    "params": [
+      { "logical":"normalized_shape", "pytorch":{"name":"normalized_shape"}, "mindspore":{"name":"normalized_shape"} },
+      { "logical":"eps", "pytorch":{"name":"eps","default":1e-5}, "mindspore":{"name":"epsilon","default":1e-5} },
+      { "logical":"elementwise_affine","pytorch":{"name":"elementwise_affine","default":true}, "mindspore":{"name":"elementwise_affine","default":true} }
+    ]
+  },
+
+  "F.relu": {
+    "pytorch": "torch.nn.functional.relu",
+    "mindspore": "mindspore.mint.ops.relu",
+    "params": [
+      { "logical": "input", "pytorch": { "name": "input" }, "mindspore": { "name": "x" } },
+      { "logical": "inplace", "pytorch": { "name": "inplace", "default": false }, "mindspore": { "name": null, "default": null } }
+    ]
+  },
+
+  "F.gelu": {
+    "pytorch": "torch.nn.functional.gelu",
+    "mindspore": "mindspore.mint.ops.gelu",
+    "params": [
+      { "logical": "input", "pytorch": { "name": "input" }, "mindspore": { "name": "x" } }
+    ]
+  },
+
+  "F.leaky_relu": {
+    "pytorch": "torch.nn.functional.leaky_relu",
+    "mindspore": "mindspore.mint.ops.leaky_relu",
+    "params": [
+      { "logical": "input", "pytorch": { "name": "input" }, "mindspore": { "name": "x" } },
+      { "logical": "negative_slope", "pytorch": { "name": "negative_slope", "default": 0.01 }, "mindspore": { "name": "negative_slope", "default": 0.01 } }
+    ]
+  },
+
+  "F.sigmoid": {
+    "pytorch": "torch.nn.functional.sigmoid",
+    "mindspore": "mindspore.mint.ops.sigmoid",
+    "params": [
+      { "logical": "input", "pytorch": { "name": "input" }, "mindspore": { "name": "x" } }
+    ]
+  },
+
+  "F.tanh": {
+    "pytorch": "torch.nn.functional.tanh",
+    "mindspore": "mindspore.mint.ops.tanh",
+    "params": [
+      { "logical": "input", "pytorch": { "name": "input" }, "mindspore": { "name": "x" } }
+    ]
+  },
+
+  "F.softmax": {
+    "pytorch": "torch.nn.functional.softmax",
+    "mindspore": "mindspore.mint.ops.softmax",
+    "params": [
+      { "logical": "input", "pytorch": { "name": "input" }, "mindspore": { "name": "x" } },
+      { "logical": "dim",   "pytorch": { "name": "dim" },   "mindspore": { "name": "axis" } }
+    ]
+  },
+
+  "F.log_softmax": {
+    "pytorch": "torch.nn.functional.log_softmax",
+    "mindspore": "mindspore.mint.ops.log_softmax",
+    "params": [
+      { "logical": "input", "pytorch": { "name": "input" }, "mindspore": { "name": "x" } },
+      { "logical": "dim",   "pytorch": { "name": "dim" },   "mindspore": { "name": "axis" } }
+    ]
+  },
+
+  "F.max_pool2d": {
+    "pytorch": "torch.nn.functional.max_pool2d",
+    "mindspore": "mindspore.mint.ops.max_pool2d",
+    "params": [
+      { "logical": "input",       "pytorch":{"name":"input"},       "mindspore":{"name":"x"} },
+      { "logical": "kernel_size", "pytorch":{"name":"kernel_size"}, "mindspore":{"name":"kernel_size"} },
+      { "logical": "stride",      "pytorch":{"name":"stride","default":null}, "mindspore":{"name":"stride","default":null} },
+      { "logical": "padding",     "pytorch":{"name":"padding","default":0},   "mindspore":{"name":"padding","default":0} },
+      { "logical": "dilation",    "pytorch":{"name":"dilation","default":1},  "mindspore":{"name":"dilation","default":1} },
+      { "logical": "ceil_mode",   "pytorch":{"name":"ceil_mode","default":false}, "mindspore":{"name":"ceil_mode","default":false} }
+    ]
+  },
+
+  "F.avg_pool2d": {
+    "pytorch": "torch.nn.functional.avg_pool2d",
+    "mindspore": "mindspore.mint.ops.avg_pool2d",
+    "params": [
+      { "logical": "input",       "pytorch":{"name":"input"},       "mindspore":{"name":"x"} },
+      { "logical": "kernel_size", "pytorch":{"name":"kernel_size"}, "mindspore":{"name":"kernel_size"} },
+      { "logical": "stride",      "pytorch":{"name":"stride","default":null}, "mindspore":{"name":"stride","default":null} },
+      { "logical": "padding",     "pytorch":{"name":"padding","default":0},   "mindspore":{"name":"padding","default":0} },
+      { "logical": "ceil_mode",   "pytorch":{"name":"ceil_mode","default":false}, "mindspore":{"name":"ceil_mode","default":false} }
+    ]
   }
+
+  
 }
+}
+

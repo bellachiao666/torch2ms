@@ -10,6 +10,11 @@ with open("api_map.json", "r", encoding="utf8") as f:
 
 
 def split_args(arg_str):
+    '''
+        split 参数字符串为逗号分隔的片段，考虑括号嵌套
+        例如：
+        "a, b(c, d), e" 解析为 ["a", "b(c, d)", "e"]
+    '''
     args = []
     current = ""
     depth = 0
@@ -63,6 +68,7 @@ def reconstruct_args(api_conf, pytorch_args):
     '''
         根据 api_conf 和 pytorch_args 重构 MindSpore 参数字符串
         同时记录默认值不一致的参数
+        例如：{"__positional__": ["3","64"], "bias": "False"} → "in_channels=3, out_channels=64, has_bias=False"
     '''
     ms_args = {}
     mismatch_notes = []
@@ -140,7 +146,25 @@ def reconstruct_args(api_conf, pytorch_args):
 def detect_mindspore_prefix(code):
     '''
         检测 mindspore 的导入前缀
+        例如：
+        "import mindspore as ms" → 返回 "ms.nn"
+        "from mindspore import nn" → 返回 "nn"
+        同理支持 mint 子模块：
+        "import mindspore.mint as mt" → 返回 "mt.nn"
+        "from mindspore.mint import nn" → 返回 "nn"
     '''
+    # mindspore.mint 相关导入
+    m = re.search(r"import\s+mindspore\.mint\s+as\s+(\w+)", code)
+    if m:
+        return f"{m.group(1)}.nn"
+
+    m = re.search(r"import\s+mindspore\.mint\.nn\s+as\s+(\w+)", code)
+    if m:
+        return m.group(1)
+
+    if re.search(r"from\s+mindspore\.mint\s+import\s+nn", code):
+        return "nn"
+
     m = re.search(r"import\s+mindspore\s+as\s+(\w+)", code)
     if m:
         return f"{m.group(1)}.nn"
@@ -155,11 +179,12 @@ def detect_mindspore_prefix(code):
     return "nn"  # 默认
 
 def recursive_convert(expr, prefix):
-    """
-    支持参数中出现多层嵌套 API，例如：
-    nn.Conv2d(..., bias=nn.Linear(...))
-    nn.Sequential(nn.Conv2d(...), nn.Sequential(...))
-    """
+    '''
+        递归转换表达式中的 PyTorch API 为 MindSpore API，支持嵌套
+        例如：
+        "nn.Conv2d(..., bias=nn.Linear(...))" 中的 bias 子表达式也会被转换
+        "nn.Sequential(nn.Conv2d(...), nn.Sequential(...))" 里多层顺序容器会被展开处理
+    '''
     # 尝试匹配所有 API
     for api_name, api_conf in API_MAP.items():
         pt_class = api_conf["pytorch"].split(".")[-1]
@@ -196,6 +221,7 @@ def recursive_convert(expr, prefix):
 def convert_call(code_line, prefix):
     '''
         转换单行代码
+        保留原有缩进，将行内 PyTorch API 替换为 MindSpore，并递归处理嵌套参数
     '''
     stripped = code_line.lstrip()
     indent = code_line[:len(code_line) - len(stripped)]
@@ -212,6 +238,13 @@ def convert_call(code_line, prefix):
 
 
 def fix_missing_commas(lines):
+    '''
+        检测 mindspore 层列表中缺失的逗号，并在注释前补齐
+        例如：
+        ms.nn.ReLU()  # comment
+        ms.nn.Conv2d(...)
+        → ms.nn.ReLU(), # comment
+    '''
     fixed = []
 
     for i, line in enumerate(lines):
@@ -228,7 +261,13 @@ def fix_missing_commas(lines):
 
         # 匹配结构化调用：ms.nn.Xxx(...)
         # 但本行必须以 ')' 结尾（表示一个完整表达式）
-        if code_no_indent.startswith(("ms.nn.", "ms.ops.", "ms.")) and code_no_indent.endswith(")"):
+        if code_no_indent.startswith(("ms.nn.", 
+                                      "ms.ops.", 
+                                      "ms.",
+                                      "ms.mint.nn",
+                                      "ms.mint.ops.", 
+                                      "mint.nn.", 
+                                      "mint.ops.")) and code_no_indent.endswith(")"):
             # 下一行存在且不是右括号
             if i + 1 < len(lines):
                 next_line = lines[i + 1].strip()
@@ -248,6 +287,10 @@ def fix_missing_commas(lines):
 
 
 def convert_code(code):
+    '''
+        将整段 PyTorch 源码转换为 MindSpore 源码
+        逐行调用 convert_call，最后通过 fix_missing_commas 补齐遗漏的逗号
+    '''
     prefix = detect_mindspore_prefix(code)
     output = []
 
@@ -266,6 +309,7 @@ def convert_code(code):
 def generate_diff(old, new):
     '''
         生成原文件和新文件之间的 diff
+        输入为两个字符串，返回 unified diff 字符串便于预览改动
     '''
     old_lines = old.splitlines(keepends=True)
     new_lines = new.splitlines(keepends=True)
@@ -304,4 +348,13 @@ if __name__ == "__main__":
     print("=== 转换 DIFF 开始 ===")
     print(diff)
     print("=== 转换 DIFF 结束 ===")
+
+    # 保存 diff 文件：diff_<original>_<converted>
+    # 统一使用 .diff 后缀便于查看/工具识别
+    diff_filename = f"diff_({os.path.basename(filename)}-{os.path.basename(new_filename)}).diff"
+    diff_path = os.path.join(os.path.dirname(filename) or ".", diff_filename)
+    with open(diff_path, "w", encoding="utf8") as f:
+        f.write(diff)
+    print(f"已保存 diff 到: {diff_path}")
+
     print(f"\n已生成新文件: {new_filename}")
