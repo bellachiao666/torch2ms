@@ -56,47 +56,58 @@ def reconstruct_args(api_conf, pytorch_args):
         if ms_name:
             ms_args[ms_name] = val
 
-    # 关键字参数映射
-    for p in params:
-        pt_name = p["pytorch"]["name"]
-        ms_name = p["mindspore"]["name"]
-
-        if pt_name and pt_name in pytorch_args:
-            if ms_name:
-                ms_args[ms_name] = pytorch_args[pt_name]
-
-    # 默认值不一致，torch 未显式指定 →记录 mismatch
+    # 合并关键字参数处理 + 默认值 mismatch
     for p in params:
         pt = p["pytorch"]
         ms = p["mindspore"]
         pt_name = pt["name"]
         ms_name = ms["name"]
-        if ms_name:
-            #  有对应 MindSpore 参数
-            if (pt_name is not None 
-                and pt["default"] != ms["default"]
-                and pt_name not in pytorch_args
-                and ms_name not in ms_args):
-                # PyTorch 未显式写, 防止null报错写is not None
-                
-                v = pt["default"]
-                if isinstance(v, str):
-                    v = f'"{v}"'
-                ms_args[ms_name] = v
-                # 处理字符串型参数显式补上
-                
-                mismatch_notes.append(f"默认值不一致: {ms_name} (PyTorch={pt['default']}, MindSpore={ms['default']})")
-                # 记录 mismatch
-        else:
-            # 无对应 MindSpore 参数，忽略并记录mismatch
+
+        # ------------------------------------------
+        # ① MindSpore 无对应参数 → 记录并跳过
+        # ------------------------------------------
+        if ms_name is None:
             mismatch_notes.append(f"没有对应的mindspore参数 '{pt_name}'")
+            continue
+
+        # ------------------------------------------
+        # ② 若 PyTorch 显式写了参数 → 优先直接映射
+        # ------------------------------------------
+        if pt_name and pt_name in pytorch_args:
+            ms_args[ms_name] = pytorch_args[pt_name]
+            if pt_name != ms_name:
+                mismatch_notes.append(
+                    f"默认参数名不一致: {ms_name} (PyTorch={pt_name}, MindSpore={ms_name})"
+                )
+            # continue
+
+        # ------------------------------------------
+        # ③ PyTorch 未写，但默认值不同 → 自动补齐 PyTorch 默认值
+        # ------------------------------------------
+        if (
+            pt_name is not None
+            and pt["default"] != ms["default"]
+            # and ms_name not in ms_args
+        ):
+            v = pt["default"]
+            if isinstance(v, str):
+                v = f'"{v}"'
+
+            ms_args[ms_name] = v
+            mismatch_notes.append(
+                f"默认值不一致: {ms_name} (PyTorch={pt['default']}, MindSpore={ms['default']})"
+            )
+
+        # ------------------------------------------
+        # ④ 其他情况：默认值相同、且用户没写 → 什么也不做
+        # ------------------------------------------
         
     # print(ms_args)
     arg_str = ", ".join(f"{k}={v}" for k, v in ms_args.items())
 
     note_str = ""
     if mismatch_notes:
-        note_str = "  # " + "; ".join(mismatch_notes)
+        note_str = " \n # " + "; \n # ".join(mismatch_notes)
 
     return arg_str, note_str
 
@@ -104,7 +115,8 @@ def reconstruct_args(api_conf, pytorch_args):
 
 def detect_mindspore_prefix(code):
     '''
-        检测 mindspore 的导入前缀'''
+        检测 mindspore 的导入前缀
+    '''
     m = re.search(r"import\s+mindspore\s+as\s+(\w+)", code)
     if m:
         return f"{m.group(1)}.nn"
