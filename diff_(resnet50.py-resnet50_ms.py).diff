@@ -30,6 +30,14 @@
                  )
  
          layers.append(Bottleneck(self.inplanes, planes, stride, downsample))
+@@ -80,7 +80,7 @@     def forward(self, x):
+         x = self.conv1(x)
+         x = self.bn1(x)
+-        x = self.relu(x)
++        x = nn.relu(x=x)  # 没有对应的mindspore参数 'inplace'
+         x = self.maxpool(x)
+ 
+         x = self.stack1(x)
 @@ -99,13 +99,13 @@ 
      def __init__(self, inplanes, planes, stride=1, downsample=None):
          super(Bottleneck, self).__init__()
@@ -49,6 +57,27 @@
 +        self.relu = nn.ReLU()  # 没有对应的mindspore参数 'inplace'
          self.downsample = downsample
          self.stride = stride
+ 
+@@ -114,11 +114,11 @@ 
+         out = self.conv1(x)
+         out = self.bn1(out)
+-        out = self.relu(out)
++        out = nn.relu(x=out)  # 没有对应的mindspore参数 'inplace'
+ 
+         out = self.conv2(out)
+         out = self.bn2(out)
+-        out = self.relu(out)
++        out = nn.relu(x=out)  # 没有对应的mindspore参数 'inplace'
+ 
+         out = self.conv3(out)
+         out = self.bn3(out)
+@@ -127,7 +127,7 @@             residual = self.downsample(x)
+ 
+         out += residual
+-        out = self.relu(out)
++        out = nn.relu(x=out)  # 没有对应的mindspore参数 'inplace'
+ 
+         return out
  
 @@ -138,4 +138,3 @@ 
  

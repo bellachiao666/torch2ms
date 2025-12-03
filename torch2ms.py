@@ -204,7 +204,7 @@ def recursive_convert(expr, prefix):
         ms_class = api_conf["mindspore"].split(".")[-1]
 
         # 匹配：pt_class(...)
-        pattern = rf"(\w+\.)?{pt_class}\((.*)\)"
+        pattern =  rf"((?:[\w]+\.)*){pt_class}\((.*)\)"
         m = re.search(pattern, expr)
         if not m:
             continue
@@ -212,8 +212,8 @@ def recursive_convert(expr, prefix):
         prefix_in_expr = m.group(1) or ""
 
         # 避免转换实例属性调用（如 self.relu(...)）
-        if prefix_in_expr.startswith("self"):
-            continue
+        # if prefix_in_expr.startswith("self"):
+        #     continue
 
         arg_str = m.group(2)
         pytorch_args = parse_args(arg_str)

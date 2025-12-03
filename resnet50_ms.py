@@ -80,7 +80,7 @@ class ResNet(nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
-        x = self.relu(x)
+        x = nn.relu(x=x)  # 没有对应的mindspore参数 'inplace'
         x = self.maxpool(x)
 
         x = self.stack1(x)
@@ -114,11 +114,11 @@ class Bottleneck(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = nn.relu(x=out)  # 没有对应的mindspore参数 'inplace'
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = self.relu(out)
+        out = nn.relu(x=out)  # 没有对应的mindspore参数 'inplace'
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -127,7 +127,7 @@ class Bottleneck(nn.Module):
             residual = self.downsample(x)
 
         out += residual
-        out = self.relu(out)
+        out = nn.relu(x=out)  # 没有对应的mindspore参数 'inplace'
 
         return out
 
