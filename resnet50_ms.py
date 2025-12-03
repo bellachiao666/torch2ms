@@ -33,15 +33,15 @@ class ResNet(nn.Module):
         self.modelPath = model_path
         self.conv1 = nn.Conv2d(3, 64, kernel_size = 7, stride = 2, padding = 3,
                                bias = False)
-        nn.BatchNorm2d(num_features=64)
-        nn.ReLU()  # 没有对应的mindspore参数 'inplace'
-        nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.bn1 = nn.BatchNorm2d(num_features=64)
+        self.relu = nn.ReLU()  # 没有对应的mindspore参数 'inplace'
+        self.maxpool = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
         self.stack1 = self.make_stack(64, layers[0])
         self.stack2 = self.make_stack(128, layers[1], stride=2)
         self.stack3 = self.make_stack(256, layers[2], stride=2)
         self.stack4 = self.make_stack(512, layers[3], stride=2)
-        nn.AvgPool2d(kernel_size=7, stride=1)
-        nn.Linear(in_features=512 * Bottleneck.expansion, out_features=num_classes)  # 没有对应的mindspore参数 'None'
+        self.avgpool = nn.AvgPool2d(7, stride = 1)
+        self.fc = nn.Linear(in_features=512 * Bottleneck.expansion, out_features=num_classes)
         # initialize parameters
         self.init_param()
 
@@ -67,7 +67,7 @@ class ResNet(nn.Module):
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * Bottleneck.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(num_features=planes * Bottleneck.expansion)
+                nn.BatchNorm2d(num_features=planes * Bottleneck.expansion),
                 )
 
         layers.append(Bottleneck(self.inplanes, planes, stride, downsample))
@@ -75,7 +75,7 @@ class ResNet(nn.Module):
         for i in range(1, blocks):
             layers.append(Bottleneck(self.inplanes, planes))
 
-        nn.Sequential()
+        return nn.Sequential(*layers)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -99,13 +99,13 @@ class Bottleneck(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
-        nn.Conv2d(in_channels=inplanes, out_channels=planes, kernel_size=1, bias=False)
-        nn.BatchNorm2d(num_features=planes)
-        nn.Conv2d(in_channels=planes, out_channels=planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        nn.BatchNorm2d(num_features=planes)
-        nn.Conv2d(in_channels=planes, out_channels=planes * 4, kernel_size=1, bias=False)
-        nn.BatchNorm2d(num_features=planes * 4)
-        nn.ReLU()  # 没有对应的mindspore参数 'inplace'
+        self.conv1 = nn.Conv2d(in_channels=inplanes, out_channels=planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(num_features=planes)
+        self.conv2 = nn.Conv2d(in_channels=planes, out_channels=planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(num_features=planes)
+        self.conv3 = nn.Conv2d(in_channels=planes, out_channels=planes * 4, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(num_features=planes * 4)
+        self.relu = nn.ReLU()  # 没有对应的mindspore参数 'inplace'
         self.downsample = downsample
         self.stride = stride
 

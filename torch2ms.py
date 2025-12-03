@@ -72,9 +72,19 @@ def reconstruct_args(api_conf, pytorch_args):
     '''
     ms_args = {}
     mismatch_notes = []
-
     positional = pytorch_args.get("__positional__", [])
     params = api_conf["params"]
+
+    # 若参数列表为空（如 Sequential 可变长），直接透传实参顺序
+    if not params:
+        arg_items = []
+        arg_items.extend(positional)
+        for k, v in pytorch_args.items():
+            if k == "__positional__":
+                continue
+            arg_items.append(f"{k}={v}")
+        arg_str = ", ".join(arg_items)
+        return arg_str, ""
 
     # 位置参数映射
     for i, val in enumerate(positional):
@@ -91,6 +101,8 @@ def reconstruct_args(api_conf, pytorch_args):
         ms = p["mindspore"]
         pt_name = pt["name"]
         ms_name = ms["name"]
+        pt_def = pt.get("default")
+        ms_def = ms.get("default")
 
         # ------------------------------------------
         # ① MindSpore 无对应参数 → 记录并跳过
@@ -115,16 +127,17 @@ def reconstruct_args(api_conf, pytorch_args):
         # ------------------------------------------
         if (
             pt_name is not None
-            and pt["default"] != ms["default"]
-            # and ms_name not in ms_args
+            and pt_def is not None
+            and ms_def is not None
+            and pt_def != ms_def
         ):
-            v = pt["default"]
+            v = pt_def
             if isinstance(v, str):
                 v = f'"{v}"'
 
             ms_args[ms_name] = v
             mismatch_notes.append(
-                f"默认值不一致: {ms_name} (PyTorch={pt['default']}, MindSpore={ms['default']})"
+                f"默认值不一致: {ms_name} (PyTorch={pt_def}, MindSpore={ms_def})"
             )
 
         # ------------------------------------------
@@ -196,6 +209,12 @@ def recursive_convert(expr, prefix):
         if not m:
             continue
 
+        prefix_in_expr = m.group(1) or ""
+
+        # 避免转换实例属性调用（如 self.relu(...)）
+        if prefix_in_expr.startswith("self"):
+            continue
+
         arg_str = m.group(2)
         pytorch_args = parse_args(arg_str)
 
@@ -212,7 +231,8 @@ def recursive_convert(expr, prefix):
         ms_arg_str, note = reconstruct_args(api_conf, pytorch_args)
         new_expr = f"{prefix}.{ms_class}({ms_arg_str}){note}"
 
-        return new_expr
+        # 保留原表达式中匹配前后的内容（例如赋值左值）
+        return expr[:m.start()] + new_expr + expr[m.end():]
 
     # 不匹配任何 API → 返回原样
     return expr

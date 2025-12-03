@@ -87,6 +87,14 @@
       { "logical":"bias",         "pytorch":{"name":"bias","default":true},       "mindspore":{"name":"bias","default":true} }
     ]
   },
+
+  "ReLU": {
+    "pytorch": "torch.nn.ReLU",
+    "mindspore": "mindspore.mint.nn.ReLU",
+    "params": [
+      { "logical":"inplace", "pytorch":{"name":"inplace","default":false}, "mindspore":{"name":null,"default":null} }
+    ]
+  },
   "BatchNorm1d": {
     "pytorch": "torch.nn.BatchNorm1d",
     "mindspore": "mindspore.mint.nn.BatchNorm1d",
@@ -205,8 +213,6 @@
       { "logical": "ceil_mode",   "pytorch":{"name":"ceil_mode","default":false}, "mindspore":{"name":"ceil_mode","default":false} }
     ]
   }
-
   
 }
 }
-
