@@ -793,7 +793,7 @@ if __name__ == "__main__":
         print("用法: python torch2ms.py input.py")
         sys.exit(0)
 
-    filename = sys.argv[1]
+    filename = "./input/" + sys.argv[1]
 
     with open(filename, "r", encoding="utf8") as f:
         code = f.read()
@@ -801,7 +801,7 @@ if __name__ == "__main__":
     result = convert_code(code)
 
     base, ext = os.path.splitext(filename)
-    new_filename = f"{base}_ms{ext}"
+    new_filename = f"./output/{os.path.basename(base)}_ms{ext}"
 
     with open(new_filename, "w", encoding="utf8") as f:
         f.write(result)
@@ -812,7 +812,7 @@ if __name__ == "__main__":
     print("=== 转换 DIFF 结束 ===")
 
     diff_filename = f"diff_({os.path.basename(filename)}-{os.path.basename(new_filename)}).diff"
-    diff_path = os.path.join(os.path.dirname(filename) or ".", diff_filename)
+    diff_path = os.path.join("./diff", diff_filename)
     with open(diff_path, "w", encoding="utf8") as f:
         f.write(diff)
     print(f"已保存 diff 到: {diff_path}")
