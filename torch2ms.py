@@ -39,7 +39,11 @@ class _MindSporeImportCollector(cst.CSTVisitor):
     def visit_Import(self, node: cst.Import) -> None:
         for name in node.names:
             module = cst_helpers.get_full_name_for_node(name.name)
-            alias = getattr(name, "evaluated_name", None) or module
+            alias = (
+                name.asname.name.value
+                if getattr(name, "asname", None)
+                else getattr(name, "evaluated_name", None)
+            ) or module
             self._maybe_record(module, alias)
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
@@ -52,7 +56,11 @@ class _MindSporeImportCollector(cst.CSTVisitor):
         for name in node.names:
             if isinstance(name, cst.ImportStar):
                 continue
-            alias = getattr(name, "evaluated_name", None) or name.name.value
+            alias = (
+                name.asname.name.value
+                if getattr(name, "asname", None)
+                else getattr(name, "evaluated_name", None)
+            ) or name.name.value
             full_module = f"{module_name}.{name.name.value}"
             self._maybe_record(full_module, alias)
 
@@ -66,6 +74,124 @@ def collect_mindspore_aliases(module: cst.Module) -> dict:
     return collector.alias_by_module
 
 
+class _TorchImportCollector(cst.CSTVisitor):
+    """
+    收集 torch 模块别名，记录 alias -> module 完整路径。
+    """
+
+    def __init__(self) -> None:
+        self.module_by_alias = {}
+
+    def _maybe_record(self, module: str, alias: str) -> None:
+        if not module or not module.startswith("torch"):
+            return
+        self.module_by_alias[alias] = module
+
+    def visit_Import(self, node: cst.Import) -> None:
+        for name in node.names:
+            module = cst_helpers.get_full_name_for_node(name.name)
+            alias = (
+                name.asname.name.value
+                if getattr(name, "asname", None)
+                else getattr(name, "evaluated_name", None)
+            ) or module
+            self._maybe_record(module, alias)
+
+    def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
+        if node.module is None:
+            return
+        module_name = cst_helpers.get_full_name_for_node(node.module)
+        if not module_name or not module_name.startswith("torch"):
+            return
+
+        for name in node.names:
+            if isinstance(name, cst.ImportStar):
+                continue
+            alias = (
+                name.asname.name.value
+                if getattr(name, "asname", None)
+                else getattr(name, "evaluated_name", None)
+            ) or name.name.value
+            full_module = f"{module_name}.{name.name.value}"
+            self._maybe_record(full_module, alias)
+
+
+def collect_torch_aliases(module: cst.Module) -> dict:
+    collector = _TorchImportCollector()
+    module.visit(collector)
+    return collector.module_by_alias
+
+
+class _TorchAliasAssignmentCollector(cst.CSTVisitor):
+    """
+    记录简单赋值形成的别名映射，例如: `myconv = nn.Conv2d`。
+    """
+
+    def __init__(self, api_by_class: dict, pt_aliases: dict) -> None:
+        self.api_by_class = api_by_class
+        self.pt_aliases = pt_aliases
+        self.alias_to_pt = {}
+        self.alias_to_pt_wrapped = {}
+
+
+    def _resolve_pt_full_name(self, full_name: Optional[str]) -> Optional[str]:
+        if not full_name:
+            return None
+
+        parts = full_name.split(".")
+        for i in range(len(parts), 0, -1):
+            prefix = ".".join(parts[:i])
+            module = self.pt_aliases.get(prefix)
+            if module:
+                suffix = parts[i:]
+                if suffix:
+                    return ".".join([module, *suffix])
+                return module
+
+        if full_name.startswith("torch"):
+            return full_name
+        return None
+
+    def _maybe_record_alias(self, target: cst.CSTNode, value: cst.CSTNode) -> None:
+        if not isinstance(target, cst.Name):
+            return
+        if value is None:
+            return
+        if isinstance(value, cst.Call):
+            return
+
+        alias_name = target.value
+        value_full = cst_helpers.get_full_name_for_node(value)
+        root = value_full.split(".")[0] if value_full else None
+        if root in {"self", "cls"}:
+            return
+
+        pt_full_name = self._resolve_pt_full_name(value_full)
+        if pt_full_name and pt_full_name.startswith("torch"):
+            self.alias_to_pt[alias_name] = pt_full_name
+            return
+
+        if value_full:
+            class_name = value_full.split(".")[-1]
+            api_conf = self.api_by_class.get(class_name)
+            if api_conf:
+                self.alias_to_pt_wrapped[alias_name] = api_conf["pytorch"]
+
+    def visit_Assign(self, node: cst.Assign) -> None:
+        if len(node.targets) != 1:
+            return
+        self._maybe_record_alias(node.targets[0].target, node.value)
+
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> None:
+        self._maybe_record_alias(node.target, node.value)
+
+
+def collect_torch_assignment_aliases(module: cst.Module, api_by_class: dict, pt_aliases: dict) -> dict:
+    collector = _TorchAliasAssignmentCollector(api_by_class, pt_aliases)
+    module.visit(collector)
+    return collector.alias_to_pt, collector.alias_to_pt_wrapped
+
+
 class TorchToMindSporeTransformer(cst.CSTTransformer):
     """
     使用 LibCST 将 PyTorch API 调用改写为 MindSpore 调用。
@@ -73,13 +199,26 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.ParentNodeProvider,)
 
-    def __init__(self, api_map, ms_aliases: Optional[dict] = None) -> None:
+    def __init__(
+        self,
+        api_map,
+        ms_aliases: Optional[dict] = None,
+        pt_aliases: Optional[dict] = None,
+        pt_assignment_aliases: Optional[dict] = None,
+        pt_assignment_wrapped: Optional[dict] = None,
+    ) -> None:
         super().__init__()
         self.api_map = api_map
         self.ms_aliases = ms_aliases or {}
+        self.pt_aliases = pt_aliases or {}
+        self.pt_assignment_aliases = pt_assignment_aliases or {}
+        self.pt_assignment_wrapped = pt_assignment_wrapped or {}
         self.notes_by_stmt = defaultdict(list)
         self.api_by_class = {
             conf["pytorch"].split(".")[-1]: conf for conf in api_map.values()
+        }
+        self.api_by_pt_full = {
+            conf["pytorch"]: conf for conf in api_map.values()
         }
 
     def _find_enclosing_stmt(self, node: cst.CSTNode) -> Optional[cst.CSTNode]:
@@ -107,6 +246,30 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                     return ".".join([alias, *suffix])
                 return alias
         return full_path
+
+    def _resolve_pt_full_name(self, full_path: Optional[str]) -> Optional[str]:
+        """
+        将调用名还原成完整的 PyTorch 路径，避免将同名自定义方法误判为 torch API。
+        """
+        if not full_path:
+            return None
+
+        if full_path in self.pt_assignment_aliases:
+            return self.pt_assignment_aliases[full_path]
+
+        parts = full_path.split(".")
+        for i in range(len(parts), 0, -1):
+            prefix = ".".join(parts[:i])
+            module = self.pt_aliases.get(prefix)
+            if module:
+                suffix = parts[i:]
+                if suffix:
+                    return ".".join([module, *suffix])
+                return module
+
+        if full_path.startswith("torch"):
+            return full_path
+        return None
 
     def _reconstruct_args(self, call: cst.Call, api_conf):
         params = api_conf["params"]
@@ -172,22 +335,31 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         full_name = cst_helpers.get_full_name_for_node(updated_node.func)
-        if not full_name:
-            return updated_node
+        pt_full_name = self._resolve_pt_full_name(full_name)
+        api_conf = None
 
-        api_conf = self.api_by_class.get(full_name.split(".")[-1])
-        if not api_conf:
-            return updated_node
+        if pt_full_name:
+            api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(pt_full_name.split(".")[-1])
+            if api_conf:
+                new_args, notes = self._reconstruct_args(updated_node, api_conf)
+                ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+                new_callee = cst.parse_expression(ms_full_name)
+                new_call = updated_node.with_changes(func=new_callee, args=new_args)
+                if notes:
+                    self._record_note(original_node, notes)
+                return new_call
 
-        new_args, notes = self._reconstruct_args(updated_node, api_conf)
-        ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
-        new_callee = cst.parse_expression(ms_full_name)
-        new_call = updated_node.with_changes(func=new_callee, args=new_args)
+        wrapper_pt_full = self.pt_assignment_wrapped.get(full_name)
+        if wrapper_pt_full:
+            api_conf = self.api_by_pt_full.get(wrapper_pt_full) or self.api_by_class.get(wrapper_pt_full.split(".")[-1])
+            if api_conf:
+                new_args, notes = self._reconstruct_args(updated_node, api_conf)
+                new_call = updated_node.with_changes(args=new_args)
+                if notes:
+                    self._record_note(original_node, notes)
+                return new_call
 
-        if notes:
-            self._record_note(original_node, notes)
-
-        return new_call
+        return updated_node
 
     def leave_SimpleStatementLine(
         self,
@@ -218,8 +390,21 @@ def convert_code(code: str) -> str:
     """
     module = cst.parse_module(code)
     ms_aliases = collect_mindspore_aliases(module)
+    api_by_class = {
+        conf["pytorch"].split(".")[-1]: conf for conf in API_MAP.values()
+    }
+    pt_aliases = collect_torch_aliases(module)
+    pt_assignment_aliases, pt_assignment_wrapped = collect_torch_assignment_aliases(module, api_by_class, pt_aliases)
     wrapper = metadata.MetadataWrapper(module)
-    new_module = wrapper.visit(TorchToMindSporeTransformer(API_MAP, ms_aliases))
+    new_module = wrapper.visit(
+        TorchToMindSporeTransformer(
+            API_MAP,
+            ms_aliases=ms_aliases,
+            pt_aliases=pt_aliases,
+            pt_assignment_aliases=pt_assignment_aliases,
+            pt_assignment_wrapped=pt_assignment_wrapped,
+        )
+    )
     return new_module.code
 
 

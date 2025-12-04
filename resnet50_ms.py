@@ -31,16 +31,16 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.inplanes = 64
         self.modelPath = model_path
-        self.conv1 = mindspore.mint.nn.Conv2d(in_channels = 3, out_channels = 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
-        self.bn1 = mindspore.mint.nn.BatchNorm2d(num_features = 64)
-        self.relu = mindspore.mint.nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
+        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
+        self.bn1 = nn.BatchNorm2d(num_features = 64)
+        self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
         self.maxpool = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
         self.stack1 = self.make_stack(64, layers[0])
         self.stack2 = self.make_stack(128, layers[1], stride=2)
         self.stack3 = self.make_stack(256, layers[2], stride=2)
         self.stack4 = self.make_stack(512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7, stride = 1)
-        self.fc = mindspore.mint.nn.Linear(in_features = 512 * Bottleneck.expansion, out_features = num_classes)
+        self.fc = nn.Linear(in_features = 512 * Bottleneck.expansion, out_features = num_classes)
         # initialize parameters
         self.init_param()
 
@@ -64,8 +64,8 @@ class ResNet(nn.Module):
             
         if stride != 1 or self.inplanes != planes * Bottleneck.expansion:
             downsample = nn.Sequential(
-                mindspore.mint.nn.Conv2d(in_channels = self.inplanes, out_channels = planes * Bottleneck.expansion, kernel_size = 1, stride = stride, bias = False),
-                mindspore.mint.nn.BatchNorm2d(num_features = planes * Bottleneck.expansion),
+                nn.Conv2d(in_channels = self.inplanes, out_channels = planes * Bottleneck.expansion, kernel_size = 1, stride = stride, bias = False),
+                nn.BatchNorm2d(num_features = planes * Bottleneck.expansion),
                 )
 
         layers.append(Bottleneck(self.inplanes, planes, stride, downsample))
@@ -78,7 +78,7 @@ class ResNet(nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
-        x = mindspore.mint.ops.relu(x = x)  # 'torch.nn.functional.relu':没有对应的mindspore参数 'inplace';
+        x = self.relu(x)
         x = self.maxpool(x)
 
         x = self.stack1(x)
@@ -97,13 +97,13 @@ class Bottleneck(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
-        self.conv1 = mindspore.mint.nn.Conv2d(in_channels = inplanes, out_channels = planes, kernel_size = 1, bias = False)
-        self.bn1 = mindspore.mint.nn.BatchNorm2d(num_features = planes)
-        self.conv2 = mindspore.mint.nn.Conv2d(in_channels = planes, out_channels = planes, kernel_size = 3, stride = stride, padding = 1, bias = False)
-        self.bn2 = mindspore.mint.nn.BatchNorm2d(num_features = planes)
-        self.conv3 = mindspore.mint.nn.Conv2d(in_channels = planes, out_channels = planes * 4, kernel_size = 1, bias = False)
-        self.bn3 = mindspore.mint.nn.BatchNorm2d(num_features = planes * 4)
-        self.relu = mindspore.mint.nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
+        self.conv1 = nn.Conv2d(in_channels = inplanes, out_channels = planes, kernel_size = 1, bias = False)
+        self.bn1 = nn.BatchNorm2d(num_features = planes)
+        self.conv2 = nn.Conv2d(in_channels = planes, out_channels = planes, kernel_size = 3, stride = stride, padding = 1, bias = False)
+        self.bn2 = nn.BatchNorm2d(num_features = planes)
+        self.conv3 = nn.Conv2d(in_channels = planes, out_channels = planes * 4, kernel_size = 1, bias = False)
+        self.bn3 = nn.BatchNorm2d(num_features = planes * 4)
+        self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
         self.downsample = downsample
         self.stride = stride
 
@@ -112,11 +112,11 @@ class Bottleneck(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = mindspore.mint.ops.relu(x = out)  # 'torch.nn.functional.relu':没有对应的mindspore参数 'inplace';
+        out = self.relu(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = mindspore.mint.ops.relu(x = out)  # 'torch.nn.functional.relu':没有对应的mindspore参数 'inplace';
+        out = self.relu(out)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -125,7 +125,7 @@ class Bottleneck(nn.Module):
             residual = self.downsample(x)
 
         out += residual
-        out = mindspore.mint.ops.relu(x = out)  # 'torch.nn.functional.relu':没有对应的mindspore参数 'inplace';
+        out = self.relu(out)
 
         return out
 

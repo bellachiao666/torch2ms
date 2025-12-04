@@ -17,39 +17,34 @@ class MintLikeModel(nn.Module):
 
         # 基础卷积
         self.stem = nn.Sequential(
-            nn.Conv2d(in_channels = in_channels, out_channels = 32, kernel_size = 3, padding = 1, bias = False),
-            nn.BatchNorm2d(num_features = 32),
-            nn.ReLU(),
-        )  # 没有对应的mindspore参数 'inplace'
+            mindspore.mint.nn.Conv2d(in_channels = in_channels, out_channels = 32, kernel_size = 3, padding = 1, bias = False),
+            mindspore.mint.nn.BatchNorm2d(num_features = 32),
+            mindspore.mint.nn.ReLU(),
+        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
 
         # 测试 mint.nn 前缀，你的转换器需要把这些都转换掉
         # 包含关键字缺省、参数顺序、字段不一致等情况
         self.block = nn.Sequential(
-            nn.Conv2d(
-                in_channels = 32, out_channels = 64, kernel_size = 3, stride = 1, padding = 1, bias = nn.Linear(in_features = 1, out_features = 1)),
+            mindspore.mint.nn.Conv2d(
+                in_channels = 32, out_channels = 64, kernel_size = 3, stride = 1, padding = 1, bias = mindspore.mint.nn.Linear(in_features = 1, out_features = 1)),
 
             nn.Sequential(
-                nn.ReLU(),
-                nn.Conv2d(
+                mindspore.mint.nn.ReLU(),
+                mindspore.mint.nn.Conv2d(
                     in_channels = 64, out_channels = 64, kernel_size = 3, padding = 1, bias = False),
             ),
 
             # 使用 wrapper 前缀调用
             myconv(
-                64,
-                128,
-                kernel_size=3,
-                padding=1,
-                bias=False
-            ),
-        )  # 没有对应的mindspore参数 'inplace'
+                in_channels = 64, out_channels = 128, kernel_size = 3, padding = 1, bias = False),
+        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
 
         # 全连接部分
         self.classifier = nn.Sequential(
-            nn.Linear(in_features = 128 * 7 * 7, out_features = num_classes),
-            nn.ReLU(),
-            nn.Linear(in_features = num_classes, out_features = num_classes)
-        )  # 没有对应的mindspore参数 'inplace'
+            mindspore.mint.nn.Linear(in_features = 128 * 7 * 7, out_features = num_classes),
+            mindspore.mint.nn.ReLU(),
+            mindspore.mint.nn.Linear(in_features = num_classes, out_features = num_classes)
+        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
 
 
     def forward(self, x):
@@ -71,6 +66,6 @@ class MintLikeModel(nn.Module):
         x = self.classifier(x)
 
         # 测试 F.xxx 不应误伤
-        x = nn.softmax(x = x, axis = 1)  # 默认参数名不一致: axis (PyTorch=dim, MindSpore=axis)
+        x = mindspore.mint.ops.softmax(x = x, axis = 1)  # 'torch.nn.functional.softmax':默认参数名不一致: axis (PyTorch=dim, MindSpore=axis);
 
         return x
