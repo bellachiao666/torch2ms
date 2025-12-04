@@ -1,336 +1,223 @@
-import json
-import re
-import sys
 import difflib
+import json
 import os
+import sys
+from collections import OrderedDict, defaultdict
+from typing import Optional
+
+import libcst as cst
+from libcst import helpers as cst_helpers
+from libcst import metadata
 
 
 with open("api_map.json", "r", encoding="utf8") as f:
     API_MAP = json.load(f)["apis"]
 
 
-def split_args(arg_str):
-    '''
-        split 参数字符串为逗号分隔的片段，考虑括号嵌套
-        例如：
-        "a, b(c, d), e" 解析为 ["a", "b(c, d)", "e"]
-    '''
-    args = []
-    current = ""
-    depth = 0
-
-    for c in arg_str:
-        if c == "(":
-            depth += 1
-        elif c == ")":
-            depth -= 1
-
-        if c == "," and depth == 0:
-            args.append(current.strip())
-            current = ""
-        else:
-            current += c
-
-    if current.strip():
-        args.append(current.strip())
-
-    return args
+def _literal_to_expr(value):
+    """
+    将 API 默认值转成 LibCST 表达式。
+    """
+    return cst.parse_expression(repr(value))
 
 
-def parse_args(arg_str):
-    '''
-        capture 参数字符串，分离位置参数和关键字参数
-        例如：
-        "3, 64, 3, bias=False" 解析为
-        {
-            "__positional__": ["3","64","3"],
-            "bias": "False"
-        }
-    '''
-    args = {"__positional__": []}
+class _MindSporePrefixDetector(cst.CSTVisitor):
+    """
+    读取导入语句，推断 MindSpore 前缀（兼容 mint）。
+    """
 
-    if not arg_str.strip():
-        return args
+    def __init__(self) -> None:
+        self.prefix = None
 
-    parts = split_args(arg_str)
+    def visit_Import(self, node: cst.Import) -> None:
+        if self.prefix:
+            return
+        for name in node.names:
+            module = cst_helpers.get_full_name_for_node(name.name)
+            alias = getattr(name, "evaluated_name", None) or module
+            if module == "mindspore.mint":
+                self.prefix = f"{alias}.nn"
+                return
+            if module == "mindspore.mint.nn":
+                self.prefix = alias
+                return
+            if module == "mindspore":
+                self.prefix = f"{alias}.nn"
+                return
+            if module == "mindspore.nn":
+                self.prefix = alias
+                return
 
-    for part in parts:
-        if "=" in part:
-            k, v = part.split("=", 1)
-            args[k.strip()] = v.strip()
-        else:
-            args["__positional__"].append(part)
-
-    return args
-
-
-def reconstruct_args(api_conf, pytorch_args):
-    '''
-        根据 api_conf 和 pytorch_args 重构 MindSpore 参数字符串
-        同时记录默认值不一致的参数
-        例如：{"__positional__": ["3","64"], "bias": "False"} → "in_channels=3, out_channels=64, has_bias=False"
-    '''
-    ms_args = {}
-    mismatch_notes = []
-    positional = pytorch_args.get("__positional__", [])
-    params = api_conf["params"]
-
-    # 若参数列表为空（如 Sequential 可变长），直接透传实参顺序
-    if not params:
-        arg_items = []
-        arg_items.extend(positional)
-        for k, v in pytorch_args.items():
-            if k == "__positional__":
+    def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
+        if self.prefix or node.module is None:
+            return
+        module_name = cst_helpers.get_full_name_for_node(node.module)
+        if module_name not in ("mindspore", "mindspore.mint"):
+            return
+        for name in node.names:
+            if isinstance(name, cst.ImportStar):
                 continue
-            arg_items.append(f"{k}={v}")
-        arg_str = ", ".join(arg_items)
-        return arg_str, ""
-
-    # 位置参数映射
-    for i, val in enumerate(positional):
-        if i >= len(params):
-            break
-        p = params[i]
-        ms_name = p["mindspore"]["name"]
-        if ms_name:
-            ms_args[ms_name] = val
-
-    # 合并关键字参数处理 + 默认值 mismatch
-    for p in params:
-        pt = p["pytorch"]
-        ms = p["mindspore"]
-        pt_name = pt["name"]
-        ms_name = ms["name"]
-        pt_def = pt.get("default")
-        ms_def = ms.get("default")
-
-        # ------------------------------------------
-        # ① MindSpore 无对应参数 → 记录并跳过
-        # ------------------------------------------
-        if ms_name is None:
-            mismatch_notes.append(f"没有对应的mindspore参数 '{pt_name}'")
-            continue
-
-        # ------------------------------------------
-        # ② 若 PyTorch 显式写了参数 → 优先直接映射
-        # ------------------------------------------
-        if pt_name and pt_name in pytorch_args:
-            ms_args[ms_name] = pytorch_args[pt_name]
-            if pt_name != ms_name:
-                mismatch_notes.append(
-                    f"默认参数名不一致: {ms_name} (PyTorch={pt_name}, MindSpore={ms_name})"
-                )
-            continue
-
-        # ------------------------------------------
-        # ③ PyTorch 未写，但默认值不同 → 自动补齐 PyTorch 默认值
-        # ------------------------------------------
-        if (
-            pt_name is not None
-            and pt_def is not None
-            and ms_def is not None
-            and pt_def != ms_def
-        ):
-            v = pt_def
-            if isinstance(v, str):
-                v = f'"{v}"'
-
-            ms_args[ms_name] = v
-            mismatch_notes.append(
-                f"默认值不一致: {ms_name} (PyTorch={pt_def}, MindSpore={ms_def})"
-            )
-
-        # ------------------------------------------
-        # ④ 其他情况：默认值相同、且用户没写 → 什么也不做
-        # ------------------------------------------
-        
-    # print(ms_args)
-    arg_str = ", ".join(f"{k}={v}" for k, v in ms_args.items())
-
-    note_str = ""
-    if mismatch_notes:
-        # 单行注释，不插入换行，不破坏原有逗号和结构
-        note_str = "  # " + "; ".join(mismatch_notes)
-
-    return arg_str, note_str
+            alias = getattr(name, "evaluated_name", None) or name.name.value
+            if alias == "nn":
+                self.prefix = "nn"
+                return
 
 
+def detect_mindspore_prefix(module: cst.Module) -> str:
+    """
+    根据导入语句寻找 MindSpore 前缀，默认为 nn。
+    """
+    detector = _MindSporePrefixDetector()
+    module.visit(detector)
+    return detector.prefix or "nn"
 
-def detect_mindspore_prefix(code):
-    '''
-        检测 mindspore 的导入前缀
-        例如：
-        "import mindspore as ms" → 返回 "ms.nn"
-        "from mindspore import nn" → 返回 "nn"
-        同理支持 mint 子模块：
-        "import mindspore.mint as mt" → 返回 "mt.nn"
-        "from mindspore.mint import nn" → 返回 "nn"
-    '''
-    # mindspore.mint 相关导入
-    m = re.search(r"import\s+mindspore\.mint\s+as\s+(\w+)", code)
-    if m:
-        return f"{m.group(1)}.nn"
 
-    m = re.search(r"import\s+mindspore\.mint\.nn\s+as\s+(\w+)", code)
-    if m:
-        return m.group(1)
+class TorchToMindSporeTransformer(cst.CSTTransformer):
+    """
+    使用 LibCST 将 PyTorch API 调用改写为 MindSpore 调用。
+    """
 
-    if re.search(r"from\s+mindspore\.mint\s+import\s+nn", code):
-        return "nn"
+    METADATA_DEPENDENCIES = (metadata.ParentNodeProvider,)
 
-    m = re.search(r"import\s+mindspore\s+as\s+(\w+)", code)
-    if m:
-        return f"{m.group(1)}.nn"
+    def __init__(self, api_map, ms_prefix: str) -> None:
+        super().__init__()
+        self.api_map = api_map
+        self.ms_prefix = ms_prefix
+        self.notes_by_stmt = defaultdict(list)
+        self.api_by_class = {
+            conf["pytorch"].split(".")[-1]: conf for conf in api_map.values()
+        }
 
-    m = re.search(r"import\s+mindspore\.nn\s+as\s+(\w+)", code)
-    if m:
-        return m.group(1)
+    def _find_enclosing_stmt(self, node: cst.CSTNode) -> Optional[cst.CSTNode]:
+        parent = self.get_metadata(metadata.ParentNodeProvider, node, None)
+        while parent is not None and not isinstance(parent, cst.SimpleStatementLine):
+            parent = self.get_metadata(metadata.ParentNodeProvider, parent, None)
+        return parent
 
-    if re.search(r"from\s+mindspore\s+import\s+nn", code):
-        return "nn"
+    def _record_note(self, node: cst.CSTNode, notes) -> None:
+        stmt = self._find_enclosing_stmt(node)
+        if stmt is not None:
+            self.notes_by_stmt[stmt].extend(notes)
 
-    return "nn"  # 默认
+    def _reconstruct_args(self, call: cst.Call, api_conf):
+        params = api_conf["params"]
+        if not params:
+            return call.args, []
 
-def recursive_convert(expr, prefix):
-    '''
-        递归转换表达式中的 PyTorch API 为 MindSpore API，支持嵌套
-        例如：
-        "nn.Conv2d(..., bias=nn.Linear(...))" 中的 bias 子表达式也会被转换
-        "nn.Sequential(nn.Conv2d(...), nn.Sequential(...))" 里多层顺序容器会被展开处理
-    '''
-    # 尝试匹配所有 API
-    for api_name, api_conf in API_MAP.items():
-        pt_class = api_conf["pytorch"].split(".")[-1]
-        ms_class = api_conf["mindspore"].split(".")[-1]
-
-        # 匹配：pt_class(...)
-        pattern =  rf"((?:[\w]+\.)*){pt_class}\((.*)\)"
-        m = re.search(pattern, expr)
-        if not m:
-            continue
-
-        prefix_in_expr = m.group(1) or ""
-
-        # 避免转换实例属性调用（如 self.relu(...)）
-        # if prefix_in_expr.startswith("self"):
-        #     continue
-
-        arg_str = m.group(2)
-        pytorch_args = parse_args(arg_str)
-
-        # --- 递归转换关键字参数 ---
-        for k in list(pytorch_args.keys()):
-            if k == "__positional__":
-                pytorch_args["__positional__"] = [
-                    recursive_convert(v, prefix)
-                    for v in pytorch_args["__positional__"]
-                ]
+        positional_values = []
+        keyword_values = {}
+        for arg in call.args:
+            if arg.star:
+                return call.args, []  # 避免破坏 *args/**kwargs
+            if arg.keyword is None:
+                positional_values.append(arg.value)
             else:
-                pytorch_args[k] = recursive_convert(pytorch_args[k], prefix)
+                keyword_values[arg.keyword.value] = arg.value
 
-        ms_arg_str, note = reconstruct_args(api_conf, pytorch_args)
-        new_expr = f"{prefix}.{ms_class}({ms_arg_str}){note}"
+        ms_args = OrderedDict()
+        mismatch_notes = []
 
-        # 保留原表达式中匹配前后的内容（例如赋值左值）
-        return expr[:m.start()] + new_expr + expr[m.end():]
+        for i, val in enumerate(positional_values):
+            if i >= len(params):
+                break
+            ms_name = params[i]["mindspore"]["name"]
+            if ms_name:
+                ms_args[ms_name] = val
 
-    # 不匹配任何 API → 返回原样
-    return expr
+        for p in params:
+            pt = p["pytorch"]
+            ms = p["mindspore"]
+            pt_name = pt.get("name")
+            ms_name = ms.get("name")
+            pt_def = pt.get("default")
+            ms_def = ms.get("default")
 
+            if ms_name is None:
+                mismatch_notes.append(f"没有对应的mindspore参数 '{pt_name}'")
+                continue
 
-def convert_call(code_line, prefix):
-    '''
-        转换单行代码
-        保留原有缩进，将行内 PyTorch API 替换为 MindSpore，并递归处理嵌套参数
-    '''
-    stripped = code_line.lstrip()
-    indent = code_line[:len(code_line) - len(stripped)]
+            if pt_name and pt_name in keyword_values:
+                ms_args[ms_name] = keyword_values[pt_name]
+                if pt_name != ms_name:
+                    mismatch_notes.append(
+                        f"默认参数名不一致: {ms_name} (PyTorch={pt_name}, MindSpore={ms_name})"
+                    )
+                continue
 
-    converted = recursive_convert(stripped, prefix)
+            if (
+                pt_name is not None
+                and pt_def is not None
+                and ms_def is not None
+                and pt_def != ms_def
+            ):
+                ms_args[ms_name] = _literal_to_expr(pt_def)
+                mismatch_notes.append(
+                    f"默认值不一致: {ms_name} (PyTorch={pt_def}, MindSpore={ms_def})"
+                )
 
-    converted_lines = converted.split("\n")
-    converted_lines = [
-        indent + line if line.strip() else line
-        for line in converted_lines
-    ]
-    return "\n".join(converted_lines)
+        new_args = [
+            cst.Arg(keyword=cst.Name(k), value=v)
+            for k, v in ms_args.items()
+        ]
+        return new_args, mismatch_notes
 
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
+        full_name = cst_helpers.get_full_name_for_node(updated_node.func)
+        if not full_name:
+            return updated_node
 
+        api_conf = self.api_by_class.get(full_name.split(".")[-1])
+        if not api_conf:
+            return updated_node
 
-def fix_missing_commas(lines):
-    '''
-        检测 mindspore 层列表中缺失的逗号，并在注释前补齐
-        例如：
-        ms.nn.ReLU()  # comment
-        ms.nn.Conv2d(...)
-        → ms.nn.ReLU(), # comment
-    '''
-    fixed = []
+        new_args, notes = self._reconstruct_args(updated_node, api_conf)
+        ms_class = api_conf["mindspore"].split(".")[-1]
+        new_callee = cst.parse_expression(f"{self.ms_prefix}.{ms_class}")
+        new_call = updated_node.with_changes(func=new_callee, args=new_args)
 
-    for i, line in enumerate(lines):
-        comment_part = ""
-        code_part = line
+        if notes:
+            self._record_note(original_node, notes)
 
-        # 分离注释，避免末尾 ')' 被注释覆盖
-        if "#" in line:
-            code_part, comment_part = line.split("#", 1)
-            comment_part = "#" + comment_part
+        return new_call
 
-        code_part = code_part.rstrip()
-        code_no_indent = code_part.lstrip()
+    def leave_SimpleStatementLine(
+        self,
+        original_node: cst.SimpleStatementLine,
+        updated_node: cst.SimpleStatementLine,
+    ) -> cst.SimpleStatementLine:
+        notes = self.notes_by_stmt.get(original_node)
+        if not notes:
+            return updated_node
 
-        # 匹配结构化调用：ms.nn.Xxx(...)
-        # 但本行必须以 ')' 结尾（表示一个完整表达式）
-        if code_no_indent.startswith(("ms.nn.", 
-                                      "ms.ops.", 
-                                      "ms.",
-                                      "ms.mint.nn",
-                                      "ms.mint.ops.", 
-                                      "mint.nn.", 
-                                      "mint.ops.")) and code_no_indent.endswith(")"):
-            # 下一行存在且不是右括号
-            if i + 1 < len(lines):
-                next_line = lines[i + 1].strip()
-                if next_line not in (")", "),"):
-                    # 如果这一行本来没有逗号，补一个
-                    if not code_part.endswith(","):
-                        if comment_part:
-                            # 注释保持在末尾，逗号放在注释前
-                            line = f"{code_part}, {comment_part}"
-                        else:
-                            line = code_part + ","
-        
-        fixed.append(line)
+        comment_text = "; ".join(dict.fromkeys(notes))
+        tw = updated_node.trailing_whitespace
+        if tw.comment:
+            existing = tw.comment.value.lstrip("#").strip()
+            comment_text = f"{existing}; {comment_text}"
 
-    return fixed
-
-
-
-def convert_code(code):
-    '''
-        将整段 PyTorch 源码转换为 MindSpore 源码
-        逐行调用 convert_call，最后通过 fix_missing_commas 补齐遗漏的逗号
-    '''
-    prefix = detect_mindspore_prefix(code)
-    output = []
-
-    for line in code.split("\n"):
-        new_line = convert_call(line, prefix)
-        output.append(new_line)
-
-    # 变成多行列表传给修复器
-    output = fix_missing_commas(output)
-
-    return "\n".join(output)
+        new_trailing = cst.TrailingWhitespace(
+            whitespace=cst.SimpleWhitespace("  "),
+            comment=cst.Comment(f"# {comment_text}"),
+            newline=tw.newline,
+        )
+        return updated_node.with_changes(trailing_whitespace=new_trailing)
 
 
+def convert_code(code: str) -> str:
+    """
+    将整段 PyTorch 源码转换为 MindSpore 源码（LibCST 版本）。
+    """
+    module = cst.parse_module(code)
+    prefix = detect_mindspore_prefix(module)
+    wrapper = metadata.MetadataWrapper(module)
+    new_module = wrapper.visit(TorchToMindSporeTransformer(API_MAP, prefix))
+    return new_module.code
 
 
-def generate_diff(old, new):
-    '''
-        生成原文件和新文件之间的 diff
-        输入为两个字符串，返回 unified diff 字符串便于预览改动
-    '''
+def generate_diff(old: str, new: str) -> str:
+    """
+    生成原文件和新文件之间的 diff。
+    """
     old_lines = old.splitlines(keepends=True)
     new_lines = new.splitlines(keepends=True)
     diff = difflib.unified_diff(
@@ -340,7 +227,6 @@ def generate_diff(old, new):
         lineterm=""
     )
     return "".join(diff)
-
 
 
 if __name__ == "__main__":
@@ -355,22 +241,17 @@ if __name__ == "__main__":
 
     result = convert_code(code)
 
-    # 生成新文件名
     base, ext = os.path.splitext(filename)
     new_filename = f"{base}_ms{ext}"
 
-    # 写入新文件
     with open(new_filename, "w", encoding="utf8") as f:
         f.write(result)
 
-    # 打印 diff
     diff = generate_diff(code, result)
     print("=== 转换 DIFF 开始 ===")
     print(diff)
     print("=== 转换 DIFF 结束 ===")
 
-    # 保存 diff 文件：diff_<original>_<converted>
-    # 统一使用 .diff 后缀便于查看/工具识别
     diff_filename = f"diff_({os.path.basename(filename)}-{os.path.basename(new_filename)}).diff"
     diff_path = os.path.join(os.path.dirname(filename) or ".", diff_filename)
     with open(diff_path, "w", encoding="utf8") as f:

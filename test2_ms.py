@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import mindspore as ms  # 让转换器识别 ms.nn 前缀
-import mindspore.mint.nn as nn  # 让转换器识别 mint.nn 前缀
 
 
 # 模拟复杂命名空间，测试前缀匹配的健壮性
@@ -19,32 +17,21 @@ class MintLikeModel(nn.Module):
 
         # 基础卷积
         self.stem = nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=32, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(num_features=32),
-            nn.ReLU()  # 没有对应的mindspore参数 'inplace',
-        )
+            nn.Conv2d(in_channels = in_channels, out_channels = 32, kernel_size = 3, padding = 1, bias = False),
+            nn.BatchNorm2d(num_features = 32),
+            nn.ReLU(),
+        )  # 没有对应的mindspore参数 'inplace'
 
         # 测试 mint.nn 前缀，你的转换器需要把这些都转换掉
         # 包含关键字缺省、参数顺序、字段不一致等情况
         self.block = nn.Sequential(
             nn.Conv2d(
-                32,
-                64,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=nn.Linear(in_features=1, out_features=1)  # 参数中嵌套 API
-            ),
+                in_channels = 32, out_channels = 64, kernel_size = 3, stride = 1, padding = 1, bias = nn.Linear(in_features = 1, out_features = 1)),
 
             nn.Sequential(
-                nn.ReLU()  # 没有对应的mindspore参数 'inplace',
+                nn.ReLU(),
                 nn.Conv2d(
-                    in_channels=64,
-                    out_channels=64,
-                    kernel_size=3,
-                    padding=1,
-                    bias=False
-                ),
+                    in_channels = 64, out_channels = 64, kernel_size = 3, padding = 1, bias = False),
             ),
 
             # 使用 wrapper 前缀调用
@@ -55,14 +42,14 @@ class MintLikeModel(nn.Module):
                 padding=1,
                 bias=False
             ),
-        )
+        )  # 没有对应的mindspore参数 'inplace'
 
         # 全连接部分
         self.classifier = nn.Sequential(
-            nn.Linear(in_features=128 * 7 * 7, out_features=num_classes),
-            nn.ReLU()  # 没有对应的mindspore参数 'inplace',
-            nn.Linear(in_features=num_classes, out_features=num_classes)
-        )
+            nn.Linear(in_features = 128 * 7 * 7, out_features = num_classes),
+            nn.ReLU(),
+            nn.Linear(in_features = num_classes, out_features = num_classes)
+        )  # 没有对应的mindspore参数 'inplace'
 
 
     def forward(self, x):
@@ -84,6 +71,6 @@ class MintLikeModel(nn.Module):
         x = self.classifier(x)
 
         # 测试 F.xxx 不应误伤
-        x = nn.softmax(x=x, axis=1)  # 默认参数名不一致: axis (PyTorch=dim, MindSpore=axis)
+        x = nn.softmax(x = x, axis = 1)  # 默认参数名不一致: axis (PyTorch=dim, MindSpore=axis)
 
         return x
