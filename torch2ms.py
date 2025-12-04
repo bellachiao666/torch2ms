@@ -21,55 +21,49 @@ def _literal_to_expr(value):
     return cst.parse_expression(repr(value))
 
 
-class _MindSporePrefixDetector(cst.CSTVisitor):
+class _MindSporeImportCollector(cst.CSTVisitor):
     """
-    读取导入语句，推断 MindSpore 前缀（兼容 mint）。
+    读取导入语句，记录所有 MindSpore 模块前缀（不限于 nn）。
     """
 
     def __init__(self) -> None:
-        self.prefix = None
+        self.alias_by_module = {}
+
+    def _maybe_record(self, module: str, alias: str) -> None:
+        if not module:
+            return
+        if not module.startswith("mindspore"):
+            return
+        self.alias_by_module[module] = alias
 
     def visit_Import(self, node: cst.Import) -> None:
-        if self.prefix:
-            return
         for name in node.names:
             module = cst_helpers.get_full_name_for_node(name.name)
             alias = getattr(name, "evaluated_name", None) or module
-            if module == "mindspore.mint":
-                self.prefix = f"{alias}.nn"
-                return
-            if module == "mindspore.mint.nn":
-                self.prefix = alias
-                return
-            if module == "mindspore":
-                self.prefix = f"{alias}.nn"
-                return
-            if module == "mindspore.nn":
-                self.prefix = alias
-                return
+            self._maybe_record(module, alias)
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
-        if self.prefix or node.module is None:
+        if node.module is None:
             return
         module_name = cst_helpers.get_full_name_for_node(node.module)
-        if module_name not in ("mindspore", "mindspore.mint"):
+        if not module_name or not module_name.startswith("mindspore"):
             return
+
         for name in node.names:
             if isinstance(name, cst.ImportStar):
                 continue
             alias = getattr(name, "evaluated_name", None) or name.name.value
-            if alias == "nn":
-                self.prefix = "nn"
-                return
+            full_module = f"{module_name}.{name.name.value}"
+            self._maybe_record(full_module, alias)
 
 
-def detect_mindspore_prefix(module: cst.Module) -> str:
+def collect_mindspore_aliases(module: cst.Module) -> dict:
     """
-    根据导入语句寻找 MindSpore 前缀，默认为 nn。
+    根据导入语句收集 MindSpore 模块前缀映射。
     """
-    detector = _MindSporePrefixDetector()
-    module.visit(detector)
-    return detector.prefix or "nn"
+    collector = _MindSporeImportCollector()
+    module.visit(collector)
+    return collector.alias_by_module
 
 
 class TorchToMindSporeTransformer(cst.CSTTransformer):
@@ -79,10 +73,10 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.ParentNodeProvider,)
 
-    def __init__(self, api_map, ms_prefix: str) -> None:
+    def __init__(self, api_map, ms_aliases: Optional[dict] = None) -> None:
         super().__init__()
         self.api_map = api_map
-        self.ms_prefix = ms_prefix
+        self.ms_aliases = ms_aliases or {}
         self.notes_by_stmt = defaultdict(list)
         self.api_by_class = {
             conf["pytorch"].split(".")[-1]: conf for conf in api_map.values()
@@ -98,6 +92,21 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         stmt = self._find_enclosing_stmt(node)
         if stmt is not None:
             self.notes_by_stmt[stmt].extend(notes)
+
+    def _resolve_ms_full_name(self, full_path: str) -> str:
+        """
+        使用导入的别名还原 MindSpore API 全路径。
+        """
+        parts = full_path.split(".")
+        for i in range(len(parts), 0, -1):
+            prefix = ".".join(parts[:i])
+            alias = self.ms_aliases.get(prefix)
+            if alias:
+                suffix = parts[i:]
+                if suffix:
+                    return ".".join([alias, *suffix])
+                return alias
+        return full_path
 
     def _reconstruct_args(self, call: cst.Call, api_conf):
         params = api_conf["params"]
@@ -133,14 +142,14 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             ms_def = ms.get("default")
 
             if ms_name is None:
-                mismatch_notes.append(f"没有对应的mindspore参数 '{pt_name}'")
+                mismatch_notes.append(f"'{api_conf['pytorch']}':没有对应的mindspore参数 '{pt_name}';")
                 continue
 
             if pt_name and pt_name in keyword_values:
                 ms_args[ms_name] = keyword_values[pt_name]
                 if pt_name != ms_name:
                     mismatch_notes.append(
-                        f"默认参数名不一致: {ms_name} (PyTorch={pt_name}, MindSpore={ms_name})"
+                        f"'{api_conf['pytorch']}':默认参数名不一致: {ms_name} (PyTorch={pt_name}, MindSpore={ms_name});"
                     )
                 continue
 
@@ -171,8 +180,8 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             return updated_node
 
         new_args, notes = self._reconstruct_args(updated_node, api_conf)
-        ms_class = api_conf["mindspore"].split(".")[-1]
-        new_callee = cst.parse_expression(f"{self.ms_prefix}.{ms_class}")
+        ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+        new_callee = cst.parse_expression(ms_full_name)
         new_call = updated_node.with_changes(func=new_callee, args=new_args)
 
         if notes:
@@ -208,9 +217,9 @@ def convert_code(code: str) -> str:
     将整段 PyTorch 源码转换为 MindSpore 源码（LibCST 版本）。
     """
     module = cst.parse_module(code)
-    prefix = detect_mindspore_prefix(module)
+    ms_aliases = collect_mindspore_aliases(module)
     wrapper = metadata.MetadataWrapper(module)
-    new_module = wrapper.visit(TorchToMindSporeTransformer(API_MAP, prefix))
+    new_module = wrapper.visit(TorchToMindSporeTransformer(API_MAP, ms_aliases))
     return new_module.code
 
 

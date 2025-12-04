@@ -49,6 +49,7 @@
       { "logical":"padding_mode","pytorch":{"name":"padding_mode","default":"zeros"}, "mindspore":{"name":"padding_mode","default":"zeros"} }
     ]
   },
+
   "ConvTranspose1d": {
     "pytorch": "torch.nn.ConvTranspose1d",
     "mindspore": "mindspore.mint.nn.ConvTranspose1d",
@@ -78,6 +79,7 @@
       { "logical":"bias","pytorch":{"name":"bias","default":true}, "mindspore":{"name":"bias","default":true} }
     ]
   },
+  
   "Linear": {
     "pytorch": "torch.nn.Linear",
     "mindspore": "mindspore.mint.nn.Linear",
@@ -95,6 +97,7 @@
       { "logical":"inplace", "pytorch":{"name":"inplace","default":false}, "mindspore":{"name":null,"default":null} }
     ]
   },
+  
   "BatchNorm1d": {
     "pytorch": "torch.nn.BatchNorm1d",
     "mindspore": "mindspore.mint.nn.BatchNorm1d",
