@@ -793,7 +793,7 @@ if __name__ == "__main__":
         print("用法: python torch2ms.py input.py")
         sys.exit(0)
 
-    filename = "./input/" + sys.argv[1]
+    filename = sys.argv[1]
 
     with open(filename, "r", encoding="utf8") as f:
         code = f.read()
