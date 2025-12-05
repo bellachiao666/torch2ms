@@ -10,7 +10,7 @@ from libcst import helpers as cst_helpers
 from libcst import metadata
 
 
-with open("api_map.json", "r", encoding="utf8") as f:
+with open("api_mapping_out_excel.json", "r", encoding="utf8") as f:
     API_MAP = json.load(f)["apis"]
 
 
