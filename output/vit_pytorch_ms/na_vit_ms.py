@@ -1,4 +1,3 @@
-from mindspore.mint import nn, ops
 from __future__ import annotations
 
 from functools import partial, lru_cache
@@ -8,6 +7,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 from torch.nn.utils.rnn import pad_sequence as orig_pad_sequence
+from mindspore.mint import nn, ops
 
 from einops import rearrange, repeat
 
@@ -80,7 +80,7 @@ def group_images_by_max_seq_len(
 # normalization
 # they use layernorm without bias, something that pytorch does not offer
 
-class LayerNorm(nn.Module):
+class LayerNorm(nn.Cell):
     def __init__(self, dim):
         super().__init__()
         self.gamma = nn.Parameter(ops.ones(size = dim))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
@@ -91,7 +91,7 @@ class LayerNorm(nn.Module):
 
 # they use a query-key normalization that is equivalent to rms norm (no mean-centering, learned gamma), from vit 22B paper
 
-class RMSNorm(nn.Module):
+class RMSNorm(nn.Cell):
     def __init__(self, heads, dim):
         super().__init__()
         self.scale = dim ** 0.5
@@ -113,7 +113,7 @@ def FeedForward(dim, hidden_dim, dropout = 0.):
         nn.Dropout(p = dropout)
     )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -169,7 +169,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -193,7 +193,7 @@ class Transformer(nn.Module):
 
         return self.norm(x)
 
-class NaViT(nn.Module):
+class NaViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., token_dropout_prob = None):
         super().__init__()
         image_height, image_width = pair(image_size)

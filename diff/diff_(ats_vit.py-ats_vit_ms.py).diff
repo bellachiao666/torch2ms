@@ -1,8 +1,15 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import torch
- import torch.nn.functional as F
+--- pytorch+++ mindspore@@ -1,10 +1,10 @@ import torch
+-import torch.nn.functional as F
  from torch.nn.utils.rnn import pad_sequence
-@@ -17,10 +18,10 @@ # adaptive token sampling functions and classes
+ from torch import nn, einsum
+ 
+ from einops import rearrange, repeat
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -17,10 +17,10 @@ # adaptive token sampling functions and classes
  
  def log(t, eps = 1e-6):
 -    return torch.log(t + eps)
@@ -14,7 +21,15 @@
      return -log(-log(u, eps), eps)
  
  def batched_index_select(values, indices, dim = 1):
-@@ -58,7 +59,7 @@ 
+@@ -39,7 +39,7 @@     dim += value_expand_len
+     return values.gather(dim, indices)
+ 
+-class AdaptiveTokenSampling(nn.Module):
++class AdaptiveTokenSampling(nn.Cell):
+     def __init__(self, output_num_tokens, eps = 1e-6):
+         super().__init__()
+         self.eps = eps
+@@ -58,7 +58,7 @@ 
          # weigh the attention scores by the norm of the values, sum across all heads
  
 -        cls_attn = einsum('b h n, b h n -> b n', cls_attn, value_norms)
@@ -22,7 +37,7 @@
  
          # normalize to 1
  
-@@ -85,7 +86,7 @@ 
+@@ -85,7 +85,7 @@ 
          # calculate unique using torch.unique and then pad the sequence from the right
  
 -        unique_sampled_token_ids_list = [torch.unique(t, sorted = True) for t in torch.unbind(sampled_token_ids)]
@@ -30,7 +45,7 @@
          unique_sampled_token_ids = pad_sequence(unique_sampled_token_ids_list, batch_first = True)
  
          # calculate the new mask, based on the padding
-@@ -94,11 +95,11 @@ 
+@@ -94,11 +94,11 @@ 
          # CLS token never gets masked out (gets a value of True)
  
 -        new_mask = F.pad(new_mask, (1, 0), value = True)
@@ -43,7 +58,12 @@
          expanded_unique_sampled_token_ids = repeat(unique_sampled_token_ids, 'b n -> b h n', h = heads)
  
          # gather the new attention scores
-@@ -114,13 +115,13 @@     def __init__(self, dim, hidden_dim, dropout = 0.):
+@@ -110,40 +110,40 @@ 
+ # classes
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -62,7 +82,12 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -131,19 +132,19 @@         self.heads = heads
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., output_num_tokens = None):
+         super().__init__()
+         inner_dim = dim_head *  heads
+         self.heads = heads
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -88,7 +113,7 @@
  
      def forward(self, x, *, mask):
          num_tokens = x.shape[1]
-@@ -152,7 +153,7 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
+@@ -152,7 +152,7 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -96,7 +121,7 @@
  
          if exists(mask):
              dots_mask = rearrange(mask, 'b i -> b 1 i 1') * rearrange(mask, 'b j -> b 1 1 j')
-@@ -169,7 +170,7 @@         if exists(self.output_num_tokens) and (num_tokens - 1) > self.output_num_tokens:
+@@ -169,12 +169,12 @@         if exists(self.output_num_tokens) and (num_tokens - 1) > self.output_num_tokens:
              attn, mask, sampled_token_ids = self.ats(attn, v, mask = mask)
  
 -        out = torch.matmul(attn, v)
@@ -104,7 +129,13 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
  
          return self.to_out(out), mask, sampled_token_ids
-@@ -193,9 +194,9 @@ 
+ 
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(self, dim, depth, max_tokens_per_depth, heads, dim_head, mlp_dim, dropout = 0.):
+         super().__init__()
+         assert len(max_tokens_per_depth) == depth, 'max_tokens_per_depth must be a tuple of length that is equal to the depth of the transformer'
+@@ -193,9 +193,9 @@ 
          # use mask to keep track of the paddings when sampling tokens
          # as the duplicates (when sampling) are just removed, as mentioned in the paper
 -        mask = torch.ones((b, n), device = device, dtype = torch.bool)
@@ -116,7 +147,15 @@
          token_ids = repeat(token_ids, 'n -> b n', b = b)
  
          for attn, ff in self.layers:
-@@ -225,28 +226,28 @@ 
+@@ -212,7 +212,7 @@ 
+         return x, token_ids
+ 
+-class ViT(nn.Module):
++class ViT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, max_tokens_per_depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+         super().__init__()
+         image_height, image_width = pair(image_size)
+@@ -225,28 +225,28 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),

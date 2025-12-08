@@ -17,7 +17,7 @@ def default(v, d):
 
 # classes
 
-class AcceptVideoWrapper(Module):
+class AcceptVideoWrapper(nn.Cell):
     def __init__(
         self,
         image_net: Module,

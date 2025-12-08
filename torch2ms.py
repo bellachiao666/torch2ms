@@ -474,6 +474,9 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         self.api_by_pt_full = {
             conf["pytorch"]: conf for conf in api_map.values()
         }
+        # 输入代码未显式导入 mindspore 时会启用 mint 模式，
+        # 这样 nn/ops 会默认指向 mindspore.mint.nn / mindspore.mint.ops。
+        self.use_mint = use_mint
 
     def _find_enclosing_stmt(self, node: cst.CSTNode) -> Optional[cst.CSTNode]:
         """
@@ -725,6 +728,57 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
         return updated_node
 
+    def leave_ClassDef(
+        self,
+        original_node: cst.ClassDef,
+        updated_node: cst.ClassDef,
+    ) -> cst.ClassDef:
+        """
+        将继承自 torch.nn.Module 等基类的类，尝试替换为 MindSpore 的对应基类。
+
+        示例:
+            >>> code = "import torch.nn as nn\\nclass M(nn.Module):\\n    pass"
+            >>> mod = cst.parse_module(code)
+            >>> wrapper = metadata.MetadataWrapper(mod)
+            >>> new_mod = wrapper.visit(TorchToMindSporeTransformer(API_MAP, pt_aliases={'nn': 'torch.nn'}))
+            >>> "mindspore" in new_mod.code
+            True
+
+        输出:
+            若能根据别名还原出 torch 全路径，并在映射表中找到对应 MindSpore 基类，则替换之。
+        """
+        if not updated_node.bases:
+            return updated_node
+
+        new_bases = []
+        changed = False
+        for base in updated_node.bases:
+            full_name = cst_helpers.get_full_name_for_node(base.value)
+            pt_full_name = self._resolve_pt_full_name(full_name)
+            ms_expr = None
+
+            if pt_full_name:
+                api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(
+                    pt_full_name.split(".")[-1]
+                )
+                if api_conf:
+                    ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+                    ms_expr = cst.parse_expression(ms_full_name)
+                elif pt_full_name == "torch.nn.Module":
+                    # 兜底逻辑: 未在映射表中配置时，默认映射到 mindspore.nn.Cell
+                    ms_full_name = self._resolve_ms_full_name("mindspore.nn.Cell")
+                    ms_expr = cst.parse_expression(ms_full_name)
+
+            if ms_expr is not None:
+                new_bases.append(base.with_changes(value=ms_expr))
+                changed = True
+            else:
+                new_bases.append(base)
+
+        if changed:
+            return updated_node.with_changes(bases=new_bases)
+        return updated_node
+
     def leave_SimpleStatementLine(
         self,
         original_node: cst.SimpleStatementLine,
@@ -760,6 +814,91 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             newline=tw.newline,
         )
         return updated_node.with_changes(trailing_whitespace=new_trailing)
+
+
+class _NameUsageCollector(cst.CSTVisitor):
+    """
+    收集除导入语句以外的位置上出现的所有标识符名称，用于判断某个 import 是否仍然被使用。
+    """
+
+    def __init__(self) -> None:
+        self.used_names = set()
+
+    def visit_Import(self, node: cst.Import) -> None:
+        # 不进入 import 语句内部，避免把别名本身也统计为“使用”
+        return False
+
+    def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
+        # 同上，跳过 from ... import ... 的内部
+        return False
+
+    def visit_Name(self, node: cst.Name) -> None:
+        self.used_names.add(node.value)
+
+
+class TorchImportCleaner(cst.CSTTransformer):
+    """
+    根据名称使用情况，移除不再需要的 torch 相关导入。
+
+    仅当某个 import 里所有别名均未在后续代码中使用时，才安全地删除该 import。
+    """
+
+    def __init__(self, used_names) -> None:
+        super().__init__()
+        self.used_names = set(used_names)
+
+    def leave_Import(self, original_node: cst.Import, updated_node: cst.Import) -> cst.BaseStatement:
+        new_aliases = []
+        for alias in updated_node.names:
+            module = cst_helpers.get_full_name_for_node(alias.name)
+            alias_name = (
+                alias.asname.name.value
+                if getattr(alias, "asname", None)
+                else getattr(alias, "evaluated_name", None)
+            ) or module
+
+            if not module or not module.startswith("torch"):
+                new_aliases.append(alias)
+                continue
+
+            if alias_name in self.used_names:
+                new_aliases.append(alias)
+
+        if not new_aliases:
+            return cst.RemoveFromParent()
+        return updated_node.with_changes(names=new_aliases)
+
+    def leave_ImportFrom(
+        self,
+        original_node: cst.ImportFrom,
+        updated_node: cst.ImportFrom,
+    ) -> cst.BaseStatement:
+        if updated_node.module is None:
+            return updated_node
+
+        module_name = cst_helpers.get_full_name_for_node(updated_node.module)
+        if not module_name or not module_name.startswith("torch"):
+            return updated_node
+
+        new_names = []
+        for name in updated_node.names:
+            if isinstance(name, cst.ImportStar):
+                # 星号导入保守保留
+                new_names.append(name)
+                continue
+
+            alias_name = (
+                name.asname.name.value
+                if getattr(name, "asname", None)
+                else getattr(name, "evaluated_name", None)
+            ) or name.name.value
+
+            if alias_name in self.used_names:
+                new_names.append(name)
+
+        if not new_names:
+            return cst.RemoveFromParent()
+        return updated_node.with_changes(names=tuple(new_names))
 
 
 def convert_code(code: str) -> str:
@@ -800,6 +939,12 @@ def convert_code(code: str) -> str:
             use_mint=use_mint,
         )
     )
+    # 第二遍遍历: 基于名称使用情况，清理不再需要的 torch 导入
+    name_collector = _NameUsageCollector()
+    new_module.visit(name_collector)
+    cleaner = TorchImportCleaner(name_collector.used_names)
+    new_module = new_module.visit(cleaner)
+
     new_code = new_module.code
 
     if use_mint:
@@ -807,14 +952,33 @@ def convert_code(code: str) -> str:
         # 则自动在文件头部补充 mint 常用导入。
         if ("nn." in new_code) or ("ops." in new_code) or ("mindspore" in new_code):
             default_import = "from mindspore.mint import nn, ops\n"
-            if new_code.startswith("#!"):
-                idx = new_code.find("\n")
-                if idx != -1:
-                    new_code = new_code[: idx + 1] + default_import + new_code[idx + 1 :]
-                else:
-                    new_code = new_code + "\n" + default_import
+            lines = new_code.splitlines(keepends=True)
+
+            # 尽量将 mindspore.mint 导入放在所有 torch 导入之后，
+            # 避免出现用户所说的 “torch 在 mindspore 之后” 的情况。
+            torch_idx = -1
+            for i, line in enumerate(lines):
+                stripped = line.lstrip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if stripped.startswith("import ") or stripped.startswith("from "):
+                    if "torch" in stripped and "mindspore" not in stripped:
+                        torch_idx = i
+
+            if torch_idx != -1:
+                # 在最后一个 torch 导入之后插入 mint 导入
+                lines.insert(torch_idx + 1, default_import)
+                new_code = "".join(lines)
             else:
-                new_code = default_import + new_code
+                # 保持原有逻辑: 放在 shebang 之后或文件顶部
+                if new_code.startswith("#!"):
+                    idx = new_code.find("\n")
+                    if idx != -1:
+                        new_code = new_code[: idx + 1] + default_import + new_code[idx + 1 :]
+                    else:
+                        new_code = new_code + "\n" + default_import
+                else:
+                    new_code = default_import + new_code
 
     return new_code
 

@@ -1,11 +1,9 @@
-from mindspore.mint import nn, ops
 from random import randrange
-import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -29,7 +27,7 @@ def dropout_layers(layers, dropout):
 
 # classes
 
-class LayerScale(nn.Module):
+class LayerScale(nn.Cell):
     def __init__(self, dim, fn, depth):
         super().__init__()
         if depth <= 18:  # epsilon detailed in section 2 of paper
@@ -45,7 +43,7 @@ class LayerScale(nn.Module):
     def forward(self, x, **kwargs):
         return self.fn(x, **kwargs) * self.scale
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -59,7 +57,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -103,7 +101,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., layer_dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -122,7 +120,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return x
 
-class CaiT(nn.Module):
+class CaiT(nn.Cell):
     def __init__(
         self,
         *,

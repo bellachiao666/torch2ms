@@ -1,8 +1,25 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from functools import partial
+--- pytorch+++ mindspore@@ -5,6 +5,7 @@ 
+ from einops import rearrange, repeat
+ from einops.layers.torch import Rearrange, Reduce
++from mindspore.mint import nn, ops
  
- import torch
-@@ -32,13 +33,13 @@         super().__init__()
+ # helpers
+ 
+@@ -19,7 +20,7 @@ 
+ # helper classes
+ 
+-class Residual(nn.Module):
++class Residual(nn.Cell):
+     def __init__(self, dim, fn):
+         super().__init__()
+         self.fn = fn
+@@ -27,42 +28,42 @@     def forward(self, x):
+         return self.fn(x) + x
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, mult = 4, dropout = 0.):
+         super().__init__()
          inner_dim = int(dim * mult)
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -21,7 +38,14 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -51,12 +52,12 @@ 
+ # MBConv
+ 
+-class SqueezeExcitation(nn.Module):
++class SqueezeExcitation(nn.Cell):
+     def __init__(self, dim, shrinkage_rate = 0.25):
+         super().__init__()
+         hidden_dim = int(dim * shrinkage_rate)
+ 
          self.gate = nn.Sequential(
              Reduce('b c h w -> b c', 'mean'),
 -            nn.Linear(dim, hidden_dim, bias = False),
@@ -36,6 +60,21 @@
  
      def forward(self, x):
          return x * self.gate(x)
+ 
+ 
+-class MBConvResidual(nn.Module):
++class MBConvResidual(nn.Cell):
+     def __init__(self, fn, dropout = 0.):
+         super().__init__()
+         self.fn = fn
+@@ -73,7 +74,7 @@         out = self.dropsample(out)
+         return out + x
+ 
+-class Dropsample(nn.Module):
++class Dropsample(nn.Cell):
+     def __init__(self, prob = 0):
+         super().__init__()
+         self.prob = prob
 @@ -100,16 +101,16 @@     stride = 2 if downsample else 1
  
      net = nn.Sequential(
@@ -59,6 +98,14 @@
  
      if dim_in == dim_out and not downsample:
          net = MBConvResidual(net, dropout = dropout)
+@@ -118,7 +119,7 @@ 
+ # attention related classes
+ 
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(
+         self,
+         dim,
 @@ -132,25 +133,25 @@         self.heads = dim // dim_head
          self.scale = dim_head ** -0.5
  
@@ -110,6 +157,14 @@
  
          # merge heads
  
+@@ -205,7 +206,7 @@         out = self.to_out(out)
+         return rearrange(out, '(b x y) ... -> b x y ...', x = height, y = width)
+ 
+-class MaxViT(nn.Module):
++class MaxViT(nn.Cell):
+     def __init__(
+         self,
+         *,
 @@ -228,9 +229,9 @@         dim_conv_stem = default(dim_conv_stem, dim)
  
          self.conv_stem = nn.Sequential(

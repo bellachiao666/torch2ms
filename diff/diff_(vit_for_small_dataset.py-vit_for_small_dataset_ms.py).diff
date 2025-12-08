@@ -1,8 +1,20 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from math import sqrt
+--- pytorch+++ mindspore@@ -1,10 +1,10 @@ from math import sqrt
  import torch
- import torch.nn.functional as F
-@@ -17,13 +18,13 @@     def __init__(self, dim, hidden_dim, dropout = 0.):
+-import torch.nn.functional as F
+ from torch import nn
+ 
+ from einops import rearrange, repeat
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -13,57 +13,57 @@ 
+ # classes
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -21,7 +33,10 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -32,34 +33,34 @@         super().__init__()
+-class LSA(nn.Module):
++class LSA(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+         super().__init__()
          inner_dim = dim_head *  heads
          self.heads = heads
 -        self.temperature = nn.Parameter(torch.log(torch.tensor(dim_head ** -0.5)))
@@ -65,7 +80,20 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
-@@ -85,14 +86,14 @@ 
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+         super().__init__()
+         self.layers = nn.ModuleList([])
+@@ -78,24 +78,24 @@             x = ff(x) + x
+         return x
+ 
+-class SPT(nn.Module):
++class SPT(nn.Cell):
+     def __init__(self, *, dim, patch_size, channels = 3):
+         super().__init__()
+         patch_dim = patch_size * patch_size * 5 * channels
+ 
          self.to_patch_tokens = nn.Sequential(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
 -            nn.LayerNorm(patch_dim),
@@ -83,8 +111,12 @@
 +        x_with_shifts = ops.cat(tensors = (x, *shifted_x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
          return self.to_patch_tokens(x_with_shifts)
  
- class ViT(nn.Module):
-@@ -109,9 +110,9 @@ 
+-class ViT(nn.Module):
++class ViT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+         super().__init__()
+         image_height, image_width = pair(image_size)
+@@ -109,9 +109,9 @@ 
          self.to_patch_embedding = SPT(dim = dim, patch_size = patch_size, channels = channels)
  
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
@@ -96,7 +128,7 @@
  
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
  
-@@ -119,16 +120,16 @@         self.to_latent = nn.Identity()
+@@ -119,16 +119,16 @@         self.to_latent = nn.Identity()
  
          self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),

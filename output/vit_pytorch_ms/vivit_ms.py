@@ -1,9 +1,8 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn
 
 from einops import rearrange, repeat, reduce
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -15,7 +14,7 @@ def pair(t):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -29,7 +28,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -63,7 +62,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -79,7 +78,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return self.norm(x)
 
-class FactorizedTransformer(nn.Module):
+class FactorizedTransformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -103,7 +102,7 @@ class FactorizedTransformer(nn.Module):
 
         return self.norm(x)
 
-class ViT(nn.Module):
+class ViT(nn.Cell):
     def __init__(
         self,
         *,

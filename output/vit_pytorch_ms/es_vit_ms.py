@@ -1,12 +1,11 @@
-from mindspore.mint import nn, ops
 import copy
 import random
 from functools import wraps, partial
 
 import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 from torchvision import transforms as T
+from mindspore.mint import nn, ops
 
 from einops import rearrange, reduce, repeat
 
@@ -82,7 +81,7 @@ def region_loss_fn(
 
 # augmentation utils
 
-class RandomApply(nn.Module):
+class RandomApply(nn.Cell):
     def __init__(self, fn, p):
         super().__init__()
         self.fn = fn
@@ -112,11 +111,11 @@ def update_moving_average(ema_updater, ma_model, current_model):
 
 # MLP class for projector and predictor
 
-class L2Norm(nn.Module):
+class L2Norm(nn.Cell):
     def forward(self, x, eps = 1e-6):
         return nn.functional.normalize(input = x, dim = 1, eps = eps)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
 
-class MLP(nn.Module):
+class MLP(nn.Cell):
     def __init__(self, dim, dim_out, num_layers, hidden_size = 256):
         super().__init__()
 
@@ -144,7 +143,7 @@ class MLP(nn.Module):
 # will manage the interception of the hidden layer output
 # and pipe it into the projecter and predictor nets
 
-class NetWrapper(nn.Module):
+class NetWrapper(nn.Cell):
     def __init__(self, net, output_dim, projection_hidden_size, projection_num_layers, layer = -2):
         super().__init__()
         self.net = net
@@ -221,7 +220,7 @@ class NetWrapper(nn.Module):
 
 # main class
 
-class EsViTTrainer(nn.Module):
+class EsViTTrainer(nn.Cell):
     def __init__(
         self,
         net,

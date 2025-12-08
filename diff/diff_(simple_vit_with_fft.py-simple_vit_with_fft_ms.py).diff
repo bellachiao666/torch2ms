@@ -1,8 +1,11 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import torch
- from torch.fft import fft2
- from torch import nn
-@@ -11,14 +12,14 @@     return t if isinstance(t, tuple) else (t, t)
+--- pytorch+++ mindspore@@ -4,6 +4,7 @@ 
+ from einops import rearrange, reduce, pack, unpack
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -11,42 +12,42 @@     return t if isinstance(t, tuple) else (t, t)
  
  def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
 -    y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
@@ -19,7 +22,10 @@
      return pe.type(dtype)
  
  # classes
-@@ -27,11 +28,11 @@     def __init__(self, dim, hidden_dim):
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -34,7 +40,11 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -41,12 +42,12 @@         inner_dim = dim_head *  heads
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64):
+         super().__init__()
+         inner_dim = dim_head *  heads
          self.heads = heads
          self.scale = dim_head ** -0.5
 -        self.norm = nn.LayerNorm(dim)
@@ -62,7 +72,8 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
- class Transformer(nn.Module):
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
@@ -70,6 +81,14 @@
          self.layers = nn.ModuleList([])
          for _ in range(depth):
              self.layers.append(nn.ModuleList([
+@@ -78,7 +79,7 @@             x = ff(x) + x
+         return self.norm(x)
+ 
+-class SimpleViT(nn.Module):
++class SimpleViT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, freq_patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
+         super().__init__()
+         image_height, image_width = pair(image_size)
 @@ -93,17 +94,17 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),

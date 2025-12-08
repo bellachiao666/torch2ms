@@ -1,18 +1,17 @@
-from mindspore.mint import nn, ops
 # vision-audio-action transformer - vaat
 
 from __future__ import annotations
 from contextlib import nullcontext
 
 import torch
-import torch.nn.functional as F
 from torch import nn, cat, stack, arange, tensor
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 
 from torchaudio.transforms import Spectrogram
 
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -51,7 +50,7 @@ def posemb_sincos_2d(
 
 # classes
 
-class FiLM(Module):
+class FiLM(nn.Cell):
     def __init__(
         self,
         dim,
@@ -72,7 +71,7 @@ class FiLM(Module):
 
         return tokens * gamma + beta
 
-class FeedForward(Module):
+class FeedForward(nn.Cell):
     def __init__(
         self,
         dim,
@@ -92,7 +91,7 @@ class FeedForward(Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -154,7 +153,7 @@ class Attention(Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(Module):
+class Transformer(nn.Cell):
     def __init__(
         self,
         dim,
@@ -195,7 +194,7 @@ class Transformer(Module):
 
         return x, hiddens
 
-class AST(Module):
+class AST(nn.Cell):
     # audio spectrogram transformer https://arxiv.org/abs/2104.01778
 
     def __init__(
@@ -326,7 +325,7 @@ class AST(Module):
 
         return maybe_logits
 
-class ViT(Module):
+class ViT(nn.Cell):
     def __init__(
         self,
         *,
@@ -410,7 +409,7 @@ class ViT(Module):
 # https://openreview.net/forum?id=TalHOvvLZu
 # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
 
-class VAAT(Module):
+class VAAT(nn.Cell):
     def __init__(
         self,
         vit: ViT | dict,

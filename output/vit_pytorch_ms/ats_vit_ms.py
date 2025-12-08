@@ -1,11 +1,10 @@
-from mindspore.mint import nn, ops
 import torch
-import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 from torch import nn, einsum
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -40,7 +39,7 @@ def batched_index_select(values, indices, dim = 1):
     dim += value_expand_len
     return values.gather(dim, indices)
 
-class AdaptiveTokenSampling(nn.Module):
+class AdaptiveTokenSampling(nn.Cell):
     def __init__(self, output_num_tokens, eps = 1e-6):
         super().__init__()
         self.eps = eps
@@ -111,7 +110,7 @@ class AdaptiveTokenSampling(nn.Module):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -125,7 +124,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., output_num_tokens = None):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -175,7 +174,7 @@ class Attention(nn.Module):
 
         return self.to_out(out), mask, sampled_token_ids
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, max_tokens_per_depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         assert len(max_tokens_per_depth) == depth, 'max_tokens_per_depth must be a tuple of length that is equal to the depth of the transformer'
@@ -213,7 +212,7 @@ class Transformer(nn.Module):
 
         return x, token_ids
 
-class ViT(nn.Module):
+class ViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, max_tokens_per_depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)

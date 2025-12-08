@@ -1,12 +1,9 @@
-from mindspore.mint import nn, ops
 from math import sqrt
-
-import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -18,7 +15,7 @@ def conv_output_size(image_size, kernel_size, stride, padding = 0):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -32,7 +29,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -67,7 +64,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -84,7 +81,7 @@ class Transformer(nn.Module):
 
 # depthwise convolution, for pooling
 
-class DepthWiseConv2d(nn.Module):
+class DepthWiseConv2d(nn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride, bias = True):
         super().__init__()
         self.net = nn.Sequential(
@@ -96,7 +93,7 @@ class DepthWiseConv2d(nn.Module):
 
 # pooling layer
 
-class Pool(nn.Module):
+class Pool(nn.Cell):
     def __init__(self, dim):
         super().__init__()
         self.downsample = DepthWiseConv2d(dim, dim * 2, kernel_size = 3, stride = 2, padding = 1)
@@ -115,7 +112,7 @@ class Pool(nn.Module):
 
 # main class
 
-class PiT(nn.Module):
+class PiT(nn.Cell):
     def __init__(
         self,
         *,

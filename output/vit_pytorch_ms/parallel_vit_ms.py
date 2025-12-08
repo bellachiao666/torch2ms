@@ -1,9 +1,8 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -12,7 +11,7 @@ def pair(t):
 
 # classes
 
-class Parallel(nn.Module):
+class Parallel(nn.Cell):
     def __init__(self, *fns):
         super().__init__()
         self.fns = nn.ModuleList(fns)
@@ -20,7 +19,7 @@ class Parallel(nn.Module):
     def forward(self, x):
         return sum([fn(x) for fn in self.fns])
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -34,7 +33,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -68,7 +67,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, num_parallel_branches = 2, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -88,7 +87,7 @@ class Transformer(nn.Module):
             x = ffs(x) + x
         return x
 
-class ViT(nn.Module):
+class ViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', num_parallel_branches = 2, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)

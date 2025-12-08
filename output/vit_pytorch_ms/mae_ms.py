@@ -1,12 +1,10 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn
-import torch.nn.functional as F
 from einops import repeat
 
 from vit_pytorch.vit import Transformer
+from mindspore.mint import nn, ops
 
-class MAE(nn.Module):
+class MAE(nn.Cell):
     def __init__(
         self,
         *,

@@ -1,10 +1,8 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -16,7 +14,7 @@ def default(val, d):
 
 # feedforward
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -32,7 +30,7 @@ class FeedForward(nn.Module):
 
 # attention
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -73,7 +71,7 @@ class Attention(nn.Module):
 
 # transformer encoder, for small and large patches
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -92,7 +90,7 @@ class Transformer(nn.Module):
 
 # projecting CLS tokens, in the case that small and large patch tokens have different dimensions
 
-class ProjectInOut(nn.Module):
+class ProjectInOut(nn.Cell):
     def __init__(self, dim_in, dim_out, fn):
         super().__init__()
         self.fn = fn
@@ -109,7 +107,7 @@ class ProjectInOut(nn.Module):
 
 # cross attention transformer
 
-class CrossTransformer(nn.Module):
+class CrossTransformer(nn.Cell):
     def __init__(self, sm_dim, lg_dim, depth, heads, dim_head, dropout):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -132,7 +130,7 @@ class CrossTransformer(nn.Module):
 
 # multi-scale encoder
 
-class MultiScaleEncoder(nn.Module):
+class MultiScaleEncoder(nn.Cell):
     def __init__(
         self,
         *,
@@ -164,7 +162,7 @@ class MultiScaleEncoder(nn.Module):
 
 # patch-based image to token embedder
 
-class ImageEmbedder(nn.Module):
+class ImageEmbedder(nn.Cell):
     def __init__(
         self,
         *,
@@ -202,7 +200,7 @@ class ImageEmbedder(nn.Module):
 
 # cross ViT class
 
-class CrossViT(nn.Module):
+class CrossViT(nn.Cell):
     def __init__(
         self,
         *,

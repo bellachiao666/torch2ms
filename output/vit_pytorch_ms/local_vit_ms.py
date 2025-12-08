@@ -1,15 +1,13 @@
-from mindspore.mint import nn, ops
 from math import sqrt
-import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # classes
 
-class Residual(nn.Module):
+class Residual(nn.Cell):
     def __init__(self, fn):
         super().__init__()
         self.fn = fn
@@ -17,7 +15,7 @@ class Residual(nn.Module):
     def forward(self, x, **kwargs):
         return self.fn(x, **kwargs) + x
 
-class ExcludeCLS(nn.Module):
+class ExcludeCLS(nn.Cell):
     def __init__(self, fn):
         super().__init__()
         self.fn = fn
@@ -29,7 +27,7 @@ class ExcludeCLS(nn.Module):
 
 # feed forward related classes
 
-class DepthWiseConv2d(nn.Module):
+class DepthWiseConv2d(nn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
         super().__init__()
         self.net = nn.Sequential(
@@ -39,7 +37,7 @@ class DepthWiseConv2d(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -61,7 +59,7 @@ class FeedForward(nn.Module):
 
 # attention
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -95,7 +93,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -112,7 +110,7 @@ class Transformer(nn.Module):
 
 # main class
 
-class LocalViT(nn.Module):
+class LocalViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'

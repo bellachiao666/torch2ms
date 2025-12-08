@@ -1,13 +1,13 @@
-from mindspore.mint import nn, ops
 # Simpler Fast Vision Transformers with a Jumbo CLS Token
 # https://arxiv.org/abs/2502.15021
 
 import torch
 from torch import nn
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -41,7 +41,7 @@ def FeedForward(dim, mult = 4.):
         nn.Linear(in_features = hidden_dim, out_features = dim),
     )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -68,7 +68,7 @@ class Attention(Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class JumboViT(Module):
+class JumboViT(nn.Cell):
     def __init__(
         self,
         *,

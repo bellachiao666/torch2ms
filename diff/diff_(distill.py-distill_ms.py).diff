@@ -1,8 +1,16 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import torch
+--- pytorch+++ mindspore@@ -1,11 +1,11 @@ import torch
  from torch import nn
- from torch.nn import Module
-@@ -26,12 +27,12 @@         b, n, _ = x.shape
+-from torch.nn import Module
+ import torch.nn.functional as F
+ 
+ from vit_pytorch.vit import ViT
+ from vit_pytorch.t2t import T2TViT
+ from vit_pytorch.efficient import ViT as EfficientViT
++from mindspore.mint import nn, ops
+ 
+ from einops import rearrange, repeat
+ 
+@@ -26,12 +26,12 @@         b, n, _ = x.shape
  
          cls_tokens = repeat(self.cls_token, '1 n d -> b n d', b = b)
 -        x = torch.cat((cls_tokens, x), dim = 1)
@@ -16,7 +24,15 @@
  
          x = self._attend(x)
  
-@@ -125,12 +126,12 @@         self.alpha = alpha
+@@ -102,7 +102,7 @@ 
+ # knowledge distillation wrapper
+ 
+-class DistillWrapper(Module):
++class DistillWrapper(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -125,12 +125,12 @@         self.alpha = alpha
          self.hard = hard
  
 -        self.distillation_token = nn.Parameter(torch.randn(1, 1, dim))
@@ -32,7 +48,7 @@
  
      def forward(self, img, labels, temperature = None, alpha = None, **kwargs):
  
-@@ -147,9 +148,9 @@ 
+@@ -147,9 +147,9 @@ 
          if not self.hard:
              distill_loss = F.kl_div(
 -                F.log_softmax(distill_logits / T, dim = -1),

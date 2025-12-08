@@ -1,8 +1,11 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import torch
+--- pytorch+++ mindspore@@ -1,6 +1,7 @@ import torch
  from torch import nn, einsum
  import torch.nn.functional as F
-@@ -75,8 +76,8 @@ def sinusoidal_embedding(n_channels, dim):
++from mindspore.mint import nn, ops
+ 
+ from einops import rearrange, repeat
+ 
+@@ -75,23 +76,23 @@ def sinusoidal_embedding(n_channels, dim):
      pe = torch.FloatTensor([[p / (10000 ** (2 * (i // 2) / dim)) for i in range(dim)]
                              for p in range(n_channels)])
 -    pe[:, 0::2] = torch.sin(pe[:, 0::2])
@@ -12,7 +15,13 @@
      return rearrange(pe, '... -> 1 ...')
  
  # modules
-@@ -88,10 +89,10 @@         head_dim = dim // self.heads
+ 
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
+         super().__init__()
+         self.heads = num_heads
+         head_dim = dim // self.heads
          self.scale = head_dim ** -0.5
  
 -        self.qkv = nn.Linear(dim, dim * 3, bias=False)
@@ -26,7 +35,7 @@
  
      def forward(self, x):
          B, N, C = x.shape
-@@ -101,11 +102,11 @@ 
+@@ -101,17 +102,17 @@ 
          q = q * self.scale
  
 -        attn = einsum('b h i d, b h j d -> b h i j', q, k)
@@ -39,6 +48,13 @@
          x = rearrange(x, 'b h n d -> b n (h d)')
  
          return self.proj_drop(self.proj(x))
+ 
+ 
+-class TransformerEncoderLayer(nn.Module):
++class TransformerEncoderLayer(nn.Cell):
+     """
+     Inspired by torch.nn.TransformerEncoderLayer and
+     rwightman's timm package.
 @@ -120,15 +121,15 @@                  attention_dropout=0.1, drop_path_rate=0.1):
          super().__init__()
  
@@ -60,7 +76,15 @@
  
          self.drop_path = DropPath(drop_path_rate)
  
-@@ -155,7 +156,7 @@         keep_prob = 1 - self.drop_prob
+@@ -141,7 +142,7 @@         src = src + self.drop_path(self.dropout2(src2))
+         return src
+ 
+-class DropPath(nn.Module):
++class DropPath(nn.Cell):
+     def __init__(self, drop_prob=None):
+         super().__init__()
+         self.drop_prob = float(drop_prob)
+@@ -155,11 +156,11 @@         keep_prob = 1 - self.drop_prob
          shape = (batch, *((1,) * (x.ndim - 1)))
  
 -        keep_mask = torch.zeros(shape, device = device).float().uniform_(0, 1) < keep_prob
@@ -68,6 +92,11 @@
          output = x.div(keep_prob) * keep_mask.float()
          return output
  
+-class Tokenizer(nn.Module):
++class Tokenizer(nn.Cell):
+     def __init__(self,
+                  kernel_size, stride, padding,
+                  pooling_kernel_size=3, pooling_stride=2, pooling_padding=1,
 @@ -180,22 +181,19 @@ 
          self.conv_layers = nn.Sequential(
              *[nn.Sequential(
@@ -93,6 +122,14 @@
  
      def forward(self, x):
          return rearrange(self.conv_layers(x), 'b c h w -> b (h w) c')
+@@ -206,7 +204,7 @@             nn.init.kaiming_normal_(m.weight)
+ 
+ 
+-class TransformerClassifier(nn.Module):
++class TransformerClassifier(nn.Cell):
+     def __init__(self,
+                  seq_pool=True,
+                  embedding_dim=768,
 @@ -234,23 +232,23 @@ 
          if not seq_pool:
              sequence_length += 1
@@ -156,3 +193,11 @@
          else:
              x = x[:, 0]
  
+@@ -303,7 +301,7 @@ 
+ # CCT Main model
+ 
+-class CCT(nn.Module):
++class CCT(nn.Cell):
+     def __init__(
+         self,
+         img_size=224,

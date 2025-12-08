@@ -1,4 +1,3 @@
-from mindspore.mint import nn, ops
 from functools import partial
 
 import torch
@@ -6,6 +5,7 @@ from torch import nn, einsum
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange, Reduce
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -20,7 +20,7 @@ def cast_tuple(val, length = 1):
 
 # helper classes
 
-class Residual(nn.Module):
+class Residual(nn.Cell):
     def __init__(self, dim, fn):
         super().__init__()
         self.fn = fn
@@ -28,7 +28,7 @@ class Residual(nn.Module):
     def forward(self, x):
         return self.fn(x) + x
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
@@ -45,7 +45,7 @@ class FeedForward(nn.Module):
 
 # MBConv
 
-class SqueezeExcitation(nn.Module):
+class SqueezeExcitation(nn.Cell):
     def __init__(self, dim, shrinkage_rate = 0.25):
         super().__init__()
         hidden_dim = int(dim * shrinkage_rate)
@@ -63,7 +63,7 @@ class SqueezeExcitation(nn.Module):
         return x * self.gate(x)
 
 
-class MBConvResidual(nn.Module):
+class MBConvResidual(nn.Cell):
     def __init__(self, fn, dropout = 0.):
         super().__init__()
         self.fn = fn
@@ -74,7 +74,7 @@ class MBConvResidual(nn.Module):
         out = self.dropsample(out)
         return out + x
 
-class Dropsample(nn.Module):
+class Dropsample(nn.Cell):
     def __init__(self, prob = 0):
         super().__init__()
         self.prob = prob
@@ -119,7 +119,7 @@ def MBConv(
 
 # attention related classes
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -206,7 +206,7 @@ class Attention(nn.Module):
         out = self.to_out(out)
         return rearrange(out, '(b x y) ... -> b x y ...', x = height, y = width)
 
-class MaxViT(nn.Module):
+class MaxViT(nn.Cell):
     def __init__(
         self,
         *,

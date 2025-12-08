@@ -1,11 +1,9 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn
-import torch.nn.functional as F
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 
 from einops import einsum, rearrange, repeat, reduce
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -35,7 +33,7 @@ def posemb_sincos_2d(t, temperature = 10000):
 
 # bias-less layernorm with unit offset trick (discovered by Ohad Rubin)
 
-class LayerNorm(Module):
+class LayerNorm(nn.Cell):
     def __init__(self, dim):
         super().__init__()
         self.ln = nn.LayerNorm(normalized_shape = dim, elementwise_affine = False)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -60,7 +58,7 @@ def MLP(dim, factor = 4, dropout = 0.):
 
 # attention
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -138,7 +136,7 @@ class Attention(Module):
 
 # LookViT
 
-class LookViT(Module):
+class LookViT(nn.Cell):
     def __init__(
         self,
         *,

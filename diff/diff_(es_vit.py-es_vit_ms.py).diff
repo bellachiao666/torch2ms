@@ -1,8 +1,13 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import copy
- import random
- from functools import wraps, partial
-@@ -41,7 +42,7 @@ # tensor related helpers
+--- pytorch+++ mindspore@@ -4,8 +4,8 @@ 
+ import torch
+ from torch import nn, einsum
+-import torch.nn.functional as F
+ from torchvision import transforms as T
++from mindspore.mint import nn, ops
+ 
+ from einops import rearrange, reduce, repeat
+ 
+@@ -41,7 +41,7 @@ # tensor related helpers
  
  def log(t, eps = 1e-20):
 -    return torch.log(t + eps)
@@ -10,7 +15,7 @@
  
  # loss function # (algorithm 1 in the paper)
  
-@@ -72,7 +73,7 @@     student_probs = (student_logits / student_temp).softmax(dim = -1)
+@@ -72,7 +72,7 @@     student_probs = (student_logits / student_temp).softmax(dim = -1)
      teacher_probs = ((teacher_logits - centers) / teacher_temp).softmax(dim = -1)
  
 -    sim_matrix = einsum('b i d, b j d -> b i j', student_latent, teacher_latent)
@@ -18,15 +23,30 @@
      sim_indices = sim_matrix.max(dim = -1).indices
      sim_indices = repeat(sim_indices, 'b n -> b n k', k = teacher_probs.shape[-1])
      max_sim_teacher_probs = teacher_probs.gather(1, sim_indices)
-@@ -113,7 +114,7 @@ 
- class L2Norm(nn.Module):
+@@ -81,7 +81,7 @@ 
+ # augmentation utils
+ 
+-class RandomApply(nn.Module):
++class RandomApply(nn.Cell):
+     def __init__(self, fn, p):
+         super().__init__()
+         self.fn = fn
+@@ -111,11 +111,11 @@ 
+ # MLP class for projector and predictor
+ 
+-class L2Norm(nn.Module):
++class L2Norm(nn.Cell):
      def forward(self, x, eps = 1e-6):
 -        return F.normalize(x, dim = 1, eps = eps)
+-
+-class MLP(nn.Module):
 +        return nn.functional.normalize(input = x, dim = 1, eps = eps)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
- 
- class MLP(nn.Module):
++
++class MLP(nn.Cell):
      def __init__(self, dim, dim_out, num_layers, hidden_size = 256):
-@@ -126,15 +127,15 @@             is_last = ind == (len(dims) - 1)
+         super().__init__()
+ 
+@@ -126,15 +126,15 @@             is_last = ind == (len(dims) - 1)
  
              layers.extend([
 -                nn.Linear(layer_dim_in, layer_dim_out),
@@ -45,7 +65,23 @@
  
      def forward(self, x):
          return self.net(x)
-@@ -245,19 +246,19 @@ 
+@@ -143,7 +143,7 @@ # will manage the interception of the hidden layer output
+ # and pipe it into the projecter and predictor nets
+ 
+-class NetWrapper(nn.Module):
++class NetWrapper(nn.Cell):
+     def __init__(self, net, output_dim, projection_hidden_size, projection_num_layers, layer = -2):
+         super().__init__()
+         self.net = net
+@@ -220,7 +220,7 @@ 
+ # main class
+ 
+-class EsViTTrainer(nn.Module):
++class EsViTTrainer(nn.Cell):
+     def __init__(
+         self,
+         net,
+@@ -245,19 +245,19 @@ 
          DEFAULT_AUG = torch.nn.Sequential(
              RandomApply(
 -                T.ColorJitter(0.8, 0.8, 0.8, 0.2),
@@ -67,7 +103,7 @@
  
          self.augment1 = default(augment_fn, DEFAULT_AUG)
          self.augment2 = default(augment_fn2, DEFAULT_AUG)
-@@ -272,11 +273,11 @@         self.teacher_encoder = None
+@@ -272,11 +272,11 @@         self.teacher_encoder = None
          self.teacher_ema_updater = EMA(moving_average_decay)
  
 -        self.register_buffer('teacher_view_centers', torch.zeros(1, num_classes_K))
@@ -83,7 +119,7 @@
  
          self.teacher_centering_ema_updater = EMA(center_moving_average_decay)
  
-@@ -288,7 +289,7 @@         self.to(device)
+@@ -288,7 +288,7 @@         self.to(device)
  
          # send a mock image tensor to instantiate singleton parameters
 -        self.forward(torch.randn(2, 3, image_size, image_size, device=device))
@@ -91,7 +127,7 @@
  
      @singleton('teacher_encoder')
      def _get_teacher_encoder(self):
-@@ -350,10 +351,10 @@ 
+@@ -350,10 +350,10 @@ 
          # calculate view-level loss
  
 -        teacher_view_logits_avg = torch.cat((teacher_view_proj_one, teacher_view_proj_two)).mean(dim = 0)

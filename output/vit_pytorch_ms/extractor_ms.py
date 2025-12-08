@@ -1,6 +1,5 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn
+from mindspore.mint import nn, ops
 
 def exists(val):
     return val is not None
@@ -16,7 +15,7 @@ def apply_tuple_or_single(fn, val):
         return tuple(map(fn, val))
     return fn(val)
 
-class Extractor(nn.Module):
+class Extractor(nn.Cell):
     def __init__(
         self,
         vit,

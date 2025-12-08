@@ -1,8 +1,19 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from functools import partial
- import torch
+--- pytorch+++ mindspore@@ -1,9 +1,9 @@ from functools import partial
+-import torch
  from torch import nn
-@@ -25,18 +26,18 @@     def __init__(self, dim, eps = 1e-5):
+ 
+ from einops import rearrange, repeat
+ from einops.layers.torch import Rearrange, Reduce
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -21,54 +21,54 @@ 
+ # helper classes
+ 
+-class ChanLayerNorm(nn.Module):
++class ChanLayerNorm(nn.Cell):
+     def __init__(self, dim, eps = 1e-5):
          super().__init__()
          self.eps = eps
 -        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
@@ -19,7 +30,8 @@
 +        mean = ops.mean(input = x, dim = 1, keepdim = True)
          return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
  
- class Downsample(nn.Module):
+-class Downsample(nn.Module):
++class Downsample(nn.Cell):
      def __init__(self, dim_in, dim_out):
          super().__init__()
 -        self.conv = nn.Conv2d(dim_in, dim_out, 3, stride = 2, padding = 1)
@@ -27,7 +39,9 @@
  
      def forward(self, x):
          return self.conv(x)
-@@ -44,7 +45,7 @@ class PEG(nn.Module):
+ 
+-class PEG(nn.Module):
++class PEG(nn.Cell):
      def __init__(self, dim, kernel_size = 3):
          super().__init__()
 -        self.proj = nn.Conv2d(dim, dim, kernel_size = kernel_size, padding = kernel_size // 2, groups = dim, stride = 1)
@@ -35,7 +49,14 @@
  
      def forward(self, x):
          return self.proj(x) + x
-@@ -57,12 +58,12 @@         inner_dim = dim * expansion_factor
+ 
+ # feedforward
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, expansion_factor = 4, dropout = 0.):
+         super().__init__()
+         inner_dim = dim * expansion_factor
          self.net = nn.Sequential(
              ChanLayerNorm(dim),
 -            nn.Conv2d(dim, inner_dim, 1),
@@ -52,7 +73,14 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -82,17 +83,17 @@         self.heads = heads
+ # attention
+ 
+-class ScalableSelfAttention(nn.Module):
++class ScalableSelfAttention(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -82,17 +82,17 @@         self.heads = heads
          self.scale = dim_key ** -0.5
          self.attend = nn.Softmax(dim = -1)
 -        self.dropout = nn.Dropout(dropout)
@@ -76,7 +104,7 @@
  
      def forward(self, x):
          height, width, heads = *x.shape[-2:], self.heads
-@@ -107,7 +108,7 @@ 
+@@ -107,7 +107,7 @@ 
          # similarity
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -84,7 +112,7 @@
  
          # attention
  
-@@ -116,7 +117,7 @@ 
+@@ -116,14 +116,14 @@ 
          # aggregate values
  
 -        out = torch.matmul(attn, v)
@@ -92,7 +120,15 @@
  
          # merge back heads
  
-@@ -138,19 +139,19 @@         self.scale = dim_key ** -0.5
+         out = rearrange(out, 'b h (x y) d -> b (h d) x y', x = height, y = width)
+         return self.to_out(out)
+ 
+-class InteractiveWindowedSelfAttention(nn.Module):
++class InteractiveWindowedSelfAttention(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -138,19 +138,19 @@         self.scale = dim_key ** -0.5
          self.window_size = window_size
          self.attend = nn.Softmax(dim = -1)
 -        self.dropout = nn.Dropout(dropout)
@@ -120,7 +156,7 @@
  
      def forward(self, x):
          height, width, heads, wsz = *x.shape[-2:], self.heads, self.window_size
-@@ -172,7 +173,7 @@ 
+@@ -172,7 +172,7 @@ 
          # similarity
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -128,7 +164,7 @@
  
          # attention
  
-@@ -181,7 +182,7 @@ 
+@@ -181,7 +181,7 @@ 
          # aggregate values
  
 -        out = torch.matmul(attn, v)
@@ -136,7 +172,23 @@
  
          # reshape the windows back to full feature map (and merge heads)
  
-@@ -256,7 +257,7 @@         dropout = 0.
+@@ -193,7 +193,7 @@ 
+         return self.to_out(out)
+ 
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -237,7 +237,7 @@ 
+         return self.norm(x)
+ 
+-class ScalableViT(nn.Module):
++class ScalableViT(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -256,7 +256,7 @@         dropout = 0.
      ):
          super().__init__()
 -        self.to_patches = nn.Conv2d(channels, dim, 7, stride = 4, padding = 3)
@@ -144,7 +196,7 @@
  
          assert isinstance(depth, tuple), 'depth needs to be tuple if integers indicating number of transformer blocks at that stage'
  
-@@ -288,9 +289,9 @@ 
+@@ -288,9 +288,9 @@ 
          self.mlp_head = nn.Sequential(
              Reduce('b d h w -> b d', 'mean'),
 -            nn.LayerNorm(dims[-1]),

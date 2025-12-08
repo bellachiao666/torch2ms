@@ -1,8 +1,20 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- # vision-audio-action transformer - vaat
+--- pytorch+++ mindspore@@ -4,14 +4,14 @@ from contextlib import nullcontext
  
- from __future__ import annotations
-@@ -34,16 +35,16 @@ ):
+ import torch
+-import torch.nn.functional as F
+ from torch import nn, cat, stack, arange, tensor
+-from torch.nn import Module, ModuleList
++from torch.nn import ModuleList
+ 
+ from torchaudio.transforms import Spectrogram
+ 
+ from einops import rearrange, repeat, reduce, pack, unpack
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -34,29 +34,29 @@ ):
      _, h, w, dim, device, dtype = *patches.shape, patches.device, patches.dtype
  
 -    y, x = torch.meshgrid(arange(h, device = device), torch.arange(w, device = device), indexing = 'ij')
@@ -21,7 +33,14 @@
      pe = pe.type(dtype)
  
      return rearrange(pe, '(h w) d -> h w d', h = h, w = w)
-@@ -56,7 +57,7 @@         dim,
+ 
+ # classes
+ 
+-class FiLM(Module):
++class FiLM(nn.Cell):
+     def __init__(
+         self,
+         dim,
      ):
          super().__init__()
 -        proj = nn.Linear(dim, dim * 2)
@@ -29,7 +48,15 @@
  
          self.to_gamma_beta = nn.Sequential(
              proj,
-@@ -80,13 +81,13 @@     ):
+@@ -71,7 +71,7 @@ 
+         return tokens * gamma + beta
+ 
+-class FeedForward(Module):
++class FeedForward(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -80,18 +80,18 @@     ):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -48,7 +75,13 @@
  
      def forward(self, x):
          return self.net(x)
-@@ -109,21 +110,21 @@         self.heads = heads
+ 
+-class Attention(Module):
++class Attention(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -109,21 +109,21 @@         self.heads = heads
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -78,7 +111,7 @@
  
      def forward(self, x, context = None):
  
-@@ -144,12 +145,12 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
+@@ -144,16 +144,16 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -92,7 +125,12 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
-@@ -164,7 +165,7 @@         dropout = 0.
+-class Transformer(Module):
++class Transformer(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -164,7 +164,7 @@         dropout = 0.
      ):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
@@ -100,7 +138,15 @@
          self.layers = ModuleList([])
  
          for _ in range(depth):
-@@ -229,10 +230,10 @@ 
+@@ -194,7 +194,7 @@ 
+         return x, hiddens
+ 
+-class AST(Module):
++class AST(nn.Cell):
+     # audio spectrogram transformer https://arxiv.org/abs/2104.01778
+ 
+     def __init__(
+@@ -229,10 +229,10 @@ 
          self.to_patch_tokens = nn.Sequential(
              Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]),
 -            nn.LayerNorm(patch_input_dim),
@@ -114,7 +160,7 @@
  
          self.accept_spec = accept_spec
          self.accept_spec_time_first = accept_spec_time_first
-@@ -256,11 +257,11 @@             dropout = dropout,
+@@ -256,11 +256,11 @@             dropout = dropout,
          )
  
 -        self.final_norm = nn.LayerNorm(dim)
@@ -130,7 +176,7 @@
  
      def forward(
          self,
-@@ -315,7 +316,7 @@         normed = self.final_norm(attended)
+@@ -315,7 +315,7 @@         normed = self.final_norm(attended)
  
          if return_hiddens:
 -            return normed, stack(hiddens)
@@ -138,7 +184,15 @@
  
          register_tokens, normed = unpack(normed, packed_shape, 'b * d')
  
-@@ -358,23 +359,23 @@ 
+@@ -325,7 +325,7 @@ 
+         return maybe_logits
+ 
+-class ViT(Module):
++class ViT(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -358,23 +358,23 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),
@@ -172,7 +226,7 @@
  
      def forward(self, img, return_hiddens = False):
          x = self.to_patch_embedding(img)
-@@ -394,7 +395,7 @@         # return the representation trajectory
+@@ -394,7 +394,7 @@         # return the representation trajectory
  
          if return_hiddens:
 -            return x, stack(hiddens)
@@ -180,7 +234,15 @@
  
          register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
  
-@@ -479,28 +480,28 @@ 
+@@ -409,7 +409,7 @@ # https://openreview.net/forum?id=TalHOvvLZu
+ # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
+ 
+-class VAAT(Module):
++class VAAT(nn.Cell):
+     def __init__(
+         self,
+         vit: ViT | dict,
+@@ -479,28 +479,28 @@ 
          self.is_video = is_video
          self.time_seq_len = time_seq_len
 -        self.time_pos_emb = nn.Parameter(torch.randn(time_seq_len, vit_dim) * 1e-2) if is_video else None
@@ -215,7 +277,7 @@
  
          self.layers = ModuleList([])
  
-@@ -516,15 +517,15 @@                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
+@@ -516,15 +516,15 @@                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
              ]))
  
 -        self.final_norm = nn.LayerNorm(dim)
@@ -233,7 +295,7 @@
  
      def forward(
          self,
-@@ -584,7 +585,7 @@         with vit_forward_context():
+@@ -584,7 +584,7 @@         with vit_forward_context():
              embed, hiddens = self.vit(images, return_hiddens = True)
  
 -        hiddens = cat((hiddens, embed[None, ...]))
@@ -241,7 +303,7 @@
  
          # extract the hiddens needed for the action cross attention
  
-@@ -615,7 +616,7 @@         with ast_forward_context():
+@@ -615,7 +615,7 @@         with ast_forward_context():
              audio_embed, audio_hiddens = self.ast(audio_or_spec, return_hiddens = True)
  
 -        audio_hiddens = cat((audio_hiddens, audio_embed[None, ...]))
@@ -249,7 +311,7 @@
  
          # extract the hiddens needed for the action cross attention
  
-@@ -704,13 +705,13 @@             if not return_hiddens:
+@@ -704,13 +704,13 @@             if not return_hiddens:
                  return pred_action
  
 -            return pred_action, stack(hiddens)
@@ -264,7 +326,7 @@
  
  # quick test
  
-@@ -759,13 +760,13 @@         )
+@@ -759,13 +759,13 @@         )
      )
  
 -    images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)

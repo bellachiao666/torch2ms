@@ -1,7 +1,7 @@
-from mindspore.mint import nn, ops
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
+from mindspore.mint import nn, ops
 
 from einops import rearrange, repeat
 
@@ -82,7 +82,7 @@ def sinusoidal_embedding(n_channels, dim):
 
 # modules
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
         super().__init__()
         self.heads = num_heads
@@ -112,7 +112,7 @@ class Attention(nn.Module):
         return self.proj_drop(self.proj(x))
 
 
-class TransformerEncoderLayer(nn.Module):
+class TransformerEncoderLayer(nn.Cell):
     """
     Inspired by torch.nn.TransformerEncoderLayer and
     rwightman's timm package.
@@ -142,7 +142,7 @@ class TransformerEncoderLayer(nn.Module):
         src = src + self.drop_path(self.dropout2(src2))
         return src
 
-class DropPath(nn.Module):
+class DropPath(nn.Cell):
     def __init__(self, drop_prob=None):
         super().__init__()
         self.drop_prob = float(drop_prob)
@@ -160,7 +160,7 @@ class DropPath(nn.Module):
         output = x.div(keep_prob) * keep_mask.float()
         return output
 
-class Tokenizer(nn.Module):
+class Tokenizer(nn.Cell):
     def __init__(self,
                  kernel_size, stride, padding,
                  pooling_kernel_size=3, pooling_stride=2, pooling_padding=1,
@@ -204,7 +204,7 @@ class Tokenizer(nn.Module):
             nn.init.kaiming_normal_(m.weight)
 
 
-class TransformerClassifier(nn.Module):
+class TransformerClassifier(nn.Cell):
     def __init__(self,
                  seq_pool=True,
                  embedding_dim=768,
@@ -301,7 +301,7 @@ class TransformerClassifier(nn.Module):
 
 # CCT Main model
 
-class CCT(nn.Module):
+class CCT(nn.Cell):
     def __init__(
         self,
         img_size=224,

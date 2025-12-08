@@ -1,8 +1,17 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from functools import partial
- 
+--- pytorch+++ mindspore@@ -2,11 +2,11 @@ 
  import torch
-@@ -30,13 +31,13 @@ def FeedForward(dim, mult = 4, dropout = 0.):
+ from torch import nn, einsum
+-import torch.nn.functional as F
+-from torch.nn import Module, ModuleList, Sequential
++from torch.nn import ModuleList, Sequential
+ 
+ from einops import rearrange, repeat, reduce, pack, unpack
+ from einops.layers.torch import Rearrange, Reduce
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -30,34 +30,34 @@ def FeedForward(dim, mult = 4, dropout = 0.):
      inner_dim = int(dim * mult)
      return Sequential(
 -        nn.LayerNorm(dim),
@@ -21,7 +30,12 @@
  
  # MBConv
  
-@@ -47,12 +48,12 @@ 
+-class SqueezeExcitation(Module):
++class SqueezeExcitation(nn.Cell):
+     def __init__(self, dim, shrinkage_rate = 0.25):
+         super().__init__()
+         hidden_dim = int(dim * shrinkage_rate)
+ 
          self.gate = Sequential(
              Reduce('b c h w -> b c', 'mean'),
 -            nn.Linear(dim, hidden_dim, bias = False),
@@ -36,7 +50,21 @@
  
      def forward(self, x):
          return x * self.gate(x)
-@@ -95,16 +96,16 @@     stride = 2 if downsample else 1
+ 
+-class MBConvResidual(Module):
++class MBConvResidual(nn.Cell):
+     def __init__(self, fn, dropout = 0.):
+         super().__init__()
+         self.fn = fn
+@@ -68,7 +68,7 @@         out = self.dropsample(out)
+         return out + x
+ 
+-class Dropsample(Module):
++class Dropsample(nn.Cell):
+     def __init__(self, prob = 0):
+         super().__init__()
+         self.prob = prob
+@@ -95,16 +95,16 @@     stride = 2 if downsample else 1
  
      net = Sequential(
 -        nn.Conv2d(dim_in, hidden_dim, 1),
@@ -59,7 +87,15 @@
  
      if dim_in == dim_out and not downsample:
          net = MBConvResidual(net, dropout = dropout)
-@@ -129,33 +130,33 @@         self.heads = dim // dim_head
+@@ -113,7 +113,7 @@ 
+ # attention related classes
+ 
+-class Attention(Module):
++class Attention(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -129,33 +129,33 @@         self.heads = dim // dim_head
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -103,7 +139,7 @@
          self.register_buffer('rel_pos_indices', rel_pos_indices, persistent = False)
  
      def forward(self, x):
-@@ -177,7 +178,7 @@ 
+@@ -177,7 +177,7 @@ 
          # sim
  
 -        sim = einsum('b h i d, b h j d -> b h i j', q, k)
@@ -111,7 +147,7 @@
  
          # add positional bias
  
-@@ -190,7 +191,7 @@ 
+@@ -190,14 +190,14 @@ 
          # aggregate
  
 -        out = einsum('b h i j, b h j d -> b h i d', attn, v)
@@ -119,7 +155,15 @@
  
          # combine heads out
  
-@@ -222,9 +223,9 @@         dim_conv_stem = default(dim_conv_stem, dim)
+         out = rearrange(out, 'b h n d -> b n (h d)')
+         return self.to_out(out)
+ 
+-class MaxViT(Module):
++class MaxViT(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -222,9 +222,9 @@         dim_conv_stem = default(dim_conv_stem, dim)
  
          self.conv_stem = Sequential(
 -            nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1),
@@ -131,7 +175,7 @@
  
          # variables
  
-@@ -263,7 +264,7 @@                 grid_attn = Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = window_size, num_registers = num_register_tokens)
+@@ -263,7 +263,7 @@                 grid_attn = Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = window_size, num_registers = num_register_tokens)
                  grid_ff = FeedForward(dim = layer_dim, dropout = dropout)
  
 -                register_tokens = nn.Parameter(torch.randn(num_register_tokens, layer_dim))
@@ -139,7 +183,7 @@
  
                  self.layers.append(ModuleList([
                      conv,
-@@ -277,9 +278,9 @@ 
+@@ -277,9 +277,9 @@ 
          self.mlp_head = nn.Sequential(
              Reduce('b d h w -> b d', 'mean'),
 -            nn.LayerNorm(dims[-1]),

@@ -1,10 +1,8 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helper methods
 
@@ -23,7 +21,7 @@ def group_by_key_prefix_and_remove_prefix(prefix, d):
 
 # classes
 
-class Residual(nn.Module):
+class Residual(nn.Cell):
     def __init__(self, fn):
         super().__init__()
         self.fn = fn
@@ -31,7 +29,7 @@ class Residual(nn.Module):
     def forward(self, x, **kwargs):
         return self.fn(x, **kwargs) + x
 
-class LayerNorm(nn.Module):
+class LayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
@@ -43,7 +41,7 @@ class LayerNorm(nn.Module):
         mean = ops.mean(input = x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -57,7 +55,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class PatchEmbedding(nn.Module):
+class PatchEmbedding(nn.Cell):
     def __init__(self, *, dim, dim_out, patch_size):
         super().__init__()
         self.dim = dim
@@ -75,7 +73,7 @@ class PatchEmbedding(nn.Module):
         fmap = rearrange(fmap, 'b c (h p1) (w p2) -> b (c p1 p2) h w', p1 = p, p2 = p)
         return self.proj(fmap)
 
-class PEG(nn.Module):
+class PEG(nn.Cell):
     def __init__(self, dim, kernel_size = 3):
         super().__init__()
         self.proj = Residual(nn.Conv2d(in_channels = dim, out_channels = dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -83,7 +81,7 @@ class PEG(nn.Module):
     def forward(self, x):
         return self.proj(x)
 
-class LocalAttention(nn.Module):
+class LocalAttention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., patch_size = 7):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -120,7 +118,7 @@ class LocalAttention(nn.Module):
         out = rearrange(out, '(b x y h) (p1 p2) d -> b (h d) (x p1) (y p2)', h = h, x = x, y = y, p1 = p, p2 = p)
         return self.to_out(out)
 
-class GlobalAttention(nn.Module):
+class GlobalAttention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., k = 7):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -157,7 +155,7 @@ class GlobalAttention(nn.Module):
         out = rearrange(out, '(b h) (x y) d -> b (h d) x y', h = h, y = y)
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads = 8, dim_head = 64, mlp_mult = 4, local_patch_size = 7, global_k = 7, dropout = 0., has_local = True):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -176,7 +174,7 @@ class Transformer(nn.Module):
             x = ff2(x)
         return x
 
-class TwinsSVT(nn.Module):
+class TwinsSVT(nn.Cell):
     def __init__(
         self,
         *,

@@ -1,4 +1,3 @@
-from mindspore.mint import nn, ops
 from collections import namedtuple
 from packaging import version
 
@@ -8,6 +7,7 @@ from torch import nn
 
 from einops import rearrange
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # constants
 
@@ -33,7 +33,7 @@ def posemb_sincos_2d(patches, temperature = 10000, dtype = torch.float32):
 
 # main class
 
-class Attend(nn.Module):
+class Attend(nn.Cell):
     def __init__(self, use_flash = False):
         super().__init__()
         self.use_flash = use_flash
@@ -86,7 +86,7 @@ class Attend(nn.Module):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim):
         super().__init__()
         self.net = nn.Sequential(
@@ -98,7 +98,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, use_flash = True):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -122,7 +122,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, use_flash):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -137,7 +137,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return x
 
-class SimpleViT(nn.Module):
+class SimpleViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, use_flash = True):
         super().__init__()
         image_height, image_width = pair(image_size)

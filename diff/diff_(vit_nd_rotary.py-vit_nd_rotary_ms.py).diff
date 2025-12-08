@@ -1,8 +1,17 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from __future__ import annotations
- 
+--- pytorch+++ mindspore@@ -2,11 +2,11 @@ 
  import torch
-@@ -14,7 +15,7 @@     return val is not None
+ from torch import nn, arange, cat, stack, Tensor
+-from torch.nn import Module, ModuleList
+-import torch.nn.functional as F
++from torch.nn import ModuleList
+ 
+ from einops import rearrange, repeat, reduce, pack, unpack
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -14,7 +14,7 @@     return val is not None
  
  def l2norm(t):
 -    return F.normalize(t, dim = -1, p = 2)
@@ -10,7 +19,7 @@
  
  def join(arr, delimiter = ' '):
      return delimiter.join(arr)
-@@ -36,10 +37,10 @@ 
+@@ -36,14 +36,14 @@ 
  def make_directions(n: int, d: int) -> Tensor:
      g = _phi(d)
 -    alpha = (1.0 / g) ** arange(1, d + 1, dtype = torch.float64)
@@ -24,7 +33,12 @@
      directions = l2norm(directions)
      return directions.float()
  
-@@ -57,10 +58,10 @@         n_freqs = dim_head // 2
+-class GoldenGateRoPENd(Module):
++class GoldenGateRoPENd(nn.Cell):
+     def __init__(
+         self,
+         dim_pos: int,
+@@ -57,10 +57,10 @@         n_freqs = dim_head // 2
          n_zero_freqs = round(rope_p_zero_freqs * n_freqs)
  
 -        omega = cat((
@@ -38,7 +52,7 @@
  
          directions = rearrange(
              make_directions(heads * n_freqs, dim_pos),
-@@ -85,14 +86,14 @@         # Compute theta for each (batch, head, seq, freq)
+@@ -85,34 +85,34 @@         # Compute theta for each (batch, head, seq, freq)
          theta = reduce(freqs * positions, 'b h n f p -> b h n f', 'sum')
          
 -        cos_theta = torch.cos(theta)
@@ -55,7 +69,10 @@
          return output.type_as(input)
  
  # classes
-@@ -101,13 +102,13 @@     def __init__(self, dim, hidden_dim, dropout = 0.):
+ 
+-class FeedForward(Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -74,7 +91,13 @@
      
      def forward(self, x):
          return self.net(x)
-@@ -122,17 +123,17 @@         self.scale = dim_head ** -0.5
+ 
+-class Attention(Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., rotary_emb = None):
+         super().__init__()
+         inner_dim = dim_head * heads
+@@ -122,17 +122,17 @@         self.scale = dim_head ** -0.5
          self.rotary_emb = rotary_emb
          
 -        self.norm = nn.LayerNorm(dim)
@@ -99,7 +122,7 @@
      
      def forward(self, x, pos = None):
          x = self.norm(x)
-@@ -146,19 +147,19 @@             q = self.rotary_emb(q, pos)
+@@ -146,19 +146,19 @@             q = self.rotary_emb(q, pos)
              k = self.rotary_emb(k, pos)
          
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -113,7 +136,8 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
- class Transformer(Module):
+-class Transformer(Module):
++class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., rotary_emb = None):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
@@ -121,7 +145,15 @@
          self.layers = ModuleList([])
          for _ in range(depth):
              self.layers.append(ModuleList([
-@@ -226,11 +227,11 @@         
+@@ -172,7 +172,7 @@             x = ff(x) + x
+         return self.norm(x)
+ 
+-class ViTND(Module):
++class ViTND(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -226,11 +226,11 @@         
          self.to_patch_embedding = nn.Sequential(
              Rearrange(rearrange_str, **rearrange_kwargs),
 -            nn.Linear(patch_dim, dim),
@@ -137,7 +169,7 @@
          
          # Create rotary embeddings
          self.rotary_emb = GoldenGateRoPENd(
-@@ -245,7 +246,7 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, rotary_emb = self.rotary_emb)
+@@ -245,7 +245,7 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, rotary_emb = self.rotary_emb)
          
          self.to_latent = nn.Identity()
 -        self.mlp_head = nn.Linear(dim, num_classes)
@@ -145,7 +177,7 @@
      
      def muon_parameters(self):
          params = []
-@@ -275,9 +276,9 @@         
+@@ -275,9 +275,9 @@         
          # Generate position coordinates
  
 -        grids = [arange(d, device = device, dtype = torch.float32) for d in spatial_dims]
@@ -157,7 +189,7 @@
  
          # flatten spatial dimensions for attention with nd rotary
          
-@@ -318,7 +319,7 @@         emb_dropout = 0.1
+@@ -318,7 +318,7 @@         emb_dropout = 0.1
      )
  
 -    data = torch.randn(2, 3, 4, 8, 16, 32, 64)

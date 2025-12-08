@@ -1,13 +1,10 @@
-from mindspore.mint import nn, ops
 from math import sqrt, pi, log
-
-import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 from torch.amp import autocast
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # rotary embeddings
 
@@ -18,7 +15,7 @@ def rotate_every_two(x):
     x = ops.stack(tensors = (-x2, x1), dim = -1)  # 'torch.stack':没有对应的mindspore参数 'out';
     return rearrange(x, '... d j -> ... (d j)')
 
-class AxialRotaryEmbedding(nn.Module):
+class AxialRotaryEmbedding(nn.Cell):
     def __init__(self, dim, max_freq = 10):
         super().__init__()
         self.dim = dim
@@ -47,7 +44,7 @@ class AxialRotaryEmbedding(nn.Module):
         sin, cos = map(lambda t: repeat(t, 'n d -> () n (d j)', j = 2), (sin, cos))
         return sin, cos
 
-class DepthWiseConv2d(nn.Module):
+class DepthWiseConv2d(nn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
         super().__init__()
         self.net = nn.Sequential(
@@ -59,7 +56,7 @@ class DepthWiseConv2d(nn.Module):
 
 # helper classes
 
-class SpatialConv(nn.Module):
+class SpatialConv(nn.Cell):
     def __init__(self, dim_in, dim_out, kernel, bias = False):
         super().__init__()
         self.conv = DepthWiseConv2d(dim_in, dim_out, kernel, padding = kernel // 2, bias = False)
@@ -73,12 +70,12 @@ class SpatialConv(nn.Module):
         cls_token = self.cls_proj(cls_token)
         return ops.cat(tensors = (cls_token, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
 
-class GEGLU(nn.Module):
+class GEGLU(nn.Cell):
     def forward(self, x):
         x, gates = x.chunk(2, dim = -1)
         return nn.functional.gelu(input = gates) * x  # 'torch.nn.functional.gelu':没有对应的mindspore参数 'dim';
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0., use_glu = True):
         super().__init__()
         self.net = nn.Sequential(
@@ -92,7 +89,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., use_rotary = True, use_ds_conv = True, conv_query_kernel = 5):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -156,7 +153,7 @@ class Attention(nn.Module):
         out = rearrange(out, '(b h) n d -> b n (h d)', h = h)
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, image_size, dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -176,7 +173,7 @@ class Transformer(nn.Module):
 
 # Rotary Vision Transformer
 
-class RvT(nn.Module):
+class RvT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
         super().__init__()
         assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'

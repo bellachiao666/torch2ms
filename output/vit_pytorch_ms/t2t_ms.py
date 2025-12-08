@@ -1,12 +1,11 @@
-from mindspore.mint import nn, ops
 import math
-import torch
 from torch import nn
 
 from vit_pytorch.vit import Transformer
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -18,13 +17,13 @@ def conv_output_size(image_size, kernel_size, stride, padding):
 
 # classes
 
-class RearrangeImage(nn.Module):
+class RearrangeImage(nn.Cell):
     def forward(self, x):
         return rearrange(x, 'b (h w) c -> b c h w', h = int(math.sqrt(x.shape[1])))
 
 # main class
 
-class T2TViT(nn.Module):
+class T2TViT(nn.Cell):
     def __init__(self, *, image_size, num_classes, dim, depth = None, heads = None, mlp_dim = None, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., transformer = None, t2t_layers = ((7, 4), (3, 2), (3, 2))):
         super().__init__()
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'

@@ -1,12 +1,9 @@
-from mindspore.mint import nn, ops
 from math import ceil
-
-import torch
 from torch import nn, einsum
-import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -25,7 +22,7 @@ def always(val):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, mult, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -38,7 +35,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, fmap_size, heads = 8, dim_key = 32, dim_value = 64, dropout = 0., dim_out = None, downsample = False):
         super().__init__()
         inner_dim_key = dim_key *  heads
@@ -108,7 +105,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h (x y) d -> b (h d) x y', h = h, y = y)
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, fmap_size, depth, heads, dim_key, dim_value, mlp_mult = 2, dropout = 0., dim_out = None, downsample = False):
         super().__init__()
         dim_out = default(dim_out, dim)
@@ -127,7 +124,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return x
 
-class LeViT(nn.Module):
+class LeViT(nn.Cell):
     def __init__(
         self,
         *,

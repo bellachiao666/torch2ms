@@ -1,8 +1,21 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import torch
+--- pytorch+++ mindspore@@ -1,8 +1,8 @@-import torch
  from torch import nn
  
-@@ -23,10 +24,10 @@ 
+ from einops import rearrange, repeat
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -11,7 +11,7 @@ 
+ # classes
+ 
+-class PatchDropout(nn.Module):
++class PatchDropout(nn.Cell):
+     def __init__(self, prob):
+         super().__init__()
+         assert 0 <= prob < 1.
+@@ -23,28 +23,28 @@ 
          b, n, _, device = *x.shape, x.device
  
 -        batch_indices = torch.arange(b, device = device)
@@ -14,7 +27,9 @@
  
          return x[batch_indices, patch_indices_keep]
  
-@@ -34,13 +35,13 @@     def __init__(self, dim, hidden_dim, dropout = 0.):
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -33,7 +48,12 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -53,28 +54,28 @@         self.heads = heads
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+         super().__init__()
+         inner_dim = dim_head *  heads
+@@ -53,32 +53,32 @@         self.heads = heads
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -69,7 +89,20 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
-@@ -107,14 +108,14 @@ 
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+         super().__init__()
+         self.layers = nn.ModuleList([])
+@@ -93,7 +93,7 @@             x = ff(x) + x
+         return x
+ 
+-class ViT(nn.Module):
++class ViT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., patch_dropout = 0.25):
+         super().__init__()
+         image_height, image_width = pair(image_size)
+@@ -107,14 +107,14 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
 -            nn.Linear(patch_dim, dim),
@@ -88,7 +121,7 @@
  
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
  
-@@ -122,9 +123,9 @@         self.to_latent = nn.Identity()
+@@ -122,9 +122,9 @@         self.to_latent = nn.Identity()
  
          self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -100,7 +133,7 @@
  
      def forward(self, img):
          x = self.to_patch_embedding(img)
-@@ -136,7 +137,7 @@ 
+@@ -136,7 +136,7 @@ 
          cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)
  
 -        x = torch.cat((cls_tokens, x), dim=1)

@@ -1,11 +1,10 @@
-from mindspore.mint import nn, ops
 from math import sqrt
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -14,7 +13,7 @@ def pair(t):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -28,7 +27,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class LSA(nn.Module):
+class LSA(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -64,7 +63,7 @@ class LSA(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -79,7 +78,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return x
 
-class SPT(nn.Module):
+class SPT(nn.Cell):
     def __init__(self, *, dim, patch_size, channels = 3):
         super().__init__()
         patch_dim = patch_size * patch_size * 5 * channels
@@ -96,7 +95,7 @@ class SPT(nn.Module):
         x_with_shifts = ops.cat(tensors = (x, *shifted_x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
         return self.to_patch_tokens(x_with_shifts)
 
-class ViT(nn.Module):
+class ViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)

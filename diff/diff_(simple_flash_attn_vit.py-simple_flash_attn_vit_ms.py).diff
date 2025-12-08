@@ -1,8 +1,11 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from collections import namedtuple
- from packaging import version
+--- pytorch+++ mindspore@@ -7,6 +7,7 @@ 
+ from einops import rearrange
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
  
-@@ -20,14 +21,14 @@ def posemb_sincos_2d(patches, temperature = 10000, dtype = torch.float32):
+ # constants
+ 
+@@ -20,19 +21,19 @@ def posemb_sincos_2d(patches, temperature = 10000, dtype = torch.float32):
      _, h, w, dim, device, dtype = *patches.shape, patches.device, patches.dtype
  
 -    y, x = torch.meshgrid(torch.arange(h, device = device), torch.arange(w, device = device), indexing = 'ij')
@@ -19,7 +22,18 @@
      return pe.type(dtype)
  
  # main class
-@@ -89,11 +90,11 @@     def __init__(self, dim, hidden_dim):
+ 
+-class Attend(nn.Module):
++class Attend(nn.Cell):
+     def __init__(self, use_flash = False):
+         super().__init__()
+         self.use_flash = use_flash
+@@ -85,30 +86,30 @@ 
+ # classes
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -34,7 +48,11 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -103,12 +104,12 @@         inner_dim = dim_head *  heads
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64, use_flash = True):
+         super().__init__()
+         inner_dim = dim_head *  heads
          self.heads = heads
          self.scale = dim_head ** -0.5
 -        self.norm = nn.LayerNorm(dim)
@@ -49,6 +67,22 @@
  
      def forward(self, x):
          x = self.norm(x)
+@@ -121,7 +122,7 @@         out = rearrange(out, 'b h n d -> b n (h d)')
+         return self.to_out(out)
+ 
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim, use_flash):
+         super().__init__()
+         self.layers = nn.ModuleList([])
+@@ -136,7 +137,7 @@             x = ff(x) + x
+         return x
+ 
+-class SimpleViT(nn.Module):
++class SimpleViT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, use_flash = True):
+         super().__init__()
+         image_height, image_width = pair(image_size)
 @@ -149,18 +150,18 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width),

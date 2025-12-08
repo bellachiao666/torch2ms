@@ -1,8 +1,25 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from __future__ import annotations
- from contextlib import nullcontext
+--- pytorch+++ mindspore@@ -2,12 +2,12 @@ from contextlib import nullcontext
  
-@@ -28,7 +29,7 @@         dim,
+ import torch
+-import torch.nn.functional as F
+ from torch import nn, cat, stack, tensor
+-from torch.nn import Module, ModuleList
++from torch.nn import ModuleList
+ 
+ from einops import rearrange, repeat, pack, unpack
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -22,13 +22,13 @@ 
+ # classes
+ 
+-class FiLM(Module):
++class FiLM(nn.Cell):
+     def __init__(
+         self,
+         dim,
      ):
          super().__init__()
 -        proj = nn.Linear(dim, dim * 2)
@@ -10,7 +27,15 @@
  
          self.to_gamma_beta = nn.Sequential(
              proj,
-@@ -52,13 +53,13 @@     ):
+@@ -43,7 +43,7 @@ 
+         return tokens * gamma + beta
+ 
+-class FeedForward(Module):
++class FeedForward(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -52,18 +52,18 @@     ):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -29,7 +54,13 @@
  
      def forward(self, x):
          return self.net(x)
-@@ -81,21 +82,21 @@         self.heads = heads
+ 
+-class Attention(Module):
++class Attention(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -81,21 +81,21 @@         self.heads = heads
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -59,7 +90,7 @@
  
      def forward(self, x, context = None):
  
-@@ -116,12 +117,12 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
+@@ -116,16 +116,16 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -73,7 +104,12 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
-@@ -136,7 +137,7 @@         dropout = 0.
+-class Transformer(Module):
++class Transformer(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -136,7 +136,7 @@         dropout = 0.
      ):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
@@ -81,7 +117,15 @@
          self.layers = ModuleList([])
  
          for _ in range(depth):
-@@ -199,23 +200,23 @@ 
+@@ -166,7 +166,7 @@ 
+         return x, hiddens
+ 
+-class ViT(Module):
++class ViT(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -199,23 +199,23 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),
@@ -115,7 +159,7 @@
  
      def forward(self, img, return_hiddens = False):
          x = self.to_patch_embedding(img)
-@@ -235,7 +236,7 @@         # return the representation trajectory
+@@ -235,7 +235,7 @@         # return the representation trajectory
  
          if return_hiddens:
 -            return x, stack(hiddens)
@@ -123,7 +167,15 @@
  
          register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
  
-@@ -295,26 +296,26 @@ 
+@@ -249,7 +249,7 @@ # https://openreview.net/forum?id=TalHOvvLZu
+ # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
+ 
+-class VAT(Module):
++class VAT(nn.Cell):
+     def __init__(
+         self,
+         vit: ViT | dict,
+@@ -295,26 +295,26 @@ 
          self.is_video = is_video
          self.time_seq_len = time_seq_len
 -        self.time_pos_emb = nn.Parameter(torch.randn(time_seq_len, vit_dim) * 1e-2) if is_video else None
@@ -154,7 +206,7 @@
  
          self.layers = ModuleList([])
  
-@@ -329,15 +330,15 @@                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
+@@ -329,15 +329,15 @@                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
              ]))
  
 -        self.final_norm = nn.LayerNorm(dim)
@@ -172,7 +224,7 @@
  
      def forward(
          self,
-@@ -380,7 +381,7 @@         with vit_forward_context():
+@@ -380,7 +380,7 @@         with vit_forward_context():
              embed, hiddens = self.vit(images, return_hiddens = True)
  
 -        hiddens = cat((hiddens, embed[None, ...]))
@@ -180,7 +232,7 @@
  
          # extract the hiddens needed for the action cross attention
  
-@@ -471,13 +472,13 @@             if not return_hiddens:
+@@ -471,13 +471,13 @@             if not return_hiddens:
                  return pred_action
  
 -            return pred_action, stack(hiddens)
@@ -195,7 +247,7 @@
  
  # quick test
  
-@@ -512,11 +513,11 @@         )
+@@ -512,11 +512,11 @@         )
      )
  
 -    images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)

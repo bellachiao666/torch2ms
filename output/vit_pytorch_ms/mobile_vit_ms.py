@@ -1,9 +1,8 @@
-from mindspore.mint import nn, ops
-import torch
 import torch.nn as nn
 
 from einops import rearrange
 from einops.layers.torch import Reduce
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -23,7 +22,7 @@ def conv_nxn_bn(inp, oup, kernel_size=3, stride=1):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout=0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -38,7 +37,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads=8, dim_head=64, dropout=0.):
         super().__init__()
         inner_dim = dim_head * heads
@@ -71,7 +70,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b p h n d -> b p n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     """Transformer block described in ViT.
     Paper: https://arxiv.org/abs/2010.11929
     Based on: https://github.com/lucidrains/vit-pytorch
@@ -92,7 +91,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return x
 
-class MV2Block(nn.Module):
+class MV2Block(nn.Cell):
     """MV2 block described in MobileNetV2.
     Paper: https://arxiv.org/pdf/1801.04381
     Based on: https://github.com/tonylins/pytorch-mobilenet-v2
@@ -137,7 +136,7 @@ class MV2Block(nn.Module):
             out = out + x
         return out
 
-class MobileViTBlock(nn.Module):
+class MobileViTBlock(nn.Cell):
     def __init__(self, dim, depth, channel, kernel_size, patch_size, mlp_dim, dropout=0.):
         super().__init__()
         self.ph, self.pw = patch_size
@@ -169,7 +168,7 @@ class MobileViTBlock(nn.Module):
         x = self.conv4(x)
         return x
 
-class MobileViT(nn.Module):
+class MobileViT(nn.Cell):
     """MobileViT.
     Paper: https://arxiv.org/abs/2110.02178
     Based on: https://github.com/chinhsuanwu/mobilevit-pytorch

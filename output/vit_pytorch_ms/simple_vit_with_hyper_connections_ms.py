@@ -1,4 +1,3 @@
-from mindspore.mint import nn, ops
 """
 ViT + Hyper-Connections + Register Tokens
 https://arxiv.org/abs/2409.19606
@@ -6,10 +5,11 @@ https://arxiv.org/abs/2409.19606
 
 import torch
 from torch import nn, tensor
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 
 from einops import rearrange, repeat, reduce, einsum, pack, unpack
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # b - batch, h - heads, n - sequence, e - expansion rate / residual streams, d - feature dimension
 
@@ -31,7 +31,7 @@ def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32)
 
 # hyper connections
 
-class HyperConnection(Module):
+class HyperConnection(nn.Cell):
     def __init__(
         self,
         dim,
@@ -86,7 +86,7 @@ class HyperConnection(Module):
 
 # classes
 
-class FeedForward(Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim):
         super().__init__()
         self.net = nn.Sequential(
@@ -98,7 +98,7 @@ class FeedForward(Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -125,7 +125,7 @@ class Attention(Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, num_residual_streams):
         super().__init__()
 
@@ -164,7 +164,7 @@ class Transformer(Module):
 
         return self.norm(x)
 
-class SimpleViT(nn.Module):
+class SimpleViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, num_residual_streams, num_register_tokens = 4, channels = 3, dim_head = 64):
         super().__init__()
         image_height, image_width = pair(image_size)

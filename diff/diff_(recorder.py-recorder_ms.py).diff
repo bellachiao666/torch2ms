@@ -1,8 +1,19 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from functools import wraps
- import torch
+--- pytorch+++ mindspore@@ -1,13 +1,13 @@ from functools import wraps
+-import torch
  from torch import nn
-@@ -55,5 +56,5 @@         target_device = self.device if self.device is not None else img.device
+ 
+ from vit_pytorch.vit import Attention
++from mindspore.mint import nn, ops
+ 
+ def find_modules(nn_module, type):
+     return [module for module in nn_module.modules() if isinstance(module, type)]
+ 
+-class Recorder(nn.Module):
++class Recorder(nn.Cell):
+     def __init__(self, vit, device = None):
+         super().__init__()
+         self.vit = vit
+@@ -55,5 +55,5 @@         target_device = self.device if self.device is not None else img.device
          recordings = tuple(map(lambda t: t.to(target_device), self.recordings))
  
 -        attns = torch.stack(recordings, dim = 1) if len(recordings) > 0 else None

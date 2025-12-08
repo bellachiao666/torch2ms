@@ -1,11 +1,9 @@
-from mindspore.mint import nn, ops
 from functools import partial
-
-import torch
 from torch import nn, einsum
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange, Reduce
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -14,7 +12,7 @@ def cast_tuple(val, length = 1):
 
 # helper classes
 
-class ChanLayerNorm(nn.Module):
+class ChanLayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
@@ -26,7 +24,7 @@ class ChanLayerNorm(nn.Module):
         mean = ops.mean(input = x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class OverlappingPatchEmbed(nn.Module):
+class OverlappingPatchEmbed(nn.Cell):
     def __init__(self, dim_in, dim_out, stride = 2):
         super().__init__()
         kernel_size = stride * 2 - 1
@@ -36,7 +34,7 @@ class OverlappingPatchEmbed(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-class PEG(nn.Module):
+class PEG(nn.Cell):
     def __init__(self, dim, kernel_size = 3):
         super().__init__()
         self.proj = nn.Conv2d(in_channels = dim, out_channels = dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -46,7 +44,7 @@ class PEG(nn.Module):
 
 # feedforward
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
@@ -63,7 +61,7 @@ class FeedForward(nn.Module):
 
 # attention
 
-class DSSA(nn.Module):
+class DSSA(nn.Cell):
     def __init__(
         self,
         dim,
@@ -206,7 +204,7 @@ class DSSA(nn.Module):
         fmap = rearrange(aggregated_windowed_fmap, 'b h (x y) (w1 w2) d -> b (h d) (x w1) (y w2)', x = height // wsz, y = width // wsz, w1 = wsz, w2 = wsz)
         return self.to_out(fmap)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(
         self,
         dim,
@@ -235,7 +233,7 @@ class Transformer(nn.Module):
 
         return self.norm(x)
 
-class SepViT(nn.Module):
+class SepViT(nn.Cell):
     def __init__(
         self,
         *,

@@ -1,10 +1,9 @@
-from mindspore.mint import nn, ops
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 from einops import rearrange
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -33,7 +32,7 @@ def posemb_sincos_3d(patches, temperature = 10000, dtype = torch.float32):
 
 # classes
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim):
         super().__init__()
         self.net = nn.Sequential(
@@ -45,7 +44,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -72,7 +71,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -88,7 +87,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return self.norm(x)
 
-class SimpleViT(nn.Module):
+class SimpleViT(nn.Cell):
     def __init__(self, *, image_size, image_patch_size, frames, frame_patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
         super().__init__()
         image_height, image_width = pair(image_size)

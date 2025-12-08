@@ -1,13 +1,12 @@
-from mindspore.mint import nn, ops
 from __future__ import annotations
 
 import torch
 from torch import nn, arange, cat, stack, Tensor
-from torch.nn import Module, ModuleList
-import torch.nn.functional as F
+from torch.nn import ModuleList
 
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -44,7 +43,7 @@ def make_directions(n: int, d: int) -> Tensor:
     directions = l2norm(directions)
     return directions.float()
 
-class GoldenGateRoPENd(Module):
+class GoldenGateRoPENd(nn.Cell):
     def __init__(
         self,
         dim_pos: int,
@@ -98,7 +97,7 @@ class GoldenGateRoPENd(Module):
 
 # classes
 
-class FeedForward(Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -113,7 +112,7 @@ class FeedForward(Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., rotary_emb = None):
         super().__init__()
         inner_dim = dim_head * heads
@@ -156,7 +155,7 @@ class Attention(Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., rotary_emb = None):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -173,7 +172,7 @@ class Transformer(Module):
             x = ff(x) + x
         return self.norm(x)
 
-class ViTND(Module):
+class ViTND(nn.Cell):
     def __init__(
         self,
         *,

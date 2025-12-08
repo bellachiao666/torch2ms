@@ -1,8 +1,20 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from functools import partial
+--- pytorch+++ mindspore@@ -1,10 +1,9 @@ from functools import partial
+-
+-import torch
+ from torch import nn, einsum
  
- import torch
-@@ -17,12 +18,12 @@     def __init__(self, dim, eps = 1e-5):
+ from einops import rearrange, repeat
+ from einops.layers.torch import Rearrange, Reduce
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -13,56 +12,56 @@ 
+ # helper classes
+ 
+-class ChanLayerNorm(nn.Module):
++class ChanLayerNorm(nn.Cell):
+     def __init__(self, dim, eps = 1e-5):
          super().__init__()
          self.eps = eps
 -        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
@@ -19,8 +31,10 @@
 +        mean = ops.mean(input = x, dim = 1, keepdim = True)
          return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
  
- class OverlappingPatchEmbed(nn.Module):
-@@ -30,7 +31,7 @@         super().__init__()
+-class OverlappingPatchEmbed(nn.Module):
++class OverlappingPatchEmbed(nn.Cell):
+     def __init__(self, dim_in, dim_out, stride = 2):
+         super().__init__()
          kernel_size = stride * 2 - 1
          padding = kernel_size // 2
 -        self.conv = nn.Conv2d(dim_in, dim_out, kernel_size, stride = stride, padding = padding)
@@ -28,7 +42,9 @@
  
      def forward(self, x):
          return self.conv(x)
-@@ -38,7 +39,7 @@ class PEG(nn.Module):
+ 
+-class PEG(nn.Module):
++class PEG(nn.Cell):
      def __init__(self, dim, kernel_size = 3):
          super().__init__()
 -        self.proj = nn.Conv2d(dim, dim, kernel_size = kernel_size, padding = kernel_size // 2, groups = dim, stride = 1)
@@ -36,7 +52,14 @@
  
      def forward(self, x):
          return self.proj(x) + x
-@@ -51,12 +52,12 @@         inner_dim = int(dim * mult)
+ 
+ # feedforward
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, mult = 4, dropout = 0.):
+         super().__init__()
+         inner_dim = int(dim * mult)
          self.net = nn.Sequential(
              ChanLayerNorm(dim),
 -            nn.Conv2d(dim, inner_dim, 1),
@@ -53,7 +76,14 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -81,37 +82,37 @@ 
+ # attention
+ 
+-class DSSA(nn.Module):
++class DSSA(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -81,37 +80,37 @@ 
          self.attend = nn.Sequential(
              nn.Softmax(dim = -1),
 -            nn.Dropout(dropout)
@@ -98,7 +128,7 @@
  
      def forward(self, x):
          """
-@@ -141,7 +142,7 @@         # add windowing tokens
+@@ -141,7 +140,7 @@         # add windowing tokens
  
          w = repeat(self.window_tokens, 'c -> b c 1', b = x.shape[0])
 -        x = torch.cat((w, x), dim = -1)
@@ -106,7 +136,7 @@
  
          # project for queries, keys, value
  
-@@ -157,7 +158,7 @@ 
+@@ -157,7 +156,7 @@ 
          # similarity
  
 -        dots = einsum('b h i d, b h j d -> b h i j', q, k)
@@ -114,7 +144,7 @@
  
          # attention
  
-@@ -165,7 +166,7 @@ 
+@@ -165,7 +164,7 @@ 
          # aggregate values
  
 -        out = torch.matmul(attn, v)
@@ -122,7 +152,7 @@
  
          # split out windowed tokens
  
-@@ -192,13 +193,13 @@ 
+@@ -192,20 +191,20 @@ 
          # similarities
  
 -        w_dots = einsum('b h i d, b h j d -> b h i j', w_q, w_k)
@@ -137,7 +167,23 @@
  
          # fold back the windows and then combine heads for aggregation
  
-@@ -276,9 +277,9 @@ 
+         fmap = rearrange(aggregated_windowed_fmap, 'b h (x y) (w1 w2) d -> b (h d) (x w1) (y w2)', x = height // wsz, y = width // wsz, w1 = wsz, w2 = wsz)
+         return self.to_out(fmap)
+ 
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -234,7 +233,7 @@ 
+         return self.norm(x)
+ 
+-class SepViT(nn.Module):
++class SepViT(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -276,9 +275,9 @@ 
          self.mlp_head = nn.Sequential(
              Reduce('b d h w -> b d', 'mean'),
 -            nn.LayerNorm(dims[-1]),

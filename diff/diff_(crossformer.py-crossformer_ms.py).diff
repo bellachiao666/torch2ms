@@ -1,8 +1,20 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import torch
- from torch import nn, einsum
+--- pytorch+++ mindspore@@ -2,7 +2,7 @@ from torch import nn, einsum
  from einops import rearrange
-@@ -29,28 +30,28 @@ 
+ from einops.layers.torch import Rearrange, Reduce
+-import torch.nn.functional as F
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -11,7 +11,7 @@ 
+ # cross embed layer
+ 
+-class CrossEmbedLayer(nn.Module):
++class CrossEmbedLayer(nn.Cell):
+     def __init__(
+         self,
+         dim_in,
+@@ -29,53 +29,53 @@ 
          self.convs = nn.ModuleList([])
          for kernel, dim_scale in zip(kernel_sizes, dim_scales):
 -            self.convs.append(nn.Conv2d(dim_in, dim_scale, kernel, stride = stride, padding = (kernel - stride) // 2))
@@ -40,7 +52,9 @@
  
  # transformer classes
  
-@@ -58,22 +59,22 @@     def __init__(self, dim, eps = 1e-5):
+-class LayerNorm(nn.Module):
++class LayerNorm(nn.Cell):
+     def __init__(self, dim, eps = 1e-5):
          super().__init__()
          self.eps = eps
 -        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
@@ -66,13 +80,17 @@
 -        nn.Dropout(dropout),
 -        nn.Conv2d(dim * mult, dim, 1)
 -    )
+-
+-class Attention(nn.Module):
 +        nn.Dropout(p = dropout),
 +        nn.Conv2d(in_channels = dim * mult, out_channels = dim, kernel_size = 1)
 +    )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
- 
- class Attention(nn.Module):
++
++class Attention(nn.Cell):
      def __init__(
-@@ -96,10 +97,10 @@ 
+         self,
+         dim,
+@@ -96,10 +96,10 @@ 
          self.norm = LayerNorm(dim)
  
 -        self.dropout = nn.Dropout(dropout)
@@ -86,7 +104,7 @@
  
          # positions
  
-@@ -107,8 +108,8 @@ 
+@@ -107,8 +107,8 @@ 
          # calculate and store indices for retrieving bias
  
 -        pos = torch.arange(window_size)
@@ -96,7 +114,7 @@
          grid = rearrange(grid, 'c i j -> (i j) c')
          rel_pos = grid[:, None] - grid[None, :]
          rel_pos += window_size - 1
-@@ -139,12 +140,12 @@         q, k, v = map(lambda t: rearrange(t, 'b (h d) x y -> b h (x y) d', h = heads), (q, k, v))
+@@ -139,12 +139,12 @@         q, k, v = map(lambda t: rearrange(t, 'b (h d) x y -> b h (x y) d', h = heads), (q, k, v))
          q = q * self.scale
  
 -        sim = einsum('b h i d, b h j d -> b h i j', q, k)
@@ -111,7 +129,7 @@
          rel_pos = rearrange(rel_pos, 'c i j -> (i j) c')
          biases = self.dpb(rel_pos.float())
          rel_pos_bias = biases[self.rel_pos_indices]
-@@ -158,7 +159,7 @@ 
+@@ -158,7 +158,7 @@ 
          # merge heads
  
 -        out = einsum('b h i j, b h j d -> b h i d', attn, v)
@@ -119,7 +137,23 @@
          out = rearrange(out, 'b h (x y) d -> b (h d) x y', x = wsz, y = wsz)
          out = self.to_out(out)
  
-@@ -256,8 +257,8 @@ 
+@@ -171,7 +171,7 @@ 
+         return out
+ 
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -205,7 +205,7 @@ 
+ # classes
+ 
+-class CrossFormer(nn.Module):
++class CrossFormer(nn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -256,8 +256,8 @@ 
          self.to_logits = nn.Sequential(
              Reduce('b c h w -> b c', 'mean'),
 -            nn.Linear(last_dim, num_classes)

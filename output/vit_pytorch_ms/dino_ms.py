@@ -1,13 +1,12 @@
-from mindspore.mint import nn, ops
 import copy
 import random
 from functools import wraps, partial
 
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 from torchvision import transforms as T
+from mindspore.mint import nn, ops
 
 # helper functions
 
@@ -55,7 +54,7 @@ def loss_fn(
 
 # augmentation utils
 
-class RandomApply(nn.Module):
+class RandomApply(nn.Cell):
     def __init__(self, fn, p):
         super().__init__()
         self.fn = fn
@@ -85,12 +84,12 @@ def update_moving_average(ema_updater, ma_model, current_model):
 
 # MLP class for projector and predictor
 
-class L2Norm(nn.Module):
+class L2Norm(nn.Cell):
     def forward(self, x, eps = 1e-6):
         norm = x.norm(dim = 1, keepdim = True).clamp(min = eps)
         return x / norm
 
-class MLP(nn.Module):
+class MLP(nn.Cell):
     def __init__(self, dim, dim_out, num_layers, hidden_size = 256):
         super().__init__()
 
@@ -118,7 +117,7 @@ class MLP(nn.Module):
 # will manage the interception of the hidden layer output
 # and pipe it into the projecter and predictor nets
 
-class NetWrapper(nn.Module):
+class NetWrapper(nn.Cell):
     def __init__(self, net, output_dim, projection_hidden_size, projection_num_layers, layer = -2):
         super().__init__()
         self.net = net
@@ -182,7 +181,7 @@ class NetWrapper(nn.Module):
 
 # main class
 
-class Dino(nn.Module):
+class Dino(nn.Cell):
     def __init__(
         self,
         net,

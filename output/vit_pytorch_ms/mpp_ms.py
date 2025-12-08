@@ -1,9 +1,9 @@
-from mindspore.mint import nn, ops
 import math
 
 import torch
 from torch import nn
 import torch.nn.functional as F
+from mindspore.mint import nn, ops
 
 from einops import rearrange, repeat, reduce
 
@@ -31,7 +31,7 @@ def get_mask_subset_with_prob(patched_input, prob):
 # mpp loss
 
 
-class MPPLoss(nn.Module):
+class MPPLoss(nn.Cell):
     def __init__(
         self,
         patch_size,
@@ -77,7 +77,7 @@ class MPPLoss(nn.Module):
 # main class
 
 
-class MPP(nn.Module):
+class MPP(nn.Cell):
     def __init__(
         self,
         transformer,

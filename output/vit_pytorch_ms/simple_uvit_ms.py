@@ -1,10 +1,10 @@
-from mindspore.mint import nn, ops
 import torch
 from torch import nn
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 
 from einops import rearrange, repeat, pack, unpack
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -38,7 +38,7 @@ def FeedForward(dim, hidden_dim):
         nn.Linear(in_features = hidden_dim, out_features = dim),
     )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -65,7 +65,7 @@ class Attention(Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim):
         super().__init__()
         self.depth = depth
@@ -104,7 +104,7 @@ class Transformer(Module):
 
         return self.norm(x)
 
-class SimpleUViT(Module):
+class SimpleUViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, num_register_tokens = 4, channels = 3, dim_head = 64):
         super().__init__()
         image_height, image_width = pair(image_size)

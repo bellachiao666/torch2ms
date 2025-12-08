@@ -1,10 +1,9 @@
-from mindspore.mint import nn, ops
 from functools import partial
-import torch
 from torch import nn
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange, Reduce
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -22,7 +21,7 @@ def cast_tuple(val, length = 1):
 
 # helper classes
 
-class ChanLayerNorm(nn.Module):
+class ChanLayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
@@ -34,7 +33,7 @@ class ChanLayerNorm(nn.Module):
         mean = ops.mean(input = x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class Downsample(nn.Module):
+class Downsample(nn.Cell):
     def __init__(self, dim_in, dim_out):
         super().__init__()
         self.conv = nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = 3, stride = 2, padding = 1)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -42,7 +41,7 @@ class Downsample(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-class PEG(nn.Module):
+class PEG(nn.Cell):
     def __init__(self, dim, kernel_size = 3):
         super().__init__()
         self.proj = nn.Conv2d(in_channels = dim, out_channels = dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -52,7 +51,7 @@ class PEG(nn.Module):
 
 # feedforward
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, expansion_factor = 4, dropout = 0.):
         super().__init__()
         inner_dim = dim * expansion_factor
@@ -69,7 +68,7 @@ class FeedForward(nn.Module):
 
 # attention
 
-class ScalableSelfAttention(nn.Module):
+class ScalableSelfAttention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -124,7 +123,7 @@ class ScalableSelfAttention(nn.Module):
         out = rearrange(out, 'b h (x y) d -> b (h d) x y', x = height, y = width)
         return self.to_out(out)
 
-class InteractiveWindowedSelfAttention(nn.Module):
+class InteractiveWindowedSelfAttention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -194,7 +193,7 @@ class InteractiveWindowedSelfAttention(nn.Module):
 
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(
         self,
         dim,
@@ -238,7 +237,7 @@ class Transformer(nn.Module):
 
         return self.norm(x)
 
-class ScalableViT(nn.Module):
+class ScalableViT(nn.Cell):
     def __init__(
         self,
         *,

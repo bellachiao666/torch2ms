@@ -1,8 +1,14 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- import torch
+--- pytorch+++ mindspore@@ -1,9 +1,9 @@ import torch
  from torch import nn
- import torch.nn.functional as F
-@@ -11,14 +12,14 @@     return t if isinstance(t, tuple) else (t, t)
+-import torch.nn.functional as F
+ 
+ from einops import rearrange
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # helpers
+ 
+@@ -11,14 +11,14 @@     return t if isinstance(t, tuple) else (t, t)
  
  def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
 -    y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
@@ -19,7 +25,12 @@
      return pe.type(dtype)
  
  # they use a query-key normalization that is equivalent to rms norm (no mean-centering, learned gamma), from vit 22B paper
-@@ -30,10 +31,10 @@     def __init__(self, heads, dim):
+@@ -26,44 +26,44 @@ # in latest tweet, seem to claim more stable training at higher learning rates
+ # unsure if this has taken off within Brain, or it has some hidden drawback
+ 
+-class RMSNorm(nn.Module):
++class RMSNorm(nn.Cell):
+     def __init__(self, heads, dim):
          super().__init__()
          self.scale = dim ** 0.5
 -        self.gamma = nn.Parameter(torch.ones(heads, 1, dim) / self.scale)
@@ -31,7 +42,10 @@
          return normed * self.scale * self.gamma
  
  # classes
-@@ -42,11 +43,11 @@     def __init__(self, dim, hidden_dim):
+ 
+-class FeedForward(nn.Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -46,7 +60,10 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -55,15 +56,15 @@         super().__init__()
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64):
+         super().__init__()
          inner_dim = dim_head *  heads
          self.heads = heads
 -        self.norm = nn.LayerNorm(dim)
@@ -64,7 +81,7 @@
  
      def forward(self, x):
          x = self.norm(x)
-@@ -74,18 +75,18 @@         q = self.q_norm(q)
+@@ -74,18 +74,18 @@         q = self.q_norm(q)
          k = self.k_norm(k)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2))
@@ -77,7 +94,8 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
- class Transformer(nn.Module):
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
@@ -85,7 +103,15 @@
          self.layers = nn.ModuleList([])
          for _ in range(depth):
              self.layers.append(nn.ModuleList([
-@@ -110,10 +111,10 @@ 
+@@ -98,7 +98,7 @@             x = ff(x) + x
+         return self.norm(x)
+ 
+-class SimpleViT(nn.Module):
++class SimpleViT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
+         super().__init__()
+         image_height, image_width = pair(image_size)
+@@ -110,10 +110,10 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),
@@ -99,7 +125,7 @@
  
          self.pos_embedding = posemb_sincos_2d(
              h = image_height // patch_height,
-@@ -126,7 +127,7 @@         self.pool = "mean"
+@@ -126,7 +126,7 @@         self.pool = "mean"
          self.to_latent = nn.Identity()
  
 -        self.linear_head = nn.LayerNorm(dim)

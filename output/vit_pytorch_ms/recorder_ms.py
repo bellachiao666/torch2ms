@@ -1,14 +1,13 @@
-from mindspore.mint import nn, ops
 from functools import wraps
-import torch
 from torch import nn
 
 from vit_pytorch.vit import Attention
+from mindspore.mint import nn, ops
 
 def find_modules(nn_module, type):
     return [module for module in nn_module.modules() if isinstance(module, type)]
 
-class Recorder(nn.Module):
+class Recorder(nn.Cell):
     def __init__(self, vit, device = None):
         super().__init__()
         self.vit = vit

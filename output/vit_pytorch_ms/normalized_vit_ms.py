@@ -1,12 +1,12 @@
-from mindspore.mint import nn, ops
 import torch
 from torch import nn
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
 
 from einops import rearrange, reduce
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # functions
 
@@ -27,7 +27,7 @@ def l2norm(t, dim = -1):
 
 # for use with parametrize
 
-class L2Norm(Module):
+class L2Norm(nn.Cell):
     def __init__(self, dim = -1):
         super().__init__()
         self.dim = dim
@@ -35,7 +35,7 @@ class L2Norm(Module):
     def forward(self, t):
         return l2norm(t, dim = self.dim)
 
-class NormLinear(Module):
+class NormLinear(nn.Cell):
     def __init__(
         self,
         dim,
@@ -60,7 +60,7 @@ class NormLinear(Module):
 
 # attention and feedforward
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -111,7 +111,7 @@ class Attention(Module):
         out = self.merge_heads(out)
         return self.to_out(out)
 
-class FeedForward(Module):
+class FeedForward(nn.Cell):
     def __init__(
         self,
         dim,
@@ -146,7 +146,7 @@ class FeedForward(Module):
 
 # classes
 
-class nViT(Module):
+class nViT(nn.Cell):
     """ https://arxiv.org/abs/2410.01131 """
 
     def __init__(

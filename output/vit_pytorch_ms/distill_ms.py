@@ -1,12 +1,11 @@
-from mindspore.mint import nn, ops
 import torch
 from torch import nn
-from torch.nn import Module
 import torch.nn.functional as F
 
 from vit_pytorch.vit import ViT
 from vit_pytorch.t2t import T2TViT
 from vit_pytorch.efficient import ViT as EfficientViT
+from mindspore.mint import nn, ops
 
 from einops import rearrange, repeat
 
@@ -103,7 +102,7 @@ class DistillableEfficientViT(DistillMixin, EfficientViT):
 
 # knowledge distillation wrapper
 
-class DistillWrapper(Module):
+class DistillWrapper(nn.Cell):
     def __init__(
         self,
         *,

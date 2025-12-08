@@ -1,14 +1,13 @@
-from mindspore.mint import nn, ops
 # https://arxiv.org/abs/2510.14657
 # but instead of their decorr module updated with SGD, remove all projections and just return a decorrelation auxiliary loss
 
 import torch
 from torch import nn, stack, tensor
-import torch.nn.functional as F
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 
 from einops import rearrange, repeat, reduce, einsum, pack, unpack
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -23,7 +22,7 @@ def pair(t):
 
 # decorr loss
 
-class DecorrelationLoss(Module):
+class DecorrelationLoss(nn.Cell):
     def __init__(
         self,
         sample_frac = 1.,
@@ -71,7 +70,7 @@ class DecorrelationLoss(Module):
 
 # classes
 
-class FeedForward(Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -88,7 +87,7 @@ class FeedForward(Module):
         normed = self.norm(x)
         return self.net(x), normed
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -124,7 +123,7 @@ class Attention(Module):
 
         return self.to_out(out), normed
 
-class Transformer(Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -152,7 +151,7 @@ class Transformer(Module):
 
         return self.norm(x), ops.stack(tensors = normed_inputs)  # 'torch.stack':没有对应的mindspore参数 'out';
 
-class ViT(Module):
+class ViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., decorr_sample_frac = 1.):
         super().__init__()
         image_height, image_width = pair(image_size)

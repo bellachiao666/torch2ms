@@ -1,13 +1,12 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
-class ViT(nn.Module):
+class ViT(nn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, pool = 'cls', channels = 3):
         super().__init__()
         image_size_h, image_size_w = pair(image_size)

@@ -1,15 +1,25 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- from math import sqrt, pi, log
+--- pytorch+++ mindspore@@ -1,12 +1,10 @@ from math import sqrt, pi, log
+-
+-import torch
+ from torch import nn, einsum
+-import torch.nn.functional as F
+ from torch.amp import autocast
  
- import torch
-@@ -14,21 +15,21 @@ def rotate_every_two(x):
+ from einops import rearrange, repeat
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # rotary embeddings
+ 
+@@ -14,21 +12,21 @@ def rotate_every_two(x):
      x = rearrange(x, '... (d j) -> ... d j', j = 2)
      x1, x2 = x.unbind(dim = -1)
 -    x = torch.stack((-x2, x1), dim = -1)
 +    x = ops.stack(tensors = (-x2, x1), dim = -1)  # 'torch.stack':没有对应的mindspore参数 'out';
      return rearrange(x, '... d j -> ... (d j)')
  
- class AxialRotaryEmbedding(nn.Module):
+-class AxialRotaryEmbedding(nn.Module):
++class AxialRotaryEmbedding(nn.Cell):
      def __init__(self, dim, max_freq = 10):
          super().__init__()
          self.dim = dim
@@ -26,7 +36,7 @@
          seq = seq.unsqueeze(-1)
  
          scales = self.scales[(*((None,) * (len(seq.shape) - 1)), Ellipsis)]
-@@ -39,8 +40,8 @@         x_sinu = repeat(seq, 'i d -> i j d', j = n)
+@@ -39,30 +37,30 @@         x_sinu = repeat(seq, 'i d -> i j d', j = n)
          y_sinu = repeat(seq, 'j d -> i j d', i = n)
  
 -        sin = torch.cat((x_sinu.sin(), y_sinu.sin()), dim = -1)
@@ -36,7 +46,11 @@
  
          sin, cos = map(lambda t: rearrange(t, 'i j d -> (i j) d'), (sin, cos))
          sin, cos = map(lambda t: repeat(t, 'n d -> () n (d j)', j = 2), (sin, cos))
-@@ -50,9 +51,9 @@     def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
+         return sin, cos
+ 
+-class DepthWiseConv2d(nn.Module):
++class DepthWiseConv2d(nn.Cell):
+     def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, padding = padding, groups = dim_in, stride = stride, bias = bias),
@@ -48,7 +62,11 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -62,7 +63,7 @@     def __init__(self, dim_in, dim_out, kernel, bias = False):
+ # helper classes
+ 
+-class SpatialConv(nn.Module):
++class SpatialConv(nn.Cell):
+     def __init__(self, dim_in, dim_out, kernel, bias = False):
          super().__init__()
          self.conv = DepthWiseConv2d(dim_in, dim_out, kernel, padding = kernel // 2, bias = False)
 -        self.cls_proj = nn.Linear(dim_in, dim_out) if dim_in != dim_out else nn.Identity()
@@ -56,19 +74,23 @@
  
      def forward(self, x, fmap_dims):
          cls_token, x = x[:, :1], x[:, 1:]
-@@ -70,24 +71,24 @@         x = self.conv(x)
+@@ -70,28 +68,28 @@         x = self.conv(x)
          x = rearrange(x, 'b d h w -> b (h w) d')
          cls_token = self.cls_proj(cls_token)
 -        return torch.cat((cls_token, x), dim = 1)
+-
+-class GEGLU(nn.Module):
 +        return ops.cat(tensors = (cls_token, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
- 
- class GEGLU(nn.Module):
++
++class GEGLU(nn.Cell):
      def forward(self, x):
          x, gates = x.chunk(2, dim = -1)
 -        return F.gelu(gates) * x
+-
+-class FeedForward(nn.Module):
 +        return nn.functional.gelu(input = gates) * x  # 'torch.nn.functional.gelu':没有对应的mindspore参数 'dim';
- 
- class FeedForward(nn.Module):
++
++class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0., use_glu = True):
          super().__init__()
          self.net = nn.Sequential(
@@ -88,7 +110,12 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -99,20 +100,20 @@         self.heads = heads
+-class Attention(nn.Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., use_rotary = True, use_ds_conv = True, conv_query_kernel = 5):
+         super().__init__()
+         inner_dim = dim_head *  heads
+@@ -99,20 +97,20 @@         self.heads = heads
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -116,7 +143,7 @@
  
      def forward(self, x, pos_emb, fmap_dims):
          b, n, _, h = *x.shape, self.heads
-@@ -139,19 +140,19 @@ 
+@@ -139,23 +137,23 @@ 
              (q, q_pass), (k, k_pass) = map(lambda t: (t[..., :dim_rotary], t[..., dim_rotary:]), (q, k))
              q, k = map(lambda t: (t * cos) + (rotate_every_two(t) * sin), (q, k))
 -            q, k = map(lambda t: torch.cat(t, dim = -1), ((q, q_pass), (k, k_pass)))
@@ -141,7 +168,20 @@
          out = rearrange(out, '(b h) n d -> b n (h d)', h = h)
          return self.to_out(out)
  
-@@ -185,16 +186,16 @@         self.patch_size = patch_size
+-class Transformer(nn.Module):
++class Transformer(nn.Cell):
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim, image_size, dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
+         super().__init__()
+         self.layers = nn.ModuleList([])
+@@ -175,7 +173,7 @@ 
+ # Rotary Vision Transformer
+ 
+-class RvT(nn.Module):
++class RvT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
+         super().__init__()
+         assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
+@@ -185,16 +183,16 @@         self.patch_size = patch_size
          self.to_patch_embedding = nn.Sequential(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
 -            nn.Linear(patch_dim, dim),
@@ -164,7 +204,7 @@
  
      def forward(self, img):
          b, _, h, w, p = *img.shape, self.patch_size
-@@ -203,7 +204,7 @@         n = x.shape[1]
+@@ -203,7 +201,7 @@         n = x.shape[1]
  
          cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
 -        x = torch.cat((cls_tokens, x), dim=1)

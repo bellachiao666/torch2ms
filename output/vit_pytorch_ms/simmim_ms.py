@@ -1,10 +1,8 @@
-from mindspore.mint import nn, ops
-import torch
 from torch import nn
-import torch.nn.functional as F
+from mindspore.mint import nn, ops
 from einops import repeat
 
-class SimMIM(nn.Module):
+class SimMIM(nn.Cell):
     def __init__(
         self,
         *,

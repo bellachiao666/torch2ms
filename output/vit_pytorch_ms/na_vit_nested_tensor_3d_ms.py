@@ -1,4 +1,3 @@
-from mindspore.mint import nn, ops
 from __future__ import annotations
 
 from typing import List
@@ -9,11 +8,12 @@ import packaging.version as pkg_version
 
 from torch import nn, Tensor
 import torch.nn.functional as F
-from torch.nn import Module, ModuleList
+from torch.nn import ModuleList
 from torch.nested import nested_tensor
 
 from einops import rearrange
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -41,7 +41,7 @@ def FeedForward(dim, hidden_dim, dropout = 0.):
         nn.Dropout(p = dropout)
     )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., qk_norm = True):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim, bias = False)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
@@ -112,7 +112,7 @@ class Attention(Module):
 
         return self.to_out(out)
 
-class Transformer(Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., qk_norm = True):
         super().__init__()
         self.layers = ModuleList([])
@@ -133,7 +133,7 @@ class Transformer(Module):
 
         return self.norm(x)
 
-class NaViT(Module):
+class NaViT(nn.Cell):
     def __init__(
         self,
         *,

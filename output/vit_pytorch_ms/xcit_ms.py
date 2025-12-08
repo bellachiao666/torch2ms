@@ -1,13 +1,10 @@
-from mindspore.mint import nn, ops
 from random import randrange
-
-import torch
 from torch import nn, einsum
-from torch.nn import Module, ModuleList
-import torch.nn.functional as F
+from torch.nn import ModuleList
 
 from einops import rearrange, repeat, pack, unpack
 from einops.layers.torch import Rearrange
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -40,7 +37,7 @@ def dropout_layers(layers, dropout):
 
 # classes
 
-class LayerScale(Module):
+class LayerScale(nn.Cell):
     def __init__(self, dim, fn, depth):
         super().__init__()
         if depth <= 18:
@@ -56,7 +53,7 @@ class LayerScale(Module):
     def forward(self, x, **kwargs):
         return self.fn(x, **kwargs) * self.scale
 
-class FeedForward(Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -70,7 +67,7 @@ class FeedForward(Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head * heads
@@ -107,7 +104,7 @@ class Attention(Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class XCAttention(Module):
+class XCAttention(nn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head * heads
@@ -148,7 +145,7 @@ class XCAttention(Module):
         out = unpack_one(out, ps, 'b * d')
         return self.to_out(out)
 
-class LocalPatchInteraction(Module):
+class LocalPatchInteraction(nn.Cell):
     def __init__(self, dim, kernel_size = 3):
         super().__init__()
         assert (kernel_size % 2) == 1
@@ -167,7 +164,7 @@ class LocalPatchInteraction(Module):
     def forward(self, x):
         return self.net(x)
 
-class Transformer(Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., layer_dropout = 0.):
         super().__init__()
         self.layers = ModuleList([])
@@ -189,7 +186,7 @@ class Transformer(Module):
 
         return x
 
-class XCATransformer(Module):
+class XCATransformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, local_patch_kernel_size = 3, dropout = 0., layer_dropout = 0.):
         super().__init__()
         self.layers = ModuleList([])
@@ -213,7 +210,7 @@ class XCATransformer(Module):
 
         return x
 
-class XCiT(Module):
+class XCiT(nn.Cell):
     def __init__(
         self,
         *,

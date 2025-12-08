@@ -1,9 +1,8 @@
-from mindspore.mint import nn, ops
 import torch
 from torch import nn, einsum
 from einops import rearrange
 from einops.layers.torch import Rearrange, Reduce
-import torch.nn.functional as F
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -12,7 +11,7 @@ def cast_tuple(val, length = 1):
 
 # cross embed layer
 
-class CrossEmbedLayer(nn.Module):
+class CrossEmbedLayer(nn.Cell):
     def __init__(
         self,
         dim_in,
@@ -55,7 +54,7 @@ def DynamicPositionBias(dim):
 
 # transformer classes
 
-class LayerNorm(nn.Module):
+class LayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
@@ -76,7 +75,7 @@ def FeedForward(dim, mult = 4, dropout = 0.):
         nn.Conv2d(in_channels = dim * mult, out_channels = dim, kernel_size = 1)
     )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -172,7 +171,7 @@ class Attention(nn.Module):
 
         return out
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(
         self,
         dim,
@@ -206,7 +205,7 @@ class Transformer(nn.Module):
 
 # classes
 
-class CrossFormer(nn.Module):
+class CrossFormer(nn.Cell):
     def __init__(
         self,
         *,

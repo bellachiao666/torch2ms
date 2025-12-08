@@ -1,8 +1,16 @@
---- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
- """
- ViT + Hyper-Connections + Register Tokens
- https://arxiv.org/abs/2409.19606
-@@ -18,14 +19,14 @@     return t if isinstance(t, tuple) else (t, t)
+--- pytorch+++ mindspore@@ -5,10 +5,11 @@ 
+ import torch
+ from torch import nn, tensor
+-from torch.nn import Module, ModuleList
++from torch.nn import ModuleList
+ 
+ from einops import rearrange, repeat, reduce, einsum, pack, unpack
+ from einops.layers.torch import Rearrange
++from mindspore.mint import nn, ops
+ 
+ # b - batch, h - heads, n - sequence, e - expansion rate / residual streams, d - feature dimension
+ 
+@@ -18,19 +19,19 @@     return t if isinstance(t, tuple) else (t, t)
  
  def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
 -    y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
@@ -19,6 +27,12 @@
      return pe.type(dtype)
  
  # hyper connections
+ 
+-class HyperConnection(Module):
++class HyperConnection(nn.Cell):
+     def __init__(
+         self,
+         dim,
 @@ -40,21 +41,21 @@         """ Appendix J - Algorithm 2, Dynamic only """
          super().__init__()
  
@@ -48,7 +62,12 @@
          self.dynamic_beta_scale = nn.Parameter(tensor(1e-2))
  
      def width_connection(self, residuals):
-@@ -89,11 +90,11 @@     def __init__(self, dim, hidden_dim):
+@@ -85,30 +86,30 @@ 
+ # classes
+ 
+-class FeedForward(Module):
++class FeedForward(nn.Cell):
+     def __init__(self, dim, hidden_dim):
          super().__init__()
          self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
@@ -63,7 +82,11 @@
      def forward(self, x):
          return self.net(x)
  
-@@ -103,12 +104,12 @@         inner_dim = dim_head *  heads
+-class Attention(Module):
++class Attention(nn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64):
+         super().__init__()
+         inner_dim = dim_head *  heads
          self.heads = heads
          self.scale = dim_head ** -0.5
 -        self.norm = nn.LayerNorm(dim)
@@ -78,7 +101,7 @@
  
      def forward(self, x):
          x = self.norm(x)
-@@ -116,11 +117,11 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
+@@ -116,21 +117,21 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -91,7 +114,11 @@
          out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
-@@ -130,7 +131,7 @@ 
+-class Transformer(Module):
++class Transformer(nn.Cell):
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim, num_residual_streams):
+         super().__init__()
+ 
          self.num_residual_streams = num_residual_streams
  
 -        self.norm = nn.LayerNorm(dim)
@@ -99,6 +126,14 @@
          self.layers = ModuleList([])
  
          for layer_index in range(depth):
+@@ -163,7 +164,7 @@ 
+         return self.norm(x)
+ 
+-class SimpleViT(nn.Module):
++class SimpleViT(nn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, num_residual_streams, num_register_tokens = 4, channels = 3, dim_head = 64):
+         super().__init__()
+         image_height, image_width = pair(image_size)
 @@ -175,12 +176,12 @@ 
          self.to_patch_embedding = nn.Sequential(
              Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),

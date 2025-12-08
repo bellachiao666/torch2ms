@@ -1,13 +1,12 @@
-from mindspore.mint import nn, ops
 from functools import partial
 
 import torch
 from torch import nn, einsum
-import torch.nn.functional as F
-from torch.nn import Module, ModuleList, Sequential
+from torch.nn import ModuleList, Sequential
 
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange, Reduce
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -41,7 +40,7 @@ def FeedForward(dim, mult = 4, dropout = 0.):
 
 # MBConv
 
-class SqueezeExcitation(Module):
+class SqueezeExcitation(nn.Cell):
     def __init__(self, dim, shrinkage_rate = 0.25):
         super().__init__()
         hidden_dim = int(dim * shrinkage_rate)
@@ -58,7 +57,7 @@ class SqueezeExcitation(Module):
     def forward(self, x):
         return x * self.gate(x)
 
-class MBConvResidual(Module):
+class MBConvResidual(nn.Cell):
     def __init__(self, fn, dropout = 0.):
         super().__init__()
         self.fn = fn
@@ -69,7 +68,7 @@ class MBConvResidual(Module):
         out = self.dropsample(out)
         return out + x
 
-class Dropsample(Module):
+class Dropsample(nn.Cell):
     def __init__(self, prob = 0):
         super().__init__()
         self.prob = prob
@@ -114,7 +113,7 @@ def MBConv(
 
 # attention related classes
 
-class Attention(Module):
+class Attention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -198,7 +197,7 @@ class Attention(Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class MaxViT(Module):
+class MaxViT(nn.Cell):
     def __init__(
         self,
         *,

@@ -1,10 +1,9 @@
-from mindspore.mint import nn, ops
 from functools import partial
-import torch
 from torch import nn, einsum
 
 from einops import rearrange
 from einops.layers.torch import Rearrange, Reduce
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -13,7 +12,7 @@ def cast_tuple(val, depth):
 
 # classes
 
-class LayerNorm(nn.Module):
+class LayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
@@ -25,7 +24,7 @@ class LayerNorm(nn.Module):
         mean = ops.mean(input = x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class FeedForward(nn.Module):
+class FeedForward(nn.Cell):
     def __init__(self, dim, mlp_mult = 4, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
@@ -39,7 +38,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(self, dim, heads = 8, dropout = 0.):
         super().__init__()
         dim_head = dim // heads
@@ -81,7 +80,7 @@ def Aggregate(dim, dim_out):
         nn.MaxPool2d(3, stride = 2, padding = 1)
     )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, dim, seq_len, depth, heads, mlp_mult, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -104,7 +103,7 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return x
 
-class NesT(nn.Module):
+class NesT(nn.Cell):
     def __init__(
         self,
         *,

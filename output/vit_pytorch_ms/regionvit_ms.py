@@ -1,9 +1,8 @@
-from mindspore.mint import nn, ops
 import torch
 from torch import nn, einsum
 from einops import rearrange
 from einops.layers.torch import Rearrange, Reduce
-import torch.nn.functional as F
+from mindspore.mint import nn, ops
 
 # helpers
 
@@ -21,7 +20,7 @@ def divisible_by(val, d):
 
 # helper classes
 
-class ChanLayerNorm(nn.Module):
+class ChanLayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
@@ -33,7 +32,7 @@ class ChanLayerNorm(nn.Module):
         mean = ops.mean(input = x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class Downsample(nn.Module):
+class Downsample(nn.Cell):
     def __init__(self, dim_in, dim_out):
         super().__init__()
         self.conv = nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = 3, stride = 2, padding = 1)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -41,7 +40,7 @@ class Downsample(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-class PEG(nn.Module):
+class PEG(nn.Cell):
     def __init__(self, dim, kernel_size = 3):
         super().__init__()
         self.proj = nn.Conv2d(in_channels = dim, out_channels = dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -60,7 +59,7 @@ def FeedForward(dim, mult = 4, dropout = 0.):
         nn.Linear(in_features = dim * mult, out_features = dim, bias = 1)
     )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-class Attention(nn.Module):
+class Attention(nn.Cell):
     def __init__(
         self,
         dim,
@@ -112,7 +111,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class R2LTransformer(nn.Module):
+class R2LTransformer(nn.Cell):
     def __init__(
         self,
         dim,
@@ -192,7 +191,7 @@ class R2LTransformer(nn.Module):
 
 # classes
 
-class RegionViT(nn.Module):
+class RegionViT(nn.Cell):
     def __init__(
         self,
         *,
