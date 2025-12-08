@@ -1,10 +1,26 @@
-from torch import nn
-
+# from torch import nn
+import einops
 from einops import rearrange, repeat, pack, unpack
-from einops.layers.torch import Rearrange
+# from einops.layers.torch import Rearrange
 from mindspore.mint import nn, ops
-
+import mindspore
+from mindspore import ops
 # classes
+class PatchEmbed(nn.Cell):
+    def __init__(self, patch_size, patch_dim, dim):
+        super().__init__()
+        self.patch_size = patch_size
+        self.ln1 = nn.LayerNorm([patch_dim])
+        self.fc  = nn.Dense(patch_dim, dim)
+        self.ln2 = nn.LayerNorm([dim])
+
+    def construct(self, x):
+        p=self.patch_size
+        x = einops.rearrange(x, 'b c (n p) -> b n (p c)', p=p)
+        x = self.ln1(x)
+        x = self.fc(x)
+        x = self.ln2(x)
+        return x
 
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
@@ -76,13 +92,23 @@ class ViT(nn.Cell):
 
         num_patches = seq_len // patch_size
         patch_dim = channels * patch_size
+        self.to_patch_embedding = mindspore.nn.SequentialCell([
+                nn.LayerNorm([patch_dim]),
+                mindspore.nn.Dense(patch_dim, dim),
+                nn.LayerNorm([dim]),
+            ])
+        
+    def construct(self, x):
+        x = einops.rearrange(x, 'b c (n p) -> b n (p c)', p=patch_size)
+        x = self.to_patch_embedding(x)
+        return x
 
-        self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (n p) -> b n (p c)', p = patch_size),
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim),
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        # self.to_patch_embedding = nn.Sequential(
+        #     lambda x: einops.rearrange(x, 'b c (n p) -> b n (p c)', p=patch_size),
+        #     nn.LayerNorm(normalized_shape = patch_dim),
+        #     nn.Linear(in_features = patch_dim, out_features = dim),
+        #     nn.LayerNorm(normalized_shape = dim),
+        # )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
         self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.cls_token = nn.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
@@ -126,5 +152,5 @@ if __name__ == '__main__':
         emb_dropout = 0.1
     )
 
-    time_series = ops.randn(size = 4, generator = 3)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    time_series = ops.randn(4, 256)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
     logits = v(time_series) # (4, 1000)
