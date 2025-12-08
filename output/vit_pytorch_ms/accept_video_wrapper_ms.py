@@ -1,4 +1,3 @@
-from mindspore.mint import nn, ops
 from contextlib import nullcontext
 
 import torch
@@ -152,6 +151,7 @@ if __name__ == '__main__':
     # step up the difficulty and return embeddings for robotics
 
     from vit_pytorch.extractor import Extractor
+from mindspore.mint import nn, ops
     v = Extractor(v)
 
     video_acceptor = AcceptVideoWrapper(v, add_time_pos_emb = True, output_pos_add_pos_emb = 1, time_seq_len = 12, dim_emb = 1024, proj_embed_to_dim = 512)
