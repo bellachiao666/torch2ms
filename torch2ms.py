@@ -442,6 +442,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         pt_aliases: Optional[dict] = None,
         pt_assignment_aliases: Optional[dict] = None,
         pt_assignment_wrapped: Optional[dict] = None,
+        use_mint: bool = False,
     ) -> None:
         """
         保存 PyTorch->MindSpore 的映射及收集到的别名信息。
@@ -460,6 +461,12 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         self.pt_aliases = pt_aliases or {}
         self.pt_assignment_aliases = pt_assignment_aliases or {}
         self.pt_assignment_wrapped = pt_assignment_wrapped or {}
+        # 输入代码未显式导入 mindspore 时会启用 mint 模式，
+        # 这样 nn/ops 会默认指向 mindspore.mint.nn / mindspore.mint.ops。
+        self.use_mint = use_mint
+         # 当输入代码中没有显式 mindspore 导入时，use_mint=True，
+         # 这样会优先走 mindspore.mint 接口。
+        self.use_mint = use_mint
         self.notes_by_stmt = defaultdict(list)
         self.api_by_class = {
             conf["pytorch"].split(".")[-1]: conf for conf in api_map.values()
@@ -520,6 +527,34 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         输出:
             返回替换了别名后的完整 MindSpore 名称。
         """
+        # 当未显式导入 mindspore 模块且启用 mint 模式时，
+        # 将 mindspore.nn / mindspore.ops 以及 mindspore.mint 下的常用接口
+        # 映射为 nn / ops，方便配合 `from mindspore.mint import nn, ops` 使用。
+        if self.use_mint:
+            # 标准 nn / ops 模块
+            if full_path == "mindspore.nn":
+                return "nn"
+            if full_path.startswith("mindspore.nn."):
+                return "nn." + full_path[len("mindspore.nn.") :]
+            if full_path == "mindspore.ops":
+                return "ops"
+            if full_path.startswith("mindspore.ops."):
+                return "ops." + full_path[len("mindspore.ops.") :]
+
+            # mint.nn / mint.ops 子模块
+            if full_path == "mindspore.mint.nn":
+                return "nn"
+            if full_path.startswith("mindspore.mint.nn."):
+                return "nn." + full_path[len("mindspore.mint.nn.") :]
+            if full_path == "mindspore.mint.ops":
+                return "ops"
+            if full_path.startswith("mindspore.mint.ops."):
+                return "ops." + full_path[len("mindspore.mint.ops.") :]
+
+            # 其它 mint 顶层函数，统一走 ops 别名，例如 mindspore.mint.cat -> ops.cat
+            if full_path.startswith("mindspore.mint."):
+                return "ops." + full_path[len("mindspore.mint.") :]
+
         parts = full_path.split(".")
         for i in range(len(parts), 0, -1):
             prefix = ".".join(parts[:i])
@@ -746,7 +781,14 @@ def convert_code(code: str) -> str:
         conf["pytorch"].split(".")[-1]: conf for conf in API_MAP.values()
     }
     pt_aliases = collect_torch_aliases(module)
-    pt_assignment_aliases, pt_assignment_wrapped = collect_torch_assignment_aliases(module, api_by_class, pt_aliases)
+    pt_assignment_aliases, pt_assignment_wrapped = collect_torch_assignment_aliases(
+        module, api_by_class, pt_aliases
+    )
+
+    # 没有显式 mindspore 导入时，默认使用 mint 接口，
+    # 并在后续自动插入 `from mindspore.mint import nn, ops`。
+    use_mint = not bool(ms_aliases)
+
     wrapper = metadata.MetadataWrapper(module)
     new_module = wrapper.visit(
         TorchToMindSporeTransformer(
@@ -755,9 +797,26 @@ def convert_code(code: str) -> str:
             pt_aliases=pt_aliases,
             pt_assignment_aliases=pt_assignment_aliases,
             pt_assignment_wrapped=pt_assignment_wrapped,
+            use_mint=use_mint,
         )
     )
-    return new_module.code
+    new_code = new_module.code
+
+    if use_mint:
+        # 若原文件没有 mindspore 导入，但转换后出现了 nn/ops 调用，
+        # 则自动在文件头部补充 mint 常用导入。
+        if ("nn." in new_code) or ("ops." in new_code) or ("mindspore" in new_code):
+            default_import = "from mindspore.mint import nn, ops\n"
+            if new_code.startswith("#!"):
+                idx = new_code.find("\n")
+                if idx != -1:
+                    new_code = new_code[: idx + 1] + default_import + new_code[idx + 1 :]
+                else:
+                    new_code = new_code + "\n" + default_import
+            else:
+                new_code = default_import + new_code
+
+    return new_code
 
 
 def generate_diff(old: str, new: str) -> str:
@@ -788,33 +847,88 @@ def generate_diff(old: str, new: str) -> str:
     return "".join(diff)
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("用法: python torch2ms.py input.py")
-        sys.exit(0)
+def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff: bool = True) -> None:
+    """
+    转换单个文件并写入 output 目录，同时生成 diff。
 
-    filename = sys.argv[1]
-
+    当传入 input_root 时，会在 output 下保留相对目录结构:
+        input_root/foo/bar.py -> output/foo/bar_ms.py
+    否则:
+        some.py -> output/some_ms.py
+    """
     with open(filename, "r", encoding="utf8") as f:
         code = f.read()
 
     result = convert_code(code)
 
     base, ext = os.path.splitext(filename)
-    new_filename = f"./output/{os.path.basename(base)}_ms{ext}"
+    if input_root:
+        abs_input = os.path.abspath(input_root)
+        abs_file = os.path.abspath(filename)
+        try:
+            common = os.path.commonpath([abs_input, abs_file])
+        except ValueError:
+            common = ""
+
+        # 在 output 下创建“同名目录+_ms”，比如:
+        #   input_root = "input"      -> output/input_ms/...
+        #   input_root = "vit_pytorch" -> output/vit_pytorch_ms/...
+        root_name = os.path.basename(os.path.normpath(abs_input))
+        output_root = os.path.join("output", f"{root_name}_ms")
+
+        if common == abs_input:
+            rel_base = os.path.relpath(base, abs_input)
+            out_base = os.path.join(output_root, rel_base)
+        else:
+            # 不在 input_root 子树下时退化为: output/<root_name_ms>/<basename>
+            out_base = os.path.join(output_root, os.path.basename(base))
+    else:
+        # 单文件模式: 仍然是 output/xxx_ms.py
+        out_base = os.path.join("output", os.path.basename(base))
+
+    new_filename = f"{out_base}_ms{ext}"
+    out_dir = os.path.dirname(new_filename)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
 
     with open(new_filename, "w", encoding="utf8") as f:
         f.write(result)
 
     diff = generate_diff(code, result)
-    print("=== 转换 DIFF 开始 ===")
-    print(diff)
-    print("=== 转换 DIFF 结束 ===")
+    if show_diff:
+        print("=== 转换 DIFF 开始 ===")
+        print(diff)
+        print("=== 转换 DIFF 结束 ===")
 
+    os.makedirs("diff", exist_ok=True)
     diff_filename = f"diff_({os.path.basename(filename)}-{os.path.basename(new_filename)}).diff"
-    diff_path = os.path.join("./diff", diff_filename)
+    diff_path = os.path.join("diff", diff_filename)
     with open(diff_path, "w", encoding="utf8") as f:
         f.write(diff)
-    print(f"已保存 diff 到: {diff_path}")
+    if show_diff:
+        print(f"已保存 diff 到: {diff_path}")
 
-    print(f"\n已生成新文件: {new_filename}")
+    print(f"已生成新文件: {new_filename}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("用法:")
+        print("  python torch2ms.py input.py")
+        print("  python torch2ms.py input_dir   # 批量转换目录下所有 .py 文件")
+        sys.exit(0)
+
+    target = sys.argv[1]
+
+    if os.path.isdir(target):
+        print(f"检测到目录，开始批量转换: {target}")
+        for root, _, files in os.walk(target):
+            for name in files:
+                if not name.endswith(".py"):
+                    continue
+                src_path = os.path.join(root, name)
+                print(f"\n[文件] {src_path}")
+                _convert_and_save(src_path, input_root=target, show_diff=False)
+        print("\n批量转换完成。")
+    else:
+        _convert_and_save(target, show_diff=True)

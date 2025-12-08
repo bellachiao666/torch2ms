@@ -1,0 +1,151 @@
+from mindspore.mint import nn, ops
+from math import sqrt
+import torch
+from torch import nn, einsum
+import torch.nn.functional as F
+
+from einops import rearrange, repeat
+from einops.layers.torch import Rearrange
+
+# classes
+
+class Residual(nn.Module):
+    def __init__(self, fn):
+        super().__init__()
+        self.fn = fn
+
+    def forward(self, x, **kwargs):
+        return self.fn(x, **kwargs) + x
+
+class ExcludeCLS(nn.Module):
+    def __init__(self, fn):
+        super().__init__()
+        self.fn = fn
+
+    def forward(self, x, **kwargs):
+        cls_token, x = x[:, :1], x[:, 1:]
+        x = self.fn(x, **kwargs)
+        return ops.cat(tensors = (cls_token, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+
+# feed forward related classes
+
+class DepthWiseConv2d(nn.Module):
+    def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(in_channels = dim_in, out_channels = dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
+            nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = 1, bias = bias)
+        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+    def forward(self, x):
+        return self.net(x)
+
+class FeedForward(nn.Module):
+    def __init__(self, dim, hidden_dim, dropout = 0.):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.LayerNorm(normalized_shape = dim),
+            nn.Conv2d(in_channels = dim, out_channels = hidden_dim, kernel_size = 1),
+            nn.Hardswish(),
+            DepthWiseConv2d(hidden_dim, hidden_dim, 3, padding = 1),
+            nn.Hardswish(),
+            nn.Dropout(p = dropout),
+            nn.Conv2d(in_channels = hidden_dim, out_channels = dim, kernel_size = 1),
+            nn.Dropout(p = dropout)
+        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.Hardswish':没有对应的mindspore参数 'inplace';
+    def forward(self, x):
+        h = w = int(sqrt(x.shape[-2]))
+        x = rearrange(x, 'b (h w) c -> b c h w', h = h, w = w)
+        x = self.net(x)
+        x = rearrange(x, 'b c h w -> b (h w) c')
+        return x
+
+# attention
+
+class Attention(nn.Module):
+    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+        super().__init__()
+        inner_dim = dim_head *  heads
+
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+
+        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(p = dropout)
+        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+
+        self.to_out = nn.Sequential(
+            nn.Linear(in_features = inner_dim, out_features = dim),
+            nn.Dropout(p = dropout)
+        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+
+    def forward(self, x):
+        b, n, _, h = *x.shape, self.heads
+
+        x = self.norm(x)
+        qkv = self.to_qkv(x).chunk(3, dim = -1)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
+
+        dots = ops.einsum(equation = 'b h i d, b h j d -> b h i j', operands = q) * self.scale
+
+        attn = self.attend(dots)
+        attn = self.dropout(attn)
+
+        out = ops.einsum(equation = 'b h i j, b h j d -> b h i d', operands = attn)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)
+
+class Transformer(nn.Module):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+        super().__init__()
+        self.layers = nn.ModuleList([])
+        for _ in range(depth):
+            self.layers.append(nn.ModuleList([
+                Residual(Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)),
+                ExcludeCLS(Residual(FeedForward(dim, mlp_dim, dropout = dropout)))
+            ]))
+    def forward(self, x):
+        for attn, ff in self.layers:
+            x = attn(x)
+            x = ff(x)
+        return x
+
+# main class
+
+class LocalViT(nn.Module):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+        super().__init__()
+        assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
+        num_patches = (image_size // patch_size) ** 2
+        patch_dim = channels * patch_size ** 2
+
+        self.to_patch_embedding = nn.Sequential(
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.LayerNorm(normalized_shape = patch_dim),
+            nn.Linear(in_features = patch_dim, out_features = dim),
+            nn.LayerNorm(normalized_shape = dim),
+        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+
+        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.dropout = nn.Dropout(p = emb_dropout)
+
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+
+        self.mlp_head = nn.Sequential(
+            nn.LayerNorm(normalized_shape = dim),
+            nn.Linear(in_features = dim, out_features = num_classes)
+        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+
+    def forward(self, img):
+        x = self.to_patch_embedding(img)
+        b, n, _ = x.shape
+
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
+        x = ops.cat(tensors = (cls_tokens, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        x += self.pos_embedding[:, :(n + 1)]
+        x = self.dropout(x)
+
+        x = self.transformer(x)
+
+        return self.mlp_head(x[:, 0])

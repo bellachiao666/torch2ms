@@ -1,0 +1,85 @@
+--- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
+ import torch
+ from torch import nn
+ from torch.nn import Module, ModuleList
+@@ -22,7 +23,7 @@     return (numer % denom) == 0
+ 
+ def l2norm(t, dim = -1):
+-    return F.normalize(t, dim = dim, p = 2)
++    return nn.functional.normalize(input = t, p = 2, dim = dim)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
+ 
+ # for use with parametrize
+ 
+@@ -42,7 +43,7 @@         norm_dim_in = True
+     ):
+         super().__init__()
+-        self.linear = nn.Linear(dim, dim_out, bias = False)
++        self.linear = nn.Linear(in_features = dim, out_features = dim_out, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+ 
+         parametrize.register_parametrization(
+             self.linear,
+@@ -76,8 +77,8 @@ 
+         self.dropout = dropout
+ 
+-        self.q_scale = nn.Parameter(torch.ones(heads, 1, dim_head) * (dim_head ** 0.25))
+-        self.k_scale = nn.Parameter(torch.ones(heads, 1, dim_head) * (dim_head ** 0.25))
++        self.q_scale = nn.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
++        self.k_scale = nn.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+ 
+         self.split_heads = Rearrange('b n (h d) -> b h n d', h = heads)
+         self.merge_heads = Rearrange('b h n d -> b n (h d)')
+@@ -122,13 +123,13 @@         dim_inner = int(dim_inner * 2 / 3)
+ 
+         self.dim = dim
+-        self.dropout = nn.Dropout(dropout)
++        self.dropout = nn.Dropout(p = dropout)
+ 
+         self.to_hidden = NormLinear(dim, dim_inner)
+         self.to_gate = NormLinear(dim, dim_inner)
+ 
+-        self.hidden_scale = nn.Parameter(torch.ones(dim_inner))
+-        self.gate_scale = nn.Parameter(torch.ones(dim_inner))
++        self.hidden_scale = nn.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
++        self.gate_scale = nn.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+ 
+         self.to_out = NormLinear(dim_inner, dim, norm_dim_in = False)
+ 
+@@ -138,7 +139,7 @@         hidden = hidden * self.hidden_scale
+         gate = gate * self.gate_scale * (self.dim ** 0.5)
+ 
+-        hidden = F.silu(gate) * hidden
++        hidden = nn.functional.silu(input = gate) * hidden
+ 
+         hidden = self.dropout(hidden)
+         return self.to_out(hidden)
+@@ -201,11 +202,11 @@             ]))
+ 
+             self.residual_lerp_scales.append(nn.ParameterList([
+-                nn.Parameter(torch.ones(dim) * residual_lerp_scale_init / self.scale),
+-                nn.Parameter(torch.ones(dim) * residual_lerp_scale_init / self.scale),
+-            ]))
+-
+-        self.logit_scale = nn.Parameter(torch.ones(num_classes))
++                nn.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
++                nn.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
++            ]))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
++
++        self.logit_scale = nn.Parameter(ops.ones(size = num_classes))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+ 
+         self.to_pred = NormLinear(dim, num_classes)
+ 
+@@ -226,7 +227,7 @@         tokens = self.to_patch_embedding(images)
+ 
+         seq_len = tokens.shape[-2]
+-        pos_emb = self.abs_pos_emb.weight[torch.arange(seq_len, device = device)]
++        pos_emb = self.abs_pos_emb.weight[ops.arange(start = seq_len)]  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+ 
+         tokens = l2norm(tokens + pos_emb)
+ 
+@@ -259,6 +260,6 @@         mlp_dim = 2048,
+     )
+ 
+-    img = torch.randn(4, 3, 256, 256)
++    img = ops.randn(size = 4, generator = 3, dtype = 256)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+     logits = v(img) # (4, 1000)
+     assert logits.shape == (4, 1000)

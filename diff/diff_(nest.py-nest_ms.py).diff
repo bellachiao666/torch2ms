@@ -1,0 +1,108 @@
+--- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
+ from functools import partial
+ import torch
+ from torch import nn, einsum
+@@ -16,12 +17,12 @@     def __init__(self, dim, eps = 1e-5):
+         super().__init__()
+         self.eps = eps
+-        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
+-        self.b = nn.Parameter(torch.zeros(1, dim, 1, 1))
++        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
++        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+ 
+     def forward(self, x):
+-        var = torch.var(x, dim = 1, unbiased = False, keepdim = True)
+-        mean = torch.mean(x, dim = 1, keepdim = True)
++        var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
++        mean = ops.mean(input = x, dim = 1, keepdim = True)
+         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
+ 
+ class FeedForward(nn.Module):
+@@ -29,12 +30,12 @@         super().__init__()
+         self.net = nn.Sequential(
+             LayerNorm(dim),
+-            nn.Conv2d(dim, dim * mlp_mult, 1),
++            nn.Conv2d(in_channels = dim, out_channels = dim * mlp_mult, kernel_size = 1),
+             nn.GELU(),
+-            nn.Dropout(dropout),
+-            nn.Conv2d(dim * mlp_mult, dim, 1),
+-            nn.Dropout(dropout)
+-        )
++            nn.Dropout(p = dropout),
++            nn.Conv2d(in_channels = dim * mlp_mult, out_channels = dim, kernel_size = 1),
++            nn.Dropout(p = dropout)
++        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+     def forward(self, x):
+         return self.net(x)
+ 
+@@ -48,13 +49,13 @@ 
+         self.norm = LayerNorm(dim)
+         self.attend = nn.Softmax(dim = -1)
+-        self.dropout = nn.Dropout(dropout)
+-        self.to_qkv = nn.Conv2d(dim, inner_dim * 3, 1, bias = False)
++        self.dropout = nn.Dropout(p = dropout)
++        self.to_qkv = nn.Conv2d(in_channels = dim, out_channels = inner_dim * 3, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+ 
+         self.to_out = nn.Sequential(
+-            nn.Conv2d(inner_dim, dim, 1),
+-            nn.Dropout(dropout)
+-        )
++            nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
++            nn.Dropout(p = dropout)
++        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+ 
+     def forward(self, x):
+         b, c, h, w, heads = *x.shape, self.heads
+@@ -64,27 +65,27 @@         qkv = self.to_qkv(x).chunk(3, dim = 1)
+         q, k, v = map(lambda t: rearrange(t, 'b (h d) x y -> b h (x y) d', h = heads), qkv)
+ 
+-        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
++        dots = ops.einsum(equation = 'b h i d, b h j d -> b h i j', operands = q) * self.scale
+ 
+         attn = self.attend(dots)
+         attn = self.dropout(attn)
+ 
+-        out = einsum('b h i j, b h j d -> b h i d', attn, v)
++        out = ops.einsum(equation = 'b h i j, b h j d -> b h i d', operands = attn)
+         out = rearrange(out, 'b h (x y) d -> b (h d) x y', x = h, y = w)
+         return self.to_out(out)
+ 
+ def Aggregate(dim, dim_out):
+     return nn.Sequential(
+-        nn.Conv2d(dim, dim_out, 3, padding = 1),
++        nn.Conv2d(in_channels = dim, out_channels = dim_out, kernel_size = 3, padding = 1),
+         LayerNorm(dim_out),
+         nn.MaxPool2d(3, stride = 2, padding = 1)
+-    )
++    )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+ 
+ class Transformer(nn.Module):
+     def __init__(self, dim, seq_len, depth, heads, mlp_mult, dropout = 0.):
+         super().__init__()
+         self.layers = nn.ModuleList([])
+-        self.pos_emb = nn.Parameter(torch.randn(seq_len))
++        self.pos_emb = nn.Parameter(ops.randn(size = seq_len))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+ 
+         for _ in range(depth):
+             self.layers.append(nn.ModuleList([
+@@ -140,9 +141,9 @@         self.to_patch_embedding = nn.Sequential(
+             Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size),
+             LayerNorm(patch_dim),
+-            nn.Conv2d(patch_dim, layer_dims[0], 1),
++            nn.Conv2d(in_channels = patch_dim, out_channels = layer_dims[0], kernel_size = 1),
+             LayerNorm(layer_dims[0])
+-        )
++        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+ 
+         block_repeats = cast_tuple(block_repeats, num_hierarchies)
+ 
+@@ -161,8 +162,8 @@         self.mlp_head = nn.Sequential(
+             LayerNorm(last_dim),
+             Reduce('b c h w -> b c', 'mean'),
+-            nn.Linear(last_dim, num_classes)
+-        )
++            nn.Linear(in_features = last_dim, out_features = num_classes)
++        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+ 
+     def forward(self, img):
+         x = self.to_patch_embedding(img)

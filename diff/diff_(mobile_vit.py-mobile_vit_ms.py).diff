@@ -1,0 +1,143 @@
+--- pytorch+++ mindspore@@ -1,3 +1,4 @@+from mindspore.mint import nn, ops
+ import torch
+ import torch.nn as nn
+ 
+@@ -8,17 +9,17 @@ 
+ def conv_1x1_bn(inp, oup):
+     return nn.Sequential(
+-        nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
+-        nn.BatchNorm2d(oup),
++        nn.Conv2d(in_channels = inp, out_channels = oup, kernel_size = 1, stride = 1, padding = 0, bias = False),
++        nn.BatchNorm2d(num_features = oup),
+         nn.SiLU()
+-    )
++    )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
+ 
+ def conv_nxn_bn(inp, oup, kernel_size=3, stride=1):
+     return nn.Sequential(
+-        nn.Conv2d(inp, oup, kernel_size, stride, 1, bias=False),
+-        nn.BatchNorm2d(oup),
++        nn.Conv2d(in_channels = inp, out_channels = oup, kernel_size = kernel_size, stride = stride, padding = 1, bias = False),
++        nn.BatchNorm2d(num_features = oup),
+         nn.SiLU()
+-    )
++    )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
+ 
+ # classes
+ 
+@@ -26,13 +27,13 @@     def __init__(self, dim, hidden_dim, dropout=0.):
+         super().__init__()
+         self.net = nn.Sequential(
+-            nn.LayerNorm(dim),
+-            nn.Linear(dim, hidden_dim),
++            nn.LayerNorm(normalized_shape = dim),
++            nn.Linear(in_features = dim, out_features = hidden_dim),
+             nn.SiLU(),
+-            nn.Dropout(dropout),
+-            nn.Linear(hidden_dim, dim),
+-            nn.Dropout(dropout)
+-        )
++            nn.Dropout(p = dropout),
++            nn.Linear(in_features = hidden_dim, out_features = dim),
++            nn.Dropout(p = dropout)
++        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+ 
+     def forward(self, x):
+         return self.net(x)
+@@ -44,16 +45,16 @@         self.heads = heads
+         self.scale = dim_head ** -0.5
+ 
+-        self.norm = nn.LayerNorm(dim)
+-        self.attend = nn.Softmax(dim=-1)
+-        self.dropout = nn.Dropout(dropout)
+-
+-        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
++        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
++        self.attend = nn.Softmax(dim = -1)
++        self.dropout = nn.Dropout(p = dropout)
++
++        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+ 
+         self.to_out = nn.Sequential(
+-            nn.Linear(inner_dim, dim),
+-            nn.Dropout(dropout)
+-        )
++            nn.Linear(in_features = inner_dim, out_features = dim),
++            nn.Dropout(p = dropout)
++        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+ 
+     def forward(self, x):
+         x = self.norm(x)
+@@ -61,12 +62,12 @@ 
+         q, k, v = map(lambda t: rearrange(t, 'b p n (h d) -> b p h n d', h=self.heads), qkv)
+ 
+-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
++        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+ 
+         attn = self.attend(dots)
+         attn = self.dropout(attn)
+ 
+-        out = torch.matmul(attn, v)
++        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+         out = rearrange(out, 'b p h n d -> b p n (h d)')
+         return self.to_out(out)
+ 
+@@ -108,29 +109,27 @@         if expansion == 1:
+             self.conv = nn.Sequential(
+                 # dw
+-                nn.Conv2d(hidden_dim, hidden_dim, 3, stride,
+-                          1, groups=hidden_dim, bias=False),
+-                nn.BatchNorm2d(hidden_dim),
++                nn.Conv2d(in_channels = hidden_dim, out_channels = hidden_dim, kernel_size = 3, stride = stride, padding = 1, groups = hidden_dim, bias = False),
++                nn.BatchNorm2d(num_features = hidden_dim),
+                 nn.SiLU(),
+                 # pw-linear
+-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+-                nn.BatchNorm2d(oup),
+-            )
++                nn.Conv2d(in_channels = hidden_dim, out_channels = oup, kernel_size = 1, stride = 1, padding = 0, bias = False),
++                nn.BatchNorm2d(num_features = oup),
++            )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
+         else:
+             self.conv = nn.Sequential(
+                 # pw
+-                nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
+-                nn.BatchNorm2d(hidden_dim),
++                nn.Conv2d(in_channels = inp, out_channels = hidden_dim, kernel_size = 1, stride = 1, padding = 0, bias = False),
++                nn.BatchNorm2d(num_features = hidden_dim),
+                 nn.SiLU(),
+                 # dw
+-                nn.Conv2d(hidden_dim, hidden_dim, 3, stride,
+-                          1, groups=hidden_dim, bias=False),
+-                nn.BatchNorm2d(hidden_dim),
++                nn.Conv2d(in_channels = hidden_dim, out_channels = hidden_dim, kernel_size = 3, stride = stride, padding = 1, groups = hidden_dim, bias = False),
++                nn.BatchNorm2d(num_features = hidden_dim),
+                 nn.SiLU(),
+                 # pw-linear
+-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+-                nn.BatchNorm2d(oup),
+-            )
++                nn.Conv2d(in_channels = hidden_dim, out_channels = oup, kernel_size = 1, stride = 1, padding = 0, bias = False),
++                nn.BatchNorm2d(num_features = oup),
++            )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
+ 
+     def forward(self, x):
+         out = self.conv(x)
+@@ -166,7 +165,7 @@ 
+         # Fusion
+         x = self.conv3(x)
+-        x = torch.cat((x, y), 1)
++        x = ops.cat(tensors = (x, y), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+         x = self.conv4(x)
+         return x
+ 
+@@ -227,8 +226,8 @@         self.to_logits = nn.Sequential(
+             conv_1x1_bn(channels[-2], last_dim),
+             Reduce('b c h w -> b c', 'mean'),
+-            nn.Linear(channels[-1], num_classes, bias=False)
+-        )
++            nn.Linear(in_features = channels[-1], out_features = num_classes, bias = False)
++        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+ 
+     def forward(self, x):
+         x = self.conv1(x)

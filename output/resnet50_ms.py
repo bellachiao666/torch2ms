@@ -31,16 +31,16 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.inplanes = 64
         self.modelPath = model_path
-        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
-        self.bn1 = nn.BatchNorm2d(num_features = 64)
+        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 64, kernel_size = 7, stride = 2, padding = 3, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.bn1 = nn.BatchNorm2d(num_features = 64)  # 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
         self.maxpool = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
         self.stack1 = self.make_stack(64, layers[0])
         self.stack2 = self.make_stack(128, layers[1], stride=2)
         self.stack3 = self.make_stack(256, layers[2], stride=2)
         self.stack4 = self.make_stack(512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride = 1)
-        self.fc = nn.Linear(in_features = 512 * Bottleneck.expansion, out_features = num_classes)
+        self.avgpool = nn.AvgPool2d(kernel_size = 7, stride = 1)
+        self.fc = nn.Linear(in_features = 512 * Bottleneck.expansion, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
         # initialize parameters
         self.init_param()
 
@@ -66,7 +66,7 @@ class ResNet(nn.Module):
             downsample = nn.Sequential(
                 nn.Conv2d(in_channels = self.inplanes, out_channels = planes * Bottleneck.expansion, kernel_size = 1, stride = stride, bias = False),
                 nn.BatchNorm2d(num_features = planes * Bottleneck.expansion),
-                )
+                )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
 
         layers.append(Bottleneck(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * Bottleneck.expansion
@@ -97,12 +97,12 @@ class Bottleneck(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels = inplanes, out_channels = planes, kernel_size = 1, bias = False)
-        self.bn1 = nn.BatchNorm2d(num_features = planes)
-        self.conv2 = nn.Conv2d(in_channels = planes, out_channels = planes, kernel_size = 3, stride = stride, padding = 1, bias = False)
-        self.bn2 = nn.BatchNorm2d(num_features = planes)
-        self.conv3 = nn.Conv2d(in_channels = planes, out_channels = planes * 4, kernel_size = 1, bias = False)
-        self.bn3 = nn.BatchNorm2d(num_features = planes * 4)
+        self.conv1 = nn.Conv2d(in_channels = inplanes, out_channels = planes, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.bn1 = nn.BatchNorm2d(num_features = planes)  # 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
+        self.conv2 = nn.Conv2d(in_channels = planes, out_channels = planes, kernel_size = 3, stride = stride, padding = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.bn2 = nn.BatchNorm2d(num_features = planes)  # 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
+        self.conv3 = nn.Conv2d(in_channels = planes, out_channels = planes * 4, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.bn3 = nn.BatchNorm2d(num_features = planes * 4)  # 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
         self.downsample = downsample
         self.stride = stride
