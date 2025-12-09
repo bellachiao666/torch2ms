@@ -33,8 +33,8 @@ class LayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
         var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -44,7 +44,7 @@ class LayerNorm(nn.Cell):
 class FeedForward(nn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             LayerNorm(dim),
             nn.Conv2d(in_channels = dim, out_channels = dim * mult, kernel_size = 1),
             nn.GELU(),
@@ -62,7 +62,7 @@ class PatchEmbedding(nn.Cell):
         self.dim_out = dim_out
         self.patch_size = patch_size
 
-        self.proj = nn.Sequential(
+        self.proj = nn.SequentialCell(
             LayerNorm(patch_size ** 2 * dim),
             nn.Conv2d(in_channels = patch_size ** 2 * dim, out_channels = dim_out, kernel_size = 1),
             LayerNorm(dim_out)
@@ -93,7 +93,7 @@ class LocalAttention(nn.Cell):
         self.to_q = nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
         self.to_kv = nn.Conv2d(in_channels = dim, out_channels = inner_dim * 2, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -132,7 +132,7 @@ class GlobalAttention(nn.Cell):
 
         self.dropout = nn.Dropout(p = dropout)
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -158,9 +158,9 @@ class GlobalAttention(nn.Cell):
 class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads = 8, dim_head = 64, mlp_mult = 4, local_patch_size = 7, global_k = 7, dropout = 0., has_local = True):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Residual(LocalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, patch_size = local_patch_size)) if has_local else nn.Identity(),
                 Residual(FeedForward(dim, mlp_mult, dropout = dropout)) if has_local else nn.Identity(),
                 Residual(GlobalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, k = global_k)),
@@ -214,7 +214,7 @@ class TwinsSVT(nn.Cell):
 
             dim_next = config['emb_dim']
 
-            layers.append(nn.Sequential(
+            layers.append(nn.SequentialCell(
                 PatchEmbedding(dim = dim, dim_out = dim_next, patch_size = config['patch_size']),
                 Transformer(dim = dim_next, depth = 1, local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last),
                 PEG(dim = dim_next, kernel_size = peg_kernel_size),
@@ -223,7 +223,7 @@ class TwinsSVT(nn.Cell):
 
             dim = dim_next
 
-        self.layers = nn.Sequential(
+        self.layers = nn.SequentialCell(
             *layers,
             nn.AdaptiveAvgPool2d(output_size = 1),
             Rearrange('... () () -> ...'),

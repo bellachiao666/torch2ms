@@ -15,9 +15,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -49,22 +50,24 @@
 -
 -        self.to_q = nn.Linear(dim, inner_dim, bias = False)
 -        self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
+-
+-        self.to_out = nn.Sequential(
+-            nn.Linear(inner_dim, dim),
+-            nn.Dropout(dropout)
+-        )
 +        self.dropout = nn.Dropout(p = dropout)
 +
 +        self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +        self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        )
++
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
      def forward(self, x, context = None, kv_include_self = False):
          b, n, _, h = *x.shape, self.heads
-@@ -56,27 +55,27 @@         context = default(context, x)
+@@ -56,29 +55,29 @@         context = default(context, x)
  
          if kv_include_self:
 -            context = torch.cat((x, context), dim = 1) # cross attention requires CLS token includes itself as key / value
@@ -90,12 +93,16 @@
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
          super().__init__()
-         self.layers = nn.ModuleList([])
+-        self.layers = nn.ModuleList([])
 -        self.norm = nn.LayerNorm(dim)
++        self.layers = nn.CellList([])
 +        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
          for _ in range(depth):
-             self.layers.append(nn.ModuleList([
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
                  Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
 @@ -91,14 +90,14 @@ 
  # projecting CLS tokens, in the case that small and large patch tokens have different dimensions
  
@@ -113,14 +120,21 @@
  
      def forward(self, x, *args, **kwargs):
          x = self.project_in(x)
-@@ -108,7 +107,7 @@ 
+@@ -108,12 +107,12 @@ 
  # cross attention transformer
  
 -class CrossTransformer(nn.Module):
 +class CrossTransformer(nn.Cell):
      def __init__(self, sm_dim, lg_dim, depth, heads, dim_head, dropout):
          super().__init__()
-         self.layers = nn.ModuleList([])
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 ProjectInOut(sm_dim, lg_dim, Attention(lg_dim, heads = heads, dim_head = dim_head, dropout = dropout)),
+                 ProjectInOut(lg_dim, sm_dim, Attention(sm_dim, heads = heads, dim_head = dim_head, dropout = dropout))
+             ]))
 @@ -125,13 +124,13 @@             sm_cls = sm_attend_lg(sm_cls, context = lg_patch_tokens, kv_include_self = True) + sm_cls
              lg_cls = lg_attend_sm(lg_cls, context = sm_patch_tokens, kv_include_self = True) + lg_cls
  
@@ -137,6 +151,17 @@
      def __init__(
          self,
          *,
+@@ -146,9 +145,9 @@         dropout = 0.
+     ):
+         super().__init__()
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Transformer(dim = sm_dim, dropout = dropout, **sm_enc_params),
+                 Transformer(dim = lg_dim, dropout = dropout, **lg_enc_params),
+                 CrossTransformer(sm_dim = sm_dim, lg_dim = lg_dim, depth = cross_attn_depth, heads = cross_attn_heads, dim_head = cross_attn_dim_head, dropout = dropout)
 @@ -163,7 +162,7 @@ 
  # patch-based image to token embedder
  
@@ -145,8 +170,11 @@
      def __init__(
          self,
          *,
-@@ -180,28 +179,28 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -178,30 +177,30 @@         num_patches = (image_size // patch_size) ** 2
+         patch_dim = channels * patch_size ** 2
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -161,8 +189,8 @@
 +            nn.LayerNorm(normalized_shape = dim)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +
-+        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-+        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 +        self.dropout = nn.Dropout(p = dropout)
  
      def forward(self, img):
@@ -188,8 +216,8 @@
  
 -        self.sm_mlp_head = nn.Sequential(nn.LayerNorm(sm_dim), nn.Linear(sm_dim, num_classes))
 -        self.lg_mlp_head = nn.Sequential(nn.LayerNorm(lg_dim), nn.Linear(lg_dim, num_classes))
-+        self.sm_mlp_head = nn.Sequential(nn.LayerNorm(normalized_shape = sm_dim), nn.Linear(in_features = sm_dim, out_features = num_classes))  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
-+        self.lg_mlp_head = nn.Sequential(nn.LayerNorm(normalized_shape = lg_dim), nn.Linear(in_features = lg_dim, out_features = num_classes))  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
++        self.sm_mlp_head = nn.SequentialCell(nn.LayerNorm(normalized_shape = sm_dim), nn.Linear(in_features = sm_dim, out_features = num_classes))  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
++        self.lg_mlp_head = nn.SequentialCell(nn.LayerNorm(normalized_shape = lg_dim), nn.Linear(in_features = lg_dim, out_features = num_classes))  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
      def forward(self, img):
          sm_tokens = self.sm_image_embedder(img)

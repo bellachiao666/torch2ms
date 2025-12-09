@@ -5,7 +5,6 @@ https://arxiv.org/abs/2409.19606
 
 import torch
 from torch import nn, tensor
-from torch.nn import ModuleList
 
 from einops import rearrange, repeat, reduce, einsum, pack, unpack
 from einops.layers.torch import Rearrange
@@ -46,17 +45,17 @@ class HyperConnection(nn.Cell):
         self.num_residual_streams = num_residual_streams
         self.layer_index = layer_index
 
-        self.static_beta = nn.Parameter(ops.ones(size = num_residual_streams))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.static_beta = mindspore.Parameter(ops.ones(size = num_residual_streams))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
 
         init_alpha0 = ops.zeros(size = (num_residual_streams, 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
         init_alpha0[layer_index % num_residual_streams, 0] = 1.
 
-        self.static_alpha = nn.Parameter(ops.cat(tensors = [init_alpha0, ops.eye(n = num_residual_streams)], dim = 1))  # 'torch.eye':没有对应的mindspore参数 'out';; 'torch.eye':没有对应的mindspore参数 'layout';; 'torch.eye':没有对应的mindspore参数 'device';; 'torch.eye':没有对应的mindspore参数 'requires_grad';; 'torch.cat':没有对应的mindspore参数 'out';
+        self.static_alpha = mindspore.Parameter(ops.cat(tensors = [init_alpha0, ops.eye(n = num_residual_streams)], dim = 1))  # 'torch.eye':没有对应的mindspore参数 'out';; 'torch.eye':没有对应的mindspore参数 'layout';; 'torch.eye':没有对应的mindspore参数 'device';; 'torch.eye':没有对应的mindspore参数 'requires_grad';; 'torch.cat':没有对应的mindspore参数 'out';
 
-        self.dynamic_alpha_fn = nn.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
-        self.dynamic_alpha_scale = nn.Parameter(tensor(1e-2))
-        self.dynamic_beta_fn = nn.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
-        self.dynamic_beta_scale = nn.Parameter(tensor(1e-2))
+        self.dynamic_alpha_fn = mindspore.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.dynamic_alpha_scale = mindspore.Parameter(tensor(1e-2))
+        self.dynamic_beta_fn = mindspore.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.dynamic_beta_scale = mindspore.Parameter(tensor(1e-2))
 
     def width_connection(self, residuals):
         normed = self.norm(residuals)
@@ -89,7 +88,7 @@ class HyperConnection(nn.Cell):
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = hidden_dim),
             nn.GELU(),
@@ -132,10 +131,10 @@ class Transformer(nn.Cell):
         self.num_residual_streams = num_residual_streams
 
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = ModuleList([])
+        self.layers = nn.CellList([])
 
         for layer_index in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 HyperConnection(dim, num_residual_streams, layer_index),
                 Attention(dim, heads = heads, dim_head = dim_head),
                 HyperConnection(dim, num_residual_streams, layer_index),
@@ -174,14 +173,14 @@ class SimpleViT(nn.Cell):
 
         patch_dim = channels * patch_height * patch_width
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
             nn.LayerNorm(normalized_shape = patch_dim),
             nn.Linear(in_features = patch_dim, out_features = dim),
             nn.LayerNorm(normalized_shape = dim),
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.register_tokens = nn.Parameter(ops.randn(size = num_register_tokens, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         self.pos_embedding = posemb_sincos_2d(
             h = image_height // patch_height,

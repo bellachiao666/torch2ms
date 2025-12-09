@@ -197,8 +197,8 @@ class Tokenizer(nn.Cell):
         if frame_pooling_padding is None:
             frame_pooling_padding = frame_pooling_kernel_size // 2
 
-        self.conv_layers = nn.Sequential(
-            *[nn.Sequential(
+        self.conv_layers = nn.SequentialCell(
+            *[nn.SequentialCell(
                 nn.Conv3d(in_channels = chan_in, out_channels = chan_out, kernel_size = (frame_kernel_size, kernel_size, kernel_size), stride = (frame_stride, stride, stride), padding = (frame_padding, padding, padding), bias = conv_bias),
                 nn.Identity() if not exists(activation) else activation(),
                 nn.MaxPool3d(kernel_size=(frame_pooling_kernel_size, pooling_kernel_size, pooling_kernel_size),
@@ -253,14 +253,14 @@ class TransformerClassifier(nn.Cell):
 
         if not seq_pool:
             sequence_length += 1
-            self.class_emb = nn.Parameter(ops.zeros(size = 1, dtype = self.embedding_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+            self.class_emb = mindspore.Parameter(ops.zeros(size = 1, dtype = self.embedding_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
         else:
             self.attention_pool = nn.Linear(in_features = self.embedding_dim, out_features = 1)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
         if positional_embedding == 'none':
             self.positional_emb = None
         elif positional_embedding == 'learnable':
-            self.positional_emb = nn.Parameter(ops.zeros(size = 1, dtype = embedding_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+            self.positional_emb = mindspore.Parameter(ops.zeros(size = 1, dtype = embedding_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
             nn.init.trunc_normal_(self.positional_emb, std = 0.2)
         else:
             self.register_buffer('positional_emb', sinusoidal_embedding(sequence_length, embedding_dim))
@@ -269,7 +269,7 @@ class TransformerClassifier(nn.Cell):
 
         dpr = [x.item() for x in ops.linspace(start = 0, end = stochastic_depth_rate, steps = num_layers)]  # 'torch.linspace':没有对应的mindspore参数 'out';; 'torch.linspace':没有对应的mindspore参数 'layout';; 'torch.linspace':没有对应的mindspore参数 'device';; 'torch.linspace':没有对应的mindspore参数 'requires_grad';
 
-        self.blocks = nn.ModuleList([
+        self.blocks = nn.CellList([
             TransformerEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                     dim_feedforward=dim_feedforward, dropout=dropout_rate,
                                     attention_dropout=attention_dropout, drop_path_rate=layer_dpr)

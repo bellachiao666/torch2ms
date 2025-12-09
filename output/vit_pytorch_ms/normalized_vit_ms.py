@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.nn import ModuleList
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as parametrize
 
@@ -77,8 +76,8 @@ class Attention(nn.Cell):
 
         self.dropout = dropout
 
-        self.q_scale = nn.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.k_scale = nn.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.q_scale = mindspore.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.k_scale = mindspore.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
 
         self.split_heads = Rearrange('b n (h d) -> b h n d', h = heads)
         self.merge_heads = Rearrange('b h n d -> b n (h d)')
@@ -128,8 +127,8 @@ class FeedForward(nn.Cell):
         self.to_hidden = NormLinear(dim, dim_inner)
         self.to_gate = NormLinear(dim, dim_inner)
 
-        self.hidden_scale = nn.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.gate_scale = nn.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.hidden_scale = mindspore.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.gate_scale = mindspore.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
 
         self.to_out = NormLinear(dim_inner, dim, norm_dim_in = False)
 
@@ -178,7 +177,7 @@ class nViT(nn.Cell):
         self.channels = channels
         self.patch_size = patch_size
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size),
             NormLinear(patch_dim, dim, norm_dim_in = False),
         )
@@ -192,21 +191,21 @@ class nViT(nn.Cell):
         self.dim = dim
         self.scale = dim ** 0.5
 
-        self.layers = ModuleList([])
+        self.layers = nn.CellList([])
         self.residual_lerp_scales = nn.ParameterList([])
 
         for _ in range(depth):
-            self.layers.append(ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, dim_head = dim_head, heads = heads, dropout = dropout),
                 FeedForward(dim, dim_inner = mlp_dim, dropout = dropout),
             ]))
 
             self.residual_lerp_scales.append(nn.ParameterList([
-                nn.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
-                nn.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
+                mindspore.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
+                mindspore.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
             ]))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
 
-        self.logit_scale = nn.Parameter(ops.ones(size = num_classes))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.logit_scale = mindspore.Parameter(ops.ones(size = num_classes))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
 
         self.to_pred = NormLinear(dim, num_classes)
 

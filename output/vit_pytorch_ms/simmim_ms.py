@@ -19,13 +19,13 @@ class SimMIM(nn.Cell):
         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
 
         self.to_patch = encoder.to_patch_embedding[0]
-        self.patch_to_emb = nn.Sequential(*encoder.to_patch_embedding[1:])
+        self.patch_to_emb = nn.SequentialCell(*encoder.to_patch_embedding[1:])
 
         pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
 
         # simple linear head
 
-        self.mask_token = nn.Parameter(ops.randn(size = encoder_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.mask_token = mindspore.Parameter(ops.randn(size = encoder_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.to_pixels = nn.Linear(in_features = encoder_dim, out_features = pixel_values_per_patch)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
     def forward(self, img):

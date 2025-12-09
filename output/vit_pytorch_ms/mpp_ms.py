@@ -98,7 +98,7 @@ class MPP(nn.Cell):
                             max_pixel_val, mean, std)
 
         # extract patching function
-        self.patch_to_emb = nn.Sequential(transformer.to_patch_embedding[1:])
+        self.patch_to_emb = nn.SequentialCell(transformer.to_patch_embedding[1:])
 
         # output transformation
         self.to_bits = nn.Linear(in_features = dim, out_features = 2**(output_channel_bits * channels))  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -112,7 +112,7 @@ class MPP(nn.Cell):
         self.random_patch_prob = random_patch_prob
 
         # token ids
-        self.mask_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.mask_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
     def forward(self, input, **kwargs):
         transformer = self.transformer

@@ -7,14 +7,14 @@ from mindspore.mint import nn, ops
 # helpers
 
 def conv_1x1_bn(inp, oup):
-    return nn.Sequential(
+    return nn.SequentialCell(
         nn.Conv2d(in_channels = inp, out_channels = oup, kernel_size = 1, stride = 1, padding = 0, bias = False),
         nn.BatchNorm2d(num_features = oup),
         nn.SiLU()
     )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
 
 def conv_nxn_bn(inp, oup, kernel_size=3, stride=1):
-    return nn.Sequential(
+    return nn.SequentialCell(
         nn.Conv2d(in_channels = inp, out_channels = oup, kernel_size = kernel_size, stride = stride, padding = 1, bias = False),
         nn.BatchNorm2d(num_features = oup),
         nn.SiLU()
@@ -25,7 +25,7 @@ def conv_nxn_bn(inp, oup, kernel_size=3, stride=1):
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout=0.):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = hidden_dim),
             nn.SiLU(),
@@ -50,7 +50,7 @@ class Attention(nn.Cell):
 
         self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -78,9 +78,9 @@ class Transformer(nn.Cell):
 
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout=0.):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads, dim_head, dropout),
                 FeedForward(dim, mlp_dim, dropout)
             ]))
@@ -106,7 +106,7 @@ class MV2Block(nn.Cell):
         self.use_res_connect = self.stride == 1 and inp == oup
 
         if expansion == 1:
-            self.conv = nn.Sequential(
+            self.conv = nn.SequentialCell(
                 # dw
                 nn.Conv2d(in_channels = hidden_dim, out_channels = hidden_dim, kernel_size = 3, stride = stride, padding = 1, groups = hidden_dim, bias = False),
                 nn.BatchNorm2d(num_features = hidden_dim),
@@ -116,7 +116,7 @@ class MV2Block(nn.Cell):
                 nn.BatchNorm2d(num_features = oup),
             )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
         else:
-            self.conv = nn.Sequential(
+            self.conv = nn.SequentialCell(
                 # pw
                 nn.Conv2d(in_channels = inp, out_channels = hidden_dim, kernel_size = 1, stride = 1, padding = 0, bias = False),
                 nn.BatchNorm2d(num_features = hidden_dim),
@@ -197,32 +197,32 @@ class MobileViT(nn.Cell):
 
         self.conv1 = conv_nxn_bn(3, init_dim, stride=2)
 
-        self.stem = nn.ModuleList([])
+        self.stem = nn.CellList([])
         self.stem.append(MV2Block(channels[0], channels[1], 1, expansion))
         self.stem.append(MV2Block(channels[1], channels[2], 2, expansion))
         self.stem.append(MV2Block(channels[2], channels[3], 1, expansion))
         self.stem.append(MV2Block(channels[2], channels[3], 1, expansion))
 
-        self.trunk = nn.ModuleList([])
-        self.trunk.append(nn.ModuleList([
+        self.trunk = nn.CellList([])
+        self.trunk.append(nn.CellList([
             MV2Block(channels[3], channels[4], 2, expansion),
             MobileViTBlock(dims[0], depths[0], channels[5],
                            kernel_size, patch_size, int(dims[0] * 2))
         ]))
 
-        self.trunk.append(nn.ModuleList([
+        self.trunk.append(nn.CellList([
             MV2Block(channels[5], channels[6], 2, expansion),
             MobileViTBlock(dims[1], depths[1], channels[7],
                            kernel_size, patch_size, int(dims[1] * 4))
         ]))
 
-        self.trunk.append(nn.ModuleList([
+        self.trunk.append(nn.CellList([
             MV2Block(channels[7], channels[8], 2, expansion),
             MobileViTBlock(dims[2], depths[2], channels[9],
                            kernel_size, patch_size, int(dims[2] * 4))
         ]))
 
-        self.to_logits = nn.Sequential(
+        self.to_logits = nn.SequentialCell(
             conv_1x1_bn(channels[-2], last_dim),
             Reduce('b c h w -> b c', 'mean'),
             nn.Linear(in_features = channels[-1], out_features = num_classes, bias = False)

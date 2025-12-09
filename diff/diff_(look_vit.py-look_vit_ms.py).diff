@@ -1,8 +1,7 @@
---- pytorch+++ mindspore@@ -1,10 +1,9 @@-import torch
+--- pytorch+++ mindspore@@ -1,10 +1,8 @@-import torch
  from torch import nn
 -import torch.nn.functional as F
 -from torch.nn import Module, ModuleList
-+from torch.nn import ModuleList
  
  from einops import einsum, rearrange, repeat, reduce
  from einops.layers.torch import Rearrange
@@ -10,7 +9,7 @@
  
  # helpers
  
-@@ -21,24 +20,24 @@ 
+@@ -21,24 +19,24 @@ 
  def posemb_sincos_2d(t, temperature = 10000):
      h, w, d, device = *t.shape[1:], t.device
 -    y, x = torch.meshgrid(torch.arange(h, device = device), torch.arange(w, device = device), indexing = 'ij')
@@ -36,12 +35,15 @@
 -        self.ln = nn.LayerNorm(dim, elementwise_affine = False)
 -        self.gamma = nn.Parameter(torch.zeros(dim))
 +        self.ln = nn.LayerNorm(normalized_shape = dim, elementwise_affine = False)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-+        self.gamma = nn.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
++        self.gamma = mindspore.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
  
      def forward(self, x):
          normed = self.ln(x)
-@@ -50,16 +49,16 @@     hidden_dim = int(dim * factor)
-     return nn.Sequential(
+@@ -48,18 +46,18 @@ 
+ def MLP(dim, factor = 4, dropout = 0.):
+     hidden_dim = int(dim * factor)
+-    return nn.Sequential(
++    return nn.SequentialCell(
          LayerNorm(dim),
 -        nn.Linear(dim, hidden_dim),
 +        nn.Linear(in_features = dim, out_features = hidden_dim),
@@ -62,7 +64,7 @@
      def __init__(
          self,
          dim,
-@@ -83,17 +82,17 @@         self.norm_context = LayerNorm(dim) if cross_attend else nn.Identity()
+@@ -83,17 +81,17 @@         self.norm_context = LayerNorm(dim) if cross_attend else nn.Identity()
  
          self.attend = nn.Softmax(dim = -1)
 -        self.dropout = nn.Dropout(dropout)
@@ -70,13 +72,15 @@
 -        self.to_q = nn.Linear(dim, inner_dim, bias = False) if not reuse_attention else None
 -        self.to_k = nn.Linear(dim, inner_dim, bias = False) if not reuse_attention else None
 -        self.to_v = nn.Linear(dim, inner_dim, bias = False)
+-
+-        self.to_out = nn.Sequential(
 +        self.dropout = nn.Dropout(p = dropout)
 +
 +        self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False) if not reuse_attention else None  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +        self.to_k = nn.Linear(in_features = dim, out_features = inner_dim, bias = False) if not reuse_attention else None  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +        self.to_v = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.to_out = nn.Sequential(
++
++        self.to_out = nn.SequentialCell(
              Rearrange('b h n d -> b n (h d)'),
 -            nn.Linear(inner_dim, dim, bias = False),
 -            nn.Dropout(dropout)
@@ -87,7 +91,7 @@
  
      def forward(
          self,
-@@ -137,7 +136,7 @@ 
+@@ -137,7 +135,7 @@ 
  # LookViT
  
 -class LookViT(Module):
@@ -95,8 +99,11 @@
      def __init__(
          self,
          *,
-@@ -172,15 +171,15 @@ 
-         self.to_patches = nn.Sequential(
+@@ -170,24 +168,24 @@         kernel_size = patch_conv_kernel_size
+         patch_dim = (highres_patch_size * highres_patch_size) * channels
+ 
+-        self.to_patches = nn.Sequential(
++        self.to_patches = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = highres_patch_size, p2 = highres_patch_size),
 -            nn.Conv2d(patch_dim, dim, kernel_size, padding = kernel_size // 2),
 +            nn.Conv2d(in_channels = patch_dim, out_channels = dim, kernel_size = kernel_size, padding = kernel_size // 2),
@@ -109,11 +116,20 @@
  
          num_patches = (image_size // highres_patch_size) ** 2
 -        self.pos_embedding = nn.Parameter(torch.randn(num_patches, dim))
-+        self.pos_embedding = nn.Parameter(ops.randn(size = num_patches, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.pos_embedding = mindspore.Parameter(ops.randn(size = num_patches, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
  
          # lookvit blocks
  
-@@ -201,7 +200,7 @@         self.norm = LayerNorm(dim)
+-        layers = ModuleList([])
++        layers = nn.CellList([])
+ 
+         for _ in range(depth):
+-            layers.append(ModuleList([
++            layers.append(nn.CellList([
+                 Attention(dim = dim, dim_head = dim_head, heads = heads, dropout = dropout),
+                 MLP(dim = dim, factor = mlp_factor, dropout = dropout),
+                 Attention(dim = dim, dim_head = cross_attn_dim_head, heads = cross_attn_heads, dropout = dropout, cross_attend = True),
+@@ -201,7 +199,7 @@         self.norm = LayerNorm(dim)
          self.highres_norm = LayerNorm(dim)
  
 -        self.to_logits = nn.Linear(dim, num_classes, bias = False)
@@ -121,7 +137,7 @@
  
      def forward(self, img):
          assert img.shape[-2:] == (self.image_size, self.image_size)
-@@ -214,11 +213,8 @@         pos_emb = posemb_sincos_2d(highres_tokens)
+@@ -214,11 +212,8 @@         pos_emb = posemb_sincos_2d(highres_tokens)
          highres_tokens = highres_tokens + rearrange(pos_emb, '(h w) d -> h w d', h = size)
  
 -        tokens = F.interpolate(
@@ -134,7 +150,7 @@
  
          tokens = rearrange(tokens, 'b c h w -> b (h w) c')
          highres_tokens = rearrange(highres_tokens, 'b h w c -> b (h w) c')
-@@ -272,7 +268,7 @@         dropout = 0.1
+@@ -272,7 +267,7 @@         dropout = 0.1
      ).cuda()
  
 -    img = torch.randn(2, 3, 256, 256).cuda()

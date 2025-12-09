@@ -1,6 +1,5 @@
 from random import randrange
 from torch import nn, einsum
-from torch.nn import ModuleList
 
 from einops import rearrange, repeat, pack, unpack
 from einops.layers.torch import Rearrange
@@ -48,7 +47,7 @@ class LayerScale(nn.Cell):
             init_eps = 1e-6
 
         self.fn = fn
-        self.scale = nn.Parameter(ops.full(size = (dim,), fill_value = init_eps))  # 'torch.full':没有对应的mindspore参数 'out';; 'torch.full':没有对应的mindspore参数 'layout';; 'torch.full':没有对应的mindspore参数 'device';; 'torch.full':没有对应的mindspore参数 'requires_grad';
+        self.scale = mindspore.Parameter(ops.full(size = (dim,), fill_value = init_eps))  # 'torch.full':没有对应的mindspore参数 'out';; 'torch.full':没有对应的mindspore参数 'layout';; 'torch.full':没有对应的mindspore参数 'device';; 'torch.full':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x, **kwargs):
         return self.fn(x, **kwargs) * self.scale
@@ -56,7 +55,7 @@ class LayerScale(nn.Cell):
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = hidden_dim),
             nn.GELU(),
@@ -81,7 +80,7 @@ class Attention(nn.Cell):
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(p = dropout)
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -113,12 +112,12 @@ class XCAttention(nn.Cell):
 
         self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.temperature = nn.Parameter(ops.ones(size = heads, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.temperature = mindspore.Parameter(ops.ones(size = heads, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
 
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(p = dropout)
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -151,7 +150,7 @@ class LocalPatchInteraction(nn.Cell):
         assert (kernel_size % 2) == 1
         padding = kernel_size // 2
 
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             Rearrange('b h w c -> b c h w'),
             nn.Conv2d(in_channels = dim, out_channels = dim, kernel_size = kernel_size, padding = padding, groups = dim),
@@ -167,12 +166,12 @@ class LocalPatchInteraction(nn.Cell):
 class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., layer_dropout = 0.):
         super().__init__()
-        self.layers = ModuleList([])
+        self.layers = nn.CellList([])
         self.layer_dropout = layer_dropout
 
         for ind in range(depth):
             layer = ind + 1
-            self.layers.append(ModuleList([
+            self.layers.append(nn.CellList([
                 LayerScale(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout), depth = layer),
                 LayerScale(dim, FeedForward(dim, mlp_dim, dropout = dropout), depth = layer)
             ]))
@@ -189,12 +188,12 @@ class Transformer(nn.Cell):
 class XCATransformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, local_patch_kernel_size = 3, dropout = 0., layer_dropout = 0.):
         super().__init__()
-        self.layers = ModuleList([])
+        self.layers = nn.CellList([])
         self.layer_dropout = layer_dropout
 
         for ind in range(depth):
             layer = ind + 1
-            self.layers.append(ModuleList([
+            self.layers.append(nn.CellList([
                 LayerScale(dim, XCAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout), depth = layer),
                 LayerScale(dim, LocalPatchInteraction(dim, local_patch_kernel_size), depth = layer),
                 LayerScale(dim, FeedForward(dim, mlp_dim, dropout = dropout), depth = layer)
@@ -234,15 +233,15 @@ class XCiT(nn.Cell):
         num_patches = (image_size // patch_size) ** 2
         patch_dim = 3 * patch_size ** 2
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size),
             nn.LayerNorm(normalized_shape = patch_dim),
             nn.Linear(in_features = patch_dim, out_features = dim),
             nn.LayerNorm(normalized_shape = dim)
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = nn.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.cls_token = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         self.dropout = nn.Dropout(p = emb_dropout)
 
@@ -252,7 +251,7 @@ class XCiT(nn.Cell):
 
         self.cls_transformer = Transformer(dim, cls_depth, heads, dim_head, mlp_dim, dropout, layer_dropout)
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = num_classes)
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

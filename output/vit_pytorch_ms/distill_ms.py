@@ -125,9 +125,9 @@ class DistillWrapper(nn.Cell):
         self.alpha = alpha
         self.hard = hard
 
-        self.distillation_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.distillation_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
-        self.distill_mlp = nn.Sequential(
+        self.distill_mlp = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim) if mlp_layernorm else nn.Identity(),
             nn.Linear(in_features = dim, out_features = num_classes)
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

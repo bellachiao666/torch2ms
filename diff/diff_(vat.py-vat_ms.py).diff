@@ -1,10 +1,9 @@
---- pytorch+++ mindspore@@ -2,12 +2,12 @@ from contextlib import nullcontext
+--- pytorch+++ mindspore@@ -2,12 +2,11 @@ from contextlib import nullcontext
  
  import torch
 -import torch.nn.functional as F
  from torch import nn, cat, stack, tensor
 -from torch.nn import Module, ModuleList
-+from torch.nn import ModuleList
  
  from einops import rearrange, repeat, pack, unpack
  from einops.layers.torch import Rearrange
@@ -12,7 +11,7 @@
  
  # helpers
  
-@@ -22,13 +22,13 @@ 
+@@ -22,15 +21,15 @@ 
  # classes
  
 -class FiLM(Module):
@@ -23,11 +22,15 @@
      ):
          super().__init__()
 -        proj = nn.Linear(dim, dim * 2)
+-
+-        self.to_gamma_beta = nn.Sequential(
 +        proj = nn.Linear(in_features = dim, out_features = dim * 2)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.to_gamma_beta = nn.Sequential(
++
++        self.to_gamma_beta = nn.SequentialCell(
              proj,
-@@ -43,7 +43,7 @@ 
+             Rearrange('b (two d) -> two b 1 d', two = 2)
+         )
+@@ -43,7 +42,7 @@ 
          return tokens * gamma + beta
  
 -class FeedForward(Module):
@@ -35,11 +38,13 @@
      def __init__(
          self,
          dim,
-@@ -52,18 +52,18 @@     ):
+@@ -51,19 +50,19 @@         dropout = 0.
+     ):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -60,7 +65,7 @@
      def __init__(
          self,
          dim,
-@@ -81,21 +81,21 @@         self.heads = heads
+@@ -81,21 +80,21 @@         self.heads = heads
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -75,22 +80,24 @@
 -
 -        self.to_q = nn.Linear(dim, inner_dim, bias = False)
 -        self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
+-
+-        self.to_out = nn.Sequential(
+-            nn.Linear(inner_dim, dim),
+-            nn.Dropout(dropout)
+-        ) if project_out else nn.Identity()
 +        self.dropout = nn.Dropout(p = dropout)
 +
 +        self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +        self.to_kv = nn.Linear(in_features = dim_context, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        ) if project_out else nn.Identity()
++
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
      def forward(self, x, context = None):
  
-@@ -116,16 +116,16 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
+@@ -116,16 +115,16 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -109,15 +116,21 @@
      def __init__(
          self,
          dim,
-@@ -136,7 +136,7 @@         dropout = 0.
+@@ -136,11 +135,11 @@         dropout = 0.
      ):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
+-        self.layers = ModuleList([])
 +        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-         self.layers = ModuleList([])
++        self.layers = nn.CellList([])
  
          for _ in range(depth):
-@@ -166,7 +166,7 @@ 
+-            self.layers.append(ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
+@@ -166,7 +165,7 @@ 
          return x, hiddens
  
 -class ViT(Module):
@@ -125,8 +138,11 @@
      def __init__(
          self,
          *,
-@@ -199,23 +199,23 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -197,25 +196,25 @@         patch_dim = channels * patch_height * patch_width
+         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -141,8 +157,8 @@
 +            nn.LayerNorm(normalized_shape = dim),
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +
-+        self.pos_embedding = nn.Parameter(ops.randn(size = num_patches, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-+        self.cls_token = nn.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.pos_embedding = mindspore.Parameter(ops.randn(size = num_patches, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.cls_token = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 +        self.dropout = nn.Dropout(p = emb_dropout)
  
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
@@ -155,11 +171,11 @@
 -        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim) * 1e-2)
 +        self.mlp_head = nn.Linear(in_features = dim, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +
-+        self.register_tokens = nn.Parameter(ops.randn(size = num_register_tokens, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
  
      def forward(self, img, return_hiddens = False):
          x = self.to_patch_embedding(img)
-@@ -235,7 +235,7 @@         # return the representation trajectory
+@@ -235,7 +234,7 @@         # return the representation trajectory
  
          if return_hiddens:
 -            return x, stack(hiddens)
@@ -167,7 +183,7 @@
  
          register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
  
-@@ -249,7 +249,7 @@ # https://openreview.net/forum?id=TalHOvvLZu
+@@ -249,7 +248,7 @@ # https://openreview.net/forum?id=TalHOvvLZu
  # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
  
 -class VAT(Module):
@@ -175,16 +191,16 @@
      def __init__(
          self,
          vit: ViT | dict,
-@@ -295,26 +295,26 @@ 
+@@ -295,49 +294,49 @@ 
          self.is_video = is_video
          self.time_seq_len = time_seq_len
 -        self.time_pos_emb = nn.Parameter(torch.randn(time_seq_len, vit_dim) * 1e-2) if is_video else None
-+        self.time_pos_emb = nn.Parameter(ops.randn(size = time_seq_len, generator = vit_dim) * 1e-2) if is_video else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.time_pos_emb = mindspore.Parameter(ops.randn(size = time_seq_len, generator = vit_dim) * 1e-2) if is_video else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
  
          # maybe view embeddings
  
 -        self.view_emb = nn.Parameter(torch.randn(num_views, vit_dim) * 1e-2) if exists(num_views) and num_views > 1 else None
-+        self.view_emb = nn.Parameter(ops.randn(size = num_views, generator = vit_dim) * 1e-2) if exists(num_views) and num_views > 1 else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.view_emb = mindspore.Parameter(ops.randn(size = num_views, generator = vit_dim) * 1e-2) if exists(num_views) and num_views > 1 else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
  
          # handle maybe task conditioning
  
@@ -192,21 +208,32 @@
  
          if self.has_tasks:
 -            self.task_emb = nn.Parameter(torch.randn(num_tasks, dim) * 1e-2)
-+            self.task_emb = nn.Parameter(ops.randn(size = num_tasks, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++            self.task_emb = mindspore.Parameter(ops.randn(size = num_tasks, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
  
          # register tokens from Darcet et al.
  
 -        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim) * 1e-2)
-+        self.register_tokens = nn.Parameter(ops.randn(size = num_register_tokens, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
  
          # to action tokens
  
 -        self.action_pos_emb = nn.Parameter(torch.randn(action_chunk_len, dim) * 1e-2)
-+        self.action_pos_emb = nn.Parameter(ops.randn(size = action_chunk_len, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+-
+-        self.layers = ModuleList([])
++        self.action_pos_emb = mindspore.Parameter(ops.randn(size = action_chunk_len, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++
++        self.layers = nn.CellList([])
  
-         self.layers = ModuleList([])
+         for _ in range(depth):
+             maybe_film = FiLM(dim = dim) if self.has_tasks else None
+             maybe_self_attn = Attention(dim = dim, heads = self_attn_heads, dim_head = self_attn_dim_head, dropout = dropout) if add_self_attn else None
  
-@@ -329,15 +329,15 @@                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
+-            self.layers.append(ModuleList([
++            self.layers.append(nn.CellList([
+                 maybe_film,
+                 maybe_self_attn,
+                 Attention(dim = dim, dim_context = vit_dim, heads = heads, dim_head = dim_head, dropout = dropout, cross_attend = True),
+                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
              ]))
  
 -        self.final_norm = nn.LayerNorm(dim)
@@ -224,7 +251,7 @@
  
      def forward(
          self,
-@@ -380,7 +380,7 @@         with vit_forward_context():
+@@ -380,7 +379,7 @@         with vit_forward_context():
              embed, hiddens = self.vit(images, return_hiddens = True)
  
 -        hiddens = cat((hiddens, embed[None, ...]))
@@ -232,7 +259,7 @@
  
          # extract the hiddens needed for the action cross attention
  
-@@ -471,13 +471,13 @@             if not return_hiddens:
+@@ -471,13 +470,13 @@             if not return_hiddens:
                  return pred_action
  
 -            return pred_action, stack(hiddens)
@@ -247,7 +274,7 @@
  
  # quick test
  
-@@ -512,11 +512,11 @@         )
+@@ -512,11 +511,11 @@         )
      )
  
 -    images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)

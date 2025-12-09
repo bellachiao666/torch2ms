@@ -2,7 +2,6 @@ from functools import partial
 
 import torch
 from torch import nn, einsum
-from torch.nn import ModuleList, Sequential
 
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange, Reduce
@@ -29,7 +28,7 @@ def cast_tuple(val, length = 1):
 
 def FeedForward(dim, mult = 4, dropout = 0.):
     inner_dim = int(dim * mult)
-    return Sequential(
+    return nn.SequentialCell(
         nn.LayerNorm(normalized_shape = dim),
         nn.Linear(in_features = dim, out_features = inner_dim),
         nn.GELU(),
@@ -45,7 +44,7 @@ class SqueezeExcitation(nn.Cell):
         super().__init__()
         hidden_dim = int(dim * shrinkage_rate)
 
-        self.gate = Sequential(
+        self.gate = nn.SequentialCell(
             Reduce('b c h w -> b c', 'mean'),
             nn.Linear(in_features = dim, out_features = hidden_dim, bias = False),
             nn.SiLU(),
@@ -94,7 +93,7 @@ def MBConv(
     hidden_dim = int(expansion_rate * dim_out)
     stride = 2 if downsample else 1
 
-    net = Sequential(
+    net = nn.SequentialCell(
         nn.Conv2d(in_channels = dim_in, out_channels = hidden_dim, kernel_size = 1),
         nn.BatchNorm2d(num_features = hidden_dim),
         nn.GELU(),
@@ -132,12 +131,12 @@ class Attention(nn.Cell):
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
         self.to_qkv = nn.Linear(in_features = dim, out_features = dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.attend = nn.Sequential(
+        self.attend = nn.SequentialCell(
             nn.Softmax(dim = -1),
             nn.Dropout(p = dropout)
         )
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = dim, out_features = dim, bias = False),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -221,7 +220,7 @@ class MaxViT(nn.Cell):
 
         dim_conv_stem = default(dim_conv_stem, dim)
 
-        self.conv_stem = Sequential(
+        self.conv_stem = nn.SequentialCell(
             nn.Conv2d(in_channels = channels, out_channels = dim_conv_stem, kernel_size = 3, stride = 2, padding = 1),
             nn.Conv2d(in_channels = dim_conv_stem, out_channels = dim_conv_stem, kernel_size = 3, padding = 1)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -234,7 +233,7 @@ class MaxViT(nn.Cell):
         dims = (dim_conv_stem, *dims)
         dim_pairs = tuple(zip(dims[:-1], dims[1:]))
 
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         # window size
 
@@ -263,19 +262,19 @@ class MaxViT(nn.Cell):
                 grid_attn = Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = window_size, num_registers = num_register_tokens)
                 grid_ff = FeedForward(dim = layer_dim, dropout = dropout)
 
-                register_tokens = nn.Parameter(ops.randn(size = num_register_tokens, generator = layer_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+                register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = layer_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
-                self.layers.append(ModuleList([
+                self.layers.append(nn.CellList([
                     conv,
-                    ModuleList([block_attn, block_ff]),
-                    ModuleList([grid_attn, grid_ff])
+                    nn.CellList([block_attn, block_ff]),
+                    nn.CellList([grid_attn, grid_ff])
                 ]))
 
                 self.register_tokens.append(register_tokens)
 
         # mlp head out
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             Reduce('b d h w -> b d', 'mean'),
             nn.LayerNorm(normalized_shape = dims[-1]),
             nn.Linear(in_features = dims[-1], out_features = num_classes)

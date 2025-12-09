@@ -14,7 +14,7 @@ def pair(t):
 class Parallel(nn.Cell):
     def __init__(self, *fns):
         super().__init__()
-        self.fns = nn.ModuleList(fns)
+        self.fns = nn.CellList(fns)
 
     def forward(self, x):
         return sum([fn(x) for fn in self.fns])
@@ -22,7 +22,7 @@ class Parallel(nn.Cell):
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = hidden_dim),
             nn.GELU(),
@@ -48,7 +48,7 @@ class Attention(nn.Cell):
 
         self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -70,13 +70,13 @@ class Attention(nn.Cell):
 class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, num_parallel_branches = 2, dropout = 0.):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         attn_block = lambda: Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)
         ff_block = lambda: FeedForward(dim, mlp_dim, dropout = dropout)
 
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Parallel(*[attn_block() for _ in range(num_parallel_branches)]),
                 Parallel(*[ff_block() for _ in range(num_parallel_branches)]),
             ]))
@@ -99,13 +99,13 @@ class ViT(nn.Cell):
         patch_dim = channels * patch_height * patch_width
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
             nn.Linear(in_features = patch_dim, out_features = dim),
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.dropout = nn.Dropout(p = emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, num_parallel_branches, dropout)
@@ -113,7 +113,7 @@ class ViT(nn.Cell):
         self.pool = pool
         self.to_latent = nn.Identity()
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = num_classes)
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

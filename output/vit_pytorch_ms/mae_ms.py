@@ -25,14 +25,14 @@ class MAE(nn.Cell):
         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
 
         self.to_patch = encoder.to_patch_embedding[0]
-        self.patch_to_emb = nn.Sequential(*encoder.to_patch_embedding[1:])
+        self.patch_to_emb = nn.SequentialCell(*encoder.to_patch_embedding[1:])
 
         pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
 
         # decoder parameters
         self.decoder_dim = decoder_dim
         self.enc_to_dec = nn.Linear(in_features = encoder_dim, out_features = decoder_dim) if encoder_dim != decoder_dim else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.mask_token = nn.Parameter(ops.randn(size = decoder_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.mask_token = mindspore.Parameter(ops.randn(size = decoder_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.decoder = Transformer(dim = decoder_dim, depth = decoder_depth, heads = decoder_heads, dim_head = decoder_dim_head, mlp_dim = decoder_dim * 4)
         self.decoder_pos_emb = nn.Embedding(num_embeddings = num_patches, embedding_dim = decoder_dim)  # 'torch.nn.Embedding':没有对应的mindspore参数 'device';
         self.to_pixels = nn.Linear(in_features = decoder_dim, out_features = pixel_values_per_patch)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';

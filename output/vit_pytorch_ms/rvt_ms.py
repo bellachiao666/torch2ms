@@ -47,7 +47,7 @@ class AxialRotaryEmbedding(nn.Cell):
 class DepthWiseConv2d(nn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.Conv2d(in_channels = dim_in, out_channels = dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
             nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = 1, bias = bias)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -78,7 +78,7 @@ class GEGLU(nn.Cell):
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0., use_glu = True):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = hidden_dim * 2 if use_glu else hidden_dim),
             GEGLU() if use_glu else nn.GELU(),
@@ -107,7 +107,7 @@ class Attention(nn.Cell):
 
         self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -156,10 +156,10 @@ class Attention(nn.Cell):
 class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, image_size, dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         self.pos_emb = AxialRotaryEmbedding(dim_head, max_freq = image_size)
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_rotary = use_rotary, use_ds_conv = use_ds_conv),
                 FeedForward(dim, mlp_dim, dropout = dropout, use_glu = use_glu)
             ]))
@@ -181,15 +181,15 @@ class RvT(nn.Cell):
         patch_dim = channels * patch_size ** 2
 
         self.patch_size = patch_size
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
             nn.Linear(in_features = patch_dim, out_features = dim),
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, image_size, dropout, use_rotary, use_ds_conv, use_glu)
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = num_classes)
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

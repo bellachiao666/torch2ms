@@ -14,9 +14,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -36,7 +37,7 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -34,32 +34,32 @@         self.heads = heads
+@@ -34,37 +34,37 @@         self.heads = heads
          self.scale = dim_head ** -0.5
  
 -        self.norm = nn.LayerNorm(dim)
@@ -48,10 +49,11 @@
 -        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 +        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
-         self.to_out = nn.Sequential(
+-        self.to_out = nn.Sequential(
 -            nn.Linear(inner_dim, dim),
 -            nn.Dropout(dropout)
 -        ) if project_out else nn.Identity()
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -76,7 +78,14 @@
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
          super().__init__()
-         self.layers = nn.ModuleList([])
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
 @@ -74,7 +74,7 @@             x = ff(x) + x
          return x
  
@@ -85,8 +94,11 @@
      def __init__(self, *, image_size, image_patch_size, frames, frame_patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -90,14 +90,14 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -88,33 +88,33 @@ 
+         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (f pf) (h p1) (w p2) -> b (f h w) (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -100,18 +112,20 @@
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
 -        self.dropout = nn.Dropout(emb_dropout)
-+        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-+        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 +        self.dropout = nn.Dropout(p = emb_dropout)
  
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
  
-@@ -105,16 +105,16 @@         self.to_latent = nn.Identity()
+         self.pool = pool
+         self.to_latent = nn.Identity()
  
-         self.mlp_head = nn.Sequential(
+-        self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, num_classes)
 -        )
++        self.mlp_head = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = num_classes)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

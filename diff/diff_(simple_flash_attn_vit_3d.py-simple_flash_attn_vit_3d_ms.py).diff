@@ -1,8 +1,7 @@
---- pytorch+++ mindspore@@ -4,10 +4,11 @@ import torch
+--- pytorch+++ mindspore@@ -4,10 +4,10 @@ import torch
  from torch import nn
  import torch.nn.functional as F
 -from torch.nn import Module, ModuleList
-+from torch.nn import ModuleList
  
  from einops import rearrange
  from einops.layers.torch import Rearrange
@@ -10,7 +9,7 @@
  
  # constants
  
-@@ -21,29 +22,26 @@ def posemb_sincos_3d(patches, temperature = 10000, dtype = torch.float32):
+@@ -21,29 +21,26 @@ def posemb_sincos_3d(patches, temperature = 10000, dtype = torch.float32):
      _, f, h, w, dim, device, dtype = *patches.shape, patches.device, patches.dtype
  
 -    z, y, x = torch.meshgrid(
@@ -45,16 +44,17 @@
      def __init__(self, use_flash = False, config: Config = Config(True, True, True)):
          super().__init__()
          self.config = config
-@@ -80,30 +78,30 @@ 
+@@ -80,30 +77,30 @@ 
  # classes
  
 -class FeedForward(Module):
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -84,15 +84,22 @@
  
      def forward(self, x):
          x = self.norm(x)
-@@ -116,7 +114,7 @@         out = rearrange(out, 'b h n d -> b n (h d)')
+@@ -116,12 +113,12 @@         out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
 -class Transformer(Module):
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, use_flash):
          super().__init__()
-         self.layers = ModuleList([])
-@@ -133,7 +131,7 @@ 
+-        self.layers = ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, use_flash = use_flash),
+                 FeedForward(dim, mlp_dim)
+             ]))
+@@ -133,7 +130,7 @@ 
          return x
  
 -class SimpleViT(Module):
@@ -100,8 +107,11 @@
      def __init__(self, *, image_size, image_patch_size, frames, frame_patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, use_flash_attn = True):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -147,15 +145,15 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -145,17 +142,17 @@         num_patches = (image_height // patch_height) * (image_width // patch_width) * (frames // frame_patch_size)
+         patch_dim = channels * patch_height * patch_width * frame_patch_size
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (f pf) (h p1) (w p2) -> b f h w (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),

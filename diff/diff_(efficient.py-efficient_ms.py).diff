@@ -12,8 +12,11 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, pool = 'cls', channels = 3):
          super().__init__()
          image_size_h, image_size_w = pair(image_size)
-@@ -17,29 +17,29 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -15,31 +15,31 @@         num_patches = (image_size_h // patch_size) * (image_size_w // patch_size)
+         patch_dim = channels * patch_size ** 2
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -26,17 +29,18 @@
  
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
-+        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-+        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
          self.transformer = transformer
  
          self.pool = pool
          self.to_latent = nn.Identity()
  
-         self.mlp_head = nn.Sequential(
+-        self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, num_classes)
 -        )
++        self.mlp_head = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = num_classes)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

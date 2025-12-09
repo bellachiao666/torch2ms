@@ -34,10 +34,11 @@
 +class DepthWiseConv2d(nn.Cell):
      def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, padding = padding, groups = dim_in, stride = stride, bias = bias),
 -            nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)
 -        )
++        self.net = nn.SequentialCell(
 +            nn.Conv2d(in_channels = dim_in, out_channels = dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
 +            nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = 1, bias = bias)
 +        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -48,9 +49,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Conv2d(dim, hidden_dim, 1),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Conv2d(in_channels = dim, out_channels = hidden_dim, kernel_size = 1),
              nn.Hardswish(),
@@ -86,17 +88,18 @@
 +        self.dropout = nn.Dropout(p = dropout)
 +        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
-         self.to_out = nn.Sequential(
+-        self.to_out = nn.Sequential(
 -            nn.Linear(inner_dim, dim),
 -            nn.Dropout(dropout)
 -        )
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
      def forward(self, x):
          b, n, _, h = *x.shape, self.heads
-@@ -85,16 +84,16 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
+@@ -85,21 +84,21 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
  
 -        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
@@ -114,8 +117,15 @@
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
          super().__init__()
-         self.layers = nn.ModuleList([])
-@@ -111,7 +110,7 @@ 
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Residual(Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)),
+                 ExcludeCLS(Residual(FeedForward(dim, mlp_dim, dropout = dropout)))
+             ]))
+@@ -111,37 +110,37 @@ 
  # main class
  
 -class LocalViT(nn.Module):
@@ -123,8 +133,11 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
          super().__init__()
          assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
-@@ -120,28 +119,28 @@ 
-         self.to_patch_embedding = nn.Sequential(
+         num_patches = (image_size // patch_size) ** 2
+         patch_dim = channels * patch_size ** 2
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -138,16 +151,17 @@
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
 -        self.dropout = nn.Dropout(emb_dropout)
-+        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-+        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 +        self.dropout = nn.Dropout(p = emb_dropout)
  
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
  
-         self.mlp_head = nn.Sequential(
+-        self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, num_classes)
 -        )
++        self.mlp_head = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = num_classes)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

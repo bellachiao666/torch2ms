@@ -27,9 +27,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -65,17 +66,18 @@
 +        self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +        self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
-         self.to_out = nn.Sequential(
+-        self.to_out = nn.Sequential(
 -            nn.Linear(inner_dim, dim),
 -            nn.Dropout(dropout)
 -        )
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
      def forward(self, x, context = None):
          b, n, _, h = *x.shape, self.heads
-@@ -79,16 +80,16 @@         qkv = (self.to_q(x), *self.to_kv(context).chunk(2, dim = -1))
+@@ -79,21 +80,21 @@         qkv = (self.to_q(x), *self.to_kv(context).chunk(2, dim = -1))
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
  
 -        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
@@ -93,7 +95,14 @@
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
          super().__init__()
-         self.layers = nn.ModuleList([])
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
 @@ -103,7 +104,7 @@             x = ff(x) + x
          return x
  
@@ -102,8 +111,11 @@
      def __init__(self, *, num_classes, image_size, patch_size, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0.):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -119,18 +120,18 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -117,20 +118,20 @@         self.dim = dim
+         self.num_patches = num_patches
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -117,10 +129,11 @@
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
  
          self.to_latent = nn.Identity()
-         self.linear_head = nn.Sequential(
+-        self.linear_head = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, num_classes)
 -        )
++        self.linear_head = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = num_classes)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -135,12 +148,14 @@
      def __init__(self, vit: ViT, masking_ratio):
          super().__init__()
          self.vit = vit
-@@ -157,9 +158,9 @@ 
+@@ -156,10 +157,10 @@         self.masking_ratio = masking_ratio
+ 
          dim = vit.dim
-         self.mlp_head = nn.Sequential(
+-        self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, vit.num_patches)
 -        )
++        self.mlp_head = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = vit.num_patches)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

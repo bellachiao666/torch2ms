@@ -25,8 +25,8 @@ class ChanLayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
         var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -55,7 +55,7 @@ class FeedForward(nn.Cell):
     def __init__(self, dim, expansion_factor = 4, dropout = 0.):
         super().__init__()
         inner_dim = dim * expansion_factor
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             ChanLayerNorm(dim),
             nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1),
             nn.GELU(),
@@ -89,7 +89,7 @@ class ScalableSelfAttention(nn.Cell):
         self.to_k = nn.Conv2d(in_channels = dim, out_channels = dim_key * heads, kernel_size = reduction_factor, stride = reduction_factor, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
         self.to_v = nn.Conv2d(in_channels = dim, out_channels = dim_value * heads, kernel_size = reduction_factor, stride = reduction_factor, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Conv2d(in_channels = dim_value * heads, out_channels = dim, kernel_size = 1),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -147,7 +147,7 @@ class InteractiveWindowedSelfAttention(nn.Cell):
         self.to_k = nn.Conv2d(in_channels = dim, out_channels = dim_key * heads, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
         self.to_v = nn.Conv2d(in_channels = dim, out_channels = dim_value * heads, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Conv2d(in_channels = dim_value * heads, out_channels = dim, kernel_size = 1),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -210,11 +210,11 @@ class Transformer(nn.Cell):
         norm_output = True
     ):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         for ind in range(depth):
             is_first = ind == 0
 
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 ScalableSelfAttention(dim, heads = heads, dim_key = ssa_dim_key, dim_value = ssa_dim_value, reduction_factor = ssa_reduction_factor, dropout = dropout),
                 FeedForward(dim, expansion_factor = ff_expansion_factor, dropout = dropout),
                 PEG(dim) if is_first else None,
@@ -276,17 +276,17 @@ class ScalableViT(nn.Cell):
         hyperparams_per_stage = list(map(partial(cast_tuple, length = num_stages), hyperparams_per_stage))
         assert all(tuple(map(lambda arr: len(arr) == num_stages, hyperparams_per_stage)))
 
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         for ind, (layer_dim, layer_depth, layer_heads, layer_ssa_dim_key, layer_ssa_dim_value, layer_ssa_reduction_factor, layer_iwsa_dim_key, layer_iwsa_dim_value, layer_window_size) in enumerate(zip(dims, depth, *hyperparams_per_stage)):
             is_last = ind == (num_stages - 1)
 
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Transformer(dim = layer_dim, depth = layer_depth, heads = layer_heads, ff_expansion_factor = ff_expansion_factor, dropout = dropout, ssa_dim_key = layer_ssa_dim_key, ssa_dim_value = layer_ssa_dim_value, ssa_reduction_factor = layer_ssa_reduction_factor, iwsa_dim_key = layer_iwsa_dim_key, iwsa_dim_value = layer_iwsa_dim_value, iwsa_window_size = layer_window_size, norm_output = not is_last),
                 Downsample(layer_dim, layer_dim * 2) if not is_last else None
             ]))
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             Reduce('b d h w -> b d', 'mean'),
             nn.LayerNorm(normalized_shape = dims[-1]),
             nn.Linear(in_features = dims[-1], out_features = num_classes)

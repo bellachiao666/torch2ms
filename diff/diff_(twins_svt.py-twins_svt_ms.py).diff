@@ -16,7 +16,7 @@
      def __init__(self, fn):
          super().__init__()
          self.fn = fn
-@@ -30,33 +29,33 @@     def forward(self, x, **kwargs):
+@@ -30,59 +29,59 @@     def forward(self, x, **kwargs):
          return self.fn(x, **kwargs) + x
  
 -class LayerNorm(nn.Module):
@@ -30,8 +30,8 @@
 -    def forward(self, x):
 -        var = torch.var(x, dim = 1, unbiased = False, keepdim = True)
 -        mean = torch.mean(x, dim = 1, keepdim = True)
-+        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-+        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
++        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
++        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 +
 +    def forward(self, x):
 +        var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -42,7 +42,8 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, mult = 4, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
++        self.net = nn.SequentialCell(
              LayerNorm(dim),
 -            nn.Conv2d(dim, dim * mult, 1),
 +            nn.Conv2d(in_channels = dim, out_channels = dim * mult, kernel_size = 1),
@@ -63,8 +64,11 @@
      def __init__(self, *, dim, dim_out, patch_size):
          super().__init__()
          self.dim = dim
-@@ -65,24 +64,24 @@ 
-         self.proj = nn.Sequential(
+         self.dim_out = dim_out
+         self.patch_size = patch_size
+ 
+-        self.proj = nn.Sequential(
++        self.proj = nn.SequentialCell(
              LayerNorm(patch_size ** 2 * dim),
 -            nn.Conv2d(patch_size ** 2 * dim, dim_out, 1),
 +            nn.Conv2d(in_channels = patch_size ** 2 * dim, out_channels = dim_out, kernel_size = 1),
@@ -97,13 +101,15 @@
          self.norm = LayerNorm(dim)
 -        self.to_q = nn.Conv2d(dim, inner_dim, 1, bias = False)
 -        self.to_kv = nn.Conv2d(dim, inner_dim * 2, 1, bias = False)
-+        self.to_q = nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-+        self.to_kv = nn.Conv2d(in_channels = dim, out_channels = inner_dim * 2, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
- 
-         self.to_out = nn.Sequential(
+-
+-        self.to_out = nn.Sequential(
 -            nn.Conv2d(inner_dim, dim, 1),
 -            nn.Dropout(dropout)
 -        )
++        self.to_q = nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
++        self.to_kv = nn.Conv2d(in_channels = dim, out_channels = inner_dim * 2, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
++
++        self.to_out = nn.SequentialCell(
 +            nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
 +            nn.Dropout(p = dropout)
 +        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -135,22 +141,24 @@
 -        self.to_kv = nn.Conv2d(dim, inner_dim * 2, k, stride = k, bias = False)
 -
 -        self.dropout = nn.Dropout(dropout)
+-
+-        self.to_out = nn.Sequential(
+-            nn.Conv2d(inner_dim, dim, 1),
+-            nn.Dropout(dropout)
+-        )
 +        self.to_q = nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 +        self.to_kv = nn.Conv2d(in_channels = dim, out_channels = inner_dim * 2, kernel_size = k, stride = k, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 +
 +        self.dropout = nn.Dropout(p = dropout)
- 
-         self.to_out = nn.Sequential(
--            nn.Conv2d(inner_dim, dim, 1),
--            nn.Dropout(dropout)
--        )
++
++        self.to_out = nn.SequentialCell(
 +            nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
 +            nn.Dropout(p = dropout)
 +        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
  
      def forward(self, x):
          x = self.norm(x)
-@@ -147,16 +146,16 @@ 
+@@ -147,21 +146,21 @@ 
          q, k, v = map(lambda t: rearrange(t, 'b (h d) x y -> (b h) (x y) d', h = h), (q, k, v))
  
 -        dots = einsum('b i d, b j d -> b i j', q, k) * self.scale
@@ -168,7 +176,14 @@
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads = 8, dim_head = 64, mlp_mult = 4, local_patch_size = 7, global_k = 7, dropout = 0., has_local = True):
          super().__init__()
-         self.layers = nn.ModuleList([])
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Residual(LocalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, patch_size = local_patch_size)) if has_local else nn.Identity(),
+                 Residual(FeedForward(dim, mlp_mult, dropout = dropout)) if has_local else nn.Identity(),
+                 Residual(GlobalAttention(dim, heads = heads, dim_head = dim_head, dropout = dropout, k = global_k)),
 @@ -175,7 +174,7 @@             x = ff2(x)
          return x
  
@@ -177,8 +192,19 @@
      def __init__(
          self,
          *,
-@@ -226,10 +225,10 @@ 
-         self.layers = nn.Sequential(
+@@ -215,7 +214,7 @@ 
+             dim_next = config['emb_dim']
+ 
+-            layers.append(nn.Sequential(
++            layers.append(nn.SequentialCell(
+                 PatchEmbedding(dim = dim, dim_out = dim_next, patch_size = config['patch_size']),
+                 Transformer(dim = dim_next, depth = 1, local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last),
+                 PEG(dim = dim_next, kernel_size = peg_kernel_size),
+@@ -224,12 +223,12 @@ 
+             dim = dim_next
+ 
+-        self.layers = nn.Sequential(
++        self.layers = nn.SequentialCell(
              *layers,
 -            nn.AdaptiveAvgPool2d(1),
 +            nn.AdaptiveAvgPool2d(output_size = 1),

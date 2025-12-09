@@ -46,10 +46,10 @@ class T2TViT(nn.Cell):
             ])
 
         layers.append(nn.Linear(in_features = layer_dim, out_features = dim))  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_patch_embedding = nn.Sequential(*layers)
+        self.to_patch_embedding = nn.SequentialCell(*layers)
 
-        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = output_image_size ** 2 + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = output_image_size ** 2 + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.dropout = nn.Dropout(p = emb_dropout)
 
         if not exists(transformer):

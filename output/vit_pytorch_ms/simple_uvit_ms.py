@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.nn import ModuleList
 
 from einops import rearrange, repeat, pack, unpack
 from einops.layers.torch import Rearrange
@@ -31,7 +30,7 @@ def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32)
 # classes
 
 def FeedForward(dim, hidden_dim):
-    return nn.Sequential(
+    return nn.SequentialCell(
         nn.LayerNorm(normalized_shape = dim),
         nn.Linear(in_features = dim, out_features = hidden_dim),
         nn.GELU(),
@@ -70,12 +69,12 @@ class Transformer(nn.Cell):
         super().__init__()
         self.depth = depth
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = ModuleList([])
+        self.layers = nn.CellList([])
 
         for layer in range(1, depth + 1):
             latter_half = layer >= (depth / 2 + 1)
 
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 nn.Linear(in_features = dim * 2, out_features = dim) if latter_half else None,
                 Attention(dim, heads = heads, dim_head = dim_head),
                 FeedForward(dim, mlp_dim)
@@ -114,7 +113,7 @@ class SimpleUViT(nn.Cell):
 
         patch_dim = channels * patch_height * patch_width
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
             nn.LayerNorm(normalized_shape = patch_dim),
             nn.Linear(in_features = patch_dim, out_features = dim),
@@ -129,7 +128,7 @@ class SimpleUViT(nn.Cell):
 
         self.register_buffer('pos_embedding', pos_embedding, persistent = False)
 
-        self.register_tokens = nn.Parameter(ops.randn(size = num_register_tokens, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
 

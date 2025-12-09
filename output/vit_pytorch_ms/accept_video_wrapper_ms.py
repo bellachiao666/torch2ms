@@ -52,7 +52,7 @@ class AcceptVideoWrapper(nn.Cell):
 
             dim_pos_emb = default(proj_embed_to_dim, dim_emb)
 
-            self.pos_emb = Parameter(ops.randn(size = time_seq_len, generator = dim_pos_emb) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+            self.pos_emb = mindspore.Parameter(ops.randn(size = time_seq_len, generator = dim_pos_emb) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         self.embed_is_channel_first = embed_is_channel_first
 

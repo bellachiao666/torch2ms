@@ -24,8 +24,8 @@ class ChanLayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
         var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -51,7 +51,7 @@ class PEG(nn.Cell):
 # transformer classes
 
 def FeedForward(dim, mult = 4, dropout = 0.):
-    return nn.Sequential(
+    return nn.SequentialCell(
         nn.LayerNorm(normalized_shape = dim),
         nn.Linear(in_features = dim, out_features = dim * mult, bias = 1),
         nn.GELU(),
@@ -76,7 +76,7 @@ class Attention(nn.Cell):
         self.dropout = nn.Dropout(p = dropout)
         self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -124,14 +124,14 @@ class R2LTransformer(nn.Cell):
         ff_dropout = 0.,
     ):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         self.window_size = window_size
         rel_positions = 2 * window_size - 1
         self.local_rel_pos_bias = nn.Embedding(num_embeddings = rel_positions ** 2, embedding_dim = heads)  # 'torch.nn.Embedding':没有对应的mindspore参数 'device';
 
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = attn_dropout),
                 FeedForward(dim, dropout = ff_dropout)
             ]))
@@ -222,7 +222,7 @@ class RegionViT(nn.Cell):
         # local and region encoders
 
         if tokenize_local_3_conv:
-            self.local_encoder = nn.Sequential(
+            self.local_encoder = nn.SequentialCell(
                 nn.Conv2d(in_channels = 3, out_channels = init_dim, kernel_size = 3, stride = 2, padding = 1),
                 ChanLayerNorm(init_dim),
                 nn.GELU(),
@@ -234,7 +234,7 @@ class RegionViT(nn.Cell):
         else:
             self.local_encoder = nn.Conv2d(in_channels = 3, out_channels = init_dim, kernel_size = 8, stride = 4, padding = 3)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 
-        self.region_encoder = nn.Sequential(
+        self.region_encoder = nn.SequentialCell(
             Rearrange('b c (h p1) (w p2) -> b (c p1 p2) h w', p1 = region_patch_size, p2 = region_patch_size),
             nn.Conv2d(in_channels = (region_patch_size ** 2) * channels, out_channels = init_dim, kernel_size = 1)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -242,14 +242,14 @@ class RegionViT(nn.Cell):
         # layers
 
         current_dim = init_dim
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         for ind, dim, num_layers in zip(range(4), dim, depth):
             not_first = ind != 0
             need_downsample = not_first
             need_peg = not_first and use_peg
 
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Downsample(current_dim, dim) if need_downsample else nn.Identity(),
                 PEG(dim) if need_peg else nn.Identity(),
                 R2LTransformer(dim, depth = num_layers, window_size = window_size, attn_dropout = attn_dropout, ff_dropout = ff_dropout)
@@ -259,7 +259,7 @@ class RegionViT(nn.Cell):
 
         # final logits
 
-        self.to_logits = nn.Sequential(
+        self.to_logits = nn.SequentialCell(
             Reduce('b c h w -> b c', 'mean'),
             nn.LayerNorm(normalized_shape = last_dim),
             nn.Linear(in_features = last_dim, out_features = num_classes)

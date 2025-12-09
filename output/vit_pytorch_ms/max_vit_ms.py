@@ -32,7 +32,7 @@ class FeedForward(nn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = inner_dim),
             nn.GELU(),
@@ -50,7 +50,7 @@ class SqueezeExcitation(nn.Cell):
         super().__init__()
         hidden_dim = int(dim * shrinkage_rate)
 
-        self.gate = nn.Sequential(
+        self.gate = nn.SequentialCell(
             Reduce('b c h w -> b c', 'mean'),
             nn.Linear(in_features = dim, out_features = hidden_dim, bias = False),
             nn.SiLU(),
@@ -100,7 +100,7 @@ def MBConv(
     hidden_dim = int(expansion_rate * dim_out)
     stride = 2 if downsample else 1
 
-    net = nn.Sequential(
+    net = nn.SequentialCell(
         nn.Conv2d(in_channels = dim_in, out_channels = hidden_dim, kernel_size = 1),
         nn.BatchNorm2d(num_features = hidden_dim),
         nn.GELU(),
@@ -136,12 +136,12 @@ class Attention(nn.Cell):
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
         self.to_qkv = nn.Linear(in_features = dim, out_features = dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.attend = nn.Sequential(
+        self.attend = nn.SequentialCell(
             nn.Softmax(dim = -1),
             nn.Dropout(p = dropout)
         )
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = dim, out_features = dim, bias = False),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -228,7 +228,7 @@ class MaxViT(nn.Cell):
 
         dim_conv_stem = default(dim_conv_stem, dim)
 
-        self.conv_stem = nn.Sequential(
+        self.conv_stem = nn.SequentialCell(
             nn.Conv2d(in_channels = channels, out_channels = dim_conv_stem, kernel_size = 3, stride = 2, padding = 1),
             nn.Conv2d(in_channels = dim_conv_stem, out_channels = dim_conv_stem, kernel_size = 3, padding = 1)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -241,7 +241,7 @@ class MaxViT(nn.Cell):
         dims = (dim_conv_stem, *dims)
         dim_pairs = tuple(zip(dims[:-1], dims[1:]))
 
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         # shorthand for window size for efficient block - grid like attention
 
@@ -254,7 +254,7 @@ class MaxViT(nn.Cell):
                 is_first = stage_ind == 0
                 stage_dim_in = layer_dim_in if is_first else layer_dim
 
-                block = nn.Sequential(
+                block = nn.SequentialCell(
                     MBConv(
                         stage_dim_in,
                         layer_dim,
@@ -277,7 +277,7 @@ class MaxViT(nn.Cell):
 
         # mlp head out
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             Reduce('b d h w -> b d', 'mean'),
             nn.LayerNorm(normalized_shape = dims[-1]),
             nn.Linear(in_features = dims[-1], out_features = num_classes)

@@ -1,43 +1,17 @@
-# from torch import nn
-import einops
+from torch import nn
+
 from einops import rearrange, repeat, pack, unpack
-# from einops.layers.torch import Rearrange
+from einops.layers.torch import Rearrange
 from mindspore.mint import nn, ops
 import mindspore
-from mindspore import Parameter
-import mindspore.nn as ms_nn
-# Bridge missing torch-style containers to MindSpore equivalents
-nn.ModuleList = ms_nn.CellList
-nn.Sequential = ms_nn.SequentialCell
-nn.Identity = ms_nn.Identity
-nn.LayerNorm = ms_nn.LayerNorm
-mindspore.set_context(mode=mindspore.PYNATIVE_MODE, device_target="CPU")
-
-class PatchEmbed(nn.Cell):
-    def __init__(self, patch_size, patch_dim, dim):
-        super().__init__()
-        self.patch_size = patch_size
-        self.ln1 = nn.LayerNorm((patch_dim,))
-        self.fc  = nn.Dense(patch_dim, dim)
-        self.ln2 = nn.LayerNorm((dim,))
-
-    def construct(self, x):
-        p=self.patch_size
-        b, c, seq_len = x.shape
-        num_patches = seq_len // p
-        x = ops.reshape(x, (b, c, num_patches, p))
-        x = ops.transpose(x, (0, 2, 3, 1))
-        x = ops.reshape(x, (b, num_patches, p * c))
-        x = self.ln1(x)
-        x = self.fc(x)
-        x = self.ln2(x)
-        return x
+import mindspore.mint as mint
+# classes
 
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.LayerNorm(normalized_shape = (dim,)),
+        self.net = nn.SequentialCell(
+            nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = hidden_dim),
             nn.GELU(),
             nn.Dropout(p = dropout),
@@ -56,13 +30,13 @@ class Attention(nn.Cell):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
-        self.norm = nn.LayerNorm(normalized_shape = (dim,))  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(p = dropout)
 
         self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -84,9 +58,9 @@ class Attention(nn.Cell):
 class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
@@ -99,38 +73,29 @@ class Transformer(nn.Cell):
 class ViT(nn.Cell):
     def __init__(self, *, seq_len, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
-        self.patch_size = patch_size
         assert (seq_len % patch_size) == 0
 
         num_patches = seq_len // patch_size
         patch_dim = channels * patch_size
+
         self.to_patch_embedding = mindspore.nn.SequentialCell([
-                nn.LayerNorm((patch_dim,)),
-                mindspore.nn.Dense(patch_dim, dim),
-                nn.LayerNorm((dim,)),
-            ])
-        
-        
-        self.pos_embedding = Parameter(ops.randn((1, num_patches + 1, dim)))
-        self.cls_token = Parameter(ops.randn((1, dim)))
+            # Rearrange('b c (n p) -> b n (p c)', p = patch_size),
+            nn.LayerNorm(normalized_shape = patch_dim),
+            nn.Linear(in_features = patch_dim, out_features = dim),
+            nn.LayerNorm(normalized_shape = dim),
+        ])  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+
+        self.pos_embedding = mindspore.Parameter(mint.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.cls_token = mindspore.Parameter(mint.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.dropout = nn.Dropout(p = emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
-        self.mlp_head = nn.Sequential(
-                nn.LayerNorm(normalized_shape = (dim,)),
+        self.mlp_head = nn.SequentialCell(
+            nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = num_classes)
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        
-    def construct(self, x):
-        b, c, seq_len = x.shape
-        num_patches = seq_len // self.patch_size
-        x = ops.reshape(x, (b, c, num_patches, self.patch_size))
-        x = ops.transpose(x, (0, 2, 3, 1))
-        x = ops.reshape(x, (b, num_patches, self.patch_size * c))
-        x = self.to_patch_embedding(x)
-        return x
-    
+
     def forward(self, series):
         x = self.to_patch_embedding(series)
         b, n, _ = x.shape
@@ -162,5 +127,5 @@ if __name__ == '__main__':
         emb_dropout = 0.1
     )
 
-    time_series = ops.randn(4, 3, 256)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    time_series = mint.randn(size = 4, generator = 3)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
     logits = v(time_series) # (4, 1000)

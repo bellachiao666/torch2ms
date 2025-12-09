@@ -1,7 +1,6 @@
---- pytorch+++ mindspore@@ -1,9 +1,10 @@ import torch
+--- pytorch+++ mindspore@@ -1,9 +1,9 @@ import torch
  from torch import nn
 -from torch.nn import Module, ModuleList
-+from torch.nn import ModuleList
  
  from einops import rearrange, repeat, pack, unpack
  from einops.layers.torch import Rearrange
@@ -9,7 +8,7 @@
  
  # helpers
  
-@@ -17,38 +18,38 @@     return (num % den) == 0
+@@ -17,38 +17,38 @@     return (num % den) == 0
  
  def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
 -    y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
@@ -28,9 +27,10 @@
  # classes
  
  def FeedForward(dim, hidden_dim):
-     return nn.Sequential(
+-    return nn.Sequential(
 -        nn.LayerNorm(dim),
 -        nn.Linear(dim, hidden_dim),
++    return nn.SequentialCell(
 +        nn.LayerNorm(normalized_shape = dim),
 +        nn.Linear(in_features = dim, out_features = hidden_dim),
          nn.GELU(),
@@ -58,7 +58,7 @@
  
      def forward(self, x):
          x = self.norm(x)
-@@ -56,29 +57,29 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
+@@ -56,29 +56,29 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -77,14 +77,16 @@
          super().__init__()
          self.depth = depth
 -        self.norm = nn.LayerNorm(dim)
+-        self.layers = ModuleList([])
 +        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-         self.layers = ModuleList([])
++        self.layers = nn.CellList([])
  
          for layer in range(1, depth + 1):
              latter_half = layer >= (depth / 2 + 1)
  
-             self.layers.append(nn.ModuleList([
+-            self.layers.append(nn.ModuleList([
 -                nn.Linear(dim * 2, dim) if latter_half else None,
++            self.layers.append(nn.CellList([
 +                nn.Linear(in_features = dim * 2, out_features = dim) if latter_half else None,
                  Attention(dim, heads = heads, dim_head = dim_head),
                  FeedForward(dim, mlp_dim)
@@ -93,7 +95,7 @@
  
      def forward(self, x):
  
-@@ -93,7 +94,7 @@ 
+@@ -93,7 +93,7 @@ 
              if exists(combine_skip):
                  skip = skips.pop()
 -                skip_and_x = torch.cat((skip, x), dim = -1)
@@ -101,7 +103,7 @@
                  x = combine_skip(skip_and_x)
  
              x = attn(x) + x
-@@ -103,7 +104,7 @@ 
+@@ -103,7 +103,7 @@ 
          return self.norm(x)
  
 -class SimpleUViT(Module):
@@ -109,8 +111,11 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, num_register_tokens = 4, channels = 3, dim_head = 64):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -115,10 +116,10 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -113,12 +113,12 @@ 
+         patch_dim = channels * patch_height * patch_width
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -123,11 +128,11 @@
  
          pos_embedding = posemb_sincos_2d(
              h = image_height // patch_height,
-@@ -128,14 +129,14 @@ 
+@@ -128,14 +128,14 @@ 
          self.register_buffer('pos_embedding', pos_embedding, persistent = False)
  
 -        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim))
-+        self.register_tokens = nn.Parameter(ops.randn(size = num_register_tokens, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
  
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
  
@@ -139,7 +144,7 @@
  
      def forward(self, img):
          batch, device = img.shape[0], img.device
-@@ -170,7 +171,7 @@         mlp_dim = 2048
+@@ -170,7 +170,7 @@         mlp_dim = 2048
      ).cuda()
  
 -    img = torch.randn(2, 3, 256, 256).cuda()

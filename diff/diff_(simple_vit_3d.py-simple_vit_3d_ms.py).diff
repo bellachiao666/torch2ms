@@ -42,9 +42,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -74,7 +75,7 @@
  
      def forward(self, x):
          x = self.norm(x)
-@@ -66,18 +63,18 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
+@@ -66,21 +63,21 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -92,10 +93,15 @@
      def __init__(self, dim, depth, heads, dim_head, mlp_dim):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
+-        self.layers = nn.ModuleList([])
 +        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-         self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
          for _ in range(depth):
-             self.layers.append(nn.ModuleList([
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head),
+                 FeedForward(dim, mlp_dim)
+             ]))
 @@ -90,7 +87,7 @@             x = ff(x) + x
          return self.norm(x)
  
@@ -104,8 +110,11 @@
      def __init__(self, *, image_size, image_patch_size, frames, frame_patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -104,15 +101,15 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -102,17 +99,17 @@         num_patches = (image_height // patch_height) * (image_width // patch_width) * (frames // frame_patch_size)
+         patch_dim = channels * patch_height * patch_width * frame_patch_size
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (f pf) (h p1) (w p2) -> b f h w (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),

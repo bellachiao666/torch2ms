@@ -1,9 +1,8 @@
---- pytorch+++ mindspore@@ -2,11 +2,11 @@ 
+--- pytorch+++ mindspore@@ -2,11 +2,10 @@ 
  import torch
  from torch import nn, arange, cat, stack, Tensor
 -from torch.nn import Module, ModuleList
 -import torch.nn.functional as F
-+from torch.nn import ModuleList
  
  from einops import rearrange, repeat, reduce, pack, unpack
  from einops.layers.torch import Rearrange
@@ -11,7 +10,7 @@
  
  # helpers
  
-@@ -14,7 +14,7 @@     return val is not None
+@@ -14,7 +13,7 @@     return val is not None
  
  def l2norm(t):
 -    return F.normalize(t, dim = -1, p = 2)
@@ -19,7 +18,7 @@
  
  def join(arr, delimiter = ' '):
      return delimiter.join(arr)
-@@ -36,14 +36,14 @@ 
+@@ -36,14 +35,14 @@ 
  def make_directions(n: int, d: int) -> Tensor:
      g = _phi(d)
 -    alpha = (1.0 / g) ** arange(1, d + 1, dtype = torch.float64)
@@ -38,7 +37,7 @@
      def __init__(
          self,
          dim_pos: int,
-@@ -57,10 +57,10 @@         n_freqs = dim_head // 2
+@@ -57,10 +56,10 @@         n_freqs = dim_head // 2
          n_zero_freqs = round(rope_p_zero_freqs * n_freqs)
  
 -        omega = cat((
@@ -52,7 +51,7 @@
  
          directions = rearrange(
              make_directions(heads * n_freqs, dim_pos),
-@@ -85,34 +85,34 @@         # Compute theta for each (batch, head, seq, freq)
+@@ -85,34 +84,34 @@         # Compute theta for each (batch, head, seq, freq)
          theta = reduce(freqs * positions, 'b h n f p -> b h n f', 'sum')
          
 -        cos_theta = torch.cos(theta)
@@ -74,9 +73,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -97,7 +97,7 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., rotary_emb = None):
          super().__init__()
          inner_dim = dim_head * heads
-@@ -122,17 +122,17 @@         self.scale = dim_head ** -0.5
+@@ -122,17 +121,17 @@         self.scale = dim_head ** -0.5
          self.rotary_emb = rotary_emb
          
 -        self.norm = nn.LayerNorm(dim)
@@ -107,22 +107,24 @@
 -        
 -        self.to_qk = nn.Linear(dim, inner_dim * 2, bias = False)
 -        self.to_v = nn.Linear(dim, inner_dim, bias = False)
+-
+-        self.to_out = nn.Sequential(
+-            nn.Linear(inner_dim, dim),
+-            nn.Dropout(dropout)
+-        ) if project_out else nn.Identity()
 +        self.dropout = nn.Dropout(p = dropout)
 +        
 +        self.to_qk = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +        self.to_v = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        ) if project_out else nn.Identity()
++
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
      
      def forward(self, x, pos = None):
          x = self.norm(x)
-@@ -146,19 +146,19 @@             q = self.rotary_emb(q, pos)
+@@ -146,22 +145,22 @@             q = self.rotary_emb(q, pos)
              k = self.rotary_emb(k, pos)
          
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -141,11 +143,16 @@
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., rotary_emb = None):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
+-        self.layers = ModuleList([])
 +        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-         self.layers = ModuleList([])
++        self.layers = nn.CellList([])
          for _ in range(depth):
-             self.layers.append(ModuleList([
-@@ -172,7 +172,7 @@             x = ff(x) + x
+-            self.layers.append(ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, rotary_emb = rotary_emb),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
+@@ -172,7 +171,7 @@             x = ff(x) + x
          return self.norm(x)
  
 -class ViTND(Module):
@@ -153,8 +160,11 @@
      def __init__(
          self,
          *,
-@@ -226,11 +226,11 @@         
-         self.to_patch_embedding = nn.Sequential(
+@@ -224,13 +223,13 @@         
+         rearrange_kwargs = {f'p{i}': p for i, p in enumerate(patch_size)}
+         
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange(rearrange_str, **rearrange_kwargs),
 -            nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
@@ -169,7 +179,7 @@
          
          # Create rotary embeddings
          self.rotary_emb = GoldenGateRoPENd(
-@@ -245,7 +245,7 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, rotary_emb = self.rotary_emb)
+@@ -245,7 +244,7 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, rotary_emb = self.rotary_emb)
          
          self.to_latent = nn.Identity()
 -        self.mlp_head = nn.Linear(dim, num_classes)
@@ -177,7 +187,7 @@
      
      def muon_parameters(self):
          params = []
-@@ -275,9 +275,9 @@         
+@@ -275,9 +274,9 @@         
          # Generate position coordinates
  
 -        grids = [arange(d, device = device, dtype = torch.float32) for d in spatial_dims]
@@ -189,7 +199,7 @@
  
          # flatten spatial dimensions for attention with nd rotary
          
-@@ -318,7 +318,7 @@         emb_dropout = 0.1
+@@ -318,7 +317,7 @@         emb_dropout = 0.1
      )
  
 -    data = torch.randn(2, 3, 4, 8, 16, 32, 64)

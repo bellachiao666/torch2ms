@@ -457,15 +457,20 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         """
         super().__init__()
         self.api_map = api_map
-        self.ms_aliases = ms_aliases or {}
+        default_ms_aliases = {
+            "mindspore": "ms",
+            "mindspore.nn": "msnn",
+            "mindspore.ops": "msops",
+            "mindspore.mint": "mint",
+            "mindspore.mint.nn": "nn",
+            "mindspore.mint.ops": "ops",
+        }
+        self.ms_aliases = default_ms_aliases
+        if ms_aliases:
+            self.ms_aliases.update(ms_aliases)
         self.pt_aliases = pt_aliases or {}
         self.pt_assignment_aliases = pt_assignment_aliases or {}
         self.pt_assignment_wrapped = pt_assignment_wrapped or {}
-        # 输入代码未显式导入 mindspore 时会启用 mint 模式，
-        # 这样 nn/ops 会默认指向 mindspore.mint.nn / mindspore.mint.ops。
-        self.use_mint = use_mint
-         # 当输入代码中没有显式 mindspore 导入时，use_mint=True，
-         # 这样会优先走 mindspore.mint 接口。
         self.use_mint = use_mint
         self.notes_by_stmt = defaultdict(list)
         self.api_by_class = {
@@ -474,9 +479,6 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         self.api_by_pt_full = {
             conf["pytorch"]: conf for conf in api_map.values()
         }
-        # 输入代码未显式导入 mindspore 时会启用 mint 模式，
-        # 这样 nn/ops 会默认指向 mindspore.mint.nn / mindspore.mint.ops。
-        self.use_mint = use_mint
 
     def _find_enclosing_stmt(self, node: cst.CSTNode) -> Optional[cst.CSTNode]:
         """
@@ -530,34 +532,6 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         输出:
             返回替换了别名后的完整 MindSpore 名称。
         """
-        # 当未显式导入 mindspore 模块且启用 mint 模式时，
-        # 将 mindspore.nn / mindspore.ops 以及 mindspore.mint 下的常用接口
-        # 映射为 nn / ops，方便配合 `from mindspore.mint import nn, ops` 使用。
-        if self.use_mint:
-            # 标准 nn / ops 模块
-            if full_path == "mindspore.nn":
-                return "nn"
-            if full_path.startswith("mindspore.nn."):
-                return "nn." + full_path[len("mindspore.nn.") :]
-            if full_path == "mindspore.ops":
-                return "ops"
-            if full_path.startswith("mindspore.ops."):
-                return "ops." + full_path[len("mindspore.ops.") :]
-
-            # mint.nn / mint.ops 子模块
-            if full_path == "mindspore.mint.nn":
-                return "nn"
-            if full_path.startswith("mindspore.mint.nn."):
-                return "nn." + full_path[len("mindspore.mint.nn.") :]
-            if full_path == "mindspore.mint.ops":
-                return "ops"
-            if full_path.startswith("mindspore.mint.ops."):
-                return "ops." + full_path[len("mindspore.mint.ops.") :]
-
-            # 其它 mint 顶层函数，统一走 ops 别名，例如 mindspore.mint.cat -> ops.cat
-            if full_path.startswith("mindspore.mint."):
-                return "ops." + full_path[len("mindspore.mint.") :]
-
         parts = full_path.split(".")
         for i in range(len(parts), 0, -1):
             prefix = ".".join(parts[:i])
@@ -638,17 +612,13 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             else:
                 keyword_values[arg.keyword.value] = arg.value
 
-        ms_args = OrderedDict()
+        ms_args = []
         mismatch_notes = []
 
-        for i, val in enumerate(positional_values):
-            if i >= len(params):
-                break
-            ms_name = params[i]["mindspore"]["name"]
-            if ms_name:
-                ms_args[ms_name] = val
+        pos_idx = 0
+        force_keyword = False
 
-        for p in params:
+        for idx, p in enumerate(params):
             pt = p["pytorch"]
             ms = p["mindspore"]
             pt_name = pt.get("name")
@@ -656,34 +626,50 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             pt_def = pt.get("default")
             ms_def = ms.get("default")
 
-            if ms_name is None:
-                mismatch_notes.append(f"'{api_conf['pytorch']}':没有对应的mindspore参数 '{pt_name}';")
-                continue
+            value = None
+            used_keyword = False
 
             if pt_name and pt_name in keyword_values:
-                ms_args[ms_name] = keyword_values[pt_name]
-                if pt_name != ms_name:
+                value = keyword_values[pt_name]
+                used_keyword = True
+            elif pos_idx < len(positional_values):
+                value = positional_values[pos_idx]
+                pos_idx += 1
+
+            if value is None:
+                if (
+                    pt_name is not None
+                    and ms_name is not None
+                    and pt_def is not None
+                    and ms_def is not None
+                    and pt_def != ms_def
+                ):
                     mismatch_notes.append(
-                        f"'{api_conf['pytorch']}':默认参数名不一致: {ms_name} (PyTorch={pt_name}, MindSpore={ms_name});"
+                        f"'{api_conf['pytorch']}'默认值不一致(position {idx}): PyTorch={pt_def}, MindSpore={ms_def};"
                     )
                 continue
 
-            if (
-                pt_name is not None
-                and pt_def is not None
-                and ms_def is not None
-                and pt_def != ms_def
-            ):
-                ms_args[ms_name] = _literal_to_expr(pt_def)
+            if ms_name is None:
                 mismatch_notes.append(
-                    f"默认值不一致: {ms_name} (PyTorch={pt_def}, MindSpore={ms_def})"
+                    f"'{api_conf['pytorch']}':没有对应的mindspore参数 '{pt_name}' (position {idx});"
+                )
+                force_keyword = True
+                continue
+
+            if pt_name and pt_name != ms_name:
+                mismatch_notes.append(
+                    f"'{api_conf['pytorch']}':默认参数名不一致(position {idx}): PyTorch={pt_name}, MindSpore={ms_name};"
                 )
 
-        new_args = [
-            cst.Arg(keyword=cst.Name(k), value=v)
-            for k, v in ms_args.items()
-        ]
-        return new_args, mismatch_notes
+            if used_keyword or force_keyword:
+                ms_args.append(cst.Arg(keyword=cst.Name(ms_name), value=value))
+            else:
+                ms_args.append(cst.Arg(keyword=None, value=value))
+
+            if force_keyword is False and used_keyword:
+                force_keyword = True
+
+        return ms_args, mismatch_notes
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         """
@@ -901,6 +887,35 @@ class TorchImportCleaner(cst.CSTTransformer):
         return updated_node.with_changes(names=tuple(new_names))
 
 
+def _ensure_default_ms_imports(code: str) -> str:
+    """
+    确保转换后的代码包含统一的 mindspore 导入前缀。
+    """
+    required = [
+        "import mindspore as ms\n",
+        "import mindspore.nn as msnn\n",
+        "import mindspore.ops as msops\n",
+        "import mindspore.mint as mint\n",
+        "from mindspore.mint import nn, ops\n",
+    ]
+    lines = code.splitlines(keepends=True)
+    existing = {line.strip() for line in lines}
+    missing = [line for line in required if line.strip() not in existing]
+    if not missing:
+        return code
+
+    insert_idx = 0
+    if lines and lines[0].startswith("#!"):
+        insert_idx = 1
+    if len(lines) > insert_idx and "coding" in lines[insert_idx]:
+        insert_idx += 1
+
+    for line in reversed(missing):
+        lines.insert(insert_idx, line)
+
+    return "".join(lines)
+
+
 def convert_code(code: str) -> str:
     """
     将整段 PyTorch 源码转换为 MindSpore 源码（LibCST 版本）。
@@ -915,7 +930,6 @@ def convert_code(code: str) -> str:
         返回转换后的 MindSpore 源码字符串，包含必要的参数名替换与行尾提示。
     """
     module = cst.parse_module(code)
-    ms_aliases = collect_mindspore_aliases(module)
     api_by_class = {
         conf["pytorch"].split(".")[-1]: conf for conf in API_MAP.values()
     }
@@ -924,19 +938,15 @@ def convert_code(code: str) -> str:
         module, api_by_class, pt_aliases
     )
 
-    # 没有显式 mindspore 导入时，默认使用 mint 接口，
-    # 并在后续自动插入 `from mindspore.mint import nn, ops`。
-    use_mint = not bool(ms_aliases)
-
     wrapper = metadata.MetadataWrapper(module)
     new_module = wrapper.visit(
         TorchToMindSporeTransformer(
             API_MAP,
-            ms_aliases=ms_aliases,
+            ms_aliases=None,
             pt_aliases=pt_aliases,
             pt_assignment_aliases=pt_assignment_aliases,
             pt_assignment_wrapped=pt_assignment_wrapped,
-            use_mint=use_mint,
+            use_mint=False,
         )
     )
     # 第二遍遍历: 基于名称使用情况，清理不再需要的 torch 导入
@@ -946,39 +956,7 @@ def convert_code(code: str) -> str:
     new_module = new_module.visit(cleaner)
 
     new_code = new_module.code
-
-    if use_mint:
-        # 若原文件没有 mindspore 导入，但转换后出现了 nn/ops 调用，
-        # 则自动在文件头部补充 mint 常用导入。
-        if ("nn." in new_code) or ("ops." in new_code) or ("mindspore" in new_code):
-            default_import = "from mindspore.mint import nn, ops\n"
-            lines = new_code.splitlines(keepends=True)
-
-            # 尽量将 mindspore.mint 导入放在所有 torch 导入之后，
-            # 避免出现用户所说的 “torch 在 mindspore 之后” 的情况。
-            torch_idx = -1
-            for i, line in enumerate(lines):
-                stripped = line.lstrip()
-                if not stripped or stripped.startswith("#"):
-                    continue
-                if stripped.startswith("import ") or stripped.startswith("from "):
-                    if "torch" in stripped and "mindspore" not in stripped:
-                        torch_idx = i
-
-            if torch_idx != -1:
-                # 在最后一个 torch 导入之后插入 mint 导入
-                lines.insert(torch_idx + 1, default_import)
-                new_code = "".join(lines)
-            else:
-                # 保持原有逻辑: 放在 shebang 之后或文件顶部
-                if new_code.startswith("#!"):
-                    idx = new_code.find("\n")
-                    if idx != -1:
-                        new_code = new_code[: idx + 1] + default_import + new_code[idx + 1 :]
-                    else:
-                        new_code = new_code + "\n" + default_import
-                else:
-                    new_code = default_import + new_code
+    new_code = _ensure_default_ms_imports(new_code)
 
     return new_code
 

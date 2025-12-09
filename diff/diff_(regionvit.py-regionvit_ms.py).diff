@@ -20,8 +20,8 @@
 -    def forward(self, x):
 -        var = torch.var(x, dim = 1, unbiased = False, keepdim = True)
 -        mean = torch.mean(x, dim = 1, keepdim = True)
-+        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-+        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
++        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
++        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 +
 +    def forward(self, x):
 +        var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -47,11 +47,13 @@
  
      def forward(self, x):
          return self.proj(x) + x
-@@ -52,14 +52,14 @@ 
+@@ -51,15 +51,15 @@ # transformer classes
+ 
  def FeedForward(dim, mult = 4, dropout = 0.):
-     return nn.Sequential(
+-    return nn.Sequential(
 -        nn.LayerNorm(dim),
 -        nn.Linear(dim, dim * mult, 1),
++    return nn.SequentialCell(
 +        nn.LayerNorm(normalized_shape = dim),
 +        nn.Linear(in_features = dim, out_features = dim * mult, bias = 1),
          nn.GELU(),
@@ -74,14 +76,16 @@
 -        self.norm = nn.LayerNorm(dim)
 -        self.dropout = nn.Dropout(dropout)
 -        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
-+        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-+        self.dropout = nn.Dropout(p = dropout)
-+        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.to_out = nn.Sequential(
+-
+-        self.to_out = nn.Sequential(
 -            nn.Linear(inner_dim, dim),
 -            nn.Dropout(dropout)
 -        )
++        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
++        self.dropout = nn.Dropout(p = dropout)
++        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
++
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -109,14 +113,23 @@
      def __init__(
          self,
          dim,
-@@ -128,7 +128,7 @@ 
+@@ -124,14 +124,14 @@         ff_dropout = 0.,
+     ):
+         super().__init__()
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+ 
          self.window_size = window_size
          rel_positions = 2 * window_size - 1
 -        self.local_rel_pos_bias = nn.Embedding(rel_positions ** 2, heads)
 +        self.local_rel_pos_bias = nn.Embedding(num_embeddings = rel_positions ** 2, embedding_dim = heads)  # 'torch.nn.Embedding':没有对应的mindspore参数 'device';
  
          for _ in range(depth):
-             self.layers.append(nn.ModuleList([
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = attn_dropout),
+                 FeedForward(dim, dropout = ff_dropout)
+             ]))
 @@ -147,17 +147,17 @@ 
          # calculate local relative positional bias
          
@@ -156,10 +169,12 @@
      def __init__(
          self,
          *,
-@@ -223,21 +223,21 @@ 
+@@ -222,34 +222,34 @@         # local and region encoders
+ 
          if tokenize_local_3_conv:
-             self.local_encoder = nn.Sequential(
+-            self.local_encoder = nn.Sequential(
 -                nn.Conv2d(3, init_dim, 3, 2, 1),
++            self.local_encoder = nn.SequentialCell(
 +                nn.Conv2d(in_channels = 3, out_channels = init_dim, kernel_size = 3, stride = 2, padding = 1),
                  ChanLayerNorm(init_dim),
                  nn.GELU(),
@@ -173,9 +188,11 @@
 +            )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
          else:
 -            self.local_encoder = nn.Conv2d(3, init_dim, 8, 4, 3)
+-
+-        self.region_encoder = nn.Sequential(
 +            self.local_encoder = nn.Conv2d(in_channels = 3, out_channels = init_dim, kernel_size = 8, stride = 4, padding = 3)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
- 
-         self.region_encoder = nn.Sequential(
++
++        self.region_encoder = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b (c p1 p2) h w', p1 = region_patch_size, p2 = region_patch_size),
 -            nn.Conv2d((region_patch_size ** 2) * channels, init_dim, 1)
 -        )
@@ -184,8 +201,25 @@
  
          # layers
  
-@@ -261,9 +261,9 @@ 
-         self.to_logits = nn.Sequential(
+         current_dim = init_dim
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+ 
+         for ind, dim, num_layers in zip(range(4), dim, depth):
+             not_first = ind != 0
+             need_downsample = not_first
+             need_peg = not_first and use_peg
+ 
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Downsample(current_dim, dim) if need_downsample else nn.Identity(),
+                 PEG(dim) if need_peg else nn.Identity(),
+                 R2LTransformer(dim, depth = num_layers, window_size = window_size, attn_dropout = attn_dropout, ff_dropout = ff_dropout)
+@@ -259,11 +259,11 @@ 
+         # final logits
+ 
+-        self.to_logits = nn.Sequential(
++        self.to_logits = nn.SequentialCell(
              Reduce('b c h w -> b c', 'mean'),
 -            nn.LayerNorm(last_dim),
 -            nn.Linear(last_dim, num_classes)

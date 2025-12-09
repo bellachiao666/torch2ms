@@ -3,7 +3,6 @@
 
 import torch
 from torch import nn
-from torch.nn import ModuleList
 
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
@@ -34,7 +33,7 @@ def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32)
 
 def FeedForward(dim, mult = 4.):
     hidden_dim = int(dim * mult)
-    return nn.Sequential(
+    return nn.SequentialCell(
         nn.LayerNorm(normalized_shape = dim),
         nn.Linear(in_features = dim, out_features = hidden_dim),
         nn.GELU(),
@@ -93,7 +92,7 @@ class JumboViT(nn.Cell):
 
         patch_dim = channels * patch_height * patch_width
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
             nn.LayerNorm(normalized_shape = patch_dim),
             nn.Linear(in_features = patch_dim, out_features = dim),
@@ -108,24 +107,24 @@ class JumboViT(nn.Cell):
 
         jumbo_cls_dim = dim * jumbo_cls_k
 
-        self.jumbo_cls_token = nn.Parameter(ops.zeros(size = num_jumbo_cls))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.jumbo_cls_token = mindspore.Parameter(ops.zeros(size = num_jumbo_cls))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
         jumbo_cls_to_tokens = Rearrange('b n (k d) -> b (n k) d', k = jumbo_cls_k)
         self.jumbo_cls_to_tokens = jumbo_cls_to_tokens
 
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = ModuleList([])
+        self.layers = nn.CellList([])
 
         # attention and feedforwards
 
-        self.jumbo_ff = nn.Sequential(
+        self.jumbo_ff = nn.SequentialCell(
             Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k),
             FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)), # they use separate parameters for the jumbo feedforward, weight tied for parameter efficient
             jumbo_cls_to_tokens
         )
 
         for _ in range(depth):
-            self.layers.append(ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head),
                 FeedForward(dim, mlp_dim),
             ]))

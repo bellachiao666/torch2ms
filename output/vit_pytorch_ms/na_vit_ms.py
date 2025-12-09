@@ -83,7 +83,7 @@ def group_images_by_max_seq_len(
 class LayerNorm(nn.Cell):
     def __init__(self, dim):
         super().__init__()
-        self.gamma = nn.Parameter(ops.ones(size = dim))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.gamma = mindspore.Parameter(ops.ones(size = dim))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
         self.register_buffer('beta', ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
@@ -95,7 +95,7 @@ class RMSNorm(nn.Cell):
     def __init__(self, heads, dim):
         super().__init__()
         self.scale = dim ** 0.5
-        self.gamma = nn.Parameter(ops.ones(size = heads, dtype = dim))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.gamma = mindspore.Parameter(ops.ones(size = heads, dtype = dim))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
         normed = nn.functional.normalize(input = x, dim = -1)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
@@ -104,7 +104,7 @@ class RMSNorm(nn.Cell):
 # feedforward
 
 def FeedForward(dim, hidden_dim, dropout = 0.):
-    return nn.Sequential(
+    return nn.SequentialCell(
         LayerNorm(dim),
         nn.Linear(in_features = dim, out_features = hidden_dim),
         nn.GELU(),
@@ -128,7 +128,7 @@ class Attention(nn.Cell):
         self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
         self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim, bias = False),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -172,9 +172,9 @@ class Attention(nn.Cell):
 class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
@@ -222,14 +222,14 @@ class NaViT(nn.Cell):
         self.channels = channels
         self.patch_size = patch_size
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             LayerNorm(patch_dim),
             nn.Linear(in_features = patch_dim, out_features = dim),
             LayerNorm(dim),
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.pos_embed_height = nn.Parameter(ops.randn(size = patch_height_dim, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.pos_embed_width = nn.Parameter(ops.randn(size = patch_width_dim, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embed_height = mindspore.Parameter(ops.randn(size = patch_height_dim, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embed_width = mindspore.Parameter(ops.randn(size = patch_width_dim, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         self.dropout = nn.Dropout(p = emb_dropout)
 
@@ -237,14 +237,14 @@ class NaViT(nn.Cell):
 
         # final attention pooling queries
 
-        self.attn_pool_queries = nn.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.attn_pool_queries = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.attn_pool = Attention(dim = dim, dim_head = dim_head, heads = heads)
 
         # output to logits
 
         self.to_latent = nn.Identity()
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             LayerNorm(dim),
             nn.Linear(in_features = dim, out_features = num_classes, bias = False)
         )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';

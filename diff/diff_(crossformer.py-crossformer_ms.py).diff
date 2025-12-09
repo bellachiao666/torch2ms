@@ -14,8 +14,11 @@
      def __init__(
          self,
          dim_in,
-@@ -29,53 +29,53 @@ 
-         self.convs = nn.ModuleList([])
+@@ -27,55 +27,55 @@         dim_scales = [int(dim_out / (2 ** i)) for i in range(1, num_scales)]
+         dim_scales = [*dim_scales, dim_out - sum(dim_scales)]
+ 
+-        self.convs = nn.ModuleList([])
++        self.convs = nn.CellList([])
          for kernel, dim_scale in zip(kernel_sizes, dim_scales):
 -            self.convs.append(nn.Conv2d(dim_in, dim_scale, kernel, stride = stride, padding = (kernel - stride) // 2))
 +            self.convs.append(nn.Conv2d(in_channels = dim_in, out_channels = dim_scale, kernel_size = kernel, stride = stride, padding = (kernel - stride) // 2))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -28,9 +31,10 @@
  # dynamic positional bias
  
  def DynamicPositionBias(dim):
-     return nn.Sequential(
+-    return nn.Sequential(
 -        nn.Linear(2, dim),
 -        nn.LayerNorm(dim),
++    return nn.SequentialCell(
 +        nn.Linear(in_features = 2, out_features = dim),
 +        nn.LayerNorm(normalized_shape = dim),
          nn.ReLU(),
@@ -63,8 +67,8 @@
 -    def forward(self, x):
 -        var = torch.var(x, dim = 1, unbiased = False, keepdim = True)
 -        mean = torch.mean(x, dim = 1, keepdim = True)
-+        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-+        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
++        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
++        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 +
 +    def forward(self, x):
 +        var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -72,7 +76,8 @@
          return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
  
  def FeedForward(dim, mult = 4, dropout = 0.):
-     return nn.Sequential(
+-    return nn.Sequential(
++    return nn.SequentialCell(
          LayerNorm(dim),
 -        nn.Conv2d(dim, dim * mult, 1),
 +        nn.Conv2d(in_channels = dim, out_channels = dim * mult, kernel_size = 1),
@@ -145,6 +150,18 @@
      def __init__(
          self,
          dim,
+@@ -184,10 +184,10 @@         ff_dropout = 0.,
+     ):
+         super().__init__()
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+ 
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, attn_type = 'short', window_size = local_window_size, dim_head = dim_head, dropout = attn_dropout),
+                 FeedForward(dim, dropout = ff_dropout),
+                 Attention(dim, attn_type = 'long', window_size = global_window_size, dim_head = dim_head, dropout = attn_dropout),
 @@ -205,7 +205,7 @@ 
  # classes
  
@@ -153,8 +170,23 @@
      def __init__(
          self,
          *,
-@@ -256,8 +256,8 @@ 
-         self.to_logits = nn.Sequential(
+@@ -244,20 +244,20 @@ 
+         # layers
+ 
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+ 
+         for (dim_in, dim_out), layers, global_wsz, local_wsz, cel_kernel_sizes, cel_stride in zip(dim_in_and_out, depth, global_window_size, local_window_size, cross_embed_kernel_sizes, cross_embed_strides):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 CrossEmbedLayer(dim_in, dim_out, cel_kernel_sizes, stride = cel_stride),
+                 Transformer(dim_out, local_window_size = local_wsz, global_window_size = global_wsz, depth = layers, attn_dropout = attn_dropout, ff_dropout = ff_dropout)
+             ]))
+ 
+         # final logits
+ 
+-        self.to_logits = nn.Sequential(
++        self.to_logits = nn.SequentialCell(
              Reduce('b c h w -> b c', 'mean'),
 -            nn.Linear(last_dim, num_classes)
 -        )

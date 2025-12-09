@@ -17,8 +17,9 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, mult, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.Conv2d(dim, dim * mult, 1),
++        self.net = nn.SequentialCell(
 +            nn.Conv2d(in_channels = dim, out_channels = dim * mult, kernel_size = 1),
              nn.Hardswish(),
 -            nn.Dropout(dropout),
@@ -43,9 +44,9 @@
 -        self.to_q = nn.Sequential(nn.Conv2d(dim, inner_dim_key, 1, stride = (2 if downsample else 1), bias = False), nn.BatchNorm2d(inner_dim_key))
 -        self.to_k = nn.Sequential(nn.Conv2d(dim, inner_dim_key, 1, bias = False), nn.BatchNorm2d(inner_dim_key))
 -        self.to_v = nn.Sequential(nn.Conv2d(dim, inner_dim_value, 1, bias = False), nn.BatchNorm2d(inner_dim_value))
-+        self.to_q = nn.Sequential(nn.Conv2d(in_channels = dim, out_channels = inner_dim_key, kernel_size = 1, stride = (2 if downsample else 1), bias = False), nn.BatchNorm2d(num_features = inner_dim_key))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
-+        self.to_k = nn.Sequential(nn.Conv2d(in_channels = dim, out_channels = inner_dim_key, kernel_size = 1, bias = False), nn.BatchNorm2d(num_features = inner_dim_key))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
-+        self.to_v = nn.Sequential(nn.Conv2d(in_channels = dim, out_channels = inner_dim_value, kernel_size = 1, bias = False), nn.BatchNorm2d(num_features = inner_dim_value))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
++        self.to_q = nn.SequentialCell(nn.Conv2d(in_channels = dim, out_channels = inner_dim_key, kernel_size = 1, stride = (2 if downsample else 1), bias = False), nn.BatchNorm2d(num_features = inner_dim_key))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
++        self.to_k = nn.SequentialCell(nn.Conv2d(in_channels = dim, out_channels = inner_dim_key, kernel_size = 1, bias = False), nn.BatchNorm2d(num_features = inner_dim_key))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
++        self.to_v = nn.SequentialCell(nn.Conv2d(in_channels = dim, out_channels = inner_dim_value, kernel_size = 1, bias = False), nn.BatchNorm2d(num_features = inner_dim_value))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
  
          self.attend = nn.Softmax(dim = -1)
 -        self.dropout = nn.Dropout(dropout)
@@ -55,7 +56,8 @@
 +        out_batch_norm = nn.BatchNorm2d(num_features = dim_out)  # 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
          nn.init.zeros_(out_batch_norm.weight)
  
-         self.to_out = nn.Sequential(
+-        self.to_out = nn.Sequential(
++        self.to_out = nn.SequentialCell(
              nn.GELU(),
 -            nn.Conv2d(inner_dim_value, dim_out, 1),
 +            nn.Conv2d(in_channels = inner_dim_value, out_channels = dim_out, kernel_size = 1),
@@ -82,7 +84,7 @@
  
          q_pos, k_pos = map(lambda t: rearrange(t, 'i j c -> (i j) c'), (q_pos, k_pos))
          rel_pos = (q_pos[:, None, ...] - k_pos[None, :, ...]).abs()
-@@ -96,18 +94,18 @@         qkv = (q, self.to_k(x), self.to_v(x))
+@@ -96,26 +94,26 @@         qkv = (q, self.to_k(x), self.to_v(x))
          q, k, v = map(lambda t: rearrange(t, 'b (h d) ... -> b h (...) d', h = h), qkv)
  
 -        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
@@ -103,6 +105,16 @@
      def __init__(self, dim, fmap_size, depth, heads, dim_key, dim_value, mlp_mult = 2, dropout = 0., dim_out = None, downsample = False):
          super().__init__()
          dim_out = default(dim_out, dim)
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         self.attn_residual = (not downsample) and dim == dim_out
+ 
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, fmap_size = fmap_size, heads = heads, dim_key = dim_key, dim_value = dim_value, dropout = dropout, downsample = downsample, dim_out = dim_out),
+                 FeedForward(dim_out, mlp_mult, dropout = dropout)
+             ]))
 @@ -126,7 +124,7 @@             x = ff(x) + x
          return x
  
@@ -111,14 +123,16 @@
      def __init__(
          self,
          *,
-@@ -151,11 +149,11 @@         assert all(map(lambda t: len(t) == stages, (dims, depths, layer_heads))), 'dimensions, depths, and heads must be a tuple that is less than the designated number of stages'
+@@ -150,12 +148,12 @@ 
+         assert all(map(lambda t: len(t) == stages, (dims, depths, layer_heads))), 'dimensions, depths, and heads must be a tuple that is less than the designated number of stages'
  
-         self.conv_embedding = nn.Sequential(
+-        self.conv_embedding = nn.Sequential(
 -            nn.Conv2d(3, 32, 3, stride = 2, padding = 1),
 -            nn.Conv2d(32, 64, 3, stride = 2, padding = 1),
 -            nn.Conv2d(64, 128, 3, stride = 2, padding = 1),
 -            nn.Conv2d(128, dims[0], 3, stride = 2, padding = 1)
 -        )
++        self.conv_embedding = nn.SequentialCell(
 +            nn.Conv2d(in_channels = 3, out_channels = 32, kernel_size = 3, stride = 2, padding = 1),
 +            nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 3, stride = 2, padding = 1),
 +            nn.Conv2d(in_channels = 64, out_channels = 128, kernel_size = 3, stride = 2, padding = 1),
@@ -127,10 +141,15 @@
  
          fmap_size = image_size // (2 ** 4)
          layers = []
-@@ -172,12 +170,12 @@         self.backbone = nn.Sequential(*layers)
+@@ -169,15 +167,15 @@                 layers.append(Transformer(dim, fmap_size, 1, heads * 2, dim_key, dim_value, dim_out = next_dim, downsample = True))
+                 fmap_size = ceil(fmap_size / 2)
  
-         self.pool = nn.Sequential(
+-        self.backbone = nn.Sequential(*layers)
++        self.backbone = nn.SequentialCell(*layers)
+ 
+-        self.pool = nn.Sequential(
 -            nn.AdaptiveAvgPool2d(1),
++        self.pool = nn.SequentialCell(
 +            nn.AdaptiveAvgPool2d(output_size = 1),
              Rearrange('... () () -> ...')
          )

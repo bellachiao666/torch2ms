@@ -18,7 +18,7 @@ def conv_output_size(image_size, kernel_size, stride, padding = 0):
 class FeedForward(nn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = hidden_dim),
             nn.GELU(),
@@ -43,7 +43,7 @@ class Attention(nn.Cell):
         self.dropout = nn.Dropout(p = dropout)
         self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Linear(in_features = inner_dim, out_features = dim),
             nn.Dropout(p = dropout)
         ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
@@ -67,9 +67,9 @@ class Attention(nn.Cell):
 class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
@@ -84,7 +84,7 @@ class Transformer(nn.Cell):
 class DepthWiseConv2d(nn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride, bias = True):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
             nn.Conv2d(in_channels = dim_out, out_channels = dim_out, kernel_size = 1, bias = bias)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -135,7 +135,7 @@ class PiT(nn.Cell):
 
         patch_dim = channels * patch_size ** 2
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             nn.Unfold(kernel_size = patch_size, stride = patch_size // 2),
             Rearrange('b c n -> b n c'),
             nn.Linear(in_features = patch_dim, out_features = dim)
@@ -144,8 +144,8 @@ class PiT(nn.Cell):
         output_size = conv_output_size(image_size, patch_size, patch_size // 2)
         num_patches = output_size ** 2
 
-        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
         self.dropout = nn.Dropout(p = emb_dropout)
 
         layers = []
@@ -159,9 +159,9 @@ class PiT(nn.Cell):
                 layers.append(Pool(dim))
                 dim *= 2
 
-        self.layers = nn.Sequential(*layers)
+        self.layers = nn.SequentialCell(*layers)
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim),
             nn.Linear(in_features = dim, out_features = num_classes)
         )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

@@ -104,7 +104,7 @@ class MLP(nn.Cell):
                 nn.GELU() if not is_last else nn.Identity()
             ])  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             *layers,
             L2Norm(),
             nn.Linear(in_features = hidden_size, out_features = dim_out)
@@ -204,7 +204,7 @@ class Dino(nn.Cell):
 
         # default BYOL augmentation
 
-        DEFAULT_AUG = torch.nn.Sequential(
+        DEFAULT_AUG = nn.SequentialCell(
             RandomApply(
                 mindspore.dataset.vision.RandomColorAdjust(brightness = 0, contrast = 0, saturation = 0, hue = 0),
                 p = 0.3

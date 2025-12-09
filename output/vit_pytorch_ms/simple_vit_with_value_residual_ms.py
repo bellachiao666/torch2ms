@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.nn import ModuleList
 
 from einops import rearrange
 from einops.layers.torch import Rearrange
@@ -31,7 +30,7 @@ def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32)
 # classes
 
 def FeedForward(dim, hidden_dim):
-    return nn.Sequential(
+    return nn.SequentialCell(
         nn.LayerNorm(normalized_shape = dim),
         nn.Linear(in_features = dim, out_features = hidden_dim),
         nn.GELU(),
@@ -51,7 +50,7 @@ class Attention(nn.Cell):
         self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
         self.to_out = nn.Linear(in_features = inner_dim, out_features = dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_residual_mix = nn.Sequential(
+        self.to_residual_mix = nn.SequentialCell(
             nn.Linear(in_features = dim, out_features = heads),
             nn.Sigmoid(),
             Rearrange('b n h -> b h n 1')
@@ -80,10 +79,10 @@ class Transformer(nn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim):
         super().__init__()
         self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = ModuleList([])
+        self.layers = nn.CellList([])
         for i in range(depth):
             is_first = i == 0
-            self.layers.append(ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, learned_value_residual_mix = not is_first),
                 FeedForward(dim, mlp_dim)
             ]))
@@ -110,7 +109,7 @@ class SimpleViT(nn.Cell):
 
         patch_dim = channels * patch_height * patch_width
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
             nn.LayerNorm(normalized_shape = patch_dim),
             nn.Linear(in_features = patch_dim, out_features = dim),

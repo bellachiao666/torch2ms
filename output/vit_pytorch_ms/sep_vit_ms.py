@@ -16,8 +16,8 @@ class ChanLayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
         var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -48,7 +48,7 @@ class FeedForward(nn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             ChanLayerNorm(dim),
             nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1),
             nn.GELU(),
@@ -78,7 +78,7 @@ class DSSA(nn.Cell):
 
         self.norm = ChanLayerNorm(dim)
 
-        self.attend = nn.Sequential(
+        self.attend = nn.SequentialCell(
             nn.Softmax(dim = -1),
             nn.Dropout(p = dropout)
         )
@@ -87,12 +87,12 @@ class DSSA(nn.Cell):
 
         # window tokens
 
-        self.window_tokens = nn.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.window_tokens = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         # prenorm and non-linearity for window tokens
         # then projection to queries and keys for window tokens
 
-        self.window_tokens_to_qk = nn.Sequential(
+        self.window_tokens_to_qk = nn.SequentialCell(
             nn.LayerNorm(normalized_shape = dim_head),
             nn.GELU(),
             Rearrange('b h n c -> b (h c) n'),
@@ -102,12 +102,12 @@ class DSSA(nn.Cell):
 
         # window attention
 
-        self.window_attend = nn.Sequential(
+        self.window_attend = nn.SequentialCell(
             nn.Softmax(dim = -1),
             nn.Dropout(p = dropout)
         )
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -216,10 +216,10 @@ class Transformer(nn.Cell):
         norm_output = True
     ):
         super().__init__()
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         for ind in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 DSSA(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mult = ff_mult, dropout = dropout),
             ]))
@@ -262,18 +262,18 @@ class SepViT(nn.Cell):
         hyperparams_per_stage = list(map(partial(cast_tuple, length = num_stages), hyperparams_per_stage))
         assert all(tuple(map(lambda arr: len(arr) == num_stages, hyperparams_per_stage)))
 
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         for ind, ((layer_dim_in, layer_dim), layer_depth, layer_stride, layer_heads, layer_window_size) in enumerate(zip(dim_pairs, depth, strides, *hyperparams_per_stage)):
             is_last = ind == (num_stages - 1)
 
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 OverlappingPatchEmbed(layer_dim_in, layer_dim, stride = layer_stride),
                 PEG(layer_dim),
                 Transformer(dim = layer_dim, depth = layer_depth, heads = layer_heads, ff_mult = ff_mult, dropout = dropout, norm_output = not is_last),
             ]))
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             Reduce('b d h w -> b d', 'mean'),
             nn.LayerNorm(normalized_shape = dims[-1]),
             nn.Linear(in_features = dims[-1], out_features = num_classes)

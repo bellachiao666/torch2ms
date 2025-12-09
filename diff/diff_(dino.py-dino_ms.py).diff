@@ -42,9 +42,11 @@
 +                nn.Linear(in_features = layer_dim_in, out_features = layer_dim_out),
                  nn.GELU() if not is_last else nn.Identity()
 -            ])
+-
+-        self.net = nn.Sequential(
 +            ])  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.net = nn.Sequential(
++
++        self.net = nn.SequentialCell(
              *layers,
              L2Norm(),
 -            nn.Linear(hidden_size, dim_out)
@@ -70,8 +72,11 @@
      def __init__(
          self,
          net,
-@@ -206,19 +206,19 @@ 
-         DEFAULT_AUG = torch.nn.Sequential(
+@@ -204,21 +204,21 @@ 
+         # default BYOL augmentation
+ 
+-        DEFAULT_AUG = torch.nn.Sequential(
++        DEFAULT_AUG = nn.SequentialCell(
              RandomApply(
 -                T.ColorJitter(0.8, 0.8, 0.8, 0.2),
 +                mindspore.dataset.vision.RandomColorAdjust(brightness = 0, contrast = 0, saturation = 0, hue = 0),

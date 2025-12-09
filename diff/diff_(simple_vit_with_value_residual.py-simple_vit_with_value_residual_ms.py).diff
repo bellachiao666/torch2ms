@@ -1,7 +1,6 @@
---- pytorch+++ mindspore@@ -1,9 +1,10 @@ import torch
+--- pytorch+++ mindspore@@ -1,9 +1,9 @@ import torch
  from torch import nn
 -from torch.nn import Module, ModuleList
-+from torch.nn import ModuleList
  
  from einops import rearrange
  from einops.layers.torch import Rearrange
@@ -9,7 +8,7 @@
  
  # helpers
  
-@@ -17,44 +18,44 @@     return t if isinstance(t, tuple) else (t, t)
+@@ -17,44 +17,44 @@     return t if isinstance(t, tuple) else (t, t)
  
  def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
 -    y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
@@ -28,9 +27,10 @@
  # classes
  
  def FeedForward(dim, hidden_dim):
-     return nn.Sequential(
+-    return nn.Sequential(
 -        nn.LayerNorm(dim),
 -        nn.Linear(dim, hidden_dim),
++    return nn.SequentialCell(
 +        nn.LayerNorm(normalized_shape = dim),
 +        nn.Linear(in_features = dim, out_features = hidden_dim),
          nn.GELU(),
@@ -56,8 +56,9 @@
 +        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +        self.to_out = nn.Linear(in_features = inner_dim, out_features = dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
-         self.to_residual_mix = nn.Sequential(
+-        self.to_residual_mix = nn.Sequential(
 -            nn.Linear(dim, heads),
++        self.to_residual_mix = nn.SequentialCell(
 +            nn.Linear(in_features = dim, out_features = heads),
              nn.Sigmoid(),
              Rearrange('b n h -> b h n 1')
@@ -66,7 +67,7 @@
  
      def forward(self, x, value_residual = None):
          x = self.norm(x)
-@@ -66,19 +67,19 @@             mix = self.to_residual_mix(x)
+@@ -66,23 +66,23 @@             mix = self.to_residual_mix(x)
              v = v * mix + value_residual * (1. - mix)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -85,11 +86,17 @@
      def __init__(self, dim, depth, heads, dim_head, mlp_dim):
          super().__init__()
 -        self.norm = nn.LayerNorm(dim)
+-        self.layers = ModuleList([])
 +        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-         self.layers = ModuleList([])
++        self.layers = nn.CellList([])
          for i in range(depth):
              is_first = i == 0
-@@ -99,7 +100,7 @@ 
+-            self.layers.append(ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, learned_value_residual_mix = not is_first),
+                 FeedForward(dim, mlp_dim)
+             ]))
+@@ -99,7 +99,7 @@ 
          return self.norm(x)
  
 -class SimpleViT(Module):
@@ -97,8 +104,11 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -111,10 +112,10 @@ 
-         self.to_patch_embedding = nn.Sequential(
+@@ -109,12 +109,12 @@ 
+         patch_dim = channels * patch_height * patch_width
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
 -            nn.LayerNorm(patch_dim),
 -            nn.Linear(patch_dim, dim),
@@ -111,7 +121,7 @@
  
          self.pos_embedding = posemb_sincos_2d(
              h = image_height // patch_height,
-@@ -127,7 +128,7 @@         self.pool = "mean"
+@@ -127,7 +127,7 @@         self.pool = "mean"
          self.to_latent = nn.Identity()
  
 -        self.linear_head = nn.Linear(dim, num_classes)
@@ -119,7 +129,7 @@
  
      def forward(self, img):
          device = img.device
-@@ -154,6 +155,6 @@         mlp_dim = 2048,
+@@ -154,6 +154,6 @@         mlp_dim = 2048,
      )
  
 -    images = torch.randn(2, 3, 256, 256)

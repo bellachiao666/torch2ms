@@ -17,9 +17,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim),
              nn.GELU(),
@@ -50,17 +51,18 @@
 +        self.dropout = nn.Dropout(p = dropout)
 +        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
-         self.to_out = nn.Sequential(
+-        self.to_out = nn.Sequential(
 -            nn.Linear(inner_dim, dim),
 -            nn.Dropout(dropout)
 -        ) if project_out else nn.Identity()
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
      def forward(self, x):
          b, n, _, h = *x.shape, self.heads
-@@ -57,16 +55,16 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
+@@ -57,21 +55,21 @@         qkv = self.to_qkv(x).chunk(3, dim = -1)
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
  
 -        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
@@ -78,7 +80,14 @@
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
          super().__init__()
-         self.layers = nn.ModuleList([])
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
 @@ -83,23 +81,23 @@ 
  # depthwise convolution, for pooling
  
@@ -86,10 +95,11 @@
 +class DepthWiseConv2d(nn.Cell):
      def __init__(self, dim_in, dim_out, kernel_size, padding, stride, bias = True):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.Conv2d(dim_in, dim_out, kernel_size = kernel_size, padding = padding, groups = dim_in, stride = stride, bias = bias),
 -            nn.Conv2d(dim_out, dim_out, kernel_size = 1, bias = bias)
 -        )
++        self.net = nn.SequentialCell(
 +            nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
 +            nn.Conv2d(in_channels = dim_out, out_channels = dim_out, kernel_size = 1, bias = bias)
 +        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -121,7 +131,11 @@
      def __init__(
          self,
          *,
-@@ -140,15 +138,15 @@         self.to_patch_embedding = nn.Sequential(
+@@ -137,18 +135,18 @@ 
+         patch_dim = channels * patch_size ** 2
+ 
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              nn.Unfold(kernel_size = patch_size, stride = patch_size // 2),
              Rearrange('b c n -> b n c'),
 -            nn.Linear(patch_dim, dim)
@@ -135,18 +149,23 @@
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
 -        self.dropout = nn.Dropout(emb_dropout)
-+        self.pos_embedding = nn.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-+        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 +        self.dropout = nn.Dropout(p = emb_dropout)
  
          layers = []
  
-@@ -164,16 +162,16 @@         self.layers = nn.Sequential(*layers)
+@@ -161,19 +159,19 @@                 layers.append(Pool(dim))
+                 dim *= 2
  
-         self.mlp_head = nn.Sequential(
+-        self.layers = nn.Sequential(*layers)
++        self.layers = nn.SequentialCell(*layers)
+ 
+-        self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, num_classes)
 -        )
++        self.mlp_head = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = num_classes)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

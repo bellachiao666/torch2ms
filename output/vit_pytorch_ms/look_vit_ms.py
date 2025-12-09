@@ -1,5 +1,4 @@
 from torch import nn
-from torch.nn import ModuleList
 
 from einops import einsum, rearrange, repeat, reduce
 from einops.layers.torch import Rearrange
@@ -37,7 +36,7 @@ class LayerNorm(nn.Cell):
     def __init__(self, dim):
         super().__init__()
         self.ln = nn.LayerNorm(normalized_shape = dim, elementwise_affine = False)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.gamma = nn.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.gamma = mindspore.Parameter(ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
         normed = self.ln(x)
@@ -47,7 +46,7 @@ class LayerNorm(nn.Cell):
 
 def MLP(dim, factor = 4, dropout = 0.):
     hidden_dim = int(dim * factor)
-    return nn.Sequential(
+    return nn.SequentialCell(
         LayerNorm(dim),
         nn.Linear(in_features = dim, out_features = hidden_dim),
         nn.GELU(),
@@ -88,7 +87,7 @@ class Attention(nn.Cell):
         self.to_k = nn.Linear(in_features = dim, out_features = inner_dim, bias = False) if not reuse_attention else None  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
         self.to_v = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             Rearrange('b h n d -> b n (h d)'),
             nn.Linear(in_features = inner_dim, out_features = dim, bias = False),
             nn.Dropout(p = dropout)
@@ -169,7 +168,7 @@ class LookViT(nn.Cell):
         kernel_size = patch_conv_kernel_size
         patch_dim = (highres_patch_size * highres_patch_size) * channels
 
-        self.to_patches = nn.Sequential(
+        self.to_patches = nn.SequentialCell(
             Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = highres_patch_size, p2 = highres_patch_size),
             nn.Conv2d(in_channels = patch_dim, out_channels = dim, kernel_size = kernel_size, padding = kernel_size // 2),
             Rearrange('b c h w -> b h w c'),
@@ -179,14 +178,14 @@ class LookViT(nn.Cell):
         # absolute positions
 
         num_patches = (image_size // highres_patch_size) ** 2
-        self.pos_embedding = nn.Parameter(ops.randn(size = num_patches, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embedding = mindspore.Parameter(ops.randn(size = num_patches, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         # lookvit blocks
 
-        layers = ModuleList([])
+        layers = nn.CellList([])
 
         for _ in range(depth):
-            layers.append(ModuleList([
+            layers.append(nn.CellList([
                 Attention(dim = dim, dim_head = dim_head, heads = heads, dropout = dropout),
                 MLP(dim = dim, factor = mlp_factor, dropout = dropout),
                 Attention(dim = dim, dim_head = cross_attn_dim_head, heads = cross_attn_heads, dropout = dropout, cross_attend = True),

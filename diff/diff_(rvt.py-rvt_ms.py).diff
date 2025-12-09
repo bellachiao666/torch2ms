@@ -52,10 +52,11 @@
 +class DepthWiseConv2d(nn.Cell):
      def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, padding = padding, groups = dim_in, stride = stride, bias = bias),
 -            nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)
 -        )
++        self.net = nn.SequentialCell(
 +            nn.Conv2d(in_channels = dim_in, out_channels = dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
 +            nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = 1, bias = bias)
 +        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -93,9 +94,10 @@
 +class FeedForward(nn.Cell):
      def __init__(self, dim, hidden_dim, dropout = 0., use_glu = True):
          super().__init__()
-         self.net = nn.Sequential(
+-        self.net = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, hidden_dim * 2 if use_glu else hidden_dim),
++        self.net = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = hidden_dim * 2 if use_glu else hidden_dim),
              GEGLU() if use_glu else nn.GELU(),
@@ -129,21 +131,23 @@
 -        self.to_q = SpatialConv(dim, inner_dim, conv_query_kernel, bias = False) if use_ds_conv else nn.Linear(dim, inner_dim, bias = False)
 -
 -        self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
-+        self.to_q = SpatialConv(dim, inner_dim, conv_query_kernel, bias = False) if use_ds_conv else nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-+
-+        self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
- 
-         self.to_out = nn.Sequential(
+-
+-        self.to_out = nn.Sequential(
 -            nn.Linear(inner_dim, dim),
 -            nn.Dropout(dropout)
 -        )
++        self.to_q = SpatialConv(dim, inner_dim, conv_query_kernel, bias = False) if use_ds_conv else nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
++
++        self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
++
++        self.to_out = nn.SequentialCell(
 +            nn.Linear(in_features = inner_dim, out_features = dim),
 +            nn.Dropout(p = dropout)
 +        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
  
      def forward(self, x, pos_emb, fmap_dims):
          b, n, _, h = *x.shape, self.heads
-@@ -139,23 +137,23 @@ 
+@@ -139,29 +137,29 @@ 
              (q, q_pass), (k, k_pass) = map(lambda t: (t[..., :dim_rotary], t[..., dim_rotary:]), (q, k))
              q, k = map(lambda t: (t * cos) + (rotate_every_two(t) * sin), (q, k))
 -            q, k = map(lambda t: torch.cat(t, dim = -1), ((q, q_pass), (k, k_pass)))
@@ -172,7 +176,15 @@
 +class Transformer(nn.Cell):
      def __init__(self, dim, depth, heads, dim_head, mlp_dim, image_size, dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
          super().__init__()
-         self.layers = nn.ModuleList([])
+-        self.layers = nn.ModuleList([])
++        self.layers = nn.CellList([])
+         self.pos_emb = AxialRotaryEmbedding(dim_head, max_freq = image_size)
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(nn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, use_rotary = use_rotary, use_ds_conv = use_ds_conv),
+                 FeedForward(dim, mlp_dim, dropout = dropout, use_glu = use_glu)
+             ]))
 @@ -175,7 +173,7 @@ 
  # Rotary Vision Transformer
  
@@ -181,8 +193,11 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., use_rotary = True, use_ds_conv = True, use_glu = True):
          super().__init__()
          assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
-@@ -185,16 +183,16 @@         self.patch_size = patch_size
-         self.to_patch_embedding = nn.Sequential(
+@@ -183,18 +181,18 @@         patch_dim = channels * patch_size ** 2
+ 
+         self.patch_size = patch_size
+-        self.to_patch_embedding = nn.Sequential(
++        self.to_patch_embedding = nn.SequentialCell(
              Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
 -            nn.Linear(patch_dim, dim),
 -        )
@@ -191,13 +206,14 @@
 +            nn.Linear(in_features = patch_dim, out_features = dim),
 +        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
 +
-+        self.cls_token = nn.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
++        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, image_size, dropout, use_rotary, use_ds_conv, use_glu)
  
-         self.mlp_head = nn.Sequential(
+-        self.mlp_head = nn.Sequential(
 -            nn.LayerNorm(dim),
 -            nn.Linear(dim, num_classes)
 -        )
++        self.mlp_head = nn.SequentialCell(
 +            nn.LayerNorm(normalized_shape = dim),
 +            nn.Linear(in_features = dim, out_features = num_classes)
 +        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';

@@ -16,8 +16,8 @@ class LayerNorm(nn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = nn.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = nn.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
 
     def forward(self, x):
         var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
@@ -27,7 +27,7 @@ class LayerNorm(nn.Cell):
 class FeedForward(nn.Cell):
     def __init__(self, dim, mlp_mult = 4, dropout = 0.):
         super().__init__()
-        self.net = nn.Sequential(
+        self.net = nn.SequentialCell(
             LayerNorm(dim),
             nn.Conv2d(in_channels = dim, out_channels = dim * mlp_mult, kernel_size = 1),
             nn.GELU(),
@@ -51,7 +51,7 @@ class Attention(nn.Cell):
         self.dropout = nn.Dropout(p = dropout)
         self.to_qkv = nn.Conv2d(in_channels = dim, out_channels = inner_dim * 3, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
 
-        self.to_out = nn.Sequential(
+        self.to_out = nn.SequentialCell(
             nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
             nn.Dropout(p = dropout)
         )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
@@ -74,7 +74,7 @@ class Attention(nn.Cell):
         return self.to_out(out)
 
 def Aggregate(dim, dim_out):
-    return nn.Sequential(
+    return nn.SequentialCell(
         nn.Conv2d(in_channels = dim, out_channels = dim_out, kernel_size = 3, padding = 1),
         LayerNorm(dim_out),
         nn.MaxPool2d(3, stride = 2, padding = 1)
@@ -83,11 +83,11 @@ def Aggregate(dim, dim_out):
 class Transformer(nn.Cell):
     def __init__(self, dim, seq_len, depth, heads, mlp_mult, dropout = 0.):
         super().__init__()
-        self.layers = nn.ModuleList([])
-        self.pos_emb = nn.Parameter(ops.randn(size = seq_len))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.layers = nn.CellList([])
+        self.pos_emb = mindspore.Parameter(ops.randn(size = seq_len))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
 
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Attention(dim, heads = heads, dropout = dropout),
                 FeedForward(dim, mlp_mult, dropout = dropout)
             ]))
@@ -137,7 +137,7 @@ class NesT(nn.Cell):
         layer_dims = [*layer_dims, layer_dims[-1]]
         dim_pairs = zip(layer_dims[:-1], layer_dims[1:])
 
-        self.to_patch_embedding = nn.Sequential(
+        self.to_patch_embedding = nn.SequentialCell(
             Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size),
             LayerNorm(patch_dim),
             nn.Conv2d(in_channels = patch_dim, out_channels = layer_dims[0], kernel_size = 1),
@@ -146,19 +146,19 @@ class NesT(nn.Cell):
 
         block_repeats = cast_tuple(block_repeats, num_hierarchies)
 
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
 
         for level, heads, (dim_in, dim_out), block_repeat in zip(hierarchies, layer_heads, dim_pairs, block_repeats):
             is_last = level == 0
             depth = block_repeat
 
-            self.layers.append(nn.ModuleList([
+            self.layers.append(nn.CellList([
                 Transformer(dim_in, seq_len, depth, heads, mlp_mult, dropout),
                 Aggregate(dim_in, dim_out) if not is_last else nn.Identity()
             ]))
 
 
-        self.mlp_head = nn.Sequential(
+        self.mlp_head = nn.SequentialCell(
             LayerNorm(last_dim),
             Reduce('b c h w -> b c', 'mean'),
             nn.Linear(in_features = last_dim, out_features = num_classes)
