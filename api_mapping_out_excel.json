@@ -12989,7 +12989,7 @@
     },
     "Identity": {
       "pytorch": "torch.nn.Identity",
-      "mindspore": "mindspore.mint.nn.Identity",
+      "mindspore": "mindspore.nn.Identity",
       "params": [
         {
           "logical": "args",
@@ -13405,6 +13405,11 @@
         }
       ]
     },
+    "ModuleList": {
+      "pytorch": "torch.nn.ModuleList",
+      "mindspore": "mindspore.nn.CellList",
+      "params": []
+    },
     "NLLLoss": {
       "pytorch": "torch.nn.NLLLoss",
       "mindspore": "mindspore.mint.nn.NLLLoss",
@@ -13475,6 +13480,11 @@
           "default_equal": true
         }
       ]
+    },
+    "Parameter": {
+      "pytorch": "torch.nn.Parameter",
+      "mindspore": "mindspore.Parameter",
+      "params": []
     },
     "PReLU": {
       "pytorch": "torch.nn.PReLU",
@@ -13685,6 +13695,11 @@
           "default_equal": true
         }
       ]
+    },
+    "Sequential": {
+      "pytorch": "torch.nn.Sequential",
+      "mindspore": "mindspore.nn.SequentialCell",
+      "params": []
     },
     "SiLU": {
       "pytorch": "torch.nn.SiLU",
