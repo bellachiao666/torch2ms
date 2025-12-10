@@ -16,5 +16,5 @@
 
 ## 说明
 - 转换器根据导入语句推断 MindSpore 前缀（支持 mindspore 与 mindspore.mint）。
-- 参数映射遵循 `api_map.json`，缺失或默认值不一致的情况会写在行尾注释中。
+- 参数映射遵循 `api_mapping_out_excel.json`，缺失或默认值不一致的情况会写在行尾注释中。
 - 仍为实验阶段，遇到未覆盖的 API 或语法请自行补充映射或调整代码。 
