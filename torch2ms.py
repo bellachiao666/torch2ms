@@ -589,8 +589,14 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             return args
         if len(args) == 1 and isinstance(args[0].value, cst.List):
             return args
-        elements = [cst.Element(value=arg.value) for arg in args]
-        return [cst.Arg(keyword=None, value=cst.List(elements=elements))]
+        # 使用多行列表，尽量保留可读性
+        values_code = [
+            cst.Module([]).code_for_node(arg.value)
+            for arg in args
+        ]
+        list_code = "[\n" + ",\n".join(f"    {code}" for code in values_code) + "\n]"
+        list_expr = cst.parse_expression(list_code)
+        return [cst.Arg(keyword=None, value=list_expr)]
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:
         base_names = [
