@@ -37,7 +37,12 @@ def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = ms.float32):
 def FeedForward(dim, mult = 4.):
     hidden_dim = int(dim * mult)
     return msnn.SequentialCell(
-        [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
+        [
+        nn.LayerNorm(dim),
+        nn.Linear(dim, hidden_dim),
+        nn.GELU(),
+        nn.Linear(hidden_dim, dim)
+    ])
 
 class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64):
@@ -92,7 +97,12 @@ class JumboViT(msnn.Cell):
         patch_dim = channels * patch_height * patch_width
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = posemb_sincos_2d(
             h = image_height // patch_height,
@@ -113,7 +123,11 @@ class JumboViT(msnn.Cell):
         # attention and feedforwards
 
         self.jumbo_ff = msnn.SequentialCell(
-            [Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k), FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)), jumbo_cls_to_tokens])
+            [
+            Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k),
+            FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)),
+            jumbo_cls_to_tokens
+        ])
 
         for _ in range(depth):
             self.layers.append(msnn.CellList([

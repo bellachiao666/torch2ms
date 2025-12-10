@@ -52,7 +52,10 @@ class DepthWiseConv2d(msnn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias), nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)])
+            [
+            nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
+            nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -81,7 +84,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0., use_glu = True):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim * 2 if use_glu else hidden_dim), GEGLU() if use_glu else nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim * 2 if use_glu else hidden_dim),
+            GEGLU() if use_glu else nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -104,7 +114,10 @@ class Attention(msnn.Cell):
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x, pos_emb, fmap_dims):
         b, n, _, h = *x.shape, self.heads
@@ -176,13 +189,19 @@ class RvT(msnn.Cell):
 
         self.patch_size = patch_size
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.Linear(patch_dim, dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.Linear(patch_dim, dim)
+        ])
 
         self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, image_size, dropout, use_rotary, use_ds_conv, use_glu)
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img):
         b, _, h, w, p = *img.shape, self.patch_size

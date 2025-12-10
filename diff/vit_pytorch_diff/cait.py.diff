@@ -31,7 +31,7 @@
      def __init__(self, dim, fn, depth):
          super().__init__()
          if depth <= 18:  # epsilon detailed in section 2 of paper
-@@ -38,27 +41,21 @@         else:
+@@ -38,27 +41,28 @@         else:
              init_eps = 1e-6
  
 -        scale = torch.zeros(1, 1, dim).fill_(init_eps)
@@ -48,16 +48,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -66,7 +67,7 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -72,48 +69,46 @@         self.attend = nn.Softmax(dim = -1)
+@@ -72,48 +76,49 @@         self.attend = nn.Softmax(dim = -1)
          self.dropout = nn.Dropout(dropout)
  
 -        self.mix_heads_pre_attn = nn.Parameter(torch.randn(heads, heads))
@@ -75,11 +76,12 @@
 +        self.mix_heads_post_attn = ms.Parameter(mint.randn(size = (heads, heads)))
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        )
 +        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
+-        )
++        ])
  
 -    def forward(self, x, context = None):
 +    def construct(self, x, context = None):
@@ -128,7 +130,7 @@
          layers = dropout_layers(self.layers, dropout = self.layer_dropout)
  
          for attn, ff in layers:
-@@ -121,7 +116,7 @@             x = ff(x) + x
+@@ -121,7 +126,7 @@             x = ff(x) + x
          return x
  
 -class CaiT(nn.Module):
@@ -136,17 +138,18 @@
      def __init__(
          self,
          *,
-@@ -143,27 +138,21 @@         num_patches = (image_size // patch_size) ** 2
+@@ -143,27 +148,29 @@         num_patches = (image_size // patch_size) ** 2
          patch_dim = 3 * patch_size ** 2
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
--            nn.LayerNorm(dim)
--        )
 +        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            [
+             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
+             nn.LayerNorm(dim)
+-        )
++        ])
  
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
@@ -159,11 +162,12 @@
          self.cls_transformer = Transformer(dim, cls_depth, heads, dim_head, mlp_dim, dropout, layer_dropout)
  
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
--        )
 +        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
 -    def forward(self, img):
 +    def construct(self, img):

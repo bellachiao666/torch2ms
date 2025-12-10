@@ -41,7 +41,7 @@
      def __init__(self, dim, fn, depth):
          super().__init__()
          if depth <= 18:
-@@ -50,26 +51,20 @@             init_eps = 1e-6
+@@ -50,26 +51,27 @@             init_eps = 1e-6
  
          self.fn = fn
 -        self.scale = nn.Parameter(torch.full((dim,), init_eps))
@@ -57,16 +57,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -75,17 +76,18 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head * heads
-@@ -83,30 +78,28 @@         self.attend = nn.Softmax(dim = -1)
+@@ -83,30 +85,31 @@         self.attend = nn.Softmax(dim = -1)
          self.dropout = nn.Dropout(dropout)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -
 -    def forward(self, x, context = None):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++        ])
 +
 +    def construct(self, x, context = None):
          h = self.heads
@@ -113,7 +115,7 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head * heads
-@@ -115,17 +108,15 @@ 
+@@ -115,17 +118,18 @@ 
          self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
  
 -        self.temperature = nn.Parameter(torch.ones(heads, 1, 1))
@@ -123,19 +125,20 @@
          self.dropout = nn.Dropout(dropout)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -
 -    def forward(self, x):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++        ])
 +
 +    def construct(self, x):
          h = self.heads
          x, ps = pack_one(x, 'b * d')
  
-@@ -136,50 +127,43 @@ 
+@@ -136,50 +140,51 @@ 
          q, k = map(l2norm, (q, k))
  
 -        sim = einsum('b h i n, b h j n -> b h i j', q, k) * self.temperature.exp()
@@ -159,18 +162,20 @@
          padding = kernel_size // 2
  
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            Rearrange('b h w c -> b c h w'),
--            nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim),
--            nn.BatchNorm2d(dim),
--            nn.GELU(),
--            nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim),
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             Rearrange('b h w c -> b c h w'),
+             nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim),
+             nn.BatchNorm2d(dim),
+             nn.GELU(),
+             nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim),
 -            Rearrange('b c h w -> b h w c'),
 -        )
 -
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), Rearrange('b h w c -> b c h w'), nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim), nn.BatchNorm2d(dim), nn.GELU(), nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim), Rearrange('b c h w -> b h w c')])
++            Rearrange('b c h w -> b h w c')
++        ])
 +
 +    def construct(self, x):
          return self.net(x)
@@ -196,7 +201,7 @@
          layers = dropout_layers(self.layers, dropout = self.layer_dropout)
  
          for attn, ff in layers:
-@@ -188,21 +172,21 @@ 
+@@ -188,21 +193,21 @@ 
          return x
  
 -class XCATransformer(Module):
@@ -221,7 +226,7 @@
          layers = dropout_layers(self.layers, dropout = self.layer_dropout)
  
          for cross_covariance_attn, local_patch_interaction, ff in layers:
-@@ -212,7 +196,7 @@ 
+@@ -212,7 +217,7 @@ 
          return x
  
 -class XCiT(Module):
@@ -229,37 +234,39 @@
      def __init__(
          self,
          *,
-@@ -236,15 +220,11 @@         num_patches = (image_size // patch_size) ** 2
+@@ -236,15 +241,16 @@         num_patches = (image_size // patch_size) ** 2
          patch_dim = 3 * patch_size ** 2
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
--            nn.LayerNorm(dim)
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
+             nn.LayerNorm(dim)
 -        )
 -
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches, dim))
 -        self.cls_token = nn.Parameter(torch.randn(dim))
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++        ])
 +
 +        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches, dim)))
 +        self.cls_token = ms.Parameter(mint.randn(dim))
  
          self.dropout = nn.Dropout(emb_dropout)
  
-@@ -254,12 +234,10 @@ 
+@@ -254,12 +260,13 @@ 
          self.cls_transformer = Transformer(dim, cls_depth, heads, dim_head, mlp_dim, dropout, layer_dropout)
  
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
++        self.mlp_head = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
 -        )
 -
 -    def forward(self, img):
-+        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++        ])
 +
 +    def construct(self, img):
          x = self.to_patch_embedding(img)

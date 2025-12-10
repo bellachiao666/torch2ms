@@ -23,7 +23,9 @@ class SimMIM(msnn.Cell):
         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
 
         self.to_patch = encoder.to_patch_embedding[0]
-        self.patch_to_emb = msnn.SequentialCell([encoder.to_patch_embedding[1:]])
+        self.patch_to_emb = msnn.SequentialCell([
+            encoder.to_patch_embedding[1:]
+        ])
 
         pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
 

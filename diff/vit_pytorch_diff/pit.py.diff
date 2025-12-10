@@ -16,7 +16,7 @@
  
  # helpers
  
-@@ -17,21 +19,15 @@ 
+@@ -17,21 +19,22 @@ 
  # classes
  
 -class FeedForward(nn.Module):
@@ -24,16 +24,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -42,15 +43,16 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -45,37 +41,35 @@         self.dropout = nn.Dropout(dropout)
+@@ -45,37 +48,38 @@         self.dropout = nn.Dropout(dropout)
          self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        ) if project_out else nn.Identity()
 +        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
+-        ) if project_out else nn.Identity()
++        ]) if project_out else msnn.Identity()
  
 -    def forward(self, x):
 +    def construct(self, x):
@@ -88,7 +90,7 @@
          for attn, ff in self.layers:
              x = attn(x) + x
              x = ff(x) + x
-@@ -83,25 +77,23 @@ 
+@@ -83,25 +87,26 @@ 
  # depthwise convolution, for pooling
  
 -class DepthWiseConv2d(nn.Module):
@@ -97,11 +99,13 @@
          super().__init__()
 -        self.net = nn.Sequential(
 -            nn.Conv2d(dim_in, dim_out, kernel_size = kernel_size, padding = padding, groups = dim_in, stride = stride, bias = bias),
--            nn.Conv2d(dim_out, dim_out, kernel_size = 1, bias = bias)
++        self.net = msnn.SequentialCell(
++            [
++            nn.Conv2d(dim_in, dim_out, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
+             nn.Conv2d(dim_out, dim_out, kernel_size = 1, bias = bias)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.Conv2d(dim_in, dim_out, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias), nn.Conv2d(dim_out, dim_out, kernel_size = 1, bias = bias)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -119,7 +123,7 @@
          cls_token, tokens = x[:, :1], x[:, 1:]
  
          cls_token = self.cls_ff(cls_token)
-@@ -110,11 +102,11 @@         tokens = self.downsample(tokens)
+@@ -110,11 +115,11 @@         tokens = self.downsample(tokens)
          tokens = rearrange(tokens, 'b c h w -> b (h w) c')
  
 -        return torch.cat((cls_token, tokens), dim = 1)
@@ -132,16 +136,17 @@
      def __init__(
          self,
          *,
-@@ -137,17 +129,14 @@ 
+@@ -137,17 +142,18 @@ 
          patch_dim = channels * patch_size ** 2
  
 -        self.to_patch_embedding = nn.Sequential(
--            nn.Unfold(kernel_size = patch_size, stride = patch_size // 2),
--            Rearrange('b c n -> b n c'),
--            nn.Linear(patch_dim, dim)
--        )
 +        self.to_patch_embedding = msnn.SequentialCell(
-+            [nn.Unfold(kernel_size = patch_size, stride = patch_size // 2), Rearrange('b c n -> b n c'), nn.Linear(patch_dim, dim)])
++            [
+             nn.Unfold(kernel_size = patch_size, stride = patch_size // 2),
+             Rearrange('b c n -> b n c'),
+             nn.Linear(patch_dim, dim)
+-        )
++        ])
  
          output_size = conv_output_size(image_size, patch_size, patch_size // 2)
          num_patches = output_size ** 2
@@ -153,18 +158,21 @@
          self.dropout = nn.Dropout(emb_dropout)
  
          layers = []
-@@ -161,19 +150,17 @@                 layers.append(Pool(dim))
+@@ -161,19 +167,22 @@                 layers.append(Pool(dim))
                  dim *= 2
  
 -        self.layers = nn.Sequential(*layers)
-+        self.layers = msnn.SequentialCell([layers])
++        self.layers = msnn.SequentialCell([
++            layers
++        ])
  
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
--        )
 +        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
 -    def forward(self, img):
 +    def construct(self, img):

@@ -22,7 +22,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -43,7 +50,10 @@ class Attention(msnn.Cell):
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x, context = None, kv_include_self = False):
         b, n, _, h = *x.shape, self.heads
@@ -174,7 +184,12 @@ class ImageEmbedder(msnn.Cell):
         patch_dim = channels * patch_size ** 2
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
         self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
@@ -244,8 +259,14 @@ class CrossViT(msnn.Cell):
             dropout = dropout
         )
 
-        self.sm_mlp_head = msnn.SequentialCell([nn.LayerNorm(sm_dim), nn.Linear(sm_dim, num_classes)])
-        self.lg_mlp_head = msnn.SequentialCell([nn.LayerNorm(lg_dim), nn.Linear(lg_dim, num_classes)])
+        self.sm_mlp_head = msnn.SequentialCell([
+            nn.LayerNorm(sm_dim),
+            nn.Linear(sm_dim, num_classes)
+        ])
+        self.lg_mlp_head = msnn.SequentialCell([
+            nn.LayerNorm(lg_dim),
+            nn.Linear(lg_dim, num_classes)
+        ])
 
     def construct(self, img):
         sm_tokens = self.sm_image_embedder(img)

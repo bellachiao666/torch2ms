@@ -56,7 +56,13 @@ class PEG(msnn.Cell):
 
 def FeedForward(dim, mult = 4, dropout = 0.):
     return msnn.SequentialCell(
-        [nn.LayerNorm(dim), nn.Linear(dim, dim * mult, 1), nn.GELU(), nn.Dropout(dropout), nn.Linear(dim * mult, dim, 1)])
+        [
+        nn.LayerNorm(dim),
+        nn.Linear(dim, dim * mult, 1),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Linear(dim * mult, dim, 1)
+    ])
 
 class Attention(msnn.Cell):
     def __init__(
@@ -76,7 +82,10 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x, rel_pos_bias = None):
         h = self.heads
@@ -220,12 +229,23 @@ class RegionViT(msnn.Cell):
 
         if tokenize_local_3_conv:
             self.local_encoder = msnn.SequentialCell(
-                [nn.Conv2d(3, init_dim, 3, 2, 1), ChanLayerNorm(init_dim), nn.GELU(), nn.Conv2d(init_dim, init_dim, 3, 2, 1), ChanLayerNorm(init_dim), nn.GELU(), nn.Conv2d(init_dim, init_dim, 3, 1, 1)])
+                [
+                nn.Conv2d(3, init_dim, 3, 2, 1),
+                ChanLayerNorm(init_dim),
+                nn.GELU(),
+                nn.Conv2d(init_dim, init_dim, 3, 2, 1),
+                ChanLayerNorm(init_dim),
+                nn.GELU(),
+                nn.Conv2d(init_dim, init_dim, 3, 1, 1)
+            ])
         else:
             self.local_encoder = nn.Conv2d(3, init_dim, 8, 4, 3)
 
         self.region_encoder = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (c p1 p2) h w', p1 = region_patch_size, p2 = region_patch_size), nn.Conv2d((region_patch_size ** 2) * channels, init_dim, 1)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (c p1 p2) h w', p1 = region_patch_size, p2 = region_patch_size),
+            nn.Conv2d((region_patch_size ** 2) * channels, init_dim, 1)
+        ])
 
         # layers
 
@@ -248,7 +268,11 @@ class RegionViT(msnn.Cell):
         # final logits
 
         self.to_logits = msnn.SequentialCell(
-            [Reduce('b c h w -> b c', 'mean'), nn.LayerNorm(last_dim), nn.Linear(last_dim, num_classes)])
+            [
+            Reduce('b c h w -> b c', 'mean'),
+            nn.LayerNorm(last_dim),
+            nn.Linear(last_dim, num_classes)
+        ])
 
     def construct(self, x):
         *_, h, w = x.shape

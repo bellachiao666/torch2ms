@@ -36,7 +36,14 @@ def divisible_by(numer, denom):
 
 def FeedForward(dim, hidden_dim, dropout = 0.):
     return msnn.SequentialCell(
-        [nn.LayerNorm(dim, bias = False), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+        [
+        nn.LayerNorm(dim, bias = False),
+        nn.Linear(dim, hidden_dim),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Linear(hidden_dim, dim),
+        nn.Dropout(dropout)
+    ])
 
 class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., qk_norm = True):
@@ -173,7 +180,11 @@ class NaViT(msnn.Cell):
         self.to_patches = Rearrange('c (h p1) (w p2) -> h w (c p1 p2)', p1 = patch_size, p2 = patch_size)
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embed_height = ms.Parameter(mint.randn(size = (patch_height_dim, dim)))
         self.pos_embed_width = ms.Parameter(mint.randn(size = (patch_width_dim, dim)))
@@ -192,7 +203,10 @@ class NaViT(msnn.Cell):
         self.to_latent = msnn.Identity()
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim, bias = False), nn.Linear(dim, num_classes, bias = False)])
+            [
+            nn.LayerNorm(dim, bias = False),
+            nn.Linear(dim, num_classes, bias = False)
+        ])
 
     @property
     def device(self):

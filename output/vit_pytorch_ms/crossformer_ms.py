@@ -43,7 +43,19 @@ class CrossEmbedLayer(msnn.Cell):
 
 def DynamicPositionBias(dim):
     return msnn.SequentialCell(
-        [nn.Linear(2, dim), nn.LayerNorm(dim), nn.ReLU(), nn.Linear(dim, dim), nn.LayerNorm(dim), nn.ReLU(), nn.Linear(dim, dim), nn.LayerNorm(dim), nn.ReLU(), nn.Linear(dim, 1), Rearrange('... () -> ...')])
+        [
+        nn.Linear(2, dim),
+        nn.LayerNorm(dim),
+        nn.ReLU(),
+        nn.Linear(dim, dim),
+        nn.LayerNorm(dim),
+        nn.ReLU(),
+        nn.Linear(dim, dim),
+        nn.LayerNorm(dim),
+        nn.ReLU(),
+        nn.Linear(dim, 1),
+        Rearrange('... () -> ...')
+    ])
 
 # transformer classes
 
@@ -61,7 +73,13 @@ class LayerNorm(msnn.Cell):
 
 def FeedForward(dim, mult = 4, dropout = 0.):
     return msnn.SequentialCell(
-        [LayerNorm(dim), nn.Conv2d(dim, dim * mult, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(dim * mult, dim, 1)])
+        [
+        LayerNorm(dim),
+        nn.Conv2d(dim, dim * mult, 1),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Conv2d(dim * mult, dim, 1)
+    ])
 
 class Attention(msnn.Cell):
     def __init__(
@@ -243,7 +261,10 @@ class CrossFormer(msnn.Cell):
         # final logits
 
         self.to_logits = msnn.SequentialCell(
-            [Reduce('b c h w -> b c', 'mean'), nn.Linear(last_dim, num_classes)])
+            [
+            Reduce('b c h w -> b c', 'mean'),
+            nn.Linear(last_dim, num_classes)
+        ])
 
     def construct(self, x):
         for cel, transformer in self.layers:

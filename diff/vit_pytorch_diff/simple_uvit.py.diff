@@ -14,7 +14,7 @@
  
  # helpers
  
-@@ -16,28 +19,24 @@ def divisible_by(num, den):
+@@ -16,28 +19,29 @@ def divisible_by(num, den):
      return (num % den) == 0
  
 -def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
@@ -36,20 +36,22 @@
  
  def FeedForward(dim, hidden_dim):
 -    return nn.Sequential(
--        nn.LayerNorm(dim),
--        nn.Linear(dim, hidden_dim),
--        nn.GELU(),
++    return msnn.SequentialCell(
++        [
+         nn.LayerNorm(dim),
+         nn.Linear(dim, hidden_dim),
+         nn.GELU(),
 -        nn.Linear(hidden_dim, dim),
 -    )    
-+    return msnn.SequentialCell(
-+        [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])    
++        nn.Linear(hidden_dim, dim)
++    ])    
  
 -class Attention(Module):
 +class Attention(msnn.Cell):
      def __init__(self, dim, heads = 8, dim_head = 64):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -50,37 +49,37 @@         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+@@ -50,37 +54,37 @@         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
          self.to_out = nn.Linear(inner_dim, dim, bias = False)
  
 -    def forward(self, x):
@@ -93,7 +95,7 @@
  
          skips = []
  
-@@ -93,7 +92,7 @@ 
+@@ -93,7 +97,7 @@ 
              if exists(combine_skip):
                  skip = skips.pop()
 -                skip_and_x = torch.cat((skip, x), dim = -1)
@@ -101,7 +103,7 @@
                  x = combine_skip(skip_and_x)
  
              x = attn(x) + x
-@@ -103,7 +102,7 @@ 
+@@ -103,7 +107,7 @@ 
          return self.norm(x)
  
 -class SimpleUViT(Module):
@@ -109,21 +111,23 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, num_register_tokens = 4, channels = 3, dim_head = 64):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -113,12 +112,8 @@ 
+@@ -113,12 +117,13 @@ 
          patch_dim = channels * patch_height * patch_width
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
 -        )
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            nn.LayerNorm(dim)
++        ])
  
          pos_embedding = posemb_sincos_2d(
              h = image_height // patch_height,
-@@ -128,16 +123,16 @@ 
+@@ -128,16 +133,16 @@ 
          self.register_buffer('pos_embedding', pos_embedding, persistent = False)
  
 -        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim))
@@ -142,7 +146,7 @@
          batch, device = img.shape[0], img.device
  
          x = self.to_patch_embedding(img)
-@@ -170,7 +165,7 @@         mlp_dim = 2048
+@@ -170,7 +175,7 @@         mlp_dim = 2048
      ).cuda()
  
 -    img = torch.randn(2, 3, 256, 256).cuda()

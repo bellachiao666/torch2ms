@@ -118,7 +118,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -139,7 +146,10 @@ class Attention(msnn.Cell):
         self.ats = AdaptiveTokenSampling(output_num_tokens) if exists(output_num_tokens) else None
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x, *, mask):
         num_tokens = x.shape[1]
@@ -220,7 +230,12 @@ class ViT(msnn.Cell):
         patch_dim = channels * patch_height * patch_width
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
         self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
@@ -229,7 +244,10 @@ class ViT(msnn.Cell):
         self.transformer = Transformer(dim, depth, max_tokens_per_depth, heads, dim_head, mlp_dim, dropout)
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img, return_sampled_token_ids = False):
         x = self.to_patch_embedding(img)

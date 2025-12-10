@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,45 +1,44 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,45 +1,49 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -43,14 +43,16 @@
      def __init__(self, dim, hidden_dim):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
 -            nn.Linear(hidden_dim, dim),
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
++            nn.Linear(hidden_dim, dim)
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -59,7 +61,7 @@
      def __init__(self, dim, heads = 8, dim_head = 64):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -52,37 +51,37 @@         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+@@ -52,37 +56,37 @@         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
          self.to_out = nn.Linear(inner_dim, dim, bias = False)
  
 -    def forward(self, x):
@@ -104,24 +106,26 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, num_register_tokens = 4, channels = 3, dim_head = 64):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -92,14 +91,10 @@ 
+@@ -92,14 +96,15 @@ 
          patch_dim = channels * patch_height * patch_width
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
 -        )
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            nn.LayerNorm(dim)
++        ])
  
 -        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim))
 +        self.register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, dim)))
  
          self.pos_embedding = posemb_sincos_2d(
              h = image_height // patch_height,
-@@ -110,11 +105,11 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
+@@ -110,11 +115,11 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
  
          self.pool = "mean"
 -        self.to_latent = nn.Identity()

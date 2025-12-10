@@ -182,7 +182,10 @@ class nViT(msnn.Cell):
         self.patch_size = patch_size
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size), NormLinear(patch_dim, dim, norm_dim_in = False)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size),
+            NormLinear(patch_dim, dim, norm_dim_in = False)
+        ])
 
         self.abs_pos_emb = NormLinear(dim, num_patches)
 

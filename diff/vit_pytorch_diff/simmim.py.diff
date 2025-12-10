@@ -14,11 +14,13 @@
      def __init__(
          self,
          *,
-@@ -20,16 +23,16 @@         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
+@@ -20,16 +23,18 @@         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
  
          self.to_patch = encoder.to_patch_embedding[0]
 -        self.patch_to_emb = nn.Sequential(*encoder.to_patch_embedding[1:])
-+        self.patch_to_emb = msnn.SequentialCell([encoder.to_patch_embedding[1:]])
++        self.patch_to_emb = msnn.SequentialCell([
++            encoder.to_patch_embedding[1:]
++        ])
  
          pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
  
@@ -33,7 +35,7 @@
          device = img.device
  
          # get patches
-@@ -39,7 +42,7 @@ 
+@@ -39,7 +44,7 @@ 
          # for indexing purposes
  
 -        batch_range = torch.arange(batch, device = device)[:, None]
@@ -41,7 +43,7 @@
  
          # get positions
  
-@@ -58,12 +61,12 @@         # calculate of patches needed to be masked, and get positions (indices) to be masked
+@@ -58,12 +63,12 @@         # calculate of patches needed to be masked, and get positions (indices) to be masked
  
          num_masked = int(self.masking_ratio * num_patches)
 -        masked_indices = torch.rand(batch, num_patches, device = device).topk(k = num_masked, dim = -1).indices
@@ -56,7 +58,7 @@
  
          # attend with vision transformer
  
-@@ -83,5 +86,5 @@ 
+@@ -83,5 +88,5 @@ 
          # calculate reconstruction loss
  
 -        recon_loss = F.l1_loss(pred_pixel_values, masked_patches) / num_masked

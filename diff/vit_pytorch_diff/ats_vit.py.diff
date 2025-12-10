@@ -73,7 +73,7 @@
          expanded_unique_sampled_token_ids = repeat(unique_sampled_token_ids, 'b n -> b h n', h = heads)
  
          # gather the new attention scores
-@@ -110,21 +114,15 @@ 
+@@ -110,21 +114,22 @@ 
  # classes
  
 -class FeedForward(nn.Module):
@@ -81,16 +81,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -99,17 +100,18 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., output_num_tokens = None):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -140,19 +138,17 @@         self.output_num_tokens = output_num_tokens
+@@ -140,19 +145,20 @@         self.output_num_tokens = output_num_tokens
          self.ats = AdaptiveTokenSampling(output_num_tokens) if exists(output_num_tokens) else None
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -
 -    def forward(self, x, *, mask):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++        ])
 +
 +    def construct(self, x, *, mask):
          num_tokens = x.shape[1]
@@ -123,7 +125,7 @@
  
          if exists(mask):
              dots_mask = rearrange(mask, 'b i -> b 1 i 1') * rearrange(mask, 'b j -> b 1 1 j')
-@@ -169,33 +165,33 @@         if exists(self.output_num_tokens) and (num_tokens - 1) > self.output_num_tokens:
+@@ -169,33 +175,33 @@         if exists(self.output_num_tokens) and (num_tokens - 1) > self.output_num_tokens:
              attn, mask, sampled_token_ids = self.ats(attn, v, mask = mask)
  
 -        out = torch.matmul(attn, v)
@@ -164,7 +166,7 @@
          token_ids = repeat(token_ids, 'n -> b n', b = b)
  
          for attn, ff in self.layers:
-@@ -212,7 +208,7 @@ 
+@@ -212,7 +218,7 @@ 
          return x, token_ids
  
 -class ViT(nn.Module):
@@ -172,20 +174,21 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, max_tokens_per_depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -223,30 +219,24 @@         num_patches = (image_height // patch_height) * (image_width // patch_width)
+@@ -223,30 +229,32 @@         num_patches = (image_height // patch_height) * (image_width // patch_width)
          patch_dim = channels * patch_height * patch_width
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
--            nn.LayerNorm(dim)
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
+             nn.LayerNorm(dim)
 -        )
 -
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++        ])
 +
 +        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
 +        self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
@@ -194,13 +197,14 @@
          self.transformer = Transformer(dim, depth, max_tokens_per_depth, heads, dim_head, mlp_dim, dropout)
  
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
++        self.mlp_head = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
 -        )
 -
 -    def forward(self, img, return_sampled_token_ids = False):
-+        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++        ])
 +
 +    def construct(self, img, return_sampled_token_ids = False):
          x = self.to_patch_embedding(img)

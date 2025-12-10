@@ -15,7 +15,7 @@
  
  # helpers
  
-@@ -27,21 +31,15 @@ 
+@@ -27,21 +31,22 @@ 
  # classes
  
 -class FeedForward(nn.Module):
@@ -23,16 +23,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -41,23 +42,24 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -56,12 +54,10 @@         self.to_q = nn.Linear(dim, inner_dim, bias = False)
+@@ -56,12 +61,13 @@         self.to_q = nn.Linear(dim, inner_dim, bias = False)
          self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -
 -    def forward(self, x, attn_mask = None, memories = None):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++        ])
 +
 +    def construct(self, x, attn_mask = None, memories = None):
          x = self.norm(x)
  
          x_kv = x # input for key / values projection
-@@ -69,12 +65,12 @@         if exists(memories):
+@@ -69,12 +75,12 @@         if exists(memories):
              # add memories to key / values if it is passed in
              memories = repeat(memories, 'n d -> b n d', b = x.shape[0]) if memories.ndim == 2 else memories
 -            x_kv = torch.cat((x_kv, memories), dim = 1)
@@ -71,7 +73,7 @@
  
          if exists(attn_mask):
              dots = dots.masked_fill(~attn_mask, -torch.finfo(dots.dtype).max)
-@@ -82,21 +78,21 @@         attn = self.attend(dots)
+@@ -82,21 +88,21 @@         attn = self.attend(dots)
          attn = self.dropout(attn)
  
 -        out = torch.matmul(attn, v)
@@ -97,7 +99,7 @@
          for ind, (attn, ff) in enumerate(self.layers):
              layer_memories = memories[ind] if exists(memories) else None
  
-@@ -104,7 +100,7 @@             x = ff(x) + x
+@@ -104,7 +110,7 @@             x = ff(x) + x
          return x
  
 -class ViT(nn.Module):
@@ -105,20 +107,21 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -116,35 +112,29 @@         patch_dim = channels * patch_height * patch_width
+@@ -116,35 +122,37 @@         patch_dim = channels * patch_height * patch_width
          assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
--            nn.LayerNorm(dim)
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
+             nn.LayerNorm(dim)
 -        )
 -
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++        ])
 +
 +        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
 +        self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
@@ -127,11 +130,12 @@
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
  
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
--        )
 +        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
      def img_to_tokens(self, img):
          x = self.to_patch_embedding(img)
@@ -149,7 +153,7 @@
          x = self.img_to_tokens(img)        
  
          x = self.transformer(x)
-@@ -154,7 +144,7 @@ 
+@@ -154,7 +162,7 @@ 
  # adapter with learnable memories per layer, memory CLS token, and learnable adapter head
  
 -class Adapter(nn.Module):
@@ -157,21 +161,22 @@
      def __init__(
          self,
          *,
-@@ -179,23 +169,21 @@ 
+@@ -179,23 +187,24 @@ 
          # learnable parameters
  
 -        self.memory_cls_token = nn.Parameter(torch.randn(dim))
 -        self.memories_per_layer = nn.Parameter(torch.randn(layers, num_memories_per_layer, dim))
 -
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
--        )
 +        self.memory_cls_token = ms.Parameter(mint.randn(dim))
 +        self.memories_per_layer = ms.Parameter(mint.randn(size = (layers, num_memories_per_layer, dim)))
 +
 +        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
          # specialized attention mask to preserve the output of the original ViT
          # it allows the memory CLS token to attend to all other tokens (and the learnable memory layer tokens), but not vice versa        
@@ -189,7 +194,7 @@
          b = img.shape[0]
  
          tokens = self.vit.img_to_tokens(img)
-@@ -203,7 +191,7 @@         # add task specific memory tokens
+@@ -203,7 +212,7 @@         # add task specific memory tokens
  
          memory_cls_tokens = repeat(self.memory_cls_token, 'd -> b 1 d', b = b)
 -        tokens = torch.cat((memory_cls_tokens, tokens), dim = 1)        

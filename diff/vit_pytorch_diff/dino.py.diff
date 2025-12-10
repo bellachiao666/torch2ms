@@ -54,7 +54,7 @@
      def __init__(self, dim, dim_out, num_layers, hidden_size = 256):
          super().__init__()
  
-@@ -101,23 +105,20 @@ 
+@@ -101,23 +105,24 @@ 
              layers.extend([
                  nn.Linear(layer_dim_in, layer_dim_out),
 -                nn.GELU() if not is_last else nn.Identity()
@@ -63,13 +63,15 @@
  
 -        self.net = nn.Sequential(
 -            *layers,
--            L2Norm(),
--            nn.Linear(hidden_size, dim_out)
++        self.net = msnn.SequentialCell(
++            [
++            layers,
+             L2Norm(),
+             nn.Linear(hidden_size, dim_out)
 -        )
 -
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [layers, L2Norm(), nn.Linear(hidden_size, dim_out)])
++        ])
 +
 +    def construct(self, x):
          return self.net(x)
@@ -83,7 +85,7 @@
      def __init__(self, net, output_dim, projection_hidden_size, projection_num_layers, layer = -2):
          super().__init__()
          self.net = net
-@@ -171,7 +172,7 @@         assert hidden is not None, f'hidden layer {self.layer} never emitted an output'
+@@ -171,7 +176,7 @@         assert hidden is not None, f'hidden layer {self.layer} never emitted an output'
          return hidden
  
 -    def forward(self, x, return_projection = True):
@@ -91,7 +93,7 @@
          embed = self.get_embedding(x)
          if not return_projection:
              return embed
-@@ -181,7 +182,7 @@ 
+@@ -181,7 +186,7 @@ 
  # main class
  
 -class Dino(nn.Module):
@@ -99,35 +101,34 @@
      def __init__(
          self,
          net,
-@@ -204,21 +205,16 @@ 
+@@ -204,21 +209,22 @@ 
          # default BYOL augmentation
  
 -        DEFAULT_AUG = torch.nn.Sequential(
--            RandomApply(
--                T.ColorJitter(0.8, 0.8, 0.8, 0.2),
 +        DEFAULT_AUG = msnn.SequentialCell(
-+            [RandomApply(
++            [
+             RandomApply(
+-                T.ColorJitter(0.8, 0.8, 0.8, 0.2),
 +                ms.dataset.vision.RandomColorAdjust(0.8, 0.8, 0.8, 0.2),
                  p = 0.3
--            ),
--            T.RandomGrayscale(p=0.2),
--            T.RandomHorizontalFlip(),
--            RandomApply(
+             ),
+             T.RandomGrayscale(p=0.2),
+             T.RandomHorizontalFlip(),
+             RandomApply(
 -                T.GaussianBlur((3, 3), (1.0, 2.0)),
-+            ), T.RandomGrayscale(p=0.2), T.RandomHorizontalFlip(), RandomApply(
 +                ms.dataset.vision.GaussianBlur((3, 3), (1.0, 2.0)),
                  p = 0.2
--            ),
--            T.Normalize(
-+            ), T.Normalize(
+             ),
+             T.Normalize(
                  mean=torch.tensor([0.485, 0.456, 0.406]),
 -                std=torch.tensor([0.229, 0.224, 0.225])),
 -        )
-+                std=torch.tensor([0.229, 0.224, 0.225]))])
++                std=torch.tensor([0.229, 0.224, 0.225]))
++        ])
  
          self.augment1 = default(augment_fn, DEFAULT_AUG)
          self.augment2 = default(augment_fn2, DEFAULT_AUG)
-@@ -233,8 +229,8 @@         self.teacher_encoder = None
+@@ -233,8 +239,8 @@         self.teacher_encoder = None
          self.teacher_ema_updater = EMA(moving_average_decay)
  
 -        self.register_buffer('teacher_centers', torch.zeros(1, num_classes_K))
@@ -137,7 +138,7 @@
  
          self.teacher_centering_ema_updater = EMA(center_moving_average_decay)
  
-@@ -246,7 +242,7 @@         self.to(device)
+@@ -246,7 +252,7 @@         self.to(device)
  
          # send a mock image tensor to instantiate singleton parameters
 -        self.forward(torch.randn(2, 3, image_size, image_size, device=device))
@@ -145,7 +146,7 @@
  
      @singleton('teacher_encoder')
      def _get_teacher_encoder(self):
-@@ -265,7 +261,7 @@         new_teacher_centers = self.teacher_centering_ema_updater.update_average(self.teacher_centers, self.last_teacher_centers)
+@@ -265,7 +271,7 @@         new_teacher_centers = self.teacher_centering_ema_updater.update_average(self.teacher_centers, self.last_teacher_centers)
          self.teacher_centers.copy_(new_teacher_centers)
  
 -    def forward(
@@ -153,7 +154,7 @@
          self,
          x,
          return_embedding = False,
-@@ -296,7 +292,7 @@             centers = self.teacher_centers
+@@ -296,7 +302,7 @@             centers = self.teacher_centers
          )
  
 -        teacher_logits_avg = torch.cat((teacher_proj_one, teacher_proj_two)).mean(dim = 0)

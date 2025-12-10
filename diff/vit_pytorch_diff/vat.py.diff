@@ -27,15 +27,16 @@
      def __init__(
          self,
          dim,
-@@ -30,20 +33,18 @@         super().__init__()
+@@ -30,20 +33,21 @@         super().__init__()
          proj = nn.Linear(dim, dim * 2)
  
 -        self.to_gamma_beta = nn.Sequential(
--            proj,
--            Rearrange('b (two d) -> two b 1 d', two = 2)
--        )
 +        self.to_gamma_beta = msnn.SequentialCell(
-+            [proj, Rearrange('b (two d) -> two b 1 d', two = 2)])
++            [
+             proj,
+             Rearrange('b (two d) -> two b 1 d', two = 2)
+-        )
++        ])
  
          nn.init.zeros_(proj.weight)
          nn.init.zeros_(proj.bias)
@@ -51,21 +52,22 @@
      def __init__(
          self,
          dim,
-@@ -51,19 +52,13 @@         dropout = 0.
+@@ -51,19 +55,20 @@         dropout = 0.
      ):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +
 +    def construct(self, x):
          return self.net(x)
@@ -75,23 +77,24 @@
      def __init__(
          self,
          dim,
-@@ -92,12 +87,10 @@         self.to_q = nn.Linear(dim, inner_dim, bias = False)
+@@ -92,12 +97,13 @@         self.to_q = nn.Linear(dim, inner_dim, bias = False)
          self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
 -        ) if project_out else nn.Identity()
 -
 -    def forward(self, x, context = None):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
++        ]) if project_out else msnn.Identity()
 +
 +    def construct(self, x, context = None):
  
          assert not (self.cross_attend ^ exists(context)), 'context must be passed in if cross attending, or vice versa'
  
-@@ -116,16 +109,16 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
+@@ -116,16 +122,16 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -110,7 +113,7 @@
      def __init__(
          self,
          dim,
-@@ -137,15 +130,15 @@     ):
+@@ -137,15 +143,15 @@     ):
          super().__init__()
          self.norm = nn.LayerNorm(dim)
 -        self.layers = ModuleList([])
@@ -128,7 +131,7 @@
          self,
          x,
          return_hiddens = False
-@@ -166,7 +159,7 @@ 
+@@ -166,7 +172,7 @@ 
          return x, hiddens
  
 -class ViT(Module):
@@ -136,20 +139,22 @@
      def __init__(
          self,
          *,
-@@ -197,27 +190,23 @@         patch_dim = channels * patch_height * patch_width
+@@ -197,27 +203,28 @@         patch_dim = channels * patch_height * patch_width
          assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
 -        )
 -
 -        self.pos_embedding = nn.Parameter(torch.randn(num_patches, dim))
 -        self.cls_token = nn.Parameter(torch.randn(dim))
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            nn.LayerNorm(dim)
++        ])
 +
 +        self.pos_embedding = ms.Parameter(mint.randn(size = (num_patches, dim)))
 +        self.cls_token = ms.Parameter(mint.randn(dim))
@@ -172,7 +177,7 @@
          x = self.to_patch_embedding(img)
          b, n, _ = x.shape
  
-@@ -235,7 +224,7 @@         # return the representation trajectory
+@@ -235,7 +242,7 @@         # return the representation trajectory
  
          if return_hiddens:
 -            return x, stack(hiddens)
@@ -180,7 +185,7 @@
  
          register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
  
-@@ -249,7 +238,7 @@ # https://openreview.net/forum?id=TalHOvvLZu
+@@ -249,7 +256,7 @@ # https://openreview.net/forum?id=TalHOvvLZu
  # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
  
 -class VAT(Module):
@@ -188,7 +193,7 @@
      def __init__(
          self,
          vit: ViT | dict,
-@@ -295,34 +284,34 @@ 
+@@ -295,34 +302,34 @@ 
          self.is_video = is_video
          self.time_seq_len = time_seq_len
 -        self.time_pos_emb = nn.Parameter(torch.randn(time_seq_len, vit_dim) * 1e-2) if is_video else None
@@ -230,7 +235,7 @@
                  maybe_film,
                  maybe_self_attn,
                  Attention(dim = dim, dim_context = vit_dim, heads = heads, dim_head = dim_head, dropout = dropout, cross_attend = True),
-@@ -339,7 +328,7 @@         if exists(dim_extra_token):
+@@ -339,7 +346,7 @@         if exists(dim_extra_token):
              self.to_extra_token = nn.Linear(dim_extra_token, dim)
  
 -    def forward(
@@ -238,7 +243,7 @@
          self,
          video_or_image,   # (b v? c t? h w) - batch, views [wrist + third person or more], channels, maybe time, height, width
          *,
-@@ -380,7 +369,7 @@         with vit_forward_context():
+@@ -380,7 +387,7 @@         with vit_forward_context():
              embed, hiddens = self.vit(images, return_hiddens = True)
  
 -        hiddens = cat((hiddens, embed[None, ...]))
@@ -246,7 +251,7 @@
  
          # extract the hiddens needed for the action cross attention
  
-@@ -471,13 +460,13 @@             if not return_hiddens:
+@@ -471,13 +478,13 @@             if not return_hiddens:
                  return pred_action
  
 -            return pred_action, stack(hiddens)
@@ -261,7 +266,7 @@
  
  # quick test
  
-@@ -512,11 +501,11 @@         )
+@@ -512,11 +519,11 @@         )
      )
  
 -    images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)

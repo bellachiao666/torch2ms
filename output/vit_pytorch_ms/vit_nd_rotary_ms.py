@@ -102,7 +102,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     
     def construct(self, x):
         return self.net(x)
@@ -125,7 +132,10 @@ class Attention(msnn.Cell):
         self.to_v = nn.Linear(dim, inner_dim, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ]) if project_out else msnn.Identity()
     
     def construct(self, x, pos = None):
         x = self.norm(x)
@@ -218,7 +228,11 @@ class ViTND(msnn.Cell):
         rearrange_kwargs = {f'p{i}': p for i, p in enumerate(patch_size)}
         
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange(rearrange_str, **rearrange_kwargs), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange(rearrange_str, **rearrange_kwargs),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
         
         self.dropout = nn.Dropout(emb_dropout)
         

@@ -17,11 +17,13 @@
      def __init__(
          self,
          *,
-@@ -26,19 +29,19 @@         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
+@@ -26,19 +29,21 @@         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
  
          self.to_patch = encoder.to_patch_embedding[0]
 -        self.patch_to_emb = nn.Sequential(*encoder.to_patch_embedding[1:])
-+        self.patch_to_emb = msnn.SequentialCell([encoder.to_patch_embedding[1:]])
++        self.patch_to_emb = msnn.SequentialCell([
++            encoder.to_patch_embedding[1:]
++        ])
  
          pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
  
@@ -40,7 +42,7 @@
          device = img.device
  
          # get patches
-@@ -57,12 +60,12 @@         # calculate of patches needed to be masked, and get random indices, dividing it up for mask vs unmasked
+@@ -57,12 +62,12 @@         # calculate of patches needed to be masked, and get random indices, dividing it up for mask vs unmasked
  
          num_masked = int(self.masking_ratio * num_patches)
 -        rand_indices = torch.rand(batch, num_patches, device = device).argsort(dim = -1)
@@ -54,7 +56,7 @@
          tokens = tokens[batch_range, unmasked_indices]
  
          # get the patches to be masked for the final reconstruction loss
-@@ -88,7 +91,7 @@ 
+@@ -88,7 +93,7 @@ 
          # concat the masked tokens to the decoder tokens and attend with decoder
          
 -        decoder_tokens = torch.zeros(batch, num_patches, self.decoder_dim, device=device)
@@ -62,7 +64,7 @@
          decoder_tokens[batch_range, unmasked_indices] = unmasked_decoder_tokens
          decoder_tokens[batch_range, masked_indices] = mask_tokens
          decoded_tokens = self.decoder(decoder_tokens)
-@@ -100,5 +103,5 @@ 
+@@ -100,5 +105,5 @@ 
          # calculate reconstruction loss
  
 -        recon_loss = F.mse_loss(pred_pixel_values, masked_patches)

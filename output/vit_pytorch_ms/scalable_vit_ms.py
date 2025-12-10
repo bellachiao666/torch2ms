@@ -60,7 +60,14 @@ class FeedForward(msnn.Cell):
         super().__init__()
         inner_dim = dim * expansion_factor
         self.net = msnn.SequentialCell(
-            [ChanLayerNorm(dim), nn.Conv2d(dim, inner_dim, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            ChanLayerNorm(dim),
+            nn.Conv2d(dim, inner_dim, 1),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(inner_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -88,7 +95,10 @@ class ScalableSelfAttention(msnn.Cell):
         self.to_v = nn.Conv2d(dim, dim_value * heads, reduction_factor, stride = reduction_factor, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Conv2d(dim_value * heads, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(dim_value * heads, dim, 1),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         height, width, heads = *x.shape[-2:], self.heads
@@ -144,7 +154,10 @@ class InteractiveWindowedSelfAttention(msnn.Cell):
         self.to_v = nn.Conv2d(dim, dim_value * heads, 1, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Conv2d(dim_value * heads, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(dim_value * heads, dim, 1),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         height, width, heads, wsz = *x.shape[-2:], self.heads, self.window_size
@@ -281,7 +294,11 @@ class ScalableViT(msnn.Cell):
             ]))
 
         self.mlp_head = msnn.SequentialCell(
-            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
+            [
+            Reduce('b d h w -> b d', 'mean'),
+            nn.LayerNorm(dims[-1]),
+            nn.Linear(dims[-1], num_classes)
+        ])
 
     def construct(self, img):
         x = self.to_patches(img)

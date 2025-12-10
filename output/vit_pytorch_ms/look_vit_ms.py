@@ -51,7 +51,14 @@ class LayerNorm(msnn.Cell):
 def MLP(dim, factor = 4, dropout = 0.):
     hidden_dim = int(dim * factor)
     return msnn.SequentialCell(
-        [LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+        [
+        LayerNorm(dim),
+        nn.Linear(dim, hidden_dim),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Linear(hidden_dim, dim),
+        nn.Dropout(dropout)
+    ])
 
 # attention
 
@@ -86,7 +93,11 @@ class Attention(msnn.Cell):
         self.to_v = nn.Linear(dim, inner_dim, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [Rearrange('b h n d -> b n (h d)'), nn.Linear(inner_dim, dim, bias = False), nn.Dropout(dropout)])
+            [
+            Rearrange('b h n d -> b n (h d)'),
+            nn.Linear(inner_dim, dim, bias = False),
+            nn.Dropout(dropout)
+        ])
 
     def construct(
         self,
@@ -164,7 +175,12 @@ class LookViT(msnn.Cell):
         patch_dim = (highres_patch_size * highres_patch_size) * channels
 
         self.to_patches = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = highres_patch_size, p2 = highres_patch_size), nn.Conv2d(patch_dim, dim, kernel_size, padding = kernel_size // 2), Rearrange('b c h w -> b h w c'), LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = highres_patch_size, p2 = highres_patch_size),
+            nn.Conv2d(patch_dim, dim, kernel_size, padding = kernel_size // 2),
+            Rearrange('b c h w -> b h w c'),
+            LayerNorm(dim)
+        ])
 
         # absolute positions
 

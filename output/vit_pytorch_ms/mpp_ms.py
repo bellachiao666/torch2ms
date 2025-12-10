@@ -102,7 +102,9 @@ class MPP(msnn.Cell):
                             max_pixel_val, mean, std)
 
         # extract patching function
-        self.patch_to_emb = msnn.SequentialCell([transformer.to_patch_embedding[1:]])
+        self.patch_to_emb = msnn.SequentialCell([
+            transformer.to_patch_embedding[1:]
+        ])
 
         # output transformation
         self.to_bits = nn.Linear(dim, 2**(output_channel_bits * channels))

@@ -202,12 +202,18 @@ class Tokenizer(msnn.Cell):
             frame_pooling_padding = frame_pooling_kernel_size // 2
 
         self.conv_layers = msnn.SequentialCell(
-            [[msnn.SequentialCell(
-                [nn.Conv3d(chan_in, chan_out, kernel_size = (frame_kernel_size, kernel_size, kernel_size), stride = (frame_stride, stride, stride), padding = (frame_padding, padding, padding), bias = conv_bias), msnn.Identity() if not exists(activation) else activation(), nn.MaxPool3d(kernel_size=(frame_pooling_kernel_size, pooling_kernel_size, pooling_kernel_size),
+            [
+            [msnn.SequentialCell(
+                [
+            nn.Conv3d(chan_in, chan_out, kernel_size = (frame_kernel_size, kernel_size, kernel_size), stride = (frame_stride, stride, stride), padding = (frame_padding, padding, padding), bias = conv_bias),
+            msnn.Identity() if not exists(activation) else activation(),
+            nn.MaxPool3d(kernel_size=(frame_pooling_kernel_size, pooling_kernel_size, pooling_kernel_size),
                              stride=(frame_pooling_stride, pooling_stride, pooling_stride),
-                             padding=(frame_pooling_padding, pooling_padding, pooling_padding)) if max_pool else msnn.Identity()])
+                             padding=(frame_pooling_padding, pooling_padding, pooling_padding)) if max_pool else msnn.Identity()
+        ])
                 for chan_in, chan_out in n_filter_list_pairs
-            ]])
+            ]
+        ])
 
         self.apply(self.init_weight)
 

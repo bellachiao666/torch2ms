@@ -132,7 +132,10 @@ class DistillWrapper(msnn.Cell):
         self.distillation_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
 
         self.distill_mlp = msnn.SequentialCell(
-            [nn.LayerNorm(dim) if mlp_layernorm else msnn.Identity(), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim) if mlp_layernorm else msnn.Identity(),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img, labels, temperature = None, alpha = None, **kwargs):
 

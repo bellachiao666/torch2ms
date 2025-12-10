@@ -49,7 +49,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [LayerNorm(dim), nn.Conv2d(dim, dim * mult, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(dim * mult, dim, 1), nn.Dropout(dropout)])
+            [
+            LayerNorm(dim),
+            nn.Conv2d(dim, dim * mult, 1),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(dim * mult, dim, 1),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -61,7 +68,11 @@ class PatchEmbedding(msnn.Cell):
         self.patch_size = patch_size
 
         self.proj = msnn.SequentialCell(
-            [LayerNorm(patch_size ** 2 * dim), nn.Conv2d(patch_size ** 2 * dim, dim_out, 1), LayerNorm(dim_out)])
+            [
+            LayerNorm(patch_size ** 2 * dim),
+            nn.Conv2d(patch_size ** 2 * dim, dim_out, 1),
+            LayerNorm(dim_out)
+        ])
 
     def construct(self, fmap):
         p = self.patch_size
@@ -89,7 +100,10 @@ class LocalAttention(msnn.Cell):
         self.to_kv = nn.Conv2d(dim, inner_dim * 2, 1, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(inner_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, fmap):
         fmap = self.norm(fmap)
@@ -126,7 +140,10 @@ class GlobalAttention(msnn.Cell):
         self.dropout = nn.Dropout(dropout)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(inner_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         x = self.norm(x)
@@ -206,12 +223,22 @@ class TwinsSVT(msnn.Cell):
             dim_next = config['emb_dim']
 
             layers.append(msnn.SequentialCell(
-                [PatchEmbedding(dim = dim, dim_out = dim_next, patch_size = config['patch_size']), Transformer(dim = dim_next, depth = 1, local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last), PEG(dim = dim_next, kernel_size = peg_kernel_size), Transformer(dim = dim_next, depth = config['depth'],  local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last)]))
+                [
+                PatchEmbedding(dim = dim, dim_out = dim_next, patch_size = config['patch_size']),
+                Transformer(dim = dim_next, depth = 1, local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last),
+                PEG(dim = dim_next, kernel_size = peg_kernel_size),
+                Transformer(dim = dim_next, depth = config['depth'],  local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last)
+            ]))
 
             dim = dim_next
 
         self.layers = msnn.SequentialCell(
-            [layers, nn.AdaptiveAvgPool2d(1), Rearrange('... () () -> ...'), nn.Linear(dim, num_classes)])
+            [
+            layers,
+            nn.AdaptiveAvgPool2d(1),
+            Rearrange('... () () -> ...'),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, x):
         return self.layers(x)

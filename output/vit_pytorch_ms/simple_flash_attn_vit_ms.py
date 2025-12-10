@@ -94,7 +94,12 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, dim)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -149,13 +154,21 @@ class SimpleViT(msnn.Cell):
         patch_dim = channels * patch_height * patch_width
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, use_flash)
 
         self.to_latent = msnn.Identity()
         self.linear_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img):
         *_, h, w, dtype = *img.shape, img.dtype

@@ -62,7 +62,10 @@ class FiLM(msnn.Cell):
         proj = nn.Linear(dim, dim * 2)
 
         self.to_gamma_beta = msnn.SequentialCell(
-            [proj, Rearrange('b (two d) -> two b 1 d', two = 2)])
+            [
+            proj,
+            Rearrange('b (two d) -> two b 1 d', two = 2)
+        ])
 
         nn.init.zeros_(proj.weight)
         nn.init.zeros_(proj.bias)
@@ -81,7 +84,14 @@ class FeedForward(msnn.Cell):
     ):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         return self.net(x)
@@ -116,7 +126,10 @@ class Attention(msnn.Cell):
         self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ]) if project_out else msnn.Identity()
 
     def construct(self, x, context = None):
 
@@ -221,7 +234,12 @@ class AST(msnn.Cell):
         self.patch_size = (patch_height, patch_width)
 
         self.to_patch_tokens = msnn.SequentialCell(
-            [Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]), nn.LayerNorm(patch_input_dim), nn.Linear(patch_input_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]),
+            nn.LayerNorm(patch_input_dim),
+            nn.Linear(patch_input_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.accept_spec = accept_spec
         self.accept_spec_time_first = accept_spec_time_first
@@ -346,7 +364,12 @@ class ViT(msnn.Cell):
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (num_patches, dim)))
         self.cls_token = ms.Parameter(mint.randn(dim))

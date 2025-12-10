@@ -20,7 +20,12 @@ class ViT(msnn.Cell):
         patch_dim = channels * patch_size ** 2
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
         self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
@@ -30,7 +35,10 @@ class ViT(msnn.Cell):
         self.to_latent = msnn.Identity()
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img):
         x = self.to_patch_embedding(img)

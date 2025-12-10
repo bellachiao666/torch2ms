@@ -32,7 +32,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, mlp_mult = 4, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [LayerNorm(dim), nn.Conv2d(dim, dim * mlp_mult, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(dim * mlp_mult, dim, 1), nn.Dropout(dropout)])
+            [
+            LayerNorm(dim),
+            nn.Conv2d(dim, dim * mlp_mult, 1),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(dim * mlp_mult, dim, 1),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -50,7 +57,10 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Conv2d(dim, inner_dim * 3, 1, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(inner_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         b, c, h, w, heads = *x.shape, self.heads
@@ -71,7 +81,11 @@ class Attention(msnn.Cell):
 
 def Aggregate(dim, dim_out):
     return msnn.SequentialCell(
-        [nn.Conv2d(dim, dim_out, 3, padding = 1), LayerNorm(dim_out), nn.MaxPool2d(3, stride = 2, padding = 1)])
+        [
+        nn.Conv2d(dim, dim_out, 3, padding = 1),
+        LayerNorm(dim_out),
+        nn.MaxPool2d(3, stride = 2, padding = 1)
+    ])
 
 class Transformer(msnn.Cell):
     def __init__(self, dim, seq_len, depth, heads, mlp_mult, dropout = 0.):
@@ -131,7 +145,12 @@ class NesT(msnn.Cell):
         dim_pairs = zip(layer_dims[:-1], layer_dims[1:])
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size), LayerNorm(patch_dim), nn.Conv2d(patch_dim, layer_dims[0], 1), LayerNorm(layer_dims[0])])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size),
+            LayerNorm(patch_dim),
+            nn.Conv2d(patch_dim, layer_dims[0], 1),
+            LayerNorm(layer_dims[0])
+        ])
 
         block_repeats = cast_tuple(block_repeats, num_hierarchies)
 
@@ -148,7 +167,11 @@ class NesT(msnn.Cell):
 
 
         self.mlp_head = msnn.SequentialCell(
-            [LayerNorm(last_dim), Reduce('b c h w -> b c', 'mean'), nn.Linear(last_dim, num_classes)])
+            [
+            LayerNorm(last_dim),
+            Reduce('b c h w -> b c', 'mean'),
+            nn.Linear(last_dim, num_classes)
+        ])
 
     def construct(self, img):
         x = self.to_patch_embedding(img)

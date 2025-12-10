@@ -33,7 +33,7 @@
      def __init__(self, *, image_size, num_classes, dim, depth = None, heads = None, mlp_dim = None, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., transformer = None, t2t_layers = ((7, 4), (3, 2), (3, 2))):
          super().__init__()
          assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
-@@ -39,17 +43,17 @@             output_image_size = conv_output_size(output_image_size, kernel_size, stride, stride // 2)
+@@ -39,17 +43,19 @@             output_image_size = conv_output_size(output_image_size, kernel_size, stride, stride // 2)
  
              layers.extend([
 -                RearrangeImage() if not is_first else nn.Identity(),
@@ -47,7 +47,9 @@
  
          layers.append(nn.Linear(layer_dim, dim))
 -        self.to_patch_embedding = nn.Sequential(*layers)
-+        self.to_patch_embedding = msnn.SequentialCell([layers])
++        self.to_patch_embedding = msnn.SequentialCell([
++            layers
++        ])
  
 -        self.pos_embedding = nn.Parameter(torch.randn(1, output_image_size ** 2 + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
@@ -56,7 +58,7 @@
          self.dropout = nn.Dropout(emb_dropout)
  
          if not exists(transformer):
-@@ -59,16 +63,16 @@             self.transformer = transformer
+@@ -59,16 +65,16 @@             self.transformer = transformer
  
          self.pool = pool
 -        self.to_latent = nn.Identity()

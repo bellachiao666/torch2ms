@@ -112,19 +112,21 @@
      """ https://arxiv.org/abs/2410.01131 """
  
      def __init__(
-@@ -177,10 +181,8 @@         self.channels = channels
+@@ -177,10 +181,11 @@         self.channels = channels
          self.patch_size = patch_size
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size),
 -            NormLinear(patch_dim, dim, norm_dim_in = False),
 -        )
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size), NormLinear(patch_dim, dim, norm_dim_in = False)])
++            NormLinear(patch_dim, dim, norm_dim_in = False)
++        ])
  
          self.abs_pos_emb = NormLinear(dim, num_patches)
  
-@@ -191,21 +193,21 @@         self.dim = dim
+@@ -191,21 +196,21 @@         self.dim = dim
          self.scale = dim ** 0.5
  
 -        self.layers = ModuleList([])
@@ -150,7 +152,7 @@
  
          self.to_pred = NormLinear(dim, num_classes)
  
-@@ -220,13 +222,13 @@ 
+@@ -220,13 +225,13 @@ 
              original.copy_(normed)
  
 -    def forward(self, images):
@@ -165,7 +167,7 @@
  
          tokens = l2norm(tokens + pos_emb)
  
-@@ -259,6 +261,6 @@         mlp_dim = 2048,
+@@ -259,6 +264,6 @@         mlp_dim = 2048,
      )
  
 -    img = torch.randn(4, 3, 256, 256)

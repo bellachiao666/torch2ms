@@ -14,7 +14,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -34,7 +41,10 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ]) if project_out else msnn.Identity()
 
     def construct(self, x):
         x = self.norm(x)
@@ -74,7 +84,12 @@ class ViT(msnn.Cell):
         patch_dim = channels * patch_size
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (n p) -> b n (p c)', p = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (n p) -> b n (p c)', p = patch_size),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
         self.cls_token = ms.Parameter(mint.randn(dim))
@@ -83,7 +98,10 @@ class ViT(msnn.Cell):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, series):
         x = self.to_patch_embedding(series)

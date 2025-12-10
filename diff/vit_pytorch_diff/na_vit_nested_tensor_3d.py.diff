@@ -26,27 +26,28 @@
  
  # helpers
  
-@@ -31,16 +35,10 @@ # feedforward
+@@ -31,16 +35,17 @@ # feedforward
  
  def FeedForward(dim, hidden_dim, dropout = 0.):
 -    return nn.Sequential(
--        nn.LayerNorm(dim, bias = False),
--        nn.Linear(dim, hidden_dim),
--        nn.GELU(),
--        nn.Dropout(dropout),
--        nn.Linear(hidden_dim, dim),
--        nn.Dropout(dropout)
++    return msnn.SequentialCell(
++        [
+         nn.LayerNorm(dim, bias = False),
+         nn.Linear(dim, hidden_dim),
+         nn.GELU(),
+         nn.Dropout(dropout),
+         nn.Linear(hidden_dim, dim),
+         nn.Dropout(dropout)
 -    )
 -
 -class Attention(Module):
-+    return msnn.SequentialCell(
-+        [nn.LayerNorm(dim, bias = False), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++    ])
 +
 +class Attention(msnn.Cell):
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., qk_norm = True):
          super().__init__()
          self.norm = nn.LayerNorm(dim, bias = False)
-@@ -56,14 +54,14 @@         # in the paper, they employ qk rmsnorm, a way to stabilize attention
+@@ -56,14 +61,14 @@         # in the paper, they employ qk rmsnorm, a way to stabilize attention
          # will use layernorm in place of rmsnorm, which has been shown to work in certain papers. requires l2norm on non-ragged dimension to be supported in nested tensors
  
 -        self.query_norm = nn.LayerNorm(dim_head, bias = False) if qk_norm else nn.Identity()
@@ -63,7 +64,7 @@
          self, 
          x,
          context: Tensor | None = None
-@@ -111,20 +109,20 @@ 
+@@ -111,20 +116,20 @@ 
          return self.to_out(out)
  
 -class Transformer(Module):
@@ -87,7 +88,7 @@
  
          for attn, ff in self.layers:
              x = attn(x) + x
-@@ -132,7 +130,7 @@ 
+@@ -132,7 +137,7 @@ 
          return self.norm(x)
  
 -class NaViT(Module):
@@ -95,20 +96,22 @@
      def __init__(
          self,
          *,
-@@ -178,19 +176,16 @@         self.patch_size = patch_size
+@@ -178,19 +183,20 @@         self.patch_size = patch_size
          self.to_patches = Rearrange('c (f pf) (h p1) (w p2) -> f h w (c pf p1 p2)', p1 = patch_size, p2 = patch_size, pf = frame_patch_size)
  
 -        self.to_patch_embedding = nn.Sequential(
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
 -        )
 -
 -        self.pos_embed_frame = nn.Parameter(torch.zeros(patch_frame_dim, dim))
 -        self.pos_embed_height = nn.Parameter(torch.zeros(patch_height_dim, dim))
 -        self.pos_embed_width = nn.Parameter(torch.zeros(patch_width_dim, dim))
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            nn.LayerNorm(dim)
++        ])
 +
 +        self.pos_embed_frame = ms.Parameter(mint.zeros(size = (patch_frame_dim, dim)))
 +        self.pos_embed_height = ms.Parameter(mint.zeros(size = (patch_height_dim, dim)))
@@ -121,7 +124,7 @@
  
          nn.init.normal_(self.pos_embed_frame, std = 0.02)
          nn.init.normal_(self.pos_embed_height, std = 0.02)
-@@ -203,23 +198,21 @@ 
+@@ -203,23 +209,24 @@ 
          # final attention pooling queries
  
 -        self.attn_pool_queries = nn.Parameter(torch.randn(dim))
@@ -133,13 +136,14 @@
 -        self.to_latent = nn.Identity()
 -
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim, bias = False),
--            nn.Linear(dim, num_classes, bias = False)
--        )
 +        self.to_latent = msnn.Identity()
 +
 +        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim, bias = False), nn.Linear(dim, num_classes, bias = False)])
++            [
+             nn.LayerNorm(dim, bias = False),
+             nn.Linear(dim, num_classes, bias = False)
+-        )
++        ])
  
      @property
      def device(self):
@@ -150,7 +154,7 @@
          self,
          volumes: List[Tensor], # different resolution images / CT scans
      ):
-@@ -236,7 +229,7 @@ 
+@@ -236,7 +243,7 @@ 
          for patches in all_patches:
              patch_frame, patch_height, patch_width = patches.shape[:3]
 -            fhw_indices = torch.stack(torch.meshgrid((arange(patch_frame), arange(patch_height), arange(patch_width)), indexing = 'ij'), dim = -1)
@@ -158,7 +162,7 @@
              fhw_indices = rearrange(fhw_indices, 'f h w c -> (f h w) c')
  
              positions.append(fhw_indices)
-@@ -257,7 +250,7 @@             kept_positions = []
+@@ -257,7 +264,7 @@             kept_positions = []
  
              for one_image_tokens, one_image_positions, seq_len, num_keep in zip(tokens, positions, seq_lens, keep_seq_lens):
 -                keep_indices = torch.randn((seq_len,), device = device).topk(num_keep, dim = -1).indices
@@ -166,7 +170,7 @@
  
                  one_image_kept_tokens = one_image_tokens[keep_indices]
                  one_image_kept_positions = one_image_positions[keep_indices]
-@@ -270,12 +263,12 @@         # add all height and width factorized positions
+@@ -270,12 +277,12 @@         # add all height and width factorized positions
  
  
 -        frame_indices, height_indices, width_indices = torch.cat(positions).unbind(dim = -1)
@@ -180,7 +184,7 @@
  
          # linear projection to patch embeddings
  
-@@ -289,7 +282,7 @@ 
+@@ -289,7 +296,7 @@ 
          tokens = tokens.split(seq_lens.tolist())
  
 -        tokens = [torch.cat((self.register_tokens, one_tokens)) for one_tokens in tokens]
@@ -188,7 +192,7 @@
  
          # use nested tensor for transformers and save on padding computation
  
-@@ -314,7 +307,7 @@ 
+@@ -314,7 +321,7 @@ 
          # back to unjagged
  
 -        logits = torch.stack(pooled.unbind())
@@ -196,7 +200,7 @@
  
          logits = rearrange(logits, 'b 1 d -> b d')
  
-@@ -346,9 +339,9 @@     # 5 volumetric data (videos or CT scans) of different resolutions - List[Tensor]
+@@ -346,9 +353,9 @@     # 5 volumetric data (videos or CT scans) of different resolutions - List[Tensor]
  
      volumes = [
 -        torch.randn(3, 2, 256, 256), torch.randn(3, 8, 128, 128),

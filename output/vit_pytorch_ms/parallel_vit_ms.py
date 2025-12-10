@@ -27,7 +27,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -47,7 +54,10 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ]) if project_out else msnn.Identity()
 
     def construct(self, x):
         x = self.norm(x)
@@ -96,7 +106,10 @@ class ViT(msnn.Cell):
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.Linear(patch_dim, dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+            nn.Linear(patch_dim, dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
         self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
@@ -108,7 +121,10 @@ class ViT(msnn.Cell):
         self.to_latent = msnn.Identity()
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img):
         x = self.to_patch_embedding(img)

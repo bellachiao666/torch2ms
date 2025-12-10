@@ -50,7 +50,9 @@ class T2TViT(msnn.Cell):
             ])
 
         layers.append(nn.Linear(layer_dim, dim))
-        self.to_patch_embedding = msnn.SequentialCell([layers])
+        self.to_patch_embedding = msnn.SequentialCell([
+            layers
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, output_image_size ** 2 + 1, dim)))
         self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))

@@ -135,7 +135,11 @@ class MLP(msnn.Cell):
             ])
 
         self.net = msnn.SequentialCell(
-            [layers, L2Norm(), nn.Linear(hidden_size, dim_out)])
+            [
+            layers,
+            L2Norm(),
+            nn.Linear(hidden_size, dim_out)
+        ])
 
     def construct(self, x):
         return self.net(x)
@@ -245,15 +249,21 @@ class EsViTTrainer(msnn.Cell):
         # default BYOL augmentation
 
         DEFAULT_AUG = msnn.SequentialCell(
-            [RandomApply(
+            [
+            RandomApply(
                 ms.dataset.vision.RandomColorAdjust(0.8, 0.8, 0.8, 0.2),
                 p = 0.3
-            ), T.RandomGrayscale(p=0.2), T.RandomHorizontalFlip(), RandomApply(
+            ),
+            T.RandomGrayscale(p=0.2),
+            T.RandomHorizontalFlip(),
+            RandomApply(
                 ms.dataset.vision.GaussianBlur((3, 3), (1.0, 2.0)),
                 p = 0.2
-            ), T.Normalize(
+            ),
+            T.Normalize(
                 mean=torch.tensor([0.485, 0.456, 0.406]),
-                std=torch.tensor([0.229, 0.224, 0.225]))])
+                std=torch.tensor([0.229, 0.224, 0.225]))
+        ])
 
         self.augment1 = default(augment_fn, DEFAULT_AUG)
         self.augment2 = default(augment_fn2, DEFAULT_AUG)

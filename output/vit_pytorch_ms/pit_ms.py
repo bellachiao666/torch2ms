@@ -23,7 +23,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -42,7 +49,10 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ]) if project_out else msnn.Identity()
 
     def construct(self, x):
         b, n, _, h = *x.shape, self.heads
@@ -81,7 +91,10 @@ class DepthWiseConv2d(msnn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride, bias = True):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.Conv2d(dim_in, dim_out, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias), nn.Conv2d(dim_out, dim_out, kernel_size = 1, bias = bias)])
+            [
+            nn.Conv2d(dim_in, dim_out, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
+            nn.Conv2d(dim_out, dim_out, kernel_size = 1, bias = bias)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -130,7 +143,11 @@ class PiT(msnn.Cell):
         patch_dim = channels * patch_size ** 2
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [nn.Unfold(kernel_size = patch_size, stride = patch_size // 2), Rearrange('b c n -> b n c'), nn.Linear(patch_dim, dim)])
+            [
+            nn.Unfold(kernel_size = patch_size, stride = patch_size // 2),
+            Rearrange('b c n -> b n c'),
+            nn.Linear(patch_dim, dim)
+        ])
 
         output_size = conv_output_size(image_size, patch_size, patch_size // 2)
         num_patches = output_size ** 2
@@ -150,10 +167,15 @@ class PiT(msnn.Cell):
                 layers.append(Pool(dim))
                 dim *= 2
 
-        self.layers = msnn.SequentialCell([layers])
+        self.layers = msnn.SequentialCell([
+            layers
+        ])
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img):
         x = self.to_patch_embedding(img)

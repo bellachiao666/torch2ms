@@ -13,7 +13,7 @@
  
  # helpers
  
-@@ -17,36 +21,30 @@ 
+@@ -17,36 +21,37 @@ 
  # patch merger class
  
 -class PatchMerger(nn.Module):
@@ -41,16 +41,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -59,15 +60,16 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -61,40 +59,38 @@ 
+@@ -61,40 +66,41 @@ 
          self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        ) if project_out else nn.Identity()
 +        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
+-        ) if project_out else nn.Identity()
++        ]) if project_out else msnn.Identity()
  
 -    def forward(self, x):
 +    def construct(self, x):
@@ -108,7 +110,7 @@
          for index, (attn, ff) in enumerate(self.layers):
              x = attn(x) + x
              x = ff(x) + x
-@@ -104,7 +100,7 @@ 
+@@ -104,7 +110,7 @@ 
          return self.norm(x)
  
 -class ViT(nn.Module):
@@ -116,17 +118,18 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, patch_merge_layer = None, patch_merge_num_tokens = 8, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -115,24 +111,18 @@         num_patches = (image_height // patch_height) * (image_width // patch_width)
+@@ -115,24 +121,26 @@         num_patches = (image_height // patch_height) * (image_width // patch_width)
          patch_dim = channels * patch_height * patch_width
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
--            nn.LayerNorm(dim)
--        )
 +        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            [
+             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
+             nn.LayerNorm(dim)
+-        )
++        ])
  
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 +        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
@@ -135,11 +138,12 @@
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, patch_merge_layer, patch_merge_num_tokens)
  
 -        self.mlp_head = nn.Sequential(
--            Reduce('b n d -> b d', 'mean'),
--            nn.Linear(dim, num_classes)
--        )
 +        self.mlp_head = msnn.SequentialCell(
-+            [Reduce('b n d -> b d', 'mean'), nn.Linear(dim, num_classes)])
++            [
+             Reduce('b n d -> b d', 'mean'),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
 -    def forward(self, img):
 +    def construct(self, img):

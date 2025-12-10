@@ -35,7 +35,10 @@ class DepthWiseConv2d(msnn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride = 1, bias = True):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias), nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)])
+            [
+            nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
+            nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -43,7 +46,16 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Conv2d(dim, hidden_dim, 1), nn.Hardswish(), DepthWiseConv2d(hidden_dim, hidden_dim, 3, padding = 1), nn.Hardswish(), nn.Dropout(dropout), nn.Conv2d(hidden_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Conv2d(dim, hidden_dim, 1),
+            nn.Hardswish(),
+            DepthWiseConv2d(hidden_dim, hidden_dim, 3, padding = 1),
+            nn.Hardswish(),
+            nn.Dropout(dropout),
+            nn.Conv2d(hidden_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         h = w = int(sqrt(x.shape[-2]))
         x = rearrange(x, 'b (h w) c -> b c h w', h = h, w = w)
@@ -67,7 +79,10 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         b, n, _, h = *x.shape, self.heads
@@ -110,7 +125,12 @@ class LocalViT(msnn.Cell):
         patch_dim = channels * patch_size ** 2
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
         self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
@@ -119,7 +139,10 @@ class LocalViT(msnn.Cell):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img):
         x = self.to_patch_embedding(img)

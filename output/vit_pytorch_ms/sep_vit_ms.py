@@ -53,7 +53,14 @@ class FeedForward(msnn.Cell):
         super().__init__()
         inner_dim = int(dim * mult)
         self.net = msnn.SequentialCell(
-            [ChanLayerNorm(dim), nn.Conv2d(dim, inner_dim, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            ChanLayerNorm(dim),
+            nn.Conv2d(dim, inner_dim, 1),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(inner_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -77,7 +84,10 @@ class DSSA(msnn.Cell):
         self.norm = ChanLayerNorm(dim)
 
         self.attend = msnn.SequentialCell(
-            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
+            [
+            nn.Softmax(dim = -1),
+            nn.Dropout(dropout)
+        ])
 
         self.to_qkv = nn.Conv1d(dim, inner_dim * 3, 1, bias = False)
 
@@ -89,15 +99,27 @@ class DSSA(msnn.Cell):
         # then projection to queries and keys for window tokens
 
         self.window_tokens_to_qk = msnn.SequentialCell(
-            [nn.LayerNorm(dim_head), nn.GELU(), Rearrange('b h n c -> b (h c) n'), nn.Conv1d(inner_dim, inner_dim * 2, 1), Rearrange('b (h c) n -> b h n c', h = heads)])
+            [
+            nn.LayerNorm(dim_head),
+            nn.GELU(),
+            Rearrange('b h n c -> b (h c) n'),
+            nn.Conv1d(inner_dim, inner_dim * 2, 1),
+            Rearrange('b (h c) n -> b h n c', h = heads)
+        ])
 
         # window attention
 
         self.window_attend = msnn.SequentialCell(
-            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
+            [
+            nn.Softmax(dim = -1),
+            nn.Dropout(dropout)
+        ])
 
         self.to_out = msnn.SequentialCell(
-            [nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(inner_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         """
@@ -261,7 +283,11 @@ class SepViT(msnn.Cell):
             ]))
 
         self.mlp_head = msnn.SequentialCell(
-            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
+            [
+            Reduce('b d h w -> b d', 'mean'),
+            nn.LayerNorm(dims[-1]),
+            nn.Linear(dims[-1], num_classes)
+        ])
 
     def construct(self, x):
 

@@ -16,7 +16,7 @@
  
  # helpers
  
-@@ -19,66 +24,54 @@ 
+@@ -19,66 +24,68 @@ 
  # helper classes
  
 -class Residual(nn.Module):
@@ -35,16 +35,17 @@
          super().__init__()
          inner_dim = int(dim * mult)
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, inner_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, inner_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, inner_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -57,17 +58,18 @@
          hidden_dim = int(dim * shrinkage_rate)
  
 -        self.gate = nn.Sequential(
--            Reduce('b c h w -> b c', 'mean'),
--            nn.Linear(dim, hidden_dim, bias = False),
--            nn.SiLU(),
--            nn.Linear(hidden_dim, dim, bias = False),
--            nn.Sigmoid(),
--            Rearrange('b c -> b c 1 1')
++        self.gate = msnn.SequentialCell(
++            [
+             Reduce('b c h w -> b c', 'mean'),
+             nn.Linear(dim, hidden_dim, bias = False),
+             nn.SiLU(),
+             nn.Linear(hidden_dim, dim, bias = False),
+             nn.Sigmoid(),
+             Rearrange('b c -> b c 1 1')
 -        )
 -
 -    def forward(self, x):
-+        self.gate = msnn.SequentialCell(
-+            [Reduce('b c h w -> b c', 'mean'), nn.Linear(dim, hidden_dim, bias = False), nn.SiLU(), nn.Linear(hidden_dim, dim, bias = False), nn.Sigmoid(), Rearrange('b c -> b c 1 1')])
++        ])
 +
 +    def construct(self, x):
          return x * self.gate(x)
@@ -97,26 +99,24 @@
          device = x.device
  
          if self.prob == 0. or (not self.training):
-@@ -99,17 +92,8 @@     hidden_dim = int(expansion_rate * dim_out)
+@@ -99,7 +106,8 @@     hidden_dim = int(expansion_rate * dim_out)
      stride = 2 if downsample else 1
  
 -    net = nn.Sequential(
--        nn.Conv2d(dim_in, hidden_dim, 1),
--        nn.BatchNorm2d(hidden_dim),
--        nn.GELU(),
--        nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim),
--        nn.BatchNorm2d(hidden_dim),
--        nn.GELU(),
--        SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate),
--        nn.Conv2d(hidden_dim, dim_out, 1),
--        nn.BatchNorm2d(dim_out)
--    )
 +    net = msnn.SequentialCell(
-+        [nn.Conv2d(dim_in, hidden_dim, 1), nn.BatchNorm2d(hidden_dim), nn.GELU(), nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim), nn.BatchNorm2d(hidden_dim), nn.GELU(), SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate), nn.Conv2d(hidden_dim, dim_out, 1), nn.BatchNorm2d(dim_out)])
++        [
+         nn.Conv2d(dim_in, hidden_dim, 1),
+         nn.BatchNorm2d(hidden_dim),
+         nn.GELU(),
+@@ -109,7 +117,7 @@         SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate),
+         nn.Conv2d(hidden_dim, dim_out, 1),
+         nn.BatchNorm2d(dim_out)
+-    )
++    ])
  
      if dim_in == dim_out and not downsample:
          net = MBConvResidual(net, dropout = dropout)
-@@ -118,7 +102,7 @@ 
+@@ -118,7 +126,7 @@ 
  # attention related classes
  
 -class Attention(nn.Module):
@@ -124,23 +124,25 @@
      def __init__(
          self,
          dim,
-@@ -135,22 +119,18 @@         self.norm = nn.LayerNorm(dim)
+@@ -135,22 +143,24 @@         self.norm = nn.LayerNorm(dim)
          self.to_qkv = nn.Linear(dim, dim * 3, bias = False)
  
 -        self.attend = nn.Sequential(
--            nn.Softmax(dim = -1),
--            nn.Dropout(dropout)
++        self.attend = msnn.SequentialCell(
++            [
+             nn.Softmax(dim = -1),
+             nn.Dropout(dropout)
 -        )
 -
 -        self.to_out = nn.Sequential(
--            nn.Linear(dim, dim, bias = False),
--            nn.Dropout(dropout)
--        )
-+        self.attend = msnn.SequentialCell(
-+            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
++        ])
 +
 +        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(dim, dim, bias = False), nn.Dropout(dropout)])
++            [
+             nn.Linear(dim, dim, bias = False),
+             nn.Dropout(dropout)
+-        )
++        ])
  
          # relative positional bias
  
@@ -153,7 +155,7 @@
          grid = rearrange(grid, 'c i j -> (i j) c')
          rel_pos = rearrange(grid, 'i ... -> i 1 ...') - rearrange(grid, 'j ... -> 1 j ...')
          rel_pos += window_size - 1
-@@ -158,7 +138,7 @@ 
+@@ -158,7 +168,7 @@ 
          self.register_buffer('rel_pos_indices', rel_pos_indices, persistent = False)
  
 -    def forward(self, x):
@@ -161,7 +163,7 @@
          batch, height, width, window_height, window_width, _, device, h = *x.shape, x.device, self.heads
  
          x = self.norm(x)
-@@ -181,7 +161,7 @@ 
+@@ -181,7 +191,7 @@ 
          # sim
  
 -        sim = einsum('b h i d, b h j d -> b h i j', q, k)
@@ -169,7 +171,7 @@
  
          # add positional bias
  
-@@ -194,7 +174,7 @@ 
+@@ -194,7 +204,7 @@ 
          # aggregate
  
 -        out = einsum('b h i j, b h j d -> b h i d', attn, v)
@@ -177,7 +179,7 @@
  
          # merge heads
  
-@@ -205,7 +185,7 @@         out = self.to_out(out)
+@@ -205,7 +215,7 @@         out = self.to_out(out)
          return rearrange(out, '(b x y) ... -> b x y ...', x = height, y = width)
  
 -class MaxViT(nn.Module):
@@ -185,19 +187,20 @@
      def __init__(
          self,
          *,
-@@ -227,10 +207,8 @@ 
+@@ -227,10 +237,11 @@ 
          dim_conv_stem = default(dim_conv_stem, dim)
  
 -        self.conv_stem = nn.Sequential(
--            nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1),
--            nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)
--        )
 +        self.conv_stem = msnn.SequentialCell(
-+            [nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1), nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)])
++            [
+             nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1),
+             nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)
+-        )
++        ])
  
          # variables
  
-@@ -240,7 +218,7 @@         dims = (dim_conv_stem, *dims)
+@@ -240,7 +251,7 @@         dims = (dim_conv_stem, *dims)
          dim_pairs = tuple(zip(dims[:-1], dims[1:]))
  
 -        self.layers = nn.ModuleList([])
@@ -205,44 +208,47 @@
  
          # shorthand for window size for efficient block - grid like attention
  
-@@ -253,36 +231,23 @@                 is_first = stage_ind == 0
+@@ -253,7 +264,8 @@                 is_first = stage_ind == 0
                  stage_dim_in = layer_dim_in if is_first else layer_dim
  
 -                block = nn.Sequential(
--                    MBConv(
 +                block = msnn.SequentialCell(
-+                    [MBConv(
++                    [
+                     MBConv(
                          stage_dim_in,
                          layer_dim,
-                         downsample = is_first,
-                         expansion_rate = mbconv_expansion_rate,
+@@ -261,28 +273,28 @@                         expansion_rate = mbconv_expansion_rate,
                          shrinkage_rate = mbconv_shrinkage_rate
--                    ),
+                     ),
 -                    Rearrange('b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w),  # block-like attention
--                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
--                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
--                    Rearrange('b x y w1 w2 d -> b d (x w1) (y w2)'),
++                    Rearrange('b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w),
+                     Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
+                     Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
+                     Rearrange('b x y w1 w2 d -> b d (x w1) (y w2)'),
 -
 -                    Rearrange('b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w),  # grid-like attention
--                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
--                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
++                    Rearrange('b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w),
+                     Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
+                     Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
 -                    Rearrange('b x y w1 w2 d -> b d (w1 x) (w2 y)'),
 -                )
-+                    ), Rearrange('b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w), Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)), Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)), Rearrange('b x y w1 w2 d -> b d (x w1) (y w2)'), Rearrange('b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w), Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)), Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)), Rearrange('b x y w1 w2 d -> b d (w1 x) (w2 y)')])
++                    Rearrange('b x y w1 w2 d -> b d (w1 x) (w2 y)')
++                ])
  
                  self.layers.append(block)
  
          # mlp head out
  
 -        self.mlp_head = nn.Sequential(
--            Reduce('b d h w -> b d', 'mean'),
--            nn.LayerNorm(dims[-1]),
--            nn.Linear(dims[-1], num_classes)
++        self.mlp_head = msnn.SequentialCell(
++            [
+             Reduce('b d h w -> b d', 'mean'),
+             nn.LayerNorm(dims[-1]),
+             nn.Linear(dims[-1], num_classes)
 -        )
 -
 -    def forward(self, x):
-+        self.mlp_head = msnn.SequentialCell(
-+            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
++        ])
 +
 +    def construct(self, x):
          x = self.conv_stem(x)

@@ -109,7 +109,14 @@ class RMSNorm(msnn.Cell):
 
 def FeedForward(dim, hidden_dim, dropout = 0.):
     return msnn.SequentialCell(
-        [LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+        [
+        LayerNorm(dim),
+        nn.Linear(dim, hidden_dim),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Linear(hidden_dim, dim),
+        nn.Dropout(dropout)
+    ])
 
 class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
@@ -127,7 +134,10 @@ class Attention(msnn.Cell):
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim, bias = False), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim, bias = False),
+            nn.Dropout(dropout)
+        ])
 
     def construct(
         self,
@@ -219,7 +229,11 @@ class NaViT(msnn.Cell):
         self.patch_size = patch_size
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [LayerNorm(patch_dim), nn.Linear(patch_dim, dim), LayerNorm(dim)])
+            [
+            LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            LayerNorm(dim)
+        ])
 
         self.pos_embed_height = ms.Parameter(mint.randn(size = (patch_height_dim, dim)))
         self.pos_embed_width = ms.Parameter(mint.randn(size = (patch_width_dim, dim)))
@@ -238,7 +252,10 @@ class NaViT(msnn.Cell):
         self.to_latent = msnn.Identity()
 
         self.mlp_head = msnn.SequentialCell(
-            [LayerNorm(dim), nn.Linear(dim, num_classes, bias = False)])
+            [
+            LayerNorm(dim),
+            nn.Linear(dim, num_classes, bias = False)
+        ])
 
     @property
     def device(self):

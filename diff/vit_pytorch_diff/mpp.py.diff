@@ -73,15 +73,17 @@
      def __init__(
          self,
          transformer,
-@@ -97,7 +102,7 @@                             max_pixel_val, mean, std)
+@@ -97,7 +102,9 @@                             max_pixel_val, mean, std)
  
          # extract patching function
 -        self.patch_to_emb = nn.Sequential(transformer.to_patch_embedding[1:])
-+        self.patch_to_emb = msnn.SequentialCell([transformer.to_patch_embedding[1:]])
++        self.patch_to_emb = msnn.SequentialCell([
++            transformer.to_patch_embedding[1:]
++        ])
  
          # output transformation
          self.to_bits = nn.Linear(dim, 2**(output_channel_bits * channels))
-@@ -111,9 +116,9 @@         self.random_patch_prob = random_patch_prob
+@@ -111,9 +118,9 @@         self.random_patch_prob = random_patch_prob
  
          # token ids
 -        self.mask_token = nn.Parameter(torch.randn(1, 1, channels * patch_size ** 2))
@@ -92,7 +94,7 @@
          transformer = self.transformer
          # clone original image for loss
          img = input.clone().detach()
-@@ -138,12 +143,9 @@                                                random_patch_sampling_prob).to(mask.device)
+@@ -138,12 +145,9 @@                                                random_patch_sampling_prob).to(mask.device)
  
              bool_random_patch_prob = mask * (random_patch_prob == True)
 -            random_patches = torch.randint(0,
@@ -106,7 +108,7 @@
                  random_patches]
              masked_input[bool_random_patch_prob] = randomized_input[
                  bool_random_patch_prob]
-@@ -159,7 +161,7 @@         # add cls token to input sequence
+@@ -159,7 +163,7 @@         # add cls token to input sequence
          b, n, _ = masked_input.shape
          cls_tokens = repeat(transformer.cls_token, '() n d -> b n d', b=b)
 -        masked_input = torch.cat((cls_tokens, masked_input), dim=1)

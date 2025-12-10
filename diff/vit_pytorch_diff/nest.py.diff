@@ -14,7 +14,7 @@
  
  # helpers
  
-@@ -12,33 +16,27 @@ 
+@@ -12,33 +16,34 @@ 
  # classes
  
 -class LayerNorm(nn.Module):
@@ -40,16 +40,17 @@
      def __init__(self, dim, mlp_mult = 4, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            LayerNorm(dim),
--            nn.Conv2d(dim, dim * mlp_mult, 1),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Conv2d(dim * mlp_mult, dim, 1),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             LayerNorm(dim),
+             nn.Conv2d(dim, dim * mlp_mult, 1),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Conv2d(dim * mlp_mult, dim, 1),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [LayerNorm(dim), nn.Conv2d(dim, dim * mlp_mult, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(dim * mlp_mult, dim, 1), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -58,22 +59,23 @@
      def __init__(self, dim, heads = 8, dropout = 0.):
          super().__init__()
          dim_head = dim // heads
-@@ -51,12 +49,10 @@         self.dropout = nn.Dropout(dropout)
+@@ -51,12 +56,13 @@         self.dropout = nn.Dropout(dropout)
          self.to_qkv = nn.Conv2d(dim, inner_dim * 3, 1, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Conv2d(inner_dim, dim, 1),
--            nn.Dropout(dropout)
--        )
 +        self.to_out = msnn.SequentialCell(
-+            [nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
++            [
+             nn.Conv2d(inner_dim, dim, 1),
+             nn.Dropout(dropout)
+-        )
++        ])
  
 -    def forward(self, x):
 +    def construct(self, x):
          b, c, h, w, heads = *x.shape, self.heads
  
          x = self.norm(x)
-@@ -64,34 +60,31 @@         qkv = self.to_qkv(x).chunk(3, dim = 1)
+@@ -64,34 +70,35 @@         qkv = self.to_qkv(x).chunk(3, dim = 1)
          q, k, v = map(lambda t: rearrange(t, 'b (h d) x y -> b h (x y) d', h = heads), qkv)
  
 -        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
@@ -89,12 +91,13 @@
  
  def Aggregate(dim, dim_out):
 -    return nn.Sequential(
--        nn.Conv2d(dim, dim_out, 3, padding = 1),
--        LayerNorm(dim_out),
--        nn.MaxPool2d(3, stride = 2, padding = 1)
--    )
 +    return msnn.SequentialCell(
-+        [nn.Conv2d(dim, dim_out, 3, padding = 1), LayerNorm(dim_out), nn.MaxPool2d(3, stride = 2, padding = 1)])
++        [
+         nn.Conv2d(dim, dim_out, 3, padding = 1),
+         LayerNorm(dim_out),
+         nn.MaxPool2d(3, stride = 2, padding = 1)
+-    )
++    ])
  
 -class Transformer(nn.Module):
 +class Transformer(msnn.Cell):
@@ -116,7 +119,7 @@
          *_, h, w = x.shape
  
          pos_emb = self.pos_emb[:(h * w)]
-@@ -103,7 +96,7 @@             x = ff(x) + x
+@@ -103,7 +110,7 @@             x = ff(x) + x
          return x
  
 -class NesT(nn.Module):
@@ -124,17 +127,18 @@
      def __init__(
          self,
          *,
-@@ -137,34 +130,27 @@         layer_dims = [*layer_dims, layer_dims[-1]]
+@@ -137,34 +144,36 @@         layer_dims = [*layer_dims, layer_dims[-1]]
          dim_pairs = zip(layer_dims[:-1], layer_dims[1:])
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size),
--            LayerNorm(patch_dim),
--            nn.Conv2d(patch_dim, layer_dims[0], 1),
--            LayerNorm(layer_dims[0])
--        )
 +        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size), LayerNorm(patch_dim), nn.Conv2d(patch_dim, layer_dims[0], 1), LayerNorm(layer_dims[0])])
++            [
+             Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = patch_size, p2 = patch_size),
+             LayerNorm(patch_dim),
+             nn.Conv2d(patch_dim, layer_dims[0], 1),
+             LayerNorm(layer_dims[0])
+-        )
++        ])
  
          block_repeats = cast_tuple(block_repeats, num_hierarchies)
  
@@ -154,12 +158,13 @@
  
  
 -        self.mlp_head = nn.Sequential(
--            LayerNorm(last_dim),
--            Reduce('b c h w -> b c', 'mean'),
--            nn.Linear(last_dim, num_classes)
--        )
 +        self.mlp_head = msnn.SequentialCell(
-+            [LayerNorm(last_dim), Reduce('b c h w -> b c', 'mean'), nn.Linear(last_dim, num_classes)])
++            [
+             LayerNorm(last_dim),
+             Reduce('b c h w -> b c', 'mean'),
+             nn.Linear(last_dim, num_classes)
+-        )
++        ])
  
 -    def forward(self, img):
 +    def construct(self, img):

@@ -37,24 +37,27 @@
  
      return pos_emb.type(dtype)
  
-@@ -33,14 +36,10 @@ 
+@@ -33,14 +36,15 @@ 
  def FeedForward(dim, mult = 4.):
      hidden_dim = int(dim * mult)
 -    return nn.Sequential(
--        nn.LayerNorm(dim),
--        nn.Linear(dim, hidden_dim),
--        nn.GELU(),
++    return msnn.SequentialCell(
++        [
+         nn.LayerNorm(dim),
+         nn.Linear(dim, hidden_dim),
+         nn.GELU(),
 -        nn.Linear(hidden_dim, dim),
 -    )
-+    return msnn.SequentialCell(
-+        [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
- 
+-
 -class Attention(Module):
++        nn.Linear(hidden_dim, dim)
++    ])
++
 +class Attention(msnn.Cell):
      def __init__(self, dim, heads = 8, dim_head = 64):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -53,21 +52,21 @@         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+@@ -53,21 +57,21 @@         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
          self.to_out = nn.Linear(inner_dim, dim, bias = False)
  
 -    def forward(self, x):
@@ -79,21 +82,23 @@
      def __init__(
          self,
          *,
-@@ -92,12 +91,8 @@ 
+@@ -92,12 +96,13 @@ 
          patch_dim = channels * patch_height * patch_width
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
 -        )
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            nn.LayerNorm(dim)
++        ])
  
          self.pos_embedding = posemb_sincos_2d(
              h = image_height // patch_height,
-@@ -107,33 +102,30 @@ 
+@@ -107,33 +112,34 @@ 
          jumbo_cls_dim = dim * jumbo_cls_k
  
 -        self.jumbo_cls_token = nn.Parameter(torch.zeros(num_jumbo_cls, jumbo_cls_dim))
@@ -109,12 +114,14 @@
          # attention and feedforwards
  
 -        self.jumbo_ff = nn.Sequential(
--            Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k),
--            FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)), # they use separate parameters for the jumbo feedforward, weight tied for parameter efficient
--            jumbo_cls_to_tokens
--        )
 +        self.jumbo_ff = msnn.SequentialCell(
-+            [Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k), FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)), jumbo_cls_to_tokens])
++            [
+             Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k),
+-            FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)), # they use separate parameters for the jumbo feedforward, weight tied for parameter efficient
++            FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)),
+             jumbo_cls_to_tokens
+-        )
++        ])
  
          for _ in range(depth):
 -            self.layers.append(ModuleList([
@@ -133,7 +140,7 @@
  
          batch, device = img.shape[0], img.device
  
-@@ -198,7 +190,7 @@         jumbo_ff_mult = 2,
+@@ -198,7 +204,7 @@         jumbo_ff_mult = 2,
      )
  
 -    images = torch.randn(1, 3, 64, 64)

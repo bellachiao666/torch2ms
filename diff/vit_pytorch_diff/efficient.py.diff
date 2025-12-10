@@ -18,17 +18,18 @@
      def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, pool = 'cls', channels = 3):
          super().__init__()
          image_size_h, image_size_w = pair(image_size)
-@@ -15,31 +19,25 @@         num_patches = (image_size_h // patch_size) * (image_size_w // patch_size)
+@@ -15,31 +19,33 @@         num_patches = (image_size_h // patch_size) * (image_size_w // patch_size)
          patch_dim = channels * patch_size ** 2
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
--            nn.LayerNorm(dim)
--        )
 +        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            [
+             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
+             nn.LayerNorm(dim)
+-        )
++        ])
  
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 -        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
@@ -41,11 +42,12 @@
 +        self.to_latent = msnn.Identity()
  
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
--        )
 +        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
 -    def forward(self, img):
 +    def construct(self, img):

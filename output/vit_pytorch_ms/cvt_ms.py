@@ -41,7 +41,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [LayerNorm(dim), nn.Conv2d(dim, dim * mult, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(dim * mult, dim, 1), nn.Dropout(dropout)])
+            [
+            LayerNorm(dim),
+            nn.Conv2d(dim, dim * mult, 1),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(dim * mult, dim, 1),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -49,7 +56,11 @@ class DepthWiseConv2d(msnn.Cell):
     def __init__(self, dim_in, dim_out, kernel_size, padding, stride, bias = True):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias), nn.BatchNorm2d(dim_in), nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)])
+            [
+            nn.Conv2d(dim_in, dim_in, kernel_size = kernel_size, stride = stride, padding = padding, groups = dim_in, bias = bias),
+            nn.BatchNorm2d(dim_in),
+            nn.Conv2d(dim_in, dim_out, kernel_size = 1, bias = bias)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -69,7 +80,10 @@ class Attention(msnn.Cell):
         self.to_kv = DepthWiseConv2d(dim, inner_dim * 2, proj_kernel, padding = padding, stride = kv_proj_stride, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(inner_dim, dim, 1),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         shape = x.shape
@@ -145,14 +159,24 @@ class CvT(msnn.Cell):
             config, kwargs = group_by_key_prefix_and_remove_prefix(f'{prefix}_', kwargs)
 
             layers.append(msnn.SequentialCell(
-                [nn.Conv2d(dim, config['emb_dim'], kernel_size = config['emb_kernel'], stride = config['emb_stride'], padding = (config['emb_kernel'] // 2)), LayerNorm(config['emb_dim']), Transformer(dim = config['emb_dim'], proj_kernel = config['proj_kernel'], kv_proj_stride = config['kv_proj_stride'], depth = config['depth'], heads = config['heads'], mlp_mult = config['mlp_mult'], dropout = dropout)]))
+                [
+                nn.Conv2d(dim, config['emb_dim'], kernel_size = config['emb_kernel'], stride = config['emb_stride'], padding = (config['emb_kernel'] // 2)),
+                LayerNorm(config['emb_dim']),
+                Transformer(dim = config['emb_dim'], proj_kernel = config['proj_kernel'], kv_proj_stride = config['kv_proj_stride'], depth = config['depth'], heads = config['heads'], mlp_mult = config['mlp_mult'], dropout = dropout)
+            ]))
 
             dim = config['emb_dim']
 
-        self.layers = msnn.SequentialCell([layers])
+        self.layers = msnn.SequentialCell([
+            layers
+        ])
 
         self.to_logits = msnn.SequentialCell(
-            [nn.AdaptiveAvgPool2d(1), Rearrange('... () () -> ...'), nn.Linear(dim, num_classes)])
+            [
+            nn.AdaptiveAvgPool2d(1),
+            Rearrange('... () () -> ...'),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, x):
         latents = self.layers(x)

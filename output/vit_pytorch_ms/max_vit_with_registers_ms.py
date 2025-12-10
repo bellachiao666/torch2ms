@@ -33,7 +33,14 @@ def cast_tuple(val, length = 1):
 def FeedForward(dim, mult = 4, dropout = 0.):
     inner_dim = int(dim * mult)
     return msnn.SequentialCell(
-        [nn.LayerNorm(dim), nn.Linear(dim, inner_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+        [
+        nn.LayerNorm(dim),
+        nn.Linear(dim, inner_dim),
+        nn.GELU(),
+        nn.Dropout(dropout),
+        nn.Linear(inner_dim, dim),
+        nn.Dropout(dropout)
+    ])
 
 # MBConv
 
@@ -43,7 +50,14 @@ class SqueezeExcitation(msnn.Cell):
         hidden_dim = int(dim * shrinkage_rate)
 
         self.gate = msnn.SequentialCell(
-            [Reduce('b c h w -> b c', 'mean'), nn.Linear(dim, hidden_dim, bias = False), nn.SiLU(), nn.Linear(hidden_dim, dim, bias = False), nn.Sigmoid(), Rearrange('b c -> b c 1 1')])
+            [
+            Reduce('b c h w -> b c', 'mean'),
+            nn.Linear(dim, hidden_dim, bias = False),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, dim, bias = False),
+            nn.Sigmoid(),
+            Rearrange('b c -> b c 1 1')
+        ])
 
     def construct(self, x):
         return x * self.gate(x)
@@ -86,7 +100,17 @@ def MBConv(
     stride = 2 if downsample else 1
 
     net = msnn.SequentialCell(
-        [nn.Conv2d(dim_in, hidden_dim, 1), nn.BatchNorm2d(hidden_dim), nn.GELU(), nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim), nn.BatchNorm2d(hidden_dim), nn.GELU(), SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate), nn.Conv2d(hidden_dim, dim_out, 1), nn.BatchNorm2d(dim_out)])
+        [
+        nn.Conv2d(dim_in, hidden_dim, 1),
+        nn.BatchNorm2d(hidden_dim),
+        nn.GELU(),
+        nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim),
+        nn.BatchNorm2d(hidden_dim),
+        nn.GELU(),
+        SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate),
+        nn.Conv2d(hidden_dim, dim_out, 1),
+        nn.BatchNorm2d(dim_out)
+    ])
 
     if dim_in == dim_out and not downsample:
         net = MBConvResidual(net, dropout = dropout)
@@ -115,10 +139,16 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Linear(dim, dim * 3, bias = False)
 
         self.attend = msnn.SequentialCell(
-            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
+            [
+            nn.Softmax(dim = -1),
+            nn.Dropout(dropout)
+        ])
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(dim, dim, bias = False), nn.Dropout(dropout)])
+            [
+            nn.Linear(dim, dim, bias = False),
+            nn.Dropout(dropout)
+        ])
 
         # relative positional bias
 
@@ -200,7 +230,10 @@ class MaxViT(msnn.Cell):
         dim_conv_stem = default(dim_conv_stem, dim)
 
         self.conv_stem = msnn.SequentialCell(
-            [nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1), nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)])
+            [
+            nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1),
+            nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)
+        ])
 
         # variables
 
@@ -252,7 +285,11 @@ class MaxViT(msnn.Cell):
         # mlp head out
 
         self.mlp_head = msnn.SequentialCell(
-            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
+            [
+            Reduce('b d h w -> b d', 'mean'),
+            nn.LayerNorm(dims[-1]),
+            nn.Linear(dims[-1], num_classes)
+        ])
 
     def construct(self, x):
         b, w = x.shape[0], self.window_size

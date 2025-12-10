@@ -184,12 +184,18 @@ class Tokenizer(msnn.Cell):
         n_filter_list_pairs = zip(n_filter_list[:-1], n_filter_list[1:])
 
         self.conv_layers = msnn.SequentialCell(
-            [[msnn.SequentialCell(
-                [nn.Conv2d(chan_in, chan_out, kernel_size = (kernel_size, kernel_size), stride = (stride, stride), padding = (padding, padding), bias = conv_bias), msnn.Identity() if not exists(activation) else activation(), nn.MaxPool2d(kernel_size=pooling_kernel_size,
+            [
+            [msnn.SequentialCell(
+                [
+            nn.Conv2d(chan_in, chan_out, kernel_size = (kernel_size, kernel_size), stride = (stride, stride), padding = (padding, padding), bias = conv_bias),
+            msnn.Identity() if not exists(activation) else activation(),
+            nn.MaxPool2d(kernel_size=pooling_kernel_size,
                              stride=pooling_stride,
-                             padding=pooling_padding) if max_pool else msnn.Identity()])
+                             padding=pooling_padding) if max_pool else msnn.Identity()
+        ])
                 for chan_in, chan_out in n_filter_list_pairs
-            ]])
+            ]
+        ])
 
         self.apply(self.init_weight)
 

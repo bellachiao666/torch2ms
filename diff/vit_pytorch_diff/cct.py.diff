@@ -97,7 +97,7 @@
      def __init__(self,
                   kernel_size, stride, padding,
                   pooling_kernel_size=3, pooling_stride=2, pooling_padding=1,
-@@ -178,26 +183,20 @@ 
+@@ -178,26 +183,26 @@ 
          n_filter_list_pairs = zip(n_filter_list[:-1], n_filter_list[1:])
  
 -        self.conv_layers = nn.Sequential(
@@ -109,15 +109,21 @@
 -                nn.Identity() if not exists(activation) else activation(),
 -                nn.MaxPool2d(kernel_size=pooling_kernel_size,
 +        self.conv_layers = msnn.SequentialCell(
-+            [[msnn.SequentialCell(
-+                [nn.Conv2d(chan_in, chan_out, kernel_size = (kernel_size, kernel_size), stride = (stride, stride), padding = (padding, padding), bias = conv_bias), msnn.Identity() if not exists(activation) else activation(), nn.MaxPool2d(kernel_size=pooling_kernel_size,
++            [
++            [msnn.SequentialCell(
++                [
++            nn.Conv2d(chan_in, chan_out, kernel_size = (kernel_size, kernel_size), stride = (stride, stride), padding = (padding, padding), bias = conv_bias),
++            msnn.Identity() if not exists(activation) else activation(),
++            nn.MaxPool2d(kernel_size=pooling_kernel_size,
                               stride=pooling_stride,
 -                             padding=pooling_padding) if max_pool else nn.Identity()
 -            )
-+                             padding=pooling_padding) if max_pool else msnn.Identity()])
++                             padding=pooling_padding) if max_pool else msnn.Identity()
++        ])
                  for chan_in, chan_out in n_filter_list_pairs
 -            ])
-+            ]])
++            ]
++        ])
  
          self.apply(self.init_weight)
  
@@ -131,7 +137,7 @@
          return rearrange(self.conv_layers(x), 'b c h w -> b (h w) c')
  
      @staticmethod
-@@ -206,7 +205,7 @@             nn.init.kaiming_normal_(m.weight)
+@@ -206,7 +211,7 @@             nn.init.kaiming_normal_(m.weight)
  
  
 -class TransformerClassifier(nn.Module):
@@ -139,7 +145,7 @@
      def __init__(self,
                   seq_pool=True,
                   embedding_dim=768,
-@@ -234,25 +233,25 @@ 
+@@ -234,25 +239,25 @@ 
          if not seq_pool:
              sequence_length += 1
 -            self.class_emb = nn.Parameter(torch.zeros(1, 1, self.embedding_dim), requires_grad=True)
@@ -172,7 +178,7 @@
              TransformerEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                      dim_feedforward=dim_feedforward, dropout=dropout_rate,
                                      attention_dropout=attention_dropout, drop_path_rate=layer_dpr)
-@@ -263,15 +262,15 @@         self.fc = nn.Linear(embedding_dim, num_classes)
+@@ -263,15 +268,15 @@         self.fc = nn.Linear(embedding_dim, num_classes)
          self.apply(self.init_weight)
  
 -    def forward(self, x):
@@ -190,7 +196,7 @@
  
          if exists(self.positional_emb):
              x += self.positional_emb
-@@ -285,7 +284,7 @@ 
+@@ -285,7 +290,7 @@ 
          if self.seq_pool:
              attn_weights = rearrange(self.attention_pool(x), 'b n 1 -> b n')
 -            x = einsum('b n, b n d -> b d', attn_weights.softmax(dim = 1), x)
@@ -198,7 +204,7 @@
          else:
              x = x[:, 0]
  
-@@ -303,7 +302,7 @@ 
+@@ -303,7 +308,7 @@ 
  # CCT Main model
  
 -class CCT(nn.Module):
@@ -206,7 +212,7 @@
      def __init__(
          self,
          img_size=224,
-@@ -348,6 +347,6 @@             stochastic_depth_rate=stochastic_depth_rate,
+@@ -348,6 +353,6 @@             stochastic_depth_rate=stochastic_depth_rate,
              *args, **kwargs)
  
 -    def forward(self, x):

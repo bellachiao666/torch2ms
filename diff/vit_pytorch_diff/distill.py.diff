@@ -42,7 +42,7 @@
      def __init__(
          self,
          *,
-@@ -125,14 +129,12 @@         self.alpha = alpha
+@@ -125,14 +129,15 @@         self.alpha = alpha
          self.hard = hard
  
 -        self.distillation_token = nn.Parameter(torch.randn(1, 1, dim))
@@ -50,17 +50,19 @@
  
 -        self.distill_mlp = nn.Sequential(
 -            nn.LayerNorm(dim) if mlp_layernorm else nn.Identity(),
--            nn.Linear(dim, num_classes)
--        )
 +        self.distill_mlp = msnn.SequentialCell(
-+            [nn.LayerNorm(dim) if mlp_layernorm else msnn.Identity(), nn.Linear(dim, num_classes)])
++            [
++            nn.LayerNorm(dim) if mlp_layernorm else msnn.Identity(),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
 -    def forward(self, img, labels, temperature = None, alpha = None, **kwargs):
 +    def construct(self, img, labels, temperature = None, alpha = None, **kwargs):
  
          alpha = default(alpha, self.alpha)
          T = default(temperature, self.temperature)
-@@ -147,8 +149,8 @@ 
+@@ -147,8 +152,8 @@ 
          if not self.hard:
              distill_loss = F.kl_div(
 -                F.log_softmax(distill_logits / T, dim = -1),

@@ -15,7 +15,7 @@
  
  # helpers
  
-@@ -18,38 +22,32 @@ 
+@@ -18,38 +22,39 @@ 
  # positional embedding
  
 -def posemb_sincos_2d(patches, temperature = 10000, dtype = torch.float32):
@@ -42,16 +42,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -62,22 +63,23 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -64,12 +62,10 @@         self.to_q = nn.Linear(dim, inner_dim, bias = False)
+@@ -64,12 +69,13 @@         self.to_q = nn.Linear(dim, inner_dim, bias = False)
          self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        )
 +        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
+-        )
++        ])
  
 -    def forward(self, x, context = None):
 +    def construct(self, x, context = None):
          b, n, _, h = *x.shape, self.heads
  
          x = self.norm(x)
-@@ -79,31 +75,31 @@         qkv = (self.to_q(x), *self.to_kv(context).chunk(2, dim = -1))
+@@ -79,31 +85,31 @@         qkv = (self.to_q(x), *self.to_kv(context).chunk(2, dim = -1))
          q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), qkv)
  
 -        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
@@ -115,35 +117,38 @@
      def __init__(self, *, num_classes, image_size, patch_size, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0.):
          super().__init__()
          image_height, image_width = pair(image_size)
-@@ -117,22 +113,16 @@         self.dim = dim
+@@ -117,22 +123,24 @@         self.dim = dim
          self.num_patches = num_patches
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
 -        )
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            nn.LayerNorm(dim)
++        ])
  
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
  
 -        self.to_latent = nn.Identity()
 -        self.linear_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, num_classes)
--        )
 +        self.to_latent = msnn.Identity()
 +        self.linear_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, num_classes)
+-        )
++        ])
  
 -    def forward(self, img):
 +    def construct(self, img):
          *_, h, w, dtype = *img.shape, img.dtype
  
          x = self.to_patch_embedding(img)
-@@ -147,7 +137,7 @@ 
+@@ -147,7 +155,7 @@ 
  # Masked Position Prediction Pre-Training
  
 -class MP3(nn.Module):
@@ -151,22 +156,23 @@
      def __init__(self, vit: ViT, masking_ratio):
          super().__init__()
          self.vit = vit
-@@ -156,12 +146,10 @@         self.masking_ratio = masking_ratio
+@@ -156,12 +164,13 @@         self.masking_ratio = masking_ratio
  
          dim = vit.dim
 -        self.mlp_head = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, vit.num_patches)
--        )
 +        self.mlp_head = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, vit.num_patches)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, vit.num_patches)
+-        )
++        ])
  
 -    def forward(self, img):
 +    def construct(self, img):
          device = img.device
          tokens = self.vit.to_patch_embedding(img)
          tokens = rearrange(tokens, 'b ... d -> b (...) d')
-@@ -170,17 +158,17 @@ 
+@@ -170,17 +179,17 @@ 
          # Masking
          num_masked = int(self.masking_ratio * num_patches)
 -        rand_indices = torch.rand(batch, num_patches, device = device).argsort(dim = -1)

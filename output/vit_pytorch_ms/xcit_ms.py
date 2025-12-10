@@ -60,7 +60,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -79,7 +86,10 @@ class Attention(msnn.Cell):
         self.dropout = nn.Dropout(dropout)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x, context = None):
         h = self.heads
@@ -114,7 +124,10 @@ class XCAttention(msnn.Cell):
         self.dropout = nn.Dropout(dropout)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         h = self.heads
@@ -145,7 +158,15 @@ class LocalPatchInteraction(msnn.Cell):
         padding = kernel_size // 2
 
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), Rearrange('b h w c -> b c h w'), nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim), nn.BatchNorm2d(dim), nn.GELU(), nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim), Rearrange('b c h w -> b h w c')])
+            [
+            nn.LayerNorm(dim),
+            Rearrange('b h w c -> b c h w'),
+            nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim),
+            nn.BatchNorm2d(dim),
+            nn.GELU(),
+            nn.Conv2d(dim, dim, kernel_size, padding = padding, groups = dim),
+            Rearrange('b c h w -> b h w c')
+        ])
 
     def construct(self, x):
         return self.net(x)
@@ -221,7 +242,12 @@ class XCiT(msnn.Cell):
         patch_dim = 3 * patch_size ** 2
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches, dim)))
         self.cls_token = ms.Parameter(mint.randn(dim))
@@ -235,7 +261,10 @@ class XCiT(msnn.Cell):
         self.cls_transformer = Transformer(dim, cls_depth, heads, dim_head, mlp_dim, dropout, layer_dropout)
 
         self.mlp_head = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, num_classes)
+        ])
 
     def construct(self, img):
         x = self.to_patch_embedding(img)

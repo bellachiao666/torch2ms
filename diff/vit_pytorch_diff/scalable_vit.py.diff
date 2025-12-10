@@ -14,7 +14,7 @@
  
  # helpers
  
-@@ -21,54 +25,48 @@ 
+@@ -21,54 +25,55 @@ 
  # helper classes
  
 -class ChanLayerNorm(nn.Module):
@@ -66,16 +66,17 @@
          super().__init__()
          inner_dim = dim * expansion_factor
 -        self.net = nn.Sequential(
--            ChanLayerNorm(dim),
--            nn.Conv2d(dim, inner_dim, 1),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Conv2d(inner_dim, dim, 1),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             ChanLayerNorm(dim),
+             nn.Conv2d(dim, inner_dim, 1),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Conv2d(inner_dim, dim, 1),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [ChanLayerNorm(dim), nn.Conv2d(dim, inner_dim, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -86,23 +87,24 @@
      def __init__(
          self,
          dim,
-@@ -89,12 +87,10 @@         self.to_k = nn.Conv2d(dim, dim_key * heads, reduction_factor, stride = reduction_factor, bias = False)
+@@ -89,12 +94,13 @@         self.to_k = nn.Conv2d(dim, dim_key * heads, reduction_factor, stride = reduction_factor, bias = False)
          self.to_v = nn.Conv2d(dim, dim_value * heads, reduction_factor, stride = reduction_factor, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Conv2d(dim_value * heads, dim, 1),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Conv2d(dim_value * heads, dim, 1),
+             nn.Dropout(dropout)
 -        )
 -
 -    def forward(self, x):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Conv2d(dim_value * heads, dim, 1), nn.Dropout(dropout)])
++        ])
 +
 +    def construct(self, x):
          height, width, heads = *x.shape[-2:], self.heads
  
          x = self.norm(x)
-@@ -107,7 +103,7 @@ 
+@@ -107,7 +113,7 @@ 
          # similarity
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -110,7 +112,7 @@
  
          # attention
  
-@@ -116,14 +112,14 @@ 
+@@ -116,14 +122,14 @@ 
          # aggregate values
  
 -        out = torch.matmul(attn, v)
@@ -126,23 +128,24 @@
      def __init__(
          self,
          dim,
-@@ -147,12 +143,10 @@         self.to_k = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
+@@ -147,12 +153,13 @@         self.to_k = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
          self.to_v = nn.Conv2d(dim, dim_value * heads, 1, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Conv2d(dim_value * heads, dim, 1),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Conv2d(dim_value * heads, dim, 1),
+             nn.Dropout(dropout)
 -        )
 -
 -    def forward(self, x):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Conv2d(dim_value * heads, dim, 1), nn.Dropout(dropout)])
++        ])
 +
 +    def construct(self, x):
          height, width, heads, wsz = *x.shape[-2:], self.heads, self.window_size
  
          x = self.norm(x)
-@@ -172,7 +166,7 @@ 
+@@ -172,7 +179,7 @@ 
          # similarity
  
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -150,7 +153,7 @@
  
          # attention
  
-@@ -181,7 +175,7 @@ 
+@@ -181,7 +188,7 @@ 
          # aggregate values
  
 -        out = torch.matmul(attn, v)
@@ -158,7 +161,7 @@
  
          # reshape the windows back to full feature map (and merge heads)
  
-@@ -193,7 +187,7 @@ 
+@@ -193,7 +200,7 @@ 
          return self.to_out(out)
  
 -class Transformer(nn.Module):
@@ -166,7 +169,7 @@
      def __init__(
          self,
          dim,
-@@ -210,11 +204,11 @@         norm_output = True
+@@ -210,11 +217,11 @@         norm_output = True
      ):
          super().__init__()
 -        self.layers = nn.ModuleList([])
@@ -179,7 +182,7 @@
                  ScalableSelfAttention(dim, heads = heads, dim_key = ssa_dim_key, dim_value = ssa_dim_value, reduction_factor = ssa_reduction_factor, dropout = dropout),
                  FeedForward(dim, expansion_factor = ff_expansion_factor, dropout = dropout),
                  PEG(dim) if is_first else None,
-@@ -222,9 +216,9 @@                 InteractiveWindowedSelfAttention(dim, heads = heads, dim_key = iwsa_dim_key, dim_value = iwsa_dim_value, window_size = iwsa_window_size, dropout = dropout)
+@@ -222,9 +229,9 @@                 InteractiveWindowedSelfAttention(dim, heads = heads, dim_key = iwsa_dim_key, dim_value = iwsa_dim_value, window_size = iwsa_window_size, dropout = dropout)
              ]))
  
 -        self.norm = ChanLayerNorm(dim) if norm_output else nn.Identity()
@@ -191,7 +194,7 @@
          for ssa, ff1, peg, iwsa, ff2 in self.layers:
              x = ssa(x) + x
              x = ff1(x) + x
-@@ -237,7 +231,7 @@ 
+@@ -237,7 +244,7 @@ 
          return self.norm(x)
  
 -class ScalableViT(nn.Module):
@@ -199,7 +202,7 @@
      def __init__(
          self,
          *,
-@@ -276,23 +270,20 @@         hyperparams_per_stage = list(map(partial(cast_tuple, length = num_stages), hyperparams_per_stage))
+@@ -276,23 +283,24 @@         hyperparams_per_stage = list(map(partial(cast_tuple, length = num_stages), hyperparams_per_stage))
          assert all(tuple(map(lambda arr: len(arr) == num_stages, hyperparams_per_stage)))
  
 -        self.layers = nn.ModuleList([])
@@ -215,14 +218,15 @@
              ]))
  
 -        self.mlp_head = nn.Sequential(
--            Reduce('b d h w -> b d', 'mean'),
--            nn.LayerNorm(dims[-1]),
--            nn.Linear(dims[-1], num_classes)
++        self.mlp_head = msnn.SequentialCell(
++            [
+             Reduce('b d h w -> b d', 'mean'),
+             nn.LayerNorm(dims[-1]),
+             nn.Linear(dims[-1], num_classes)
 -        )
 -
 -    def forward(self, img):
-+        self.mlp_head = msnn.SequentialCell(
-+            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
++        ])
 +
 +    def construct(self, img):
          x = self.to_patches(img)

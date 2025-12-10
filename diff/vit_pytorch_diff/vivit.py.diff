@@ -13,7 +13,7 @@
  
  # helpers
  
-@@ -14,21 +18,15 @@ 
+@@ -14,21 +18,22 @@ 
  # classes
  
 -class FeedForward(nn.Module):
@@ -21,16 +21,17 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
++        self.net = msnn.SequentialCell(
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
 -        )
 -    def forward(self, x):
-+        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++        ])
 +    def construct(self, x):
          return self.net(x)
  
@@ -39,17 +40,18 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -43,54 +41,52 @@ 
+@@ -43,54 +48,55 @@ 
          self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
++        self.to_out = msnn.SequentialCell(
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
 -        ) if project_out else nn.Identity()
 -
 -    def forward(self, x):
-+        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
++        ]) if project_out else msnn.Identity()
 +
 +    def construct(self, x):
          x = self.norm(x)
@@ -107,7 +109,7 @@
          b, f, n, _ = x.shape
          for spatial_attn, temporal_attn, ff in self.layers:
              x = rearrange(x, 'b f n d -> (b f) n d')
-@@ -102,7 +98,7 @@ 
+@@ -102,7 +108,7 @@ 
          return self.norm(x)
  
 -class ViT(nn.Module):
@@ -115,19 +117,20 @@
      def __init__(
          self,
          *,
-@@ -140,20 +136,16 @@ 
+@@ -140,20 +146,21 @@ 
          self.global_average_pool = pool == 'mean'
  
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange('b c (f pf) (h p1) (w p2) -> b f (h w) (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size),
--            nn.LayerNorm(patch_dim),
--            nn.Linear(patch_dim, dim),
--            nn.LayerNorm(dim)
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange('b c (f pf) (h p1) (w p2) -> b f (h w) (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size),
+             nn.LayerNorm(patch_dim),
+             nn.Linear(patch_dim, dim),
+             nn.LayerNorm(dim)
 -        )
 -
 -        self.pos_embedding = nn.Parameter(torch.randn(1, num_frame_patches, num_image_patches, dim))
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange('b c (f pf) (h p1) (w p2) -> b f (h w) (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++        ])
 +
 +        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_frame_patches, num_image_patches, dim)))
          self.dropout = nn.Dropout(emb_dropout)
@@ -141,7 +144,7 @@
              self.spatial_transformer = Transformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout)
              self.temporal_transformer = Transformer(dim, temporal_depth, heads, dim_head, mlp_dim, dropout)
          elif variant == 'factorized_self_attention':
-@@ -161,12 +153,12 @@             self.factorized_transformer = FactorizedTransformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout)
+@@ -161,12 +168,12 @@             self.factorized_transformer = FactorizedTransformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout)
  
          self.pool = pool
 -        self.to_latent = nn.Identity()
@@ -155,7 +158,7 @@
          x = self.to_patch_embedding(video)
          b, f, n, _ = x.shape
  
-@@ -174,7 +166,7 @@ 
+@@ -174,7 +181,7 @@ 
          if exists(self.spatial_cls_token):
              spatial_cls_tokens = repeat(self.spatial_cls_token, '1 1 d -> b f 1 d', b = b, f = f)
 -            x = torch.cat((spatial_cls_tokens, x), dim = 2)
@@ -163,7 +166,7 @@
  
          x = self.dropout(x)
  
-@@ -195,7 +187,7 @@             if exists(self.temporal_cls_token):
+@@ -195,7 +202,7 @@             if exists(self.temporal_cls_token):
                  temporal_cls_tokens = repeat(self.temporal_cls_token, '1 1 d-> b 1 d', b = b)
  
 -                x = torch.cat((temporal_cls_tokens, x), dim = 1)

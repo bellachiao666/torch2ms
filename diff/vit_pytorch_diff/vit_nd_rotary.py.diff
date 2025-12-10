@@ -64,7 +64,7 @@
          # input shape: (b, h, n, d) where d = head_dim
          # pos shape: (b, n, p) where p = pos_dim
          # self.freqs shape: (h, f, p) where f = d // 2
-@@ -85,34 +86,28 @@         # Compute theta for each (batch, head, seq, freq)
+@@ -85,34 +86,35 @@         # Compute theta for each (batch, head, seq, freq)
          theta = reduce(freqs * positions, 'b h n f p -> b h n f', 'sum')
          
 -        cos_theta = torch.cos(theta)
@@ -87,15 +87,16 @@
      def __init__(self, dim, hidden_dim, dropout = 0.):
          super().__init__()
 -        self.net = nn.Sequential(
--            nn.LayerNorm(dim),
--            nn.Linear(dim, hidden_dim),
--            nn.GELU(),
--            nn.Dropout(dropout),
--            nn.Linear(hidden_dim, dim),
--            nn.Dropout(dropout)
--        )
 +        self.net = msnn.SequentialCell(
-+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++            [
+             nn.LayerNorm(dim),
+             nn.Linear(dim, hidden_dim),
+             nn.GELU(),
+             nn.Dropout(dropout),
+             nn.Linear(hidden_dim, dim),
+             nn.Dropout(dropout)
+-        )
++        ])
      
 -    def forward(self, x):
 +    def construct(self, x):
@@ -106,22 +107,23 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., rotary_emb = None):
          super().__init__()
          inner_dim = dim_head * heads
-@@ -129,12 +124,10 @@         self.to_qk = nn.Linear(dim, inner_dim * 2, bias = False)
+@@ -129,12 +131,13 @@         self.to_qk = nn.Linear(dim, inner_dim * 2, bias = False)
          self.to_v = nn.Linear(dim, inner_dim, bias = False)
  
 -        self.to_out = nn.Sequential(
--            nn.Linear(inner_dim, dim),
--            nn.Dropout(dropout)
--        ) if project_out else nn.Identity()
 +        self.to_out = msnn.SequentialCell(
-+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
++            [
+             nn.Linear(inner_dim, dim),
+             nn.Dropout(dropout)
+-        ) if project_out else nn.Identity()
++        ]) if project_out else msnn.Identity()
      
 -    def forward(self, x, pos = None):
 +    def construct(self, x, pos = None):
          x = self.norm(x)
          qkv = (*self.to_qk(x).chunk(2, dim = -1), self.to_v(x))
  
-@@ -146,33 +139,33 @@             q = self.rotary_emb(q, pos)
+@@ -146,33 +149,33 @@             q = self.rotary_emb(q, pos)
              k = self.rotary_emb(k, pos)
          
 -        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -161,20 +163,22 @@
      def __init__(
          self,
          *,
-@@ -224,11 +217,8 @@         
+@@ -224,11 +227,12 @@         
          rearrange_kwargs = {f'p{i}': p for i, p in enumerate(patch_size)}
          
 -        self.to_patch_embedding = nn.Sequential(
--            Rearrange(rearrange_str, **rearrange_kwargs),
--            nn.Linear(patch_dim, dim),
++        self.to_patch_embedding = msnn.SequentialCell(
++            [
+             Rearrange(rearrange_str, **rearrange_kwargs),
+             nn.Linear(patch_dim, dim),
 -            nn.LayerNorm(dim),
 -        )
-+        self.to_patch_embedding = msnn.SequentialCell(
-+            [Rearrange(rearrange_str, **rearrange_kwargs), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++            nn.LayerNorm(dim)
++        ])
          
          self.dropout = nn.Dropout(emb_dropout)
          
-@@ -244,7 +234,7 @@         
+@@ -244,7 +248,7 @@         
          self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, rotary_emb = self.rotary_emb)
          
 -        self.to_latent = nn.Identity()
@@ -182,7 +186,7 @@
          self.mlp_head = nn.Linear(dim, num_classes)
      
      def muon_parameters(self):
-@@ -264,7 +254,7 @@ 
+@@ -264,7 +268,7 @@ 
          return params
  
 -    def forward(
@@ -190,7 +194,7 @@
          self,
          x,
          return_embed = False
-@@ -275,9 +265,9 @@         
+@@ -275,9 +279,9 @@         
          # Generate position coordinates
  
 -        grids = [arange(d, device = device, dtype = torch.float32) for d in spatial_dims]
@@ -202,7 +206,7 @@
  
          # flatten spatial dimensions for attention with nd rotary
          
-@@ -318,7 +308,7 @@         emb_dropout = 0.1
+@@ -318,7 +322,7 @@         emb_dropout = 0.1
      )
  
 -    data = torch.randn(2, 3, 4, 8, 16, 32, 64)

@@ -28,7 +28,12 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, dim)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -85,7 +90,12 @@ class SimpleViT(msnn.Cell):
         patch_dim = channels * patch_size
 
         self.to_patch_embedding = msnn.SequentialCell(
-            [Rearrange('b c (n p) -> b n (p c)', p = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+            [
+            Rearrange('b c (n p) -> b n (p c)', p = patch_size),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        ])
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
 

@@ -12,11 +12,19 @@ from einops import rearrange
 
 def conv_1x1_bn(inp, oup):
     return msnn.SequentialCell(
-        [nn.Conv2d(inp, oup, 1, 1, 0, bias = False), nn.BatchNorm2d(oup), nn.SiLU()])
+        [
+        nn.Conv2d(inp, oup, 1, 1, 0, bias = False),
+        nn.BatchNorm2d(oup),
+        nn.SiLU()
+    ])
 
 def conv_nxn_bn(inp, oup, kernel_size=3, stride=1):
     return msnn.SequentialCell(
-        [nn.Conv2d(inp, oup, kernel_size, stride, 1, bias = False), nn.BatchNorm2d(oup), nn.SiLU()])
+        [
+        nn.Conv2d(inp, oup, kernel_size, stride, 1, bias = False),
+        nn.BatchNorm2d(oup),
+        nn.SiLU()
+    ])
 
 # classes
 
@@ -24,7 +32,14 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout=0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.SiLU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.SiLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         return self.net(x)
@@ -43,7 +58,10 @@ class Attention(msnn.Cell):
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = msnn.SequentialCell(
-            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+            [
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ])
 
     def construct(self, x):
         x = self.norm(x)
@@ -98,11 +116,26 @@ class MV2Block(msnn.Cell):
         if expansion == 1:
             self.conv = msnn.SequentialCell(
                 # dw
-                [nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups = hidden_dim, bias = False), nn.BatchNorm2d(hidden_dim), nn.SiLU(), nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias = False), nn.BatchNorm2d(oup)])
+                [
+                nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups = hidden_dim, bias = False),
+                nn.BatchNorm2d(hidden_dim),
+                nn.SiLU(),
+                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias = False),
+                nn.BatchNorm2d(oup)
+            ])
         else:
             self.conv = msnn.SequentialCell(
                 # pw
-                [nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias = False), nn.BatchNorm2d(hidden_dim), nn.SiLU(), nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups = hidden_dim, bias = False), nn.BatchNorm2d(hidden_dim), nn.SiLU(), nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias = False), nn.BatchNorm2d(oup)])
+                [
+                nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias = False),
+                nn.BatchNorm2d(hidden_dim),
+                nn.SiLU(),
+                nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups = hidden_dim, bias = False),
+                nn.BatchNorm2d(hidden_dim),
+                nn.SiLU(),
+                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias = False),
+                nn.BatchNorm2d(oup)
+            ])
 
     def construct(self, x):
         out = self.conv(x)
@@ -197,7 +230,11 @@ class MobileViT(msnn.Cell):
         ]))
 
         self.to_logits = msnn.SequentialCell(
-            [conv_1x1_bn(channels[-2], last_dim), Reduce('b c h w -> b c', 'mean'), nn.Linear(channels[-1], num_classes, bias = False)])
+            [
+            conv_1x1_bn(channels[-2], last_dim),
+            Reduce('b c h w -> b c', 'mean'),
+            nn.Linear(channels[-1], num_classes, bias = False)
+        ])
 
     def construct(self, x):
         x = self.conv1(x)

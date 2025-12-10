@@ -30,7 +30,13 @@ class FeedForward(msnn.Cell):
     def __init__(self, dim, mult, dropout = 0.):
         super().__init__()
         self.net = msnn.SequentialCell(
-            [nn.Conv2d(dim, dim * mult, 1), nn.Hardswish(), nn.Dropout(dropout), nn.Conv2d(dim * mult, dim, 1), nn.Dropout(dropout)])
+            [
+            nn.Conv2d(dim, dim * mult, 1),
+            nn.Hardswish(),
+            nn.Dropout(dropout),
+            nn.Conv2d(dim * mult, dim, 1),
+            nn.Dropout(dropout)
+        ])
     def construct(self, x):
         return self.net(x)
 
@@ -44,9 +50,18 @@ class Attention(msnn.Cell):
         self.heads = heads
         self.scale = dim_key ** -0.5
 
-        self.to_q = msnn.SequentialCell([nn.Conv2d(dim, inner_dim_key, 1, stride = (2 if downsample else 1), bias = False), nn.BatchNorm2d(inner_dim_key)])
-        self.to_k = msnn.SequentialCell([nn.Conv2d(dim, inner_dim_key, 1, bias = False), nn.BatchNorm2d(inner_dim_key)])
-        self.to_v = msnn.SequentialCell([nn.Conv2d(dim, inner_dim_value, 1, bias = False), nn.BatchNorm2d(inner_dim_value)])
+        self.to_q = msnn.SequentialCell([
+            nn.Conv2d(dim, inner_dim_key, 1, stride = (2 if downsample else 1), bias = False),
+            nn.BatchNorm2d(inner_dim_key)
+        ])
+        self.to_k = msnn.SequentialCell([
+            nn.Conv2d(dim, inner_dim_key, 1, bias = False),
+            nn.BatchNorm2d(inner_dim_key)
+        ])
+        self.to_v = msnn.SequentialCell([
+            nn.Conv2d(dim, inner_dim_value, 1, bias = False),
+            nn.BatchNorm2d(inner_dim_value)
+        ])
 
         self.attend = nn.Softmax(dim = -1)
         self.dropout = nn.Dropout(dropout)
@@ -55,7 +70,12 @@ class Attention(msnn.Cell):
         nn.init.zeros_(out_batch_norm.weight)
 
         self.to_out = msnn.SequentialCell(
-            [nn.GELU(), nn.Conv2d(inner_dim_value, dim_out, 1), out_batch_norm, nn.Dropout(dropout)])
+            [
+            nn.GELU(),
+            nn.Conv2d(inner_dim_value, dim_out, 1),
+            out_batch_norm,
+            nn.Dropout(dropout)
+        ])
 
         # positional bias
 
@@ -144,7 +164,12 @@ class LeViT(msnn.Cell):
         assert all(map(lambda t: len(t) == stages, (dims, depths, layer_heads))), 'dimensions, depths, and heads must be a tuple that is less than the designated number of stages'
 
         self.conv_embedding = msnn.SequentialCell(
-            [nn.Conv2d(3, 32, 3, stride = 2, padding = 1), nn.Conv2d(32, 64, 3, stride = 2, padding = 1), nn.Conv2d(64, 128, 3, stride = 2, padding = 1), nn.Conv2d(128, dims[0], 3, stride = 2, padding = 1)])
+            [
+            nn.Conv2d(3, 32, 3, stride = 2, padding = 1),
+            nn.Conv2d(32, 64, 3, stride = 2, padding = 1),
+            nn.Conv2d(64, 128, 3, stride = 2, padding = 1),
+            nn.Conv2d(128, dims[0], 3, stride = 2, padding = 1)
+        ])
 
         fmap_size = image_size // (2 ** 4)
         layers = []
@@ -158,10 +183,15 @@ class LeViT(msnn.Cell):
                 layers.append(Transformer(dim, fmap_size, 1, heads * 2, dim_key, dim_value, dim_out = next_dim, downsample = True))
                 fmap_size = ceil(fmap_size / 2)
 
-        self.backbone = msnn.SequentialCell([layers])
+        self.backbone = msnn.SequentialCell([
+            layers
+        ])
 
         self.pool = msnn.SequentialCell(
-            [nn.AdaptiveAvgPool2d(1), Rearrange('... () () -> ...')])
+            [
+            nn.AdaptiveAvgPool2d(1),
+            Rearrange('... () () -> ...')
+        ])
 
         self.distill_head = nn.Linear(dim, num_distill_classes) if exists(num_distill_classes) else always(None)
         self.mlp_head = nn.Linear(dim, num_classes)
