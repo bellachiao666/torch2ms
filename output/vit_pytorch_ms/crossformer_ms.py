@@ -1,8 +1,12 @@
-import torch
-from torch import nn, einsum
-from einops import rearrange
-from einops.layers.torch import Rearrange, Reduce
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
 from mindspore.mint import nn, ops
+# import torch
+# from torch import nn, einsum
+from einops import rearrange
+# from einops.layers.torch import Rearrange, Reduce
 
 # helpers
 
@@ -11,7 +15,7 @@ def cast_tuple(val, length = 1):
 
 # cross embed layer
 
-class CrossEmbedLayer(nn.Cell):
+class CrossEmbedLayer(msnn.Cell):
     def __init__(
         self,
         dim_in,
@@ -27,55 +31,39 @@ class CrossEmbedLayer(nn.Cell):
         dim_scales = [int(dim_out / (2 ** i)) for i in range(1, num_scales)]
         dim_scales = [*dim_scales, dim_out - sum(dim_scales)]
 
-        self.convs = nn.CellList([])
+        self.convs = msnn.CellList([])
         for kernel, dim_scale in zip(kernel_sizes, dim_scales):
-            self.convs.append(nn.Conv2d(in_channels = dim_in, out_channels = dim_scale, kernel_size = kernel, stride = stride, padding = (kernel - stride) // 2))  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+            self.convs.append(nn.Conv2d(dim_in, dim_scale, kernel, stride = stride, padding = (kernel - stride) // 2))
 
-    def forward(self, x):
+    def construct(self, x):
         fmaps = tuple(map(lambda conv: conv(x), self.convs))
-        return ops.cat(tensors = fmaps, dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        return mint.cat(fmaps, dim = 1)
 
 # dynamic positional bias
 
 def DynamicPositionBias(dim):
-    return nn.SequentialCell(
-        nn.Linear(in_features = 2, out_features = dim),
-        nn.LayerNorm(normalized_shape = dim),
-        nn.ReLU(),
-        nn.Linear(in_features = dim, out_features = dim),
-        nn.LayerNorm(normalized_shape = dim),
-        nn.ReLU(),
-        nn.Linear(in_features = dim, out_features = dim),
-        nn.LayerNorm(normalized_shape = dim),
-        nn.ReLU(),
-        nn.Linear(in_features = dim, out_features = 1),
-        Rearrange('... () -> ...')
-    )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';; 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
+    return msnn.SequentialCell(
+        [nn.Linear(2, dim), nn.LayerNorm(dim), nn.ReLU(), nn.Linear(dim, dim), nn.LayerNorm(dim), nn.ReLU(), nn.Linear(dim, dim), nn.LayerNorm(dim), nn.ReLU(), nn.Linear(dim, 1), Rearrange('... () -> ...')])
 
 # transformer classes
 
-class LayerNorm(nn.Cell):
+class LayerNorm(msnn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = ms.Parameter(mint.ones(size = (1, dim, 1, 1)))
+        self.b = ms.Parameter(mint.zeros(size = (1, dim, 1, 1)))
 
-    def forward(self, x):
-        var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
-        mean = ops.mean(input = x, dim = 1, keepdim = True)
+    def construct(self, x):
+        var = mint.var(x, dim = 1, keepdim = True)
+        mean = mint.mean(x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
 def FeedForward(dim, mult = 4, dropout = 0.):
-    return nn.SequentialCell(
-        LayerNorm(dim),
-        nn.Conv2d(in_channels = dim, out_channels = dim * mult, kernel_size = 1),
-        nn.GELU(),
-        nn.Dropout(p = dropout),
-        nn.Conv2d(in_channels = dim * mult, out_channels = dim, kernel_size = 1)
-    )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+    return msnn.SequentialCell(
+        [LayerNorm(dim), nn.Conv2d(dim, dim * mult, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(dim * mult, dim, 1)])
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -96,10 +84,10 @@ class Attention(nn.Cell):
 
         self.norm = LayerNorm(dim)
 
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
-        self.to_qkv = nn.Conv2d(in_channels = dim, out_channels = inner_dim * 3, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-        self.to_out = nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.to_qkv = nn.Conv2d(dim, inner_dim * 3, 1, bias = False)
+        self.to_out = nn.Conv2d(inner_dim, dim, 1)
 
         # positions
 
@@ -107,8 +95,8 @@ class Attention(nn.Cell):
 
         # calculate and store indices for retrieving bias
 
-        pos = ops.arange(start = window_size)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-        grid = ops.stack(tensors = ops.meshgrid(tensors = pos, indexing = 'ij'))  # 'torch.stack':没有对应的mindspore参数 'out';
+        pos = mint.arange(window_size)
+        grid = mint.stack(mint.meshgrid(pos, pos, indexing = 'ij'))
         grid = rearrange(grid, 'c i j -> (i j) c')
         rel_pos = grid[:, None] - grid[None, :]
         rel_pos += window_size - 1
@@ -116,7 +104,7 @@ class Attention(nn.Cell):
 
         self.register_buffer('rel_pos_indices', rel_pos_indices, persistent = False)
 
-    def forward(self, x):
+    def construct(self, x):
         *_, height, width, heads, wsz, device = *x.shape, self.heads, self.window_size, x.device
 
         # prenorm
@@ -139,12 +127,12 @@ class Attention(nn.Cell):
         q, k, v = map(lambda t: rearrange(t, 'b (h d) x y -> b h (x y) d', h = heads), (q, k, v))
         q = q * self.scale
 
-        sim = ops.einsum(equation = 'b h i d, b h j d -> b h i j', operands = q)
+        sim = mint.einsum('b h i d, b h j d -> b h i j', q, k)
 
         # add dynamic positional bias
 
-        pos = ops.arange(start = -wsz, end = wsz + 1)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-        rel_pos = ops.stack(tensors = ops.meshgrid(tensors = pos, indexing = 'ij'))  # 'torch.stack':没有对应的mindspore参数 'out';
+        pos = mint.arange(-wsz, wsz + 1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+        rel_pos = mint.stack(mint.meshgrid(pos, pos, indexing = 'ij'))
         rel_pos = rearrange(rel_pos, 'c i j -> (i j) c')
         biases = self.dpb(rel_pos.float())
         rel_pos_bias = biases[self.rel_pos_indices]
@@ -158,7 +146,7 @@ class Attention(nn.Cell):
 
         # merge heads
 
-        out = ops.einsum(equation = 'b h i j, b h j d -> b h i d', operands = attn)
+        out = mint.einsum('b h i j, b h j d -> b h i d', attn, v)
         out = rearrange(out, 'b h (x y) d -> b (h d) x y', x = wsz, y = wsz)
         out = self.to_out(out)
 
@@ -171,7 +159,7 @@ class Attention(nn.Cell):
 
         return out
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -184,17 +172,17 @@ class Transformer(nn.Cell):
         ff_dropout = 0.,
     ):
         super().__init__()
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, attn_type = 'short', window_size = local_window_size, dim_head = dim_head, dropout = attn_dropout),
                 FeedForward(dim, dropout = ff_dropout),
                 Attention(dim, attn_type = 'long', window_size = global_window_size, dim_head = dim_head, dropout = attn_dropout),
                 FeedForward(dim, dropout = ff_dropout)
             ]))
 
-    def forward(self, x):
+    def construct(self, x):
         for short_attn, short_ff, long_attn, long_ff in self.layers:
             x = short_attn(x) + x
             x = short_ff(x) + x
@@ -205,7 +193,7 @@ class Transformer(nn.Cell):
 
 # classes
 
-class CrossFormer(nn.Cell):
+class CrossFormer(msnn.Cell):
     def __init__(
         self,
         *,
@@ -244,22 +232,20 @@ class CrossFormer(nn.Cell):
 
         # layers
 
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         for (dim_in, dim_out), layers, global_wsz, local_wsz, cel_kernel_sizes, cel_stride in zip(dim_in_and_out, depth, global_window_size, local_window_size, cross_embed_kernel_sizes, cross_embed_strides):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 CrossEmbedLayer(dim_in, dim_out, cel_kernel_sizes, stride = cel_stride),
                 Transformer(dim_out, local_window_size = local_wsz, global_window_size = global_wsz, depth = layers, attn_dropout = attn_dropout, ff_dropout = ff_dropout)
             ]))
 
         # final logits
 
-        self.to_logits = nn.SequentialCell(
-            Reduce('b c h w -> b c', 'mean'),
-            nn.Linear(in_features = last_dim, out_features = num_classes)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_logits = msnn.SequentialCell(
+            [Reduce('b c h w -> b c', 'mean'), nn.Linear(last_dim, num_classes)])
 
-    def forward(self, x):
+    def construct(self, x):
         for cel, transformer in self.layers:
             x = cel(x)
             x = transformer(x)

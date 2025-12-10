@@ -1,9 +1,13 @@
-import torch
-from torch import nn
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+# import torch
+# from torch import nn
 
 from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -27,41 +31,33 @@ def unfreeze_all_layers_(module):
 
 # classes
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Linear(in_features = hidden_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
-    def forward(self, x):
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+    def construct(self, x):
         return self.net(x)
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
 
         self.heads = heads
         self.scale = dim_head ** -0.5
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
 
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
-        self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_q = nn.Linear(dim, inner_dim, bias = False)
+        self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = inner_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
 
-    def forward(self, x, attn_mask = None, memories = None):
+    def construct(self, x, attn_mask = None, memories = None):
         x = self.norm(x)
 
         x_kv = x # input for key / values projection
@@ -69,12 +65,12 @@ class Attention(nn.Cell):
         if exists(memories):
             # add memories to key / values if it is passed in
             memories = repeat(memories, 'n d -> b n d', b = x.shape[0]) if memories.ndim == 2 else memories
-            x_kv = ops.cat(tensors = (x_kv, memories), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+            x_kv = mint.cat((x_kv, memories), dim = 1)
 
         qkv = (self.to_q(x), *self.to_kv(x_kv).chunk(2, dim = -1))
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
 
         if exists(attn_mask):
             dots = dots.masked_fill(~attn_mask, -torch.finfo(dots.dtype).max)
@@ -82,21 +78,21 @@ class Attention(nn.Cell):
         attn = self.attend(dots)
         attn = self.dropout(attn)
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(self, x, attn_mask = None, memories = None):
+    def construct(self, x, attn_mask = None, memories = None):
         for ind, (attn, ff) in enumerate(self.layers):
             layer_memories = memories[ind] if exists(memories) else None
 
@@ -104,7 +100,7 @@ class Transformer(nn.Cell):
             x = ff(x) + x
         return x
 
-class ViT(nn.Cell):
+class ViT(msnn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)
@@ -116,35 +112,29 @@ class ViT(nn.Cell):
         patch_dim = channels * patch_height * patch_width
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
 
-        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
+        self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
+        self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
-        self.mlp_head = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = num_classes)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
 
     def img_to_tokens(self, img):
         x = self.to_patch_embedding(img)
 
         cls_tokens = repeat(self.cls_token, '1 n d -> b n d', b = x.shape[0])
-        x = ops.cat(tensors = (cls_tokens, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        x = mint.cat((cls_tokens, x), dim = 1)
 
         x += self.pos_embedding
         x = self.dropout(x)
         return x
 
-    def forward(self, img):
+    def construct(self, img):
         x = self.img_to_tokens(img)        
 
         x = self.transformer(x)
@@ -154,7 +144,7 @@ class ViT(nn.Cell):
 
 # adapter with learnable memories per layer, memory CLS token, and learnable adapter head
 
-class Adapter(nn.Cell):
+class Adapter(msnn.Cell):
     def __init__(
         self,
         *,
@@ -179,23 +169,21 @@ class Adapter(nn.Cell):
 
         # learnable parameters
 
-        self.memory_cls_token = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.memories_per_layer = mindspore.Parameter(ops.randn(size = layers, generator = num_memories_per_layer))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.memory_cls_token = ms.Parameter(mint.randn(dim))
+        self.memories_per_layer = ms.Parameter(mint.randn(size = (layers, num_memories_per_layer, dim)))
 
-        self.mlp_head = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = num_classes)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
 
         # specialized attention mask to preserve the output of the original ViT
         # it allows the memory CLS token to attend to all other tokens (and the learnable memory layer tokens), but not vice versa        
 
-        attn_mask = ops.ones(size = (num_patches, num_patches), dtype = torch.bool)  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        attn_mask = nn.functional.pad(input = attn_mask, pad = (1, num_memories_per_layer), value = False)  # main tokens cannot attend to learnable memories per layer
-        attn_mask = nn.functional.pad(input = attn_mask, pad = (0, 0, 1, 0), value = True)                  # memory CLS token can attend to everything
+        attn_mask = mint.ones((num_patches, num_patches), dtype = ms.bool)
+        attn_mask = nn.functional.pad(attn_mask, (1, num_memories_per_layer), value = False)  # main tokens cannot attend to learnable memories per layer
+        attn_mask = nn.functional.pad(attn_mask, (0, 0, 1, 0), value = True)                  # memory CLS token can attend to everything
         self.register_buffer('attn_mask', attn_mask)
 
-    def forward(self, img):
+    def construct(self, img):
         b = img.shape[0]
 
         tokens = self.vit.img_to_tokens(img)
@@ -203,7 +191,7 @@ class Adapter(nn.Cell):
         # add task specific memory tokens
 
         memory_cls_tokens = repeat(self.memory_cls_token, 'd -> b 1 d', b = b)
-        tokens = ops.cat(tensors = (memory_cls_tokens, tokens), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        tokens = mint.cat((memory_cls_tokens, tokens), dim = 1)        
 
         # pass memories along with image tokens through transformer for attending
 

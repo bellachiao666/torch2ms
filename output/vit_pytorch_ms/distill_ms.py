@@ -1,11 +1,15 @@
-import torch
-from torch import nn
-import torch.nn.functional as F
-
-from vit_pytorch.vit import ViT
-from vit_pytorch.t2t import T2TViT
-from vit_pytorch.efficient import ViT as EfficientViT
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
 from mindspore.mint import nn, ops
+# import torch
+# from torch import nn
+# import torch.nn.functional as F
+
+# from vit_pytorch.vit import ViT
+# from vit_pytorch.t2t import T2TViT
+# from vit_pytorch.efficient import ViT as EfficientViT
 
 from einops import rearrange, repeat
 
@@ -26,12 +30,12 @@ class DistillMixin:
         b, n, _ = x.shape
 
         cls_tokens = repeat(self.cls_token, '1 n d -> b n d', b = b)
-        x = ops.cat(tensors = (cls_tokens, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        x = mint.cat((cls_tokens, x), dim = 1)
         x += self.pos_embedding[:, :(n + 1)]
 
         if distilling:
             distill_tokens = repeat(distill_token, '1 n d -> b n d', b = b)
-            x = ops.cat(tensors = (x, distill_tokens), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+            x = mint.cat((x, distill_tokens), dim = 1)
 
         x = self._attend(x)
 
@@ -102,7 +106,7 @@ class DistillableEfficientViT(DistillMixin, EfficientViT):
 
 # knowledge distillation wrapper
 
-class DistillWrapper(nn.Cell):
+class DistillWrapper(msnn.Cell):
     def __init__(
         self,
         *,
@@ -125,14 +129,12 @@ class DistillWrapper(nn.Cell):
         self.alpha = alpha
         self.hard = hard
 
-        self.distillation_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.distillation_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
 
-        self.distill_mlp = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim) if mlp_layernorm else nn.Identity(),
-            nn.Linear(in_features = dim, out_features = num_classes)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.distill_mlp = msnn.SequentialCell(
+            [nn.LayerNorm(dim) if mlp_layernorm else msnn.Identity(), nn.Linear(dim, num_classes)])
 
-    def forward(self, img, labels, temperature = None, alpha = None, **kwargs):
+    def construct(self, img, labels, temperature = None, alpha = None, **kwargs):
 
         alpha = default(alpha, self.alpha)
         T = default(temperature, self.temperature)
@@ -147,9 +149,9 @@ class DistillWrapper(nn.Cell):
 
         if not self.hard:
             distill_loss = F.kl_div(
-                ops.special.log_softmax(input = distill_logits / T, dim = -1),
-                nn.functional.softmax(input = teacher_logits / T, dim = -1).detach(),
-            reduction = 'batchmean')  # 'torch.nn.functional.softmax':没有对应的mindspore参数 '_stacklevel';
+                mint.special.log_softmax(distill_logits / T, dim = -1),
+                nn.functional.softmax(teacher_logits / T, dim = -1).detach(),
+            reduction = 'batchmean')
             distill_loss *= T ** 2
 
         else:

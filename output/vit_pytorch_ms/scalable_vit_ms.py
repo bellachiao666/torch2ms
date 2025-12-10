@@ -1,9 +1,13 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from functools import partial
-from torch import nn
+# from torch import nn
 
 from einops import rearrange, repeat
-from einops.layers.torch import Rearrange, Reduce
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange, Reduce
 
 # helpers
 
@@ -21,54 +25,48 @@ def cast_tuple(val, length = 1):
 
 # helper classes
 
-class ChanLayerNorm(nn.Cell):
+class ChanLayerNorm(msnn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = ms.Parameter(mint.ones(size = (1, dim, 1, 1)))
+        self.b = ms.Parameter(mint.zeros(size = (1, dim, 1, 1)))
 
-    def forward(self, x):
-        var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
-        mean = ops.mean(input = x, dim = 1, keepdim = True)
+    def construct(self, x):
+        var = mint.var(x, dim = 1, keepdim = True)
+        mean = mint.mean(x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class Downsample(nn.Cell):
+class Downsample(msnn.Cell):
     def __init__(self, dim_in, dim_out):
         super().__init__()
-        self.conv = nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = 3, stride = 2, padding = 1)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.conv = nn.Conv2d(dim_in, dim_out, 3, stride = 2, padding = 1)
 
-    def forward(self, x):
+    def construct(self, x):
         return self.conv(x)
 
-class PEG(nn.Cell):
+class PEG(msnn.Cell):
     def __init__(self, dim, kernel_size = 3):
         super().__init__()
-        self.proj = nn.Conv2d(in_channels = dim, out_channels = dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.proj = nn.Conv2d(dim, dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim)
 
-    def forward(self, x):
+    def construct(self, x):
         return self.proj(x) + x
 
 # feedforward
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, expansion_factor = 4, dropout = 0.):
         super().__init__()
         inner_dim = dim * expansion_factor
-        self.net = nn.SequentialCell(
-            ChanLayerNorm(dim),
-            nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-    def forward(self, x):
+        self.net = msnn.SequentialCell(
+            [ChanLayerNorm(dim), nn.Conv2d(dim, inner_dim, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+    def construct(self, x):
         return self.net(x)
 
 # attention
 
-class ScalableSelfAttention(nn.Cell):
+class ScalableSelfAttention(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -82,19 +80,17 @@ class ScalableSelfAttention(nn.Cell):
         self.heads = heads
         self.scale = dim_key ** -0.5
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
         self.norm = ChanLayerNorm(dim)
-        self.to_q = nn.Conv2d(in_channels = dim, out_channels = dim_key * heads, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-        self.to_k = nn.Conv2d(in_channels = dim, out_channels = dim_key * heads, kernel_size = reduction_factor, stride = reduction_factor, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-        self.to_v = nn.Conv2d(in_channels = dim, out_channels = dim_value * heads, kernel_size = reduction_factor, stride = reduction_factor, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.to_q = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
+        self.to_k = nn.Conv2d(dim, dim_key * heads, reduction_factor, stride = reduction_factor, bias = False)
+        self.to_v = nn.Conv2d(dim, dim_value * heads, reduction_factor, stride = reduction_factor, bias = False)
 
-        self.to_out = nn.SequentialCell(
-            nn.Conv2d(in_channels = dim_value * heads, out_channels = dim, kernel_size = 1),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Conv2d(dim_value * heads, dim, 1), nn.Dropout(dropout)])
 
-    def forward(self, x):
+    def construct(self, x):
         height, width, heads = *x.shape[-2:], self.heads
 
         x = self.norm(x)
@@ -107,7 +103,7 @@ class ScalableSelfAttention(nn.Cell):
 
         # similarity
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
 
         # attention
 
@@ -116,14 +112,14 @@ class ScalableSelfAttention(nn.Cell):
 
         # aggregate values
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
 
         # merge back heads
 
         out = rearrange(out, 'b h (x y) d -> b (h d) x y', x = height, y = width)
         return self.to_out(out)
 
-class InteractiveWindowedSelfAttention(nn.Cell):
+class InteractiveWindowedSelfAttention(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -138,21 +134,19 @@ class InteractiveWindowedSelfAttention(nn.Cell):
         self.scale = dim_key ** -0.5
         self.window_size = window_size
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
         self.norm = ChanLayerNorm(dim)
-        self.local_interactive_module = nn.Conv2d(in_channels = dim_value * heads, out_channels = dim_value * heads, kernel_size = 3, padding = 1)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.local_interactive_module = nn.Conv2d(dim_value * heads, dim_value * heads, 3, padding = 1)
 
-        self.to_q = nn.Conv2d(in_channels = dim, out_channels = dim_key * heads, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-        self.to_k = nn.Conv2d(in_channels = dim, out_channels = dim_key * heads, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-        self.to_v = nn.Conv2d(in_channels = dim, out_channels = dim_value * heads, kernel_size = 1, bias = False)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.to_q = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
+        self.to_k = nn.Conv2d(dim, dim_key * heads, 1, bias = False)
+        self.to_v = nn.Conv2d(dim, dim_value * heads, 1, bias = False)
 
-        self.to_out = nn.SequentialCell(
-            nn.Conv2d(in_channels = dim_value * heads, out_channels = dim, kernel_size = 1),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Conv2d(dim_value * heads, dim, 1), nn.Dropout(dropout)])
 
-    def forward(self, x):
+    def construct(self, x):
         height, width, heads, wsz = *x.shape[-2:], self.heads, self.window_size
 
         x = self.norm(x)
@@ -172,7 +166,7 @@ class InteractiveWindowedSelfAttention(nn.Cell):
 
         # similarity
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
 
         # attention
 
@@ -181,7 +175,7 @@ class InteractiveWindowedSelfAttention(nn.Cell):
 
         # aggregate values
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
 
         # reshape the windows back to full feature map (and merge heads)
 
@@ -193,7 +187,7 @@ class InteractiveWindowedSelfAttention(nn.Cell):
 
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -210,11 +204,11 @@ class Transformer(nn.Cell):
         norm_output = True
     ):
         super().__init__()
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
         for ind in range(depth):
             is_first = ind == 0
 
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 ScalableSelfAttention(dim, heads = heads, dim_key = ssa_dim_key, dim_value = ssa_dim_value, reduction_factor = ssa_reduction_factor, dropout = dropout),
                 FeedForward(dim, expansion_factor = ff_expansion_factor, dropout = dropout),
                 PEG(dim) if is_first else None,
@@ -222,9 +216,9 @@ class Transformer(nn.Cell):
                 InteractiveWindowedSelfAttention(dim, heads = heads, dim_key = iwsa_dim_key, dim_value = iwsa_dim_value, window_size = iwsa_window_size, dropout = dropout)
             ]))
 
-        self.norm = ChanLayerNorm(dim) if norm_output else nn.Identity()
+        self.norm = ChanLayerNorm(dim) if norm_output else msnn.Identity()
 
-    def forward(self, x):
+    def construct(self, x):
         for ssa, ff1, peg, iwsa, ff2 in self.layers:
             x = ssa(x) + x
             x = ff1(x) + x
@@ -237,7 +231,7 @@ class Transformer(nn.Cell):
 
         return self.norm(x)
 
-class ScalableViT(nn.Cell):
+class ScalableViT(msnn.Cell):
     def __init__(
         self,
         *,
@@ -256,7 +250,7 @@ class ScalableViT(nn.Cell):
         dropout = 0.
     ):
         super().__init__()
-        self.to_patches = nn.Conv2d(in_channels = channels, out_channels = dim, kernel_size = 7, stride = 4, padding = 3)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.to_patches = nn.Conv2d(channels, dim, 7, stride = 4, padding = 3)
 
         assert isinstance(depth, tuple), 'depth needs to be tuple if integers indicating number of transformer blocks at that stage'
 
@@ -276,23 +270,20 @@ class ScalableViT(nn.Cell):
         hyperparams_per_stage = list(map(partial(cast_tuple, length = num_stages), hyperparams_per_stage))
         assert all(tuple(map(lambda arr: len(arr) == num_stages, hyperparams_per_stage)))
 
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         for ind, (layer_dim, layer_depth, layer_heads, layer_ssa_dim_key, layer_ssa_dim_value, layer_ssa_reduction_factor, layer_iwsa_dim_key, layer_iwsa_dim_value, layer_window_size) in enumerate(zip(dims, depth, *hyperparams_per_stage)):
             is_last = ind == (num_stages - 1)
 
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Transformer(dim = layer_dim, depth = layer_depth, heads = layer_heads, ff_expansion_factor = ff_expansion_factor, dropout = dropout, ssa_dim_key = layer_ssa_dim_key, ssa_dim_value = layer_ssa_dim_value, ssa_reduction_factor = layer_ssa_reduction_factor, iwsa_dim_key = layer_iwsa_dim_key, iwsa_dim_value = layer_iwsa_dim_value, iwsa_window_size = layer_window_size, norm_output = not is_last),
                 Downsample(layer_dim, layer_dim * 2) if not is_last else None
             ]))
 
-        self.mlp_head = nn.SequentialCell(
-            Reduce('b d h w -> b d', 'mean'),
-            nn.LayerNorm(normalized_shape = dims[-1]),
-            nn.Linear(in_features = dims[-1], out_features = num_classes)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
 
-    def forward(self, img):
+    def construct(self, img):
         x = self.to_patches(img)
 
         for transformer, downsample in self.layers:

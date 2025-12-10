@@ -1,9 +1,14 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from contextlib import nullcontext
 
-import torch
-from torch import is_tensor, randn
-from torch.nn import Module, Linear, Parameter
-from torch.utils._pytree import tree_flatten, tree_unflatten
+# import torch
+# from torch import is_tensor, randn
+# from torch.nn import Module, Linear, Parameter
+# from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat
 
@@ -17,7 +22,7 @@ def default(v, d):
 
 # classes
 
-class AcceptVideoWrapper(nn.Cell):
+class AcceptVideoWrapper(msnn.Cell):
     def __init__(
         self,
         image_net: Module,
@@ -42,7 +47,7 @@ class AcceptVideoWrapper(nn.Cell):
 
         if exists(proj_embed_to_dim):
             assert exists(dim_emb), '`dim_emb` must be passed in'
-            self.embed_proj = nn.Linear(in_features = dim_emb, out_features = proj_embed_to_dim)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+            self.embed_proj = nn.Linear(dim_emb, proj_embed_to_dim)
 
         # time positional embedding
 
@@ -52,11 +57,11 @@ class AcceptVideoWrapper(nn.Cell):
 
             dim_pos_emb = default(proj_embed_to_dim, dim_emb)
 
-            self.pos_emb = mindspore.Parameter(ops.randn(size = time_seq_len, generator = dim_pos_emb) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+            self.pos_emb = ms.Parameter(mint.randn(size = (time_seq_len, dim_pos_emb)) * 1e-2)
 
         self.embed_is_channel_first = embed_is_channel_first
 
-    def forward(
+    def construct(
         self,
         video, # (b c t h w)
         eval_with_no_grad = False,
@@ -132,7 +137,7 @@ class AcceptVideoWrapper(nn.Cell):
 # main
 
 if __name__ == '__main__':
-    from vit_pytorch import ViT
+    # from vit_pytorch import ViT
 
     v = ViT(
         image_size = 256,
@@ -146,12 +151,11 @@ if __name__ == '__main__':
         emb_dropout = 0.1
     )
 
-    videos = ops.randn(size = 1, generator = 3, dtype = 256)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    videos = mint.randn(size = (1, 3, 7, 256, 256))
 
     # step up the difficulty and return embeddings for robotics
 
-    from vit_pytorch.extractor import Extractor
-from mindspore.mint import nn, ops
+    # from vit_pytorch.extractor import Extractor
     v = Extractor(v)
 
     video_acceptor = AcceptVideoWrapper(v, add_time_pos_emb = True, output_pos_add_pos_emb = 1, time_seq_len = 12, dim_emb = 1024, proj_embed_to_dim = 512)

@@ -1,11 +1,15 @@
-import torch
-from torch import nn
-import torch.nn.functional as F
-import torch.nn.utils.parametrize as parametrize
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+# import torch
+# from torch import nn
+# import torch.nn.functional as F
+# import torch.nn.utils.parametrize as parametrize
 
 from einops import rearrange, reduce
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # functions
 
@@ -22,19 +26,19 @@ def divisible_by(numer, denom):
     return (numer % denom) == 0
 
 def l2norm(t, dim = -1):
-    return nn.functional.normalize(input = t, p = 2, dim = dim)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
+    return nn.functional.normalize(t, p = 2, dim = dim)
 
 # for use with parametrize
 
-class L2Norm(nn.Cell):
+class L2Norm(msnn.Cell):
     def __init__(self, dim = -1):
         super().__init__()
         self.dim = dim
 
-    def forward(self, t):
+    def construct(self, t):
         return l2norm(t, dim = self.dim)
 
-class NormLinear(nn.Cell):
+class NormLinear(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -42,7 +46,7 @@ class NormLinear(nn.Cell):
         norm_dim_in = True
     ):
         super().__init__()
-        self.linear = nn.Linear(in_features = dim, out_features = dim_out, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.linear = nn.Linear(dim, dim_out, bias = False)
 
         parametrize.register_parametrization(
             self.linear,
@@ -54,12 +58,12 @@ class NormLinear(nn.Cell):
     def weight(self):
         return self.linear.weight
 
-    def forward(self, x):
+    def construct(self, x):
         return self.linear(x)
 
 # attention and feedforward
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -76,15 +80,15 @@ class Attention(nn.Cell):
 
         self.dropout = dropout
 
-        self.q_scale = mindspore.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.k_scale = mindspore.Parameter(ops.ones(size = heads, dtype = dim_head) * (dim_head ** 0.25))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.q_scale = ms.Parameter(mint.ones(size = (heads, 1, dim_head)) * (dim_head ** 0.25))
+        self.k_scale = ms.Parameter(mint.ones(size = (heads, 1, dim_head)) * (dim_head ** 0.25))
 
         self.split_heads = Rearrange('b n (h d) -> b h n d', h = heads)
         self.merge_heads = Rearrange('b h n d -> b n (h d)')
 
         self.to_out = NormLinear(dim_inner, dim, norm_dim_in = False)
 
-    def forward(
+    def construct(
         self,
         x
     ):
@@ -110,7 +114,7 @@ class Attention(nn.Cell):
         out = self.merge_heads(out)
         return self.to_out(out)
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -122,30 +126,30 @@ class FeedForward(nn.Cell):
         dim_inner = int(dim_inner * 2 / 3)
 
         self.dim = dim
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
         self.to_hidden = NormLinear(dim, dim_inner)
         self.to_gate = NormLinear(dim, dim_inner)
 
-        self.hidden_scale = mindspore.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.gate_scale = mindspore.Parameter(ops.ones(size = dim_inner))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.hidden_scale = ms.Parameter(mint.ones(dim_inner))
+        self.gate_scale = ms.Parameter(mint.ones(dim_inner))
 
         self.to_out = NormLinear(dim_inner, dim, norm_dim_in = False)
 
-    def forward(self, x):
+    def construct(self, x):
         hidden, gate = self.to_hidden(x), self.to_gate(x)
 
         hidden = hidden * self.hidden_scale
         gate = gate * self.gate_scale * (self.dim ** 0.5)
 
-        hidden = nn.functional.silu(input = gate) * hidden
+        hidden = nn.functional.silu(gate) * hidden
 
         hidden = self.dropout(hidden)
         return self.to_out(hidden)
 
 # classes
 
-class nViT(nn.Cell):
+class nViT(msnn.Cell):
     """ https://arxiv.org/abs/2410.01131 """
 
     def __init__(
@@ -177,10 +181,8 @@ class nViT(nn.Cell):
         self.channels = channels
         self.patch_size = patch_size
 
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size),
-            NormLinear(patch_dim, dim, norm_dim_in = False),
-        )
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange('b c (h p1) (w p2) -> b (h w) (c p1 p2)', p1 = patch_size, p2 = patch_size), NormLinear(patch_dim, dim, norm_dim_in = False)])
 
         self.abs_pos_emb = NormLinear(dim, num_patches)
 
@@ -191,21 +193,21 @@ class nViT(nn.Cell):
         self.dim = dim
         self.scale = dim ** 0.5
 
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
         self.residual_lerp_scales = nn.ParameterList([])
 
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, dim_head = dim_head, heads = heads, dropout = dropout),
                 FeedForward(dim, dim_inner = mlp_dim, dropout = dropout),
             ]))
 
             self.residual_lerp_scales.append(nn.ParameterList([
-                mindspore.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
-                mindspore.Parameter(ops.ones(size = dim) * residual_lerp_scale_init / self.scale),
-            ]))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+                ms.Parameter(mint.ones(dim) * residual_lerp_scale_init / self.scale),
+                ms.Parameter(mint.ones(dim) * residual_lerp_scale_init / self.scale),
+            ]))
 
-        self.logit_scale = mindspore.Parameter(ops.ones(size = num_classes))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.logit_scale = ms.Parameter(mint.ones(num_classes))
 
         self.to_pred = NormLinear(dim, num_classes)
 
@@ -220,13 +222,13 @@ class nViT(nn.Cell):
 
             original.copy_(normed)
 
-    def forward(self, images):
+    def construct(self, images):
         device = images.device
 
         tokens = self.to_patch_embedding(images)
 
         seq_len = tokens.shape[-2]
-        pos_emb = self.abs_pos_emb.weight[ops.arange(start = seq_len)]  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+        pos_emb = self.abs_pos_emb.weight[mint.arange(seq_len)]  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
 
         tokens = l2norm(tokens + pos_emb)
 
@@ -259,6 +261,6 @@ if __name__ == '__main__':
         mlp_dim = 2048,
     )
 
-    img = ops.randn(size = 4, generator = 3, dtype = 256)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    img = mint.randn(size = (4, 3, 256, 256))
     logits = v(img) # (4, 1000)
     assert logits.shape == (4, 1000)

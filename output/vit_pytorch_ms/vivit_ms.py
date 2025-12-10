@@ -1,8 +1,12 @@
-from torch import nn
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+# from torch import nn
 
 from einops import rearrange, repeat, reduce
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -14,21 +18,15 @@ def pair(t):
 
 # classes
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Linear(in_features = hidden_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
-    def forward(self, x):
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+    def construct(self, x):
         return self.net(x)
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -37,60 +35,58 @@ class Attention(nn.Cell):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
-        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = inner_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
 
         attn = self.attend(dots)
         attn = self.dropout(attn)
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = nn.CellList([])
+        self.norm = nn.LayerNorm(dim)
+        self.layers = msnn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
-    def forward(self, x):
+    def construct(self, x):
         for attn, ff in self.layers:
             x = attn(x) + x
             x = ff(x) + x
         return self.norm(x)
 
-class FactorizedTransformer(nn.Cell):
+class FactorizedTransformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = nn.CellList([])
+        self.norm = nn.LayerNorm(dim)
+        self.layers = msnn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(self, x):
+    def construct(self, x):
         b, f, n, _ = x.shape
         for spatial_attn, temporal_attn, ff in self.layers:
             x = rearrange(x, 'b f n d -> (b f) n d')
@@ -102,7 +98,7 @@ class FactorizedTransformer(nn.Cell):
 
         return self.norm(x)
 
-class ViT(nn.Cell):
+class ViT(msnn.Cell):
     def __init__(
         self,
         *,
@@ -140,20 +136,16 @@ class ViT(nn.Cell):
 
         self.global_average_pool = pool == 'mean'
 
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange('b c (f pf) (h p1) (w p2) -> b f (h w) (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size),
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange('b c (f pf) (h p1) (w p2) -> b f (h w) (pf p1 p2 c)', p1 = patch_height, p2 = patch_width, pf = frame_patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
 
-        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_frame_patches, dtype = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_frame_patches, num_image_patches, dim)))
+        self.dropout = nn.Dropout(emb_dropout)
 
-        self.spatial_cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1)) if not self.global_average_pool else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.spatial_cls_token = ms.Parameter(mint.randn(size = (1, 1, dim))) if not self.global_average_pool else None
 
         if variant == 'factorized_encoder':
-            self.temporal_cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1)) if not self.global_average_pool else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+            self.temporal_cls_token = ms.Parameter(mint.randn(size = (1, 1, dim))) if not self.global_average_pool else None
             self.spatial_transformer = Transformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout)
             self.temporal_transformer = Transformer(dim, temporal_depth, heads, dim_head, mlp_dim, dropout)
         elif variant == 'factorized_self_attention':
@@ -161,12 +153,12 @@ class ViT(nn.Cell):
             self.factorized_transformer = FactorizedTransformer(dim, spatial_depth, heads, dim_head, mlp_dim, dropout)
 
         self.pool = pool
-        self.to_latent = nn.Identity()
+        self.to_latent = msnn.Identity()
 
-        self.mlp_head = nn.Linear(in_features = dim, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = nn.Linear(dim, num_classes)
         self.variant = variant
 
-    def forward(self, video):
+    def construct(self, video):
         x = self.to_patch_embedding(video)
         b, f, n, _ = x.shape
 
@@ -174,7 +166,7 @@ class ViT(nn.Cell):
 
         if exists(self.spatial_cls_token):
             spatial_cls_tokens = repeat(self.spatial_cls_token, '1 1 d -> b f 1 d', b = b, f = f)
-            x = ops.cat(tensors = (spatial_cls_tokens, x), dim = 2)  # 'torch.cat':没有对应的mindspore参数 'out';
+            x = mint.cat((spatial_cls_tokens, x), dim = 2)
 
         x = self.dropout(x)
 
@@ -195,7 +187,7 @@ class ViT(nn.Cell):
             if exists(self.temporal_cls_token):
                 temporal_cls_tokens = repeat(self.temporal_cls_token, '1 1 d-> b 1 d', b = b)
 
-                x = ops.cat(tensors = (temporal_cls_tokens, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+                x = mint.cat((temporal_cls_tokens, x), dim = 1)
             
 
             # attend across time

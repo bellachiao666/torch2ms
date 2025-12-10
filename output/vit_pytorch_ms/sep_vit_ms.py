@@ -1,9 +1,13 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from functools import partial
-from torch import nn, einsum
+# from torch import nn, einsum
 
 from einops import rearrange, repeat
-from einops.layers.torch import Rearrange, Reduce
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange, Reduce
 
 # helpers
 
@@ -12,56 +16,50 @@ def cast_tuple(val, length = 1):
 
 # helper classes
 
-class ChanLayerNorm(nn.Cell):
+class ChanLayerNorm(msnn.Cell):
     def __init__(self, dim, eps = 1e-5):
         super().__init__()
         self.eps = eps
-        self.g = mindspore.Parameter(ops.ones(size = 1, dtype = 1))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.b = mindspore.Parameter(ops.zeros(size = 1, dtype = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.g = ms.Parameter(mint.ones(size = (1, dim, 1, 1)))
+        self.b = ms.Parameter(mint.zeros(size = (1, dim, 1, 1)))
 
-    def forward(self, x):
-        var = ops.var(input = x, dim = 1, keepdim = True)  # 'torch.var':没有对应的mindspore参数 'out';
-        mean = ops.mean(input = x, dim = 1, keepdim = True)
+    def construct(self, x):
+        var = mint.var(x, dim = 1, keepdim = True)
+        mean = mint.mean(x, dim = 1, keepdim = True)
         return (x - mean) / (var + self.eps).sqrt() * self.g + self.b
 
-class OverlappingPatchEmbed(nn.Cell):
+class OverlappingPatchEmbed(msnn.Cell):
     def __init__(self, dim_in, dim_out, stride = 2):
         super().__init__()
         kernel_size = stride * 2 - 1
         padding = kernel_size // 2
-        self.conv = nn.Conv2d(in_channels = dim_in, out_channels = dim_out, kernel_size = kernel_size, stride = stride, padding = padding)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.conv = nn.Conv2d(dim_in, dim_out, kernel_size, stride = stride, padding = padding)
 
-    def forward(self, x):
+    def construct(self, x):
         return self.conv(x)
 
-class PEG(nn.Cell):
+class PEG(msnn.Cell):
     def __init__(self, dim, kernel_size = 3):
         super().__init__()
-        self.proj = nn.Conv2d(in_channels = dim, out_channels = dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.proj = nn.Conv2d(dim, dim, kernel_size = kernel_size, stride = 1, padding = kernel_size // 2, groups = dim)
 
-    def forward(self, x):
+    def construct(self, x):
         return self.proj(x) + x
 
 # feedforward
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
-        self.net = nn.SequentialCell(
-            ChanLayerNorm(dim),
-            nn.Conv2d(in_channels = dim, out_channels = inner_dim, kernel_size = 1),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
-    def forward(self, x):
+        self.net = msnn.SequentialCell(
+            [ChanLayerNorm(dim), nn.Conv2d(dim, inner_dim, 1), nn.GELU(), nn.Dropout(dropout), nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
+    def construct(self, x):
         return self.net(x)
 
 # attention
 
-class DSSA(nn.Cell):
+class DSSA(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -78,41 +76,30 @@ class DSSA(nn.Cell):
 
         self.norm = ChanLayerNorm(dim)
 
-        self.attend = nn.SequentialCell(
-            nn.Softmax(dim = -1),
-            nn.Dropout(p = dropout)
-        )
+        self.attend = msnn.SequentialCell(
+            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
 
         self.to_qkv = nn.Conv1d(dim, inner_dim * 3, 1, bias = False)
 
         # window tokens
 
-        self.window_tokens = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.window_tokens = ms.Parameter(mint.randn(dim))
 
         # prenorm and non-linearity for window tokens
         # then projection to queries and keys for window tokens
 
-        self.window_tokens_to_qk = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim_head),
-            nn.GELU(),
-            Rearrange('b h n c -> b (h c) n'),
-            nn.Conv1d(inner_dim, inner_dim * 2, 1),
-            Rearrange('b (h c) n -> b h n c', h = heads),
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.window_tokens_to_qk = msnn.SequentialCell(
+            [nn.LayerNorm(dim_head), nn.GELU(), Rearrange('b h n c -> b (h c) n'), nn.Conv1d(inner_dim, inner_dim * 2, 1), Rearrange('b (h c) n -> b h n c', h = heads)])
 
         # window attention
 
-        self.window_attend = nn.SequentialCell(
-            nn.Softmax(dim = -1),
-            nn.Dropout(p = dropout)
-        )
+        self.window_attend = msnn.SequentialCell(
+            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
 
-        self.to_out = nn.SequentialCell(
-            nn.Conv2d(in_channels = inner_dim, out_channels = dim, kernel_size = 1),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Conv2d(inner_dim, dim, 1), nn.Dropout(dropout)])
 
-    def forward(self, x):
+    def construct(self, x):
         """
         einstein notation
 
@@ -140,7 +127,7 @@ class DSSA(nn.Cell):
         # add windowing tokens
 
         w = repeat(self.window_tokens, 'c -> b c 1', b = x.shape[0])
-        x = ops.cat(tensors = (w, x), dim = -1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        x = mint.cat((w, x), dim = -1)
 
         # project for queries, keys, value
 
@@ -156,7 +143,7 @@ class DSSA(nn.Cell):
 
         # similarity
 
-        dots = ops.einsum(equation = 'b h i d, b h j d -> b h i j', operands = q)
+        dots = mint.einsum('b h i d, b h j d -> b h i j', q, k)
 
         # attention
 
@@ -164,7 +151,7 @@ class DSSA(nn.Cell):
 
         # aggregate values
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
 
         # split out windowed tokens
 
@@ -191,20 +178,20 @@ class DSSA(nn.Cell):
 
         # similarities
 
-        w_dots = ops.einsum(equation = 'b h i d, b h j d -> b h i j', operands = w_q)
+        w_dots = mint.einsum('b h i d, b h j d -> b h i j', w_q, w_k)
 
         w_attn = self.window_attend(w_dots)
 
         # aggregate the feature maps from the "depthwise" attention step (the most interesting part of the paper, one i haven't seen before)
 
-        aggregated_windowed_fmap = ops.einsum(equation = 'b h i j, b h j w d -> b h i w d', operands = w_attn)
+        aggregated_windowed_fmap = mint.einsum('b h i j, b h j w d -> b h i w d', w_attn, windowed_fmaps)
 
         # fold back the windows and then combine heads for aggregation
 
         fmap = rearrange(aggregated_windowed_fmap, 'b h (x y) (w1 w2) d -> b (h d) (x w1) (y w2)', x = height // wsz, y = width // wsz, w1 = wsz, w2 = wsz)
         return self.to_out(fmap)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -216,24 +203,24 @@ class Transformer(nn.Cell):
         norm_output = True
     ):
         super().__init__()
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         for ind in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 DSSA(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mult = ff_mult, dropout = dropout),
             ]))
 
-        self.norm = ChanLayerNorm(dim) if norm_output else nn.Identity()
+        self.norm = ChanLayerNorm(dim) if norm_output else msnn.Identity()
 
-    def forward(self, x):
+    def construct(self, x):
         for attn, ff in self.layers:
             x = attn(x) + x
             x = ff(x) + x
 
         return self.norm(x)
 
-class SepViT(nn.Cell):
+class SepViT(msnn.Cell):
     def __init__(
         self,
         *,
@@ -262,24 +249,21 @@ class SepViT(nn.Cell):
         hyperparams_per_stage = list(map(partial(cast_tuple, length = num_stages), hyperparams_per_stage))
         assert all(tuple(map(lambda arr: len(arr) == num_stages, hyperparams_per_stage)))
 
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         for ind, ((layer_dim_in, layer_dim), layer_depth, layer_stride, layer_heads, layer_window_size) in enumerate(zip(dim_pairs, depth, strides, *hyperparams_per_stage)):
             is_last = ind == (num_stages - 1)
 
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 OverlappingPatchEmbed(layer_dim_in, layer_dim, stride = layer_stride),
                 PEG(layer_dim),
                 Transformer(dim = layer_dim, depth = layer_depth, heads = layer_heads, ff_mult = ff_mult, dropout = dropout, norm_output = not is_last),
             ]))
 
-        self.mlp_head = nn.SequentialCell(
-            Reduce('b d h w -> b d', 'mean'),
-            nn.LayerNorm(normalized_shape = dims[-1]),
-            nn.Linear(in_features = dims[-1], out_features = num_classes)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
 
-    def forward(self, x):
+    def construct(self, x):
 
         for ope, peg, transformer in self.layers:
             x = ope(x)

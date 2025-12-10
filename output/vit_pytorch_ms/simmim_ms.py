@@ -1,8 +1,12 @@
-from torch import nn
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
 from mindspore.mint import nn, ops
+# from torch import nn
 from einops import repeat
 
-class SimMIM(nn.Cell):
+class SimMIM(msnn.Cell):
     def __init__(
         self,
         *,
@@ -19,16 +23,16 @@ class SimMIM(nn.Cell):
         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
 
         self.to_patch = encoder.to_patch_embedding[0]
-        self.patch_to_emb = nn.SequentialCell(*encoder.to_patch_embedding[1:])
+        self.patch_to_emb = msnn.SequentialCell([encoder.to_patch_embedding[1:]])
 
         pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
 
         # simple linear head
 
-        self.mask_token = mindspore.Parameter(ops.randn(size = encoder_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.to_pixels = nn.Linear(in_features = encoder_dim, out_features = pixel_values_per_patch)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mask_token = ms.Parameter(mint.randn(encoder_dim))
+        self.to_pixels = nn.Linear(encoder_dim, pixel_values_per_patch)
 
-    def forward(self, img):
+    def construct(self, img):
         device = img.device
 
         # get patches
@@ -38,7 +42,7 @@ class SimMIM(nn.Cell):
 
         # for indexing purposes
 
-        batch_range = ops.arange(start = batch)[:, None]  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+        batch_range = mint.arange(batch)[:, None]  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
 
         # get positions
 
@@ -57,12 +61,12 @@ class SimMIM(nn.Cell):
         # calculate of patches needed to be masked, and get positions (indices) to be masked
 
         num_masked = int(self.masking_ratio * num_patches)
-        masked_indices = ops.rand(size = batch, generator = num_patches).topk(k = num_masked, dim = -1).indices  # 'torch.rand':没有对应的mindspore参数 'out';; 'torch.rand':没有对应的mindspore参数 'layout';; 'torch.rand':没有对应的mindspore参数 'device';; 'torch.rand':没有对应的mindspore参数 'requires_grad';; 'torch.rand':没有对应的mindspore参数 'pin_memory';
-        masked_bool_mask = ops.zeros(size = (batch, num_patches)).scatter_(-1, masked_indices, 1).bool()  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        masked_indices = mint.rand(size = (batch, num_patches)).topk(k = num_masked, dim = -1).indices  # 'torch.rand':没有对应的mindspore参数 'device' (position 5);
+        masked_bool_mask = mint.zeros((batch, num_patches)).scatter_(-1, masked_indices, 1).bool()  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
 
         # mask tokens
 
-        tokens = ops.where(condition = masked_bool_mask[..., None], input = mask_tokens, other = tokens)  # 'torch.where':没有对应的mindspore参数 'out';
+        tokens = mint.where(masked_bool_mask[..., None], mask_tokens, tokens)
 
         # attend with vision transformer
 
@@ -82,5 +86,5 @@ class SimMIM(nn.Cell):
 
         # calculate reconstruction loss
 
-        recon_loss = nn.functional.l1_loss(input = pred_pixel_values, target = masked_patches) / num_masked  # 'torch.nn.functional.l1_loss':没有对应的mindspore参数 'size_average';; 'torch.nn.functional.l1_loss':没有对应的mindspore参数 'reduce';
+        recon_loss = nn.functional.l1_loss(pred_pixel_values, masked_patches) / num_masked
         return recon_loss

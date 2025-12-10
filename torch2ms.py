@@ -473,11 +473,46 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         self.pt_assignment_wrapped = pt_assignment_wrapped or {}
         self.use_mint = use_mint
         self.notes_by_stmt = defaultdict(list)
+        self.cell_class_stack = []
         self.api_by_class = {
             conf["pytorch"].split(".")[-1]: conf for conf in api_map.values()
         }
         self.api_by_pt_full = {
             conf["pytorch"]: conf for conf in api_map.values()
+        }
+        self.torch_dtype_names = {
+            "float32",
+            "float64",
+            "float16",
+            "bfloat16",
+            "float",
+            "double",
+            "half",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+            "uint8",
+            "bool",
+            "complex64",
+            "complex128",
+        }
+        self.torch_dtype_names = {
+            "float32",
+            "float64",
+            "float16",
+            "bfloat16",
+            "float",
+            "double",
+            "half",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+            "uint8",
+            "bool",
+            "complex64",
+            "complex128",
         }
 
     def _find_enclosing_stmt(self, node: cst.CSTNode) -> Optional[cst.CSTNode]:
@@ -519,6 +554,74 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         stmt = self._find_enclosing_stmt(node)
         if stmt is not None:
             self.notes_by_stmt[stmt].extend(notes)
+
+    def _is_ms_cell_base(self, base_name: Optional[str]) -> bool:
+        """
+        判断基类名是否为 MindSpore Cell（包含常见别名）。
+        """
+        if not base_name:
+            return False
+        prefixes = (
+            "mindspore.nn.",
+            "mindspore.mint.nn.",
+            "msnn.",
+            "ms.nn.",
+            "mint.nn.",
+            "nn.",
+        )
+        return base_name.endswith(".Cell") or base_name in {
+            "mindspore.nn.Cell",
+            "mindspore.mint.nn.Cell",
+            "msnn.Cell",
+            "ms.nn.Cell",
+            "mint.nn.Cell",
+            "nn.Cell",
+            "Cell",
+        } or any(base_name.startswith(p) and base_name[len(p):] == "Cell" for p in prefixes)
+
+    def _wrap_sequential_args(self, args):
+        """
+        将 SequentialCell 的可变参数包装成列表。
+        """
+        if not args:
+            return args
+        if any(arg.keyword is not None for arg in args):
+            return args
+        if len(args) == 1 and isinstance(args[0].value, cst.List):
+            return args
+        elements = [cst.Element(value=arg.value) for arg in args]
+        return [cst.Arg(keyword=None, value=cst.List(elements=elements))]
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
+        base_names = [
+            cst_helpers.get_full_name_for_node(base.value) for base in node.bases
+        ]
+        is_cell = False
+        for name in base_names:
+            pt_full_name = self._resolve_pt_full_name(name)
+            if pt_full_name and pt_full_name.endswith("Module"):
+                is_cell = True
+                break
+            if self._is_ms_cell_base(name):
+                is_cell = True
+                break
+        self.cell_class_stack.append(is_cell)
+        return True
+
+    def leave_ClassDef(
+        self,
+        original_node: cst.ClassDef,
+        updated_node: cst.ClassDef,
+    ) -> cst.ClassDef:
+        if self.cell_class_stack:
+            self.cell_class_stack.pop()
+        return updated_node
+
+    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+        if self.cell_class_stack and self.cell_class_stack[-1]:
+            if updated_node.name.value == "forward":
+                return updated_node.with_changes(name=cst.Name("construct"))
+        return updated_node
 
     def _resolve_ms_full_name(self, full_path: str) -> str:
         """
@@ -618,6 +721,58 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         pos_idx = 0
         force_keyword = False
 
+        vararg_param_names = {"tensors", "inputs"}
+        if (
+            params
+            and params[0]["pytorch"].get("name") in vararg_param_names
+            and positional_values
+            and (len(positional_values) > 1 or len(positional_values) > len(params))
+        ):
+            ms_args.extend(cst.Arg(keyword=None, value=val) for val in positional_values)
+            for idx, p in enumerate(params[1:], start=1):
+                pt = p["pytorch"]
+                ms = p["mindspore"]
+                pt_name = pt.get("name")
+                ms_name = ms.get("name")
+                pt_def = pt.get("default")
+                ms_def = ms.get("default")
+                if pt_name and pt_name in keyword_values:
+                    kw_name = ms_name or pt_name
+                    if pt_name != ms_name and ms_name is not None:
+                        mismatch_notes.append(
+                            f"'{api_conf['pytorch']}':默认参数名不一致(position {idx}): PyTorch={pt_name}, MindSpore={ms_name};"
+                        )
+                    ms_args.append(cst.Arg(keyword=cst.Name(kw_name), value=keyword_values[pt_name]))
+                elif (
+                    pt_name is not None
+                    and ms_name is not None
+                    and pt_def is not None
+                    and ms_def is not None
+                    and pt_def != ms_def
+                ):
+                    mismatch_notes.append(
+                        f"'{api_conf['pytorch']}'默认值不一致(position {idx}): PyTorch={pt_def}, MindSpore={ms_def};"
+                    )
+            return ms_args, mismatch_notes
+
+        size_like_names = {"size", "shape", "dims"}
+        size_bundled = False
+        if (
+            params
+            and params[0]["pytorch"].get("name") in size_like_names
+            and params[0]["mindspore"].get("name") in size_like_names
+            and positional_values
+            and len(positional_values) > 1
+            and params[0]["pytorch"].get("name") not in keyword_values
+        ):
+            size_elems = [cst.Element(value=v) for v in positional_values]
+            size_tuple = cst.Tuple(elements=size_elems)
+            ms_args.append(
+                cst.Arg(keyword=cst.Name(params[0]["mindspore"]["name"]), value=size_tuple)
+            )
+            size_bundled = True
+            pos_idx = len(positional_values)
+
         for idx, p in enumerate(params):
             pt = p["pytorch"]
             ms = p["mindspore"]
@@ -625,6 +780,9 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             ms_name = ms.get("name")
             pt_def = pt.get("default")
             ms_def = ms.get("default")
+
+            if size_bundled and idx == 0:
+                continue
 
             value = None
             used_keyword = False
@@ -669,6 +827,9 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             if force_keyword is False and used_keyword:
                 force_keyword = True
 
+        for extra_val in positional_values[pos_idx:]:
+            ms_args.append(cst.Arg(keyword=None, value=extra_val))
+
         return ms_args, mismatch_notes
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
@@ -696,6 +857,8 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             if api_conf:
                 new_args, notes = self._reconstruct_args(updated_node, api_conf)
                 ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+                if api_conf["mindspore"].endswith("SequentialCell"):
+                    new_args = self._wrap_sequential_args(new_args)
                 new_callee = cst.parse_expression(ms_full_name)
                 new_call = updated_node.with_changes(func=new_callee, args=new_args)
                 if notes:
@@ -707,11 +870,36 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             api_conf = self.api_by_pt_full.get(wrapper_pt_full) or self.api_by_class.get(wrapper_pt_full.split(".")[-1])
             if api_conf:
                 new_args, notes = self._reconstruct_args(updated_node, api_conf)
+                if api_conf["mindspore"].endswith("SequentialCell"):
+                    new_args = self._wrap_sequential_args(new_args)
                 new_call = updated_node.with_changes(args=new_args)
                 if notes:
                     self._record_note(original_node, notes)
                 return new_call
 
+        return updated_node
+
+    def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.BaseExpression:
+        full_name = cst_helpers.get_full_name_for_node(updated_node)
+        if not full_name:
+            return updated_node
+        pt_full_name = self._resolve_pt_full_name(full_name)
+        if pt_full_name and pt_full_name.startswith("torch."):
+            suffix = pt_full_name[len("torch.") :]
+            if suffix in self.torch_dtype_names:
+                return cst.parse_expression(f"ms.{suffix}")
+        return updated_node
+
+    def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.BaseExpression:
+        full_name = cst_helpers.get_full_name_for_node(updated_node)
+        if not full_name:
+            return updated_node
+        pt_full_name = self._resolve_pt_full_name(full_name)
+        if not pt_full_name or not pt_full_name.startswith("torch."):
+            return updated_node
+        suffix = pt_full_name[len("torch.") :]
+        if suffix in self.torch_dtype_names:
+            return cst.parse_expression(f"ms.{suffix}")
         return updated_node
 
     def leave_ClassDef(
@@ -916,6 +1104,29 @@ def _ensure_default_ms_imports(code: str) -> str:
     return "".join(lines)
 
 
+def _comment_torch_imports(code: str) -> str:
+    """
+    注释掉包含 torch 的 import 行，保留缩进。
+    """
+    new_lines = []
+    for line in code.splitlines(keepends=True):
+        stripped = line.lstrip()
+        if stripped.startswith("#"):
+            new_lines.append(line)
+            continue
+        if stripped.startswith("import ") or stripped.startswith("from "):
+            if "torch" in stripped:
+                indent_len = len(line) - len(stripped)
+                indent = line[:indent_len]
+                commented = f"{indent}# {stripped}"
+                if not commented.endswith("\n") and line.endswith("\n"):
+                    commented += "\n"
+                new_lines.append(commented)
+                continue
+        new_lines.append(line)
+    return "".join(new_lines)
+
+
 def convert_code(code: str) -> str:
     """
     将整段 PyTorch 源码转换为 MindSpore 源码（LibCST 版本）。
@@ -956,6 +1167,7 @@ def convert_code(code: str) -> str:
     new_module = new_module.visit(cleaner)
 
     new_code = new_module.code
+    new_code = _comment_torch_imports(new_code)
     new_code = _ensure_default_ms_imports(new_code)
 
     return new_code

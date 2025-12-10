@@ -1,7 +1,9 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
 from mindspore.mint import nn, ops
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+# import torch.nn as nn
 
 
 # 模拟复杂命名空间，测试前缀匹配的健壮性
@@ -12,24 +14,24 @@ class Wrapper:
 myconv = Wrapper.SubModule.Conv2d
 
 
-class MintLikeModel(nn.Module):
+class MintLikeModel(msnn.Cell):
     def __init__(self, in_channels, num_classes, **kwargs):
         super().__init__()
 
         # 基础卷积
-        self.stem = nn.Sequential(
-            nn.Conv2d(in_channels = in_channels, out_channels = 32, kernel_size = 3, padding = 1, bias = False),
-            nn.BatchNorm2d(num_features = 32),
+        self.stem = msnn.SequentialCell(
+            nn.Conv2d(in_channels, 32, kernel_size = 3, padding = 1, bias = False),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
-        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
+        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         # 测试 mint.nn 前缀，你的转换器需要把这些都转换掉
         # 包含关键字缺省、参数顺序、字段不一致等情况
-        self.block = nn.Sequential(
+        self.block = msnn.SequentialCell(
             nn.Conv2d(
-                in_channels = 32, out_channels = 64, kernel_size = 3, stride = 1, padding = 1, bias = nn.Linear(in_features = 1, out_features = 1)),
+                32, 64, kernel_size = 3, stride = 1, padding = 1, bias = nn.Linear(1, 1)),
 
-            nn.Sequential(
+            msnn.SequentialCell(
                 nn.ReLU(),
                 nn.Conv2d(
                     in_channels = 64, out_channels = 64, kernel_size = 3, padding = 1, bias = False),
@@ -37,15 +39,15 @@ class MintLikeModel(nn.Module):
 
             # 使用 wrapper 前缀调用
             myconv(
-                in_channels = 64, out_channels = 128, kernel_size = 3, padding = 1, bias = False),
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';; 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
+                64, 128, kernel_size = 3, padding = 1, bias = False),
+        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         # 全连接部分
-        self.classifier = nn.Sequential(
-            nn.Linear(in_features = 128 * 7 * 7, out_features = num_classes),
+        self.classifier = msnn.SequentialCell(
+            nn.Linear(128 * 7 * 7, num_classes),
             nn.ReLU(),
-            nn.Linear(in_features = num_classes, out_features = num_classes)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace';
+            nn.Linear(num_classes, num_classes)
+        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
 
     def forward(self, x):
@@ -56,7 +58,7 @@ class MintLikeModel(nn.Module):
 
         # 测试多行函数调用
         x = nn.functional.adaptive_avg_pool2d(
-            input = x, output_size = (7, 7))
+            x, (7, 7))
 
         # 测试 view/reshape 不应被转换器破坏
         x = x.view(x.size(0), -1)
@@ -65,6 +67,6 @@ class MintLikeModel(nn.Module):
         x = self.classifier(x)
 
         # 测试 F.xxx 不应误伤
-        x = nn.functional.softmax(input = x, dim = 1)  # 'torch.nn.functional.softmax':没有对应的mindspore参数 '_stacklevel';
+        x = nn.functional.softmax(x, dim = 1)
 
         return x

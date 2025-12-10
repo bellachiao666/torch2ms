@@ -1,11 +1,14 @@
-import torch
-from torch.nn.utils.rnn import pad_sequence
-from torch import nn, einsum
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+# import torch
+# from torch.nn.utils.rnn import pad_sequence
+# from torch import nn, einsum
 
 from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
-import mindspore
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -18,10 +21,10 @@ def pair(t):
 # adaptive token sampling functions and classes
 
 def log(t, eps = 1e-6):
-    return ops.log(input = t + eps)  # 'torch.log':没有对应的mindspore参数 'out';
+    return mint.log(t + eps)
 
 def sample_gumbel(shape, device, dtype, eps = 1e-6):
-    u = ops.empty(size = shape, dtype = dtype, device = device).uniform_(0, 1)  # 'torch.empty':没有对应的mindspore参数 'out';; 'torch.empty':没有对应的mindspore参数 'layout';; 'torch.empty':没有对应的mindspore参数 'requires_grad';; 'torch.empty':没有对应的mindspore参数 'memory_format';
+    u = mint.empty(shape, dtype = dtype, device = device).uniform_(0, 1)
     return -log(-log(u, eps), eps)
 
 def batched_index_select(values, indices, dim = 1):
@@ -40,13 +43,13 @@ def batched_index_select(values, indices, dim = 1):
     dim += value_expand_len
     return values.gather(dim, indices)
 
-class AdaptiveTokenSampling(nn.Cell):
+class AdaptiveTokenSampling(msnn.Cell):
     def __init__(self, output_num_tokens, eps = 1e-6):
         super().__init__()
         self.eps = eps
         self.output_num_tokens = output_num_tokens
 
-    def forward(self, attn, value, mask):
+    def construct(self, attn, value, mask):
         heads, output_num_tokens, eps, device, dtype = attn.shape[1], self.output_num_tokens, self.eps, attn.device, attn.dtype
 
         # first get the attention values for CLS token to all other tokens
@@ -59,7 +62,7 @@ class AdaptiveTokenSampling(nn.Cell):
 
         # weigh the attention scores by the norm of the values, sum across all heads
 
-        cls_attn = ops.einsum(equation = 'b h n, b h n -> b n', operands = cls_attn)
+        cls_attn = mint.einsum('b h n, b h n -> b n', cls_attn, value_norms)
 
         # normalize to 1
 
@@ -86,7 +89,7 @@ class AdaptiveTokenSampling(nn.Cell):
 
         # calculate unique using torch.unique and then pad the sequence from the right
 
-        unique_sampled_token_ids_list = [ops.unique(input = t, sorted = True) for t in ops.unbind(input = sampled_token_ids)]
+        unique_sampled_token_ids_list = [mint.unique(t, sorted = True) for t in mint.unbind(sampled_token_ids)]
         unique_sampled_token_ids = pad_sequence(unique_sampled_token_ids_list, batch_first = True)
 
         # calculate the new mask, based on the padding
@@ -95,11 +98,11 @@ class AdaptiveTokenSampling(nn.Cell):
 
         # CLS token never gets masked out (gets a value of True)
 
-        new_mask = nn.functional.pad(input = new_mask, pad = (1, 0), value = True)
+        new_mask = nn.functional.pad(new_mask, (1, 0), value = True)
 
         # prepend a 0 token id to keep the CLS attention scores
 
-        unique_sampled_token_ids = nn.functional.pad(input = unique_sampled_token_ids, pad = (1, 0), value = 0)
+        unique_sampled_token_ids = nn.functional.pad(unique_sampled_token_ids, (1, 0), value = 0)
         expanded_unique_sampled_token_ids = repeat(unique_sampled_token_ids, 'b n -> b h n', h = heads)
 
         # gather the new attention scores
@@ -111,49 +114,41 @@ class AdaptiveTokenSampling(nn.Cell):
 
 # classes
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Linear(in_features = hidden_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
-    def forward(self, x):
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+    def construct(self, x):
         return self.net(x)
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., output_num_tokens = None):
         super().__init__()
         inner_dim = dim_head *  heads
         self.heads = heads
         self.scale = dim_head ** -0.5
 
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
-        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.output_num_tokens = output_num_tokens
         self.ats = AdaptiveTokenSampling(output_num_tokens) if exists(output_num_tokens) else None
 
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = inner_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
 
-    def forward(self, x, *, mask):
+    def construct(self, x, *, mask):
         num_tokens = x.shape[1]
 
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
 
         if exists(mask):
             dots_mask = rearrange(mask, 'b i -> b 1 i 1') * rearrange(mask, 'b j -> b 1 1 j')
@@ -170,33 +165,33 @@ class Attention(nn.Cell):
         if exists(self.output_num_tokens) and (num_tokens - 1) > self.output_num_tokens:
             attn, mask, sampled_token_ids = self.ats(attn, v, mask = mask)
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
 
         return self.to_out(out), mask, sampled_token_ids
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, max_tokens_per_depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
         assert len(max_tokens_per_depth) == depth, 'max_tokens_per_depth must be a tuple of length that is equal to the depth of the transformer'
         assert sorted(max_tokens_per_depth, reverse = True) == list(max_tokens_per_depth), 'max_tokens_per_depth must be in decreasing order'
         assert min(max_tokens_per_depth) > 0, 'max_tokens_per_depth must have at least 1 token at any layer'
 
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
         for _, output_num_tokens in zip(range(depth), max_tokens_per_depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, output_num_tokens = output_num_tokens, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(self, x):
+    def construct(self, x):
         b, n, device = *x.shape[:2], x.device
 
         # use mask to keep track of the paddings when sampling tokens
         # as the duplicates (when sampling) are just removed, as mentioned in the paper
-        mask = ops.ones(size = (b, n), dtype = torch.bool)  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        mask = mint.ones((b, n), dtype = ms.bool)  # 'torch.ones':没有对应的mindspore参数 'device' (position 4);
 
-        token_ids = ops.arange(start = n)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+        token_ids = mint.arange(n)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
         token_ids = repeat(token_ids, 'n -> b n', b = b)
 
         for attn, ff in self.layers:
@@ -213,7 +208,7 @@ class Transformer(nn.Cell):
 
         return x, token_ids
 
-class ViT(nn.Cell):
+class ViT(msnn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, max_tokens_per_depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         image_height, image_width = pair(image_size)
@@ -224,30 +219,24 @@ class ViT(nn.Cell):
         num_patches = (image_height // patch_height) * (image_width // patch_width)
         patch_dim = channels * patch_height * patch_width
 
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
 
-        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
+        self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
+        self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, max_tokens_per_depth, heads, dim_head, mlp_dim, dropout)
 
-        self.mlp_head = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = num_classes)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
 
-    def forward(self, img, return_sampled_token_ids = False):
+    def construct(self, img, return_sampled_token_ids = False):
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
 
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
-        x = ops.cat(tensors = (cls_tokens, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        x = mint.cat((cls_tokens, x), dim = 1)
         x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
 

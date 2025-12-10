@@ -1,18 +1,22 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from __future__ import annotations
 
 from typing import List
 from functools import partial
 
-import torch
+# import torch
 import packaging.version as pkg_version
 
-from torch import nn, Tensor
-import torch.nn.functional as F
-from torch.nested import nested_tensor
+# from torch import nn, Tensor
+# import torch.nn.functional as F
+# from torch.nested import nested_tensor
 
 from einops import rearrange
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -31,39 +35,33 @@ def divisible_by(numer, denom):
 # feedforward
 
 def FeedForward(dim, hidden_dim, dropout = 0.):
-    return nn.SequentialCell(
-        nn.LayerNorm(normalized_shape = dim, bias = False),
-        nn.Linear(in_features = dim, out_features = hidden_dim),
-        nn.GELU(),
-        nn.Dropout(p = dropout),
-        nn.Linear(in_features = hidden_dim, out_features = dim),
-        nn.Dropout(p = dropout)
-    )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+    return msnn.SequentialCell(
+        [nn.LayerNorm(dim, bias = False), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., qk_norm = True):
         super().__init__()
-        self.norm = nn.LayerNorm(normalized_shape = dim, bias = False)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim, bias = False)
 
         dim_inner = heads * dim_head
         self.heads = heads
         self.dim_head = dim_head
 
-        self.to_queries = nn.Linear(in_features = dim, out_features = dim_inner, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_keys = nn.Linear(in_features = dim, out_features = dim_inner, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_values = nn.Linear(in_features = dim, out_features = dim_inner, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_queries = nn.Linear(dim, dim_inner, bias = False)
+        self.to_keys = nn.Linear(dim, dim_inner, bias = False)
+        self.to_values = nn.Linear(dim, dim_inner, bias = False)
 
         # in the paper, they employ qk rmsnorm, a way to stabilize attention
         # will use layernorm in place of rmsnorm, which has been shown to work in certain papers. requires l2norm on non-ragged dimension to be supported in nested tensors
 
-        self.query_norm = nn.LayerNorm(normalized_shape = dim_head, bias = False) if qk_norm else nn.Identity()  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.key_norm = nn.LayerNorm(normalized_shape = dim_head, bias = False) if qk_norm else nn.Identity()  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.query_norm = nn.LayerNorm(dim_head, bias = False) if qk_norm else msnn.Identity()
+        self.key_norm = nn.LayerNorm(dim_head, bias = False) if qk_norm else msnn.Identity()
 
         self.dropout = dropout
 
-        self.to_out = nn.Linear(in_features = dim_inner, out_features = dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = nn.Linear(dim_inner, dim, bias = False)
 
-    def forward(
+    def construct(
         self, 
         x,
         context: Tensor | None = None
@@ -111,20 +109,20 @@ class Attention(nn.Cell):
 
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., qk_norm = True):
         super().__init__()
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, qk_norm = qk_norm),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-        self.norm = nn.LayerNorm(normalized_shape = dim, bias = False)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim, bias = False)
 
-    def forward(self, x):
+    def construct(self, x):
 
         for attn, ff in self.layers:
             x = attn(x) + x
@@ -132,7 +130,7 @@ class Transformer(nn.Cell):
 
         return self.norm(x)
 
-class NaViT(nn.Cell):
+class NaViT(msnn.Cell):
     def __init__(
         self,
         *,
@@ -178,48 +176,43 @@ class NaViT(nn.Cell):
         self.patch_size = patch_size
         self.to_patches = Rearrange('c (f pf) (h p1) (w p2) -> f h w (c pf p1 p2)', p1 = patch_size, p2 = patch_size, pf = frame_patch_size)
 
-        self.to_patch_embedding = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim),
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
 
-        self.pos_embed_frame = mindspore.Parameter(ops.zeros(size = patch_frame_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
-        self.pos_embed_height = mindspore.Parameter(ops.zeros(size = patch_height_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
-        self.pos_embed_width = mindspore.Parameter(ops.zeros(size = patch_width_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.pos_embed_frame = ms.Parameter(mint.zeros(size = (patch_frame_dim, dim)))
+        self.pos_embed_height = ms.Parameter(mint.zeros(size = (patch_height_dim, dim)))
+        self.pos_embed_width = ms.Parameter(mint.zeros(size = (patch_width_dim, dim)))
 
         # register tokens
 
-        self.register_tokens = mindspore.Parameter(ops.zeros(size = num_registers))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.register_tokens = ms.Parameter(mint.zeros(size = (num_registers, dim)))
 
         nn.init.normal_(self.pos_embed_frame, std = 0.02)
         nn.init.normal_(self.pos_embed_height, std = 0.02)
         nn.init.normal_(self.pos_embed_width, std = 0.02)
         nn.init.normal_(self.register_tokens, std = 0.02)
 
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, qk_rmsnorm)
 
         # final attention pooling queries
 
-        self.attn_pool_queries = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.attn_pool_queries = ms.Parameter(mint.randn(dim))
         self.attn_pool = Attention(dim = dim, dim_head = dim_head, heads = heads)
 
         # output to logits
 
-        self.to_latent = nn.Identity()
+        self.to_latent = msnn.Identity()
 
-        self.mlp_head = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim, bias = False),
-            nn.Linear(in_features = dim, out_features = num_classes, bias = False)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [nn.LayerNorm(dim, bias = False), nn.Linear(dim, num_classes, bias = False)])
 
     @property
     def device(self):
         return next(self.parameters()).device
 
-    def forward(
+    def construct(
         self,
         volumes: List[Tensor], # different resolution images / CT scans
     ):
@@ -236,7 +229,7 @@ class NaViT(nn.Cell):
 
         for patches in all_patches:
             patch_frame, patch_height, patch_width = patches.shape[:3]
-            fhw_indices = ops.stack(tensors = ops.meshgrid(tensors = (arange(patch_frame), arange(patch_height), arange(patch_width)), indexing = 'ij'), dim = -1)  # 'torch.stack':没有对应的mindspore参数 'out';
+            fhw_indices = mint.stack(mint.meshgrid((arange(patch_frame), arange(patch_height), arange(patch_width)), indexing = 'ij'), dim = -1)
             fhw_indices = rearrange(fhw_indices, 'f h w c -> (f h w) c')
 
             positions.append(fhw_indices)
@@ -257,7 +250,7 @@ class NaViT(nn.Cell):
             kept_positions = []
 
             for one_image_tokens, one_image_positions, seq_len, num_keep in zip(tokens, positions, seq_lens, keep_seq_lens):
-                keep_indices = ops.randn(size = (seq_len,)).topk(num_keep, dim = -1).indices  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+                keep_indices = mint.randn((seq_len,)).topk(num_keep, dim = -1).indices  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
 
                 one_image_kept_tokens = one_image_tokens[keep_indices]
                 one_image_kept_positions = one_image_positions[keep_indices]
@@ -270,12 +263,12 @@ class NaViT(nn.Cell):
         # add all height and width factorized positions
 
 
-        frame_indices, height_indices, width_indices = ops.cat(tensors = positions).unbind(dim = -1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        frame_indices, height_indices, width_indices = mint.cat(positions).unbind(dim = -1)
         frame_embed, height_embed, width_embed = self.pos_embed_frame[frame_indices], self.pos_embed_height[height_indices], self.pos_embed_width[width_indices]
 
         pos_embed = frame_embed + height_embed + width_embed
 
-        tokens = ops.cat(tensors = tokens)  # 'torch.cat':没有对应的mindspore参数 'out';
+        tokens = mint.cat(tokens)
 
         # linear projection to patch embeddings
 
@@ -289,7 +282,7 @@ class NaViT(nn.Cell):
 
         tokens = tokens.split(seq_lens.tolist())
 
-        tokens = [ops.cat(tensors = (self.register_tokens, one_tokens)) for one_tokens in tokens]  # 'torch.cat':没有对应的mindspore参数 'out';
+        tokens = [mint.cat((self.register_tokens, one_tokens)) for one_tokens in tokens]
 
         # use nested tensor for transformers and save on padding computation
 
@@ -314,7 +307,7 @@ class NaViT(nn.Cell):
 
         # back to unjagged
 
-        logits = ops.stack(tensors = pooled.unbind())  # 'torch.stack':没有对应的mindspore参数 'out';
+        logits = mint.stack(pooled.unbind())
 
         logits = rearrange(logits, 'b 1 d -> b d')
 
@@ -346,10 +339,10 @@ if __name__ == '__main__':
     # 5 volumetric data (videos or CT scans) of different resolutions - List[Tensor]
 
     volumes = [
-        ops.randn(size = 3, generator = 2, dtype = 256), ops.randn(size = 3, generator = 8, dtype = 128),
-        ops.randn(size = 3, generator = 4, dtype = 256), ops.randn(size = 3, generator = 2, dtype = 128),
-        ops.randn(size = 3, generator = 4, dtype = 256)
-    ]  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        mint.randn(size = (3, 2, 256, 256)), mint.randn(size = (3, 8, 128, 128)),
+        mint.randn(size = (3, 4, 128, 256)), mint.randn(size = (3, 2, 256, 128)),
+        mint.randn(size = (3, 4, 64, 256))
+    ]
 
     assert v(volumes).shape == (5, 1000)
 

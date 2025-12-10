@@ -1,12 +1,16 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 import copy
 import random
 from functools import wraps, partial
 
-import torch
-from torch import nn
+# import torch
+# from torch import nn
 
-from torchvision import transforms as T
-from mindspore.mint import nn, ops
+# from torchvision import transforms as T
 
 # helper functions
 
@@ -50,17 +54,17 @@ def loss_fn(
     teacher_logits = teacher_logits.detach()
     student_probs = (student_logits / student_temp).softmax(dim = -1)
     teacher_probs = ((teacher_logits - centers) / teacher_temp).softmax(dim = -1)
-    return - (teacher_probs * ops.log(input = student_probs + eps)).sum(dim = -1).mean()  # 'torch.log':没有对应的mindspore参数 'out';
+    return - (teacher_probs * mint.log(student_probs + eps)).sum(dim = -1).mean()
 
 # augmentation utils
 
-class RandomApply(nn.Cell):
+class RandomApply(msnn.Cell):
     def __init__(self, fn, p):
         super().__init__()
         self.fn = fn
         self.p = p
 
-    def forward(self, x):
+    def construct(self, x):
         if random.random() > self.p:
             return x
         return self.fn(x)
@@ -84,12 +88,12 @@ def update_moving_average(ema_updater, ma_model, current_model):
 
 # MLP class for projector and predictor
 
-class L2Norm(nn.Cell):
-    def forward(self, x, eps = 1e-6):
+class L2Norm(msnn.Cell):
+    def construct(self, x, eps = 1e-6):
         norm = x.norm(dim = 1, keepdim = True).clamp(min = eps)
         return x / norm
 
-class MLP(nn.Cell):
+class MLP(msnn.Cell):
     def __init__(self, dim, dim_out, num_layers, hidden_size = 256):
         super().__init__()
 
@@ -100,24 +104,21 @@ class MLP(nn.Cell):
             is_last = ind == (len(dims) - 1)
 
             layers.extend([
-                nn.Linear(in_features = layer_dim_in, out_features = layer_dim_out),
-                nn.GELU() if not is_last else nn.Identity()
-            ])  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+                nn.Linear(layer_dim_in, layer_dim_out),
+                nn.GELU() if not is_last else msnn.Identity()
+            ])
 
-        self.net = nn.SequentialCell(
-            *layers,
-            L2Norm(),
-            nn.Linear(in_features = hidden_size, out_features = dim_out)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.net = msnn.SequentialCell(
+            [layers, L2Norm(), nn.Linear(hidden_size, dim_out)])
 
-    def forward(self, x):
+    def construct(self, x):
         return self.net(x)
 
 # a wrapper class for the base neural network
 # will manage the interception of the hidden layer output
 # and pipe it into the projecter and predictor nets
 
-class NetWrapper(nn.Cell):
+class NetWrapper(msnn.Cell):
     def __init__(self, net, output_dim, projection_hidden_size, projection_num_layers, layer = -2):
         super().__init__()
         self.net = net
@@ -171,7 +172,7 @@ class NetWrapper(nn.Cell):
         assert hidden is not None, f'hidden layer {self.layer} never emitted an output'
         return hidden
 
-    def forward(self, x, return_projection = True):
+    def construct(self, x, return_projection = True):
         embed = self.get_embedding(x)
         if not return_projection:
             return embed
@@ -181,7 +182,7 @@ class NetWrapper(nn.Cell):
 
 # main class
 
-class Dino(nn.Cell):
+class Dino(msnn.Cell):
     def __init__(
         self,
         net,
@@ -204,21 +205,16 @@ class Dino(nn.Cell):
 
         # default BYOL augmentation
 
-        DEFAULT_AUG = nn.SequentialCell(
-            RandomApply(
-                mindspore.dataset.vision.RandomColorAdjust(brightness = 0, contrast = 0, saturation = 0, hue = 0),
+        DEFAULT_AUG = msnn.SequentialCell(
+            [RandomApply(
+                ms.dataset.vision.RandomColorAdjust(0.8, 0.8, 0.8, 0.2),
                 p = 0.3
-            ),
-            T.RandomGrayscale(p=0.2),
-            T.RandomHorizontalFlip(),
-            RandomApply(
-                mindspore.dataset.vision.GaussianBlur(kernel_size = (3, 3), sigma = (1.0, 2.0)),
+            ), T.RandomGrayscale(p=0.2), T.RandomHorizontalFlip(), RandomApply(
+                ms.dataset.vision.GaussianBlur((3, 3), (1.0, 2.0)),
                 p = 0.2
-            ),
-            T.Normalize(
+            ), T.Normalize(
                 mean=torch.tensor([0.485, 0.456, 0.406]),
-                std=torch.tensor([0.229, 0.224, 0.225])),
-        )  # 默认值不一致: brightness (PyTorch=0, MindSpore=(1, 1)); 默认值不一致: contrast (PyTorch=0, MindSpore=(1, 1)); 默认值不一致: saturation (PyTorch=0, MindSpore=(1, 1)); 默认值不一致: hue (PyTorch=0, MindSpore=(0, 0))
+                std=torch.tensor([0.229, 0.224, 0.225]))])
 
         self.augment1 = default(augment_fn, DEFAULT_AUG)
         self.augment2 = default(augment_fn2, DEFAULT_AUG)
@@ -233,8 +229,8 @@ class Dino(nn.Cell):
         self.teacher_encoder = None
         self.teacher_ema_updater = EMA(moving_average_decay)
 
-        self.register_buffer('teacher_centers', ops.zeros(size = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
-        self.register_buffer('last_teacher_centers',  ops.zeros(size = 1))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.register_buffer('teacher_centers', mint.zeros(size = (1, num_classes_K)))
+        self.register_buffer('last_teacher_centers',  mint.zeros(size = (1, num_classes_K)))
 
         self.teacher_centering_ema_updater = EMA(center_moving_average_decay)
 
@@ -246,7 +242,7 @@ class Dino(nn.Cell):
         self.to(device)
 
         # send a mock image tensor to instantiate singleton parameters
-        self.forward(ops.randn(size = 2, generator = 3, dtype = image_size))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.forward(mint.randn(size = (2, 3, image_size, image_size)))  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
 
     @singleton('teacher_encoder')
     def _get_teacher_encoder(self):
@@ -265,7 +261,7 @@ class Dino(nn.Cell):
         new_teacher_centers = self.teacher_centering_ema_updater.update_average(self.teacher_centers, self.last_teacher_centers)
         self.teacher_centers.copy_(new_teacher_centers)
 
-    def forward(
+    def construct(
         self,
         x,
         return_embedding = False,
@@ -296,7 +292,7 @@ class Dino(nn.Cell):
             centers = self.teacher_centers
         )
 
-        teacher_logits_avg = ops.cat(tensors = (teacher_proj_one, teacher_proj_two)).mean(dim = 0)  # 'torch.cat':没有对应的mindspore参数 'out';
+        teacher_logits_avg = mint.cat((teacher_proj_one, teacher_proj_two)).mean(dim = 0)
         self.last_teacher_centers.copy_(teacher_logits_avg)
 
         loss = (loss_fn_(teacher_proj_one, student_proj_two) + loss_fn_(teacher_proj_two, student_proj_one)) / 2

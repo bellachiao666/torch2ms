@@ -1,9 +1,13 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 import math
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-from mindspore.mint import nn, ops
+# import torch
+# from torch import nn
+# import torch.nn.functional as F
 
 from einops import rearrange, repeat, reduce
 
@@ -14,16 +18,16 @@ def exists(val):
 
 def prob_mask_like(t, prob):
     batch, seq_length, _ = t.shape
-    return ops.zeros(size = (batch, seq_length)).float().uniform_(0, 1) < prob  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+    return mint.zeros((batch, seq_length)).float().uniform_(0, 1) < prob
 
 def get_mask_subset_with_prob(patched_input, prob):
     batch, seq_len, _, device = *patched_input.shape, patched_input.device
     max_masked = math.ceil(prob * seq_len)
 
-    rand = ops.rand(size = (batch, seq_len))  # 'torch.rand':没有对应的mindspore参数 'out';; 'torch.rand':没有对应的mindspore参数 'layout';; 'torch.rand':没有对应的mindspore参数 'device';; 'torch.rand':没有对应的mindspore参数 'requires_grad';; 'torch.rand':没有对应的mindspore参数 'pin_memory';
+    rand = mint.rand((batch, seq_len))  # 'torch.rand':没有对应的mindspore参数 'device' (position 5);
     _, sampled_indices = rand.topk(max_masked, dim=-1)
 
-    new_mask = ops.zeros(size = (batch, seq_len))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+    new_mask = mint.zeros((batch, seq_len))  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
     new_mask.scatter_(1, sampled_indices, 1)
     return new_mask.bool()
 
@@ -31,7 +35,7 @@ def get_mask_subset_with_prob(patched_input, prob):
 # mpp loss
 
 
-class MPPLoss(nn.Cell):
+class MPPLoss(msnn.Cell):
     def __init__(
         self,
         patch_size,
@@ -50,7 +54,7 @@ class MPPLoss(nn.Cell):
         self.mean = torch.tensor(mean).view(-1, 1, 1) if mean else None
         self.std = torch.tensor(std).view(-1, 1, 1) if std else None
 
-    def forward(self, predicted_patches, target, mask):
+    def construct(self, predicted_patches, target, mask):
         p, c, mpv, bits, device = self.patch_size, self.channels, self.max_pixel_val, self.output_channel_bits, target.device
         bin_size = mpv / (2 ** bits)
 
@@ -62,13 +66,13 @@ class MPPLoss(nn.Cell):
         target = target.clamp(max = mpv) # clamp just in case
         avg_target = reduce(target, 'b c (h p1) (w p2) -> b (h w) c', 'mean', p1 = p, p2 = p).contiguous()
 
-        channel_bins = ops.arange(start = bin_size, end = mpv, step = bin_size)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+        channel_bins = mint.arange(bin_size, mpv, bin_size)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
         discretized_target = torch.bucketize(avg_target, channel_bins)
 
-        bin_mask = (2 ** bits) ** ops.arange(start = 0, end = c).long()  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+        bin_mask = (2 ** bits) ** mint.arange(0, c).long()  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
         bin_mask = rearrange(bin_mask, 'c -> () () c')
 
-        target_label = ops.sum(input = bin_mask * discretized_target)
+        target_label = mint.sum(bin_mask * discretized_target)
 
         loss = F.cross_entropy(predicted_patches[mask], target_label[mask])
         return loss
@@ -77,7 +81,7 @@ class MPPLoss(nn.Cell):
 # main class
 
 
-class MPP(nn.Cell):
+class MPP(msnn.Cell):
     def __init__(
         self,
         transformer,
@@ -98,10 +102,10 @@ class MPP(nn.Cell):
                             max_pixel_val, mean, std)
 
         # extract patching function
-        self.patch_to_emb = nn.SequentialCell(transformer.to_patch_embedding[1:])
+        self.patch_to_emb = msnn.SequentialCell([transformer.to_patch_embedding[1:]])
 
         # output transformation
-        self.to_bits = nn.Linear(in_features = dim, out_features = 2**(output_channel_bits * channels))  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_bits = nn.Linear(dim, 2**(output_channel_bits * channels))
 
         # vit related dimensions
         self.patch_size = patch_size
@@ -112,9 +116,9 @@ class MPP(nn.Cell):
         self.random_patch_prob = random_patch_prob
 
         # token ids
-        self.mask_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.mask_token = ms.Parameter(mint.randn(size = (1, 1, channels * patch_size ** 2)))
 
-    def forward(self, input, **kwargs):
+    def construct(self, input, **kwargs):
         transformer = self.transformer
         # clone original image for loss
         img = input.clone().detach()
@@ -139,10 +143,10 @@ class MPP(nn.Cell):
                                                random_patch_sampling_prob).to(mask.device)
 
             bool_random_patch_prob = mask * (random_patch_prob == True)
-            random_patches = ops.randint(low = 0, high = input.shape[1], size = (input.shape[0], input.shape[1]))  # 'torch.randint':没有对应的mindspore参数 'out';; 'torch.randint':没有对应的mindspore参数 'layout';; 'torch.randint':没有对应的mindspore参数 'device';; 'torch.randint':没有对应的mindspore参数 'requires_grad';
+            random_patches = mint.randint(0, input.shape[1], (input.shape[0], input.shape[1]))  # 'torch.randint':没有对应的mindspore参数 'device' (position 7);
             randomized_input = masked_input[
-                ops.arange(start = masked_input.shape[0]).unsqueeze(-1),
-                random_patches]  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+                mint.arange(masked_input.shape[0]).unsqueeze(-1),
+                random_patches]
             masked_input[bool_random_patch_prob] = randomized_input[
                 bool_random_patch_prob]
 
@@ -157,7 +161,7 @@ class MPP(nn.Cell):
         # add cls token to input sequence
         b, n, _ = masked_input.shape
         cls_tokens = repeat(transformer.cls_token, '() n d -> b n d', b=b)
-        masked_input = ops.cat(tensors = (cls_tokens, masked_input), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        masked_input = mint.cat((cls_tokens, masked_input), dim = 1)
 
         # add positional embeddings to input
         masked_input += transformer.pos_embedding[:, :(n + 1)]

@@ -1,9 +1,13 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from __future__ import annotations
-from torch import nn
+# from torch import nn
 
 from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -18,22 +22,16 @@ def ensure_tuple(t, length):
 
 # classes
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Linear(in_features = hidden_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
     
-    def forward(self, x):
+    def construct(self, x):
         return self.net(x)
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head * heads
@@ -42,49 +40,47 @@ class Attention(nn.Cell):
         self.heads = heads
         self.scale = dim_head ** -0.5
         
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
         
-        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
         
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = inner_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
     
-    def forward(self, x):
+    def construct(self, x):
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
         
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
         
         attn = self.attend(dots)
         attn = self.dropout(attn)
         
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = nn.CellList([])
+        self.norm = nn.LayerNorm(dim)
+        self.layers = msnn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
     
-    def forward(self, x):
+    def construct(self, x):
         for attn, ff in self.layers:
             x = attn(x) + x
             x = ff(x) + x
         return self.norm(x)
 
-class ViTND(nn.Cell):
+class ViTND(msnn.Cell):
     def __init__(
         self,
         *,
@@ -136,27 +132,24 @@ class ViTND(nn.Cell):
         
         rearrange_kwargs = {f'p{i}': p for i, p in enumerate(patch_size)}
         
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange(rearrange_str, **rearrange_kwargs),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim),
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';; 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange(rearrange_str, **rearrange_kwargs), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
         
-        self.pos_embedding = mindspore.Parameter(ops.randn(size = 1, generator = num_patches + 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = mindspore.Parameter(ops.randn(size = 1, generator = 1))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
+        self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
+        self.dropout = nn.Dropout(emb_dropout)
         
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
         
-        self.to_latent = nn.Identity()
-        self.mlp_head = nn.Linear(in_features = dim, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_latent = msnn.Identity()
+        self.mlp_head = nn.Linear(dim, num_classes)
     
-    def forward(self, x):
+    def construct(self, x):
         x = self.to_patch_embedding(x)
         b, n, _ = x.shape
         
         cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)
-        x = ops.cat(tensors = (cls_tokens, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        x = mint.cat((cls_tokens, x), dim = 1)
         x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
         
@@ -184,6 +177,6 @@ if __name__ == '__main__':
         emb_dropout = 0.1
     )
     
-    occupancy_time = ops.randn(size = 2, generator = 3, dtype = 16)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    occupancy_time = mint.randn(size = (2, 3, 8, 16, 32, 64))
     
     logits = model(occupancy_time)

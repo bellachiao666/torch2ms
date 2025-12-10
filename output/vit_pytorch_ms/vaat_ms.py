@@ -1,16 +1,20 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 # vision-audio-action transformer - vaat
 
 from __future__ import annotations
 from contextlib import nullcontext
 
-import torch
-from torch import nn, cat, stack, arange, tensor
+# import torch
+# from torch import nn, cat, stack, arange, tensor
 
-from torchaudio.transforms import Spectrogram
+# from torchaudio.transforms import Spectrogram
 
 from einops import rearrange, repeat, reduce, pack, unpack
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -29,48 +33,46 @@ def pair(t):
 def posemb_sincos_2d(
     patches,
     temperature = 10000,
-    dtype = torch.float32
+    dtype = ms.float32
 ):
     _, h, w, dim, device, dtype = *patches.shape, patches.device, patches.dtype
 
-    y, x = ops.meshgrid(tensors = ops.arange(start = h), indexing = 'ij')  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+    y, x = mint.meshgrid(mint.arange(h), mint.arange(w), indexing = 'ij')  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
     assert (dim % 4) == 0, 'feature dimension must be multiple of 4 for sincos emb'
 
-    omega = ops.arange(start = dim // 4) / (dim // 4 - 1)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+    omega = mint.arange(dim // 4) / (dim // 4 - 1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
     omega = temperature ** -omega
 
     y = y.flatten()[:, None] * omega[None, :]
     x = x.flatten()[:, None] * omega[None, :] 
 
-    pe = ops.cat(tensors = (x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+    pe = mint.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
     pe = pe.type(dtype)
 
     return rearrange(pe, '(h w) d -> h w d', h = h, w = w)
 
 # classes
 
-class FiLM(nn.Cell):
+class FiLM(msnn.Cell):
     def __init__(
         self,
         dim,
     ):
         super().__init__()
-        proj = nn.Linear(in_features = dim, out_features = dim * 2)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        proj = nn.Linear(dim, dim * 2)
 
-        self.to_gamma_beta = nn.SequentialCell(
-            proj,
-            Rearrange('b (two d) -> two b 1 d', two = 2)
-        )
+        self.to_gamma_beta = msnn.SequentialCell(
+            [proj, Rearrange('b (two d) -> two b 1 d', two = 2)])
 
         nn.init.zeros_(proj.weight)
         nn.init.zeros_(proj.bias)
 
-    def forward(self, tokens, cond):
+    def construct(self, tokens, cond):
         gamma, beta = self.to_gamma_beta(cond)
 
         return tokens * gamma + beta
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -78,19 +80,13 @@ class FeedForward(nn.Cell):
         dropout = 0.
     ):
         super().__init__()
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Linear(in_features = hidden_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
 
-    def forward(self, x):
+    def construct(self, x):
         return self.net(x)
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -108,23 +104,21 @@ class Attention(nn.Cell):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
 
         self.cross_attend = cross_attend
-        self.context_norm = nn.LayerNorm(normalized_shape = dim_context) if cross_attend else None  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.context_norm = nn.LayerNorm(dim_context) if cross_attend else None
 
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
 
-        self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_kv = nn.Linear(in_features = dim_context, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_q = nn.Linear(dim, inner_dim, bias = False)
+        self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
 
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = inner_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
 
-    def forward(self, x, context = None):
+    def construct(self, x, context = None):
 
         assert not (self.cross_attend ^ exists(context)), 'context must be passed in if cross attending, or vice versa'
 
@@ -143,16 +137,16 @@ class Attention(nn.Cell):
         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
 
         attn = self.attend(dots)
         attn = self.dropout(attn)
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -163,16 +157,16 @@ class Transformer(nn.Cell):
         dropout = 0.
     ):
         super().__init__()
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = nn.CellList([])
+        self.norm = nn.LayerNorm(dim)
+        self.layers = msnn.CellList([])
 
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
-    def forward(
+    def construct(
         self,
         x,
         return_hiddens = False
@@ -193,7 +187,7 @@ class Transformer(nn.Cell):
 
         return x, hiddens
 
-class AST(nn.Cell):
+class AST(msnn.Cell):
     # audio spectrogram transformer https://arxiv.org/abs/2104.01778
 
     def __init__(
@@ -226,12 +220,8 @@ class AST(nn.Cell):
 
         self.patch_size = (patch_height, patch_width)
 
-        self.to_patch_tokens = nn.SequentialCell(
-            Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]),
-            nn.LayerNorm(normalized_shape = patch_input_dim),
-            nn.Linear(in_features = patch_input_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_tokens = msnn.SequentialCell(
+            [Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]), nn.LayerNorm(patch_input_dim), nn.Linear(patch_input_dim, dim), nn.LayerNorm(dim)])
 
         self.accept_spec = accept_spec
         self.accept_spec_time_first = accept_spec_time_first
@@ -255,13 +245,13 @@ class AST(nn.Cell):
             dropout = dropout,
         )
 
-        self.final_norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.final_norm = nn.LayerNorm(dim)
 
-        self.mlp_head = nn.Linear(in_features = dim, out_features = num_classes) if exists(num_classes) else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = nn.Linear(dim, num_classes) if exists(num_classes) else msnn.Identity()
 
-        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, dim)) * 1e-2)
 
-    def forward(
+    def construct(
         self,
         raw_audio_or_spec, # (b t) | (b f t)
         return_hiddens = False
@@ -314,7 +304,7 @@ class AST(nn.Cell):
         normed = self.final_norm(attended)
 
         if return_hiddens:
-            return normed, ops.stack(tensors = hiddens)  # 'torch.stack':没有对应的mindspore参数 'out';
+            return normed, mint.stack(hiddens)
 
         register_tokens, normed = unpack(normed, packed_shape, 'b * d')
 
@@ -324,7 +314,7 @@ class AST(nn.Cell):
 
         return maybe_logits
 
-class ViT(nn.Cell):
+class ViT(msnn.Cell):
     def __init__(
         self,
         *,
@@ -355,27 +345,23 @@ class ViT(nn.Cell):
         patch_dim = channels * patch_height * patch_width
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim),
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
 
-        self.pos_embedding = mindspore.Parameter(ops.randn(size = num_patches, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.cls_token = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.pos_embedding = ms.Parameter(mint.randn(size = (num_patches, dim)))
+        self.cls_token = ms.Parameter(mint.randn(dim))
+        self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.pool = pool
-        self.to_latent = nn.Identity()
+        self.to_latent = msnn.Identity()
 
-        self.mlp_head = nn.Linear(in_features = dim, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = nn.Linear(dim, num_classes)
 
-        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, dim)) * 1e-2)
 
-    def forward(self, img, return_hiddens = False):
+    def construct(self, img, return_hiddens = False):
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
 
@@ -393,7 +379,7 @@ class ViT(nn.Cell):
         # return the representation trajectory
 
         if return_hiddens:
-            return x, ops.stack(tensors = hiddens)  # 'torch.stack':没有对应的mindspore参数 'out';
+            return x, mint.stack(hiddens)
 
         register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
 
@@ -408,7 +394,7 @@ class ViT(nn.Cell):
 # https://openreview.net/forum?id=TalHOvvLZu
 # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
 
-class VAAT(nn.Cell):
+class VAAT(msnn.Cell):
     def __init__(
         self,
         vit: ViT | dict,
@@ -478,36 +464,36 @@ class VAAT(nn.Cell):
 
         self.is_video = is_video
         self.time_seq_len = time_seq_len
-        self.time_pos_emb = mindspore.Parameter(ops.randn(size = time_seq_len, generator = vit_dim) * 1e-2) if is_video else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.time_pos_emb = ms.Parameter(mint.randn(size = (time_seq_len, vit_dim)) * 1e-2) if is_video else None
 
         # maybe view embeddings
 
-        self.image_view_emb = mindspore.Parameter(ops.randn(size = num_image_views, generator = vit_dim) * 1e-2) if exists(num_image_views) and num_image_views > 1 else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.image_view_emb = ms.Parameter(mint.randn(size = (num_image_views, vit_dim)) * 1e-2) if exists(num_image_views) and num_image_views > 1 else None
 
-        self.audio_view_emb = mindspore.Parameter(ops.randn(size = num_audio_views, generator = ast_dim) * 1e-2) if exists(num_audio_views) and num_audio_views > 1 else None  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.audio_view_emb = ms.Parameter(mint.randn(size = (num_audio_views, ast_dim)) * 1e-2) if exists(num_audio_views) and num_audio_views > 1 else None
 
         # handle maybe task conditioning
 
         self.has_tasks = exists(num_tasks)
 
         if self.has_tasks:
-            self.task_emb = mindspore.Parameter(ops.randn(size = num_tasks, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+            self.task_emb = ms.Parameter(mint.randn(size = (num_tasks, dim)) * 1e-2)
 
         # register tokens from Darcet et al.
 
-        self.register_tokens = mindspore.Parameter(ops.randn(size = num_register_tokens, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, dim)) * 1e-2)
 
         # to action tokens
 
-        self.action_pos_emb = mindspore.Parameter(ops.randn(size = action_chunk_len, generator = dim) * 1e-2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.action_pos_emb = ms.Parameter(mint.randn(size = (action_chunk_len, dim)) * 1e-2)
 
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         for _ in range(depth):
             maybe_film = FiLM(dim = dim) if self.has_tasks else None
             maybe_self_attn = Attention(dim = dim, heads = self_attn_heads, dim_head = self_attn_dim_head, dropout = dropout) if add_self_attn else None
 
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 maybe_film,
                 maybe_self_attn,
                 Attention(dim = dim, dim_context = vit_dim, heads = heads, dim_head = dim_head, dropout = dropout, cross_attend = True),
@@ -515,17 +501,17 @@ class VAAT(nn.Cell):
                 FeedForward(dim = dim, hidden_dim = mlp_dim, dropout = dropout)
             ]))
 
-        self.final_norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.to_pred_action = nn.Linear(in_features = dim, out_features = dim_action, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.final_norm = nn.LayerNorm(dim)
+        self.to_pred_action = nn.Linear(dim, dim_action, bias = False)
 
         # handle the extra token
 
         self.accept_extra_token = exists(dim_extra_token)
 
         if exists(dim_extra_token):
-            self.to_extra_token = nn.Linear(in_features = dim_extra_token, out_features = dim)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+            self.to_extra_token = nn.Linear(dim_extra_token, dim)
 
-    def forward(
+    def construct(
         self,
         video_or_image,   # (b v? c t? h w)      - batch, views [wrist + third person or more], channels, maybe time, height, width
         audio_or_spec,    # (b v? t) | (b v?f t) - batch, audio len | batch, spec freq, time
@@ -583,7 +569,7 @@ class VAAT(nn.Cell):
         with vit_forward_context():
             embed, hiddens = self.vit(images, return_hiddens = True)
 
-        hiddens = ops.cat(tensors = (hiddens, embed[None, ...]))  # 'torch.cat':没有对应的mindspore参数 'out';
+        hiddens = mint.cat((hiddens, embed[None, ...]))
 
         # extract the hiddens needed for the action cross attention
 
@@ -614,7 +600,7 @@ class VAAT(nn.Cell):
         with ast_forward_context():
             audio_embed, audio_hiddens = self.ast(audio_or_spec, return_hiddens = True)
 
-        audio_hiddens = ops.cat(tensors = (audio_hiddens, audio_embed[None, ...]))  # 'torch.cat':没有对应的mindspore参数 'out';
+        audio_hiddens = mint.cat((audio_hiddens, audio_embed[None, ...]))
 
         # extract the hiddens needed for the action cross attention
 
@@ -703,13 +689,13 @@ class VAAT(nn.Cell):
             if not return_hiddens:
                 return pred_action
 
-            return pred_action, ops.stack(tensors = hiddens)  # 'torch.stack':没有对应的mindspore参数 'out';
+            return pred_action, mint.stack(hiddens)
 
         assert pred_action.shape[1] == actions.shape[1]
 
         # they found l1 loss suffices
 
-        return nn.functional.l1_loss(input = pred_action, target = actions)  # 'torch.nn.functional.l1_loss':没有对应的mindspore参数 'size_average';; 'torch.nn.functional.l1_loss':没有对应的mindspore参数 'reduce';
+        return nn.functional.l1_loss(pred_action, actions)
 
 # quick test
 
@@ -758,13 +744,13 @@ if __name__ == '__main__':
         )
     )
 
-    images = ops.randn(size = 2, generator = 2, dtype = 4)  # (2 views with 4 frames); 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-    audio = ops.randn(size = 2, generator = 2)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    images = mint.randn(size = (2, 2, 3, 4, 256, 256)) # (2 views with 4 frames)
+    audio = mint.randn(size = (2, 2, 14_100 * 5))
 
-    tasks = ops.randint(low = 0, high = 4, size = (2,))  # 'torch.randint':没有对应的mindspore参数 'out';; 'torch.randint':没有对应的mindspore参数 'layout';; 'torch.randint':没有对应的mindspore参数 'device';; 'torch.randint':没有对应的mindspore参数 'requires_grad';
-    extra = ops.randn(size = 2, generator = 33)  # extra internal state; 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    tasks = mint.randint(0, 4, (2,))
+    extra = mint.randn(size = (2, 33))                 # extra internal state
 
-    actions = ops.randn(size = 2, generator = 7)  # actions for learning; 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    actions = mint.randn(size = (2, 7, 20))         # actions for learning
 
     loss = vaat(images, audio, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
     loss.backward()

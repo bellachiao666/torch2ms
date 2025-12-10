@@ -1,4 +1,7 @@
-from torch import nn
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
 from mindspore.mint import nn, ops
 
 def exists(val):
@@ -15,7 +18,7 @@ def apply_tuple_or_single(fn, val):
         return tuple(map(fn, val))
     return fn(val)
 
-class Extractor(nn.Cell):
+class Extractor(msnn.Cell):
     def __init__(
         self,
         vit,
@@ -69,7 +72,7 @@ class Extractor(nn.Cell):
         del self.latents
         self.latents = None
 
-    def forward(
+    def construct(
         self,
         img,
         return_embeddings_only = False

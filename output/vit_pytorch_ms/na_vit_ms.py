@@ -1,13 +1,17 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from __future__ import annotations
 
 from functools import partial, lru_cache
 from typing import List
 
-import torch
-import torch.nn.functional as F
-from torch import nn, Tensor
-from torch.nn.utils.rnn import pad_sequence as orig_pad_sequence
-from mindspore.mint import nn, ops
+# import torch
+# import torch.nn.functional as F
+# from torch import nn, Tensor
+# from torch.nn.utils.rnn import pad_sequence as orig_pad_sequence
 
 from einops import rearrange, repeat
 
@@ -30,9 +34,9 @@ def divisible_by(numer, denom):
 
 @lru_cache(maxsize=128)
 def posemb_grid(ph, pw, device):
-    h_idx = ops.arange(start = ph).repeat_interleave(pw)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-    w_idx = ops.arange(start = pw).repeat(ph)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-    return ops.stack(tensors = [h_idx, w_idx], dim = -1)  # 'torch.stack':没有对应的mindspore参数 'out';
+    h_idx = mint.arange(ph).repeat_interleave(pw)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+    w_idx = mint.arange(pw).repeat(ph)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+    return mint.stack([h_idx, w_idx], dim = -1)
 
 # auto grouping images
 
@@ -80,40 +84,34 @@ def group_images_by_max_seq_len(
 # normalization
 # they use layernorm without bias, something that pytorch does not offer
 
-class LayerNorm(nn.Cell):
+class LayerNorm(msnn.Cell):
     def __init__(self, dim):
         super().__init__()
-        self.gamma = mindspore.Parameter(ops.ones(size = dim))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
-        self.register_buffer('beta', ops.zeros(size = dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.gamma = ms.Parameter(mint.ones(dim))
+        self.register_buffer('beta', mint.zeros(dim))
 
-    def forward(self, x):
+    def construct(self, x):
         return F.layer_norm(x, x.shape[-1:], self.gamma, self.beta)
 
 # they use a query-key normalization that is equivalent to rms norm (no mean-centering, learned gamma), from vit 22B paper
 
-class RMSNorm(nn.Cell):
+class RMSNorm(msnn.Cell):
     def __init__(self, heads, dim):
         super().__init__()
         self.scale = dim ** 0.5
-        self.gamma = mindspore.Parameter(ops.ones(size = heads, dtype = dim))  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.gamma = ms.Parameter(mint.ones(size = (heads, 1, dim)))
 
-    def forward(self, x):
-        normed = nn.functional.normalize(input = x, dim = -1)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
+    def construct(self, x):
+        normed = nn.functional.normalize(x, dim = -1)
         return normed * self.scale * self.gamma
 
 # feedforward
 
 def FeedForward(dim, hidden_dim, dropout = 0.):
-    return nn.SequentialCell(
-        LayerNorm(dim),
-        nn.Linear(in_features = dim, out_features = hidden_dim),
-        nn.GELU(),
-        nn.Dropout(p = dropout),
-        nn.Linear(in_features = hidden_dim, out_features = dim),
-        nn.Dropout(p = dropout)
-    )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+    return msnn.SequentialCell(
+        [LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
         inner_dim = dim_head *  heads
@@ -125,15 +123,13 @@ class Attention(nn.Cell):
 
         self.dropout_p = dropout
 
-        self.to_q = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_kv = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_q = nn.Linear(dim, inner_dim, bias = False)
+        self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
 
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = inner_dim, out_features = dim, bias = False),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(inner_dim, dim, bias = False), nn.Dropout(dropout)])
 
-    def forward(
+    def construct(
         self,
         x,
         context = None,
@@ -169,19 +165,19 @@ class Attention(nn.Cell):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
         super().__init__()
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
 
         self.norm = LayerNorm(dim)
 
-    def forward(
+    def construct(
         self,
         x,
         mask = None,
@@ -193,7 +189,7 @@ class Transformer(nn.Cell):
 
         return self.norm(x)
 
-class NaViT(nn.Cell):
+class NaViT(msnn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., token_dropout_prob = None):
         super().__init__()
         image_height, image_width = pair(image_size)
@@ -222,38 +218,33 @@ class NaViT(nn.Cell):
         self.channels = channels
         self.patch_size = patch_size
 
-        self.to_patch_embedding = nn.SequentialCell(
-            LayerNorm(patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            LayerNorm(dim),
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [LayerNorm(patch_dim), nn.Linear(patch_dim, dim), LayerNorm(dim)])
 
-        self.pos_embed_height = mindspore.Parameter(ops.randn(size = patch_height_dim, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
-        self.pos_embed_width = mindspore.Parameter(ops.randn(size = patch_width_dim, generator = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.pos_embed_height = ms.Parameter(mint.randn(size = (patch_height_dim, dim)))
+        self.pos_embed_width = ms.Parameter(mint.randn(size = (patch_width_dim, dim)))
 
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         # final attention pooling queries
 
-        self.attn_pool_queries = mindspore.Parameter(ops.randn(size = dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.attn_pool_queries = ms.Parameter(mint.randn(dim))
         self.attn_pool = Attention(dim = dim, dim_head = dim_head, heads = heads)
 
         # output to logits
 
-        self.to_latent = nn.Identity()
+        self.to_latent = msnn.Identity()
 
-        self.mlp_head = nn.SequentialCell(
-            LayerNorm(dim),
-            nn.Linear(in_features = dim, out_features = num_classes, bias = False)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [LayerNorm(dim), nn.Linear(dim, num_classes, bias = False)])
 
     @property
     def device(self):
         return next(self.parameters()).device
 
-    def forward(
+    def construct(
         self,
         batched_images: List[Tensor] | List[List[Tensor]], # assume different resolution images already grouped correctly
         group_images = False,
@@ -310,18 +301,18 @@ class NaViT(nn.Cell):
                     token_dropout = self.calc_token_dropout(*image_dims)
                     seq_len = seq.shape[0]
                     num_keep = max(1, int(seq_len * (1 - token_dropout)))
-                    keep_indices = ops.randn(size = (seq_len,)).topk(num_keep, dim=-1).indices  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+                    keep_indices = mint.randn((seq_len,)).topk(num_keep, dim=-1).indices  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
                     sequences[i] = seq[keep_indices]
                     positions[i] = pos[keep_indices]
 
             # build image_ids efficiently using repeat_interleave
             patch_counts = [seq.shape[0] for seq in sequences]
-            image_ids = ops.repeat_interleave(
-                input = arange(len(images)), repeats = torch.tensor(patch_counts, device=device))
+            image_ids = mint.repeat_interleave(
+                arange(len(images)), torch.tensor(patch_counts, device=device))
 
             batched_image_ids.append(image_ids)
-            batched_sequences.append(ops.cat(tensors = sequences, dim = 0))  # 'torch.cat':没有对应的mindspore参数 'out';
-            batched_positions.append(ops.cat(tensors = positions, dim = 0))  # 'torch.cat':没有对应的mindspore参数 'out';
+            batched_sequences.append(mint.cat(sequences, dim = 0))
+            batched_positions.append(mint.cat(positions, dim = 0))
 
         # derive key padding mask
 

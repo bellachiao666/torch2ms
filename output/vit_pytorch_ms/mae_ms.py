@@ -1,10 +1,14 @@
-from torch import nn
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+# from torch import nn
 from einops import repeat
 
-from vit_pytorch.vit import Transformer
-from mindspore.mint import nn, ops
+# from vit_pytorch.vit import Transformer
 
-class MAE(nn.Cell):
+class MAE(msnn.Cell):
     def __init__(
         self,
         *,
@@ -25,19 +29,19 @@ class MAE(nn.Cell):
         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
 
         self.to_patch = encoder.to_patch_embedding[0]
-        self.patch_to_emb = nn.SequentialCell(*encoder.to_patch_embedding[1:])
+        self.patch_to_emb = msnn.SequentialCell([encoder.to_patch_embedding[1:]])
 
         pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
 
         # decoder parameters
         self.decoder_dim = decoder_dim
-        self.enc_to_dec = nn.Linear(in_features = encoder_dim, out_features = decoder_dim) if encoder_dim != decoder_dim else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.mask_token = mindspore.Parameter(ops.randn(size = decoder_dim))  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+        self.enc_to_dec = nn.Linear(encoder_dim, decoder_dim) if encoder_dim != decoder_dim else msnn.Identity()
+        self.mask_token = ms.Parameter(mint.randn(decoder_dim))
         self.decoder = Transformer(dim = decoder_dim, depth = decoder_depth, heads = decoder_heads, dim_head = decoder_dim_head, mlp_dim = decoder_dim * 4)
-        self.decoder_pos_emb = nn.Embedding(num_embeddings = num_patches, embedding_dim = decoder_dim)  # 'torch.nn.Embedding':没有对应的mindspore参数 'device';
-        self.to_pixels = nn.Linear(in_features = decoder_dim, out_features = pixel_values_per_patch)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.decoder_pos_emb = nn.Embedding(num_patches, decoder_dim)
+        self.to_pixels = nn.Linear(decoder_dim, pixel_values_per_patch)
 
-    def forward(self, img):
+    def construct(self, img):
         device = img.device
 
         # get patches
@@ -56,12 +60,12 @@ class MAE(nn.Cell):
         # calculate of patches needed to be masked, and get random indices, dividing it up for mask vs unmasked
 
         num_masked = int(self.masking_ratio * num_patches)
-        rand_indices = ops.rand(size = batch, generator = num_patches).argsort(dim = -1)  # 'torch.rand':没有对应的mindspore参数 'out';; 'torch.rand':没有对应的mindspore参数 'layout';; 'torch.rand':没有对应的mindspore参数 'device';; 'torch.rand':没有对应的mindspore参数 'requires_grad';; 'torch.rand':没有对应的mindspore参数 'pin_memory';
+        rand_indices = mint.rand(size = (batch, num_patches)).argsort(dim = -1)  # 'torch.rand':没有对应的mindspore参数 'device' (position 5);
         masked_indices, unmasked_indices = rand_indices[:, :num_masked], rand_indices[:, num_masked:]
 
         # get the unmasked tokens to be encoded
 
-        batch_range = ops.arange(start = batch)[:, None]  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+        batch_range = mint.arange(batch)[:, None]  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
         tokens = tokens[batch_range, unmasked_indices]
 
         # get the patches to be masked for the final reconstruction loss
@@ -87,7 +91,7 @@ class MAE(nn.Cell):
 
         # concat the masked tokens to the decoder tokens and attend with decoder
         
-        decoder_tokens = ops.zeros(size = batch, dtype = self.decoder_dim)  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        decoder_tokens = mint.zeros(size = (batch, num_patches, self.decoder_dim))  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
         decoder_tokens[batch_range, unmasked_indices] = unmasked_decoder_tokens
         decoder_tokens[batch_range, masked_indices] = mask_tokens
         decoded_tokens = self.decoder(decoder_tokens)
@@ -99,5 +103,5 @@ class MAE(nn.Cell):
 
         # calculate reconstruction loss
 
-        recon_loss = nn.functional.mse_loss(input = pred_pixel_values, target = masked_patches)  # 'torch.nn.functional.mse_loss':没有对应的mindspore参数 'size_average';; 'torch.nn.functional.mse_loss':没有对应的mindspore参数 'reduce';
+        recon_loss = nn.functional.mse_loss(pred_pixel_values, masked_patches)
         return recon_loss

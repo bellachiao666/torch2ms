@@ -1,7 +1,11 @@
-import torch
-from torch import nn, einsum
-import torch.nn.functional as F
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
 from mindspore.mint import nn, ops
+# import torch
+# from torch import nn, einsum
+# import torch.nn.functional as F
 
 from einops import rearrange, repeat
 
@@ -76,25 +80,25 @@ def _cct(num_layers, num_heads, mlp_ratio, embedding_dim,
 def sinusoidal_embedding(n_channels, dim):
     pe = torch.FloatTensor([[p / (10000 ** (2 * (i // 2) / dim)) for i in range(dim)]
                             for p in range(n_channels)])
-    pe[:, 0::2] = ops.sin(input = pe[:, 0::2])  # 'torch.sin':没有对应的mindspore参数 'out';
-    pe[:, 1::2] = ops.cos(input = pe[:, 1::2])  # 'torch.cos':没有对应的mindspore参数 'out';
+    pe[:, 0::2] = mint.sin(pe[:, 0::2])
+    pe[:, 1::2] = mint.cos(pe[:, 1::2])
     return rearrange(pe, '... -> 1 ...')
 
 # modules
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, num_heads=8, attention_dropout=0.1, projection_dropout=0.1):
         super().__init__()
         self.heads = num_heads
         head_dim = dim // self.heads
         self.scale = head_dim ** -0.5
 
-        self.qkv = nn.Linear(in_features = dim, out_features = dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.attn_drop = nn.Dropout(p = attention_dropout)
-        self.proj = nn.Linear(in_features = dim, out_features = dim)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.proj_drop = nn.Dropout(p = projection_dropout)
+        self.qkv = nn.Linear(dim, dim * 3, bias = False)
+        self.attn_drop = nn.Dropout(attention_dropout)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(projection_dropout)
 
-    def forward(self, x):
+    def construct(self, x):
         B, N, C = x.shape
 
         qkv = self.qkv(x).chunk(3, dim = -1)
@@ -102,17 +106,17 @@ class Attention(nn.Cell):
 
         q = q * self.scale
 
-        attn = ops.einsum(equation = 'b h i d, b h j d -> b h i j', operands = q)
+        attn = mint.einsum('b h i d, b h j d -> b h i j', q, k)
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
-        x = ops.einsum(equation = 'b h i j, b h j d -> b h i d', operands = attn)
+        x = mint.einsum('b h i j, b h j d -> b h i d', attn, v)
         x = rearrange(x, 'b h n d -> b n (h d)')
 
         return self.proj_drop(self.proj(x))
 
 
-class TransformerEncoderLayer(nn.Cell):
+class TransformerEncoderLayer(msnn.Cell):
     """
     Inspired by torch.nn.TransformerEncoderLayer and
     rwightman's timm package.
@@ -121,33 +125,33 @@ class TransformerEncoderLayer(nn.Cell):
                  attention_dropout=0.1, drop_path_rate=0.1):
         super().__init__()
 
-        self.pre_norm = nn.LayerNorm(normalized_shape = d_model)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.pre_norm = nn.LayerNorm(d_model)
         self.self_attn = Attention(dim=d_model, num_heads=nhead,
                                    attention_dropout=attention_dropout, projection_dropout=dropout)
 
-        self.linear1  = nn.Linear(in_features = d_model, out_features = dim_feedforward)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.dropout1 = nn.Dropout(p = dropout)
-        self.norm1    = nn.LayerNorm(normalized_shape = d_model)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.linear2  = nn.Linear(in_features = dim_feedforward, out_features = d_model)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.dropout2 = nn.Dropout(p = dropout)
+        self.linear1  = nn.Linear(d_model, dim_feedforward)
+        self.dropout1 = nn.Dropout(dropout)
+        self.norm1    = nn.LayerNorm(d_model)
+        self.linear2  = nn.Linear(dim_feedforward, d_model)
+        self.dropout2 = nn.Dropout(dropout)
 
         self.drop_path = DropPath(drop_path_rate)
 
         self.activation = F.gelu
 
-    def forward(self, src, *args, **kwargs):
+    def construct(self, src, *args, **kwargs):
         src = src + self.drop_path(self.self_attn(self.pre_norm(src)))
         src = self.norm1(src)
         src2 = self.linear2(self.dropout1(self.activation(self.linear1(src))))
         src = src + self.drop_path(self.dropout2(src2))
         return src
 
-class DropPath(nn.Cell):
+class DropPath(msnn.Cell):
     def __init__(self, drop_prob=None):
         super().__init__()
         self.drop_prob = float(drop_prob)
 
-    def forward(self, x):
+    def construct(self, x):
         batch, drop_prob, device, dtype = x.shape[0], self.drop_prob, x.device, x.dtype
 
         if drop_prob <= 0. or not self.training:
@@ -156,11 +160,11 @@ class DropPath(nn.Cell):
         keep_prob = 1 - self.drop_prob
         shape = (batch, *((1,) * (x.ndim - 1)))
 
-        keep_mask = ops.zeros(size = shape).float().uniform_(0, 1) < keep_prob  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        keep_mask = mint.zeros(shape).float().uniform_(0, 1) < keep_prob  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
         output = x.div(keep_prob) * keep_mask.float()
         return output
 
-class Tokenizer(nn.Cell):
+class Tokenizer(msnn.Cell):
     def __init__(
         self,
         frame_kernel_size,
@@ -197,23 +201,20 @@ class Tokenizer(nn.Cell):
         if frame_pooling_padding is None:
             frame_pooling_padding = frame_pooling_kernel_size // 2
 
-        self.conv_layers = nn.SequentialCell(
-            *[nn.SequentialCell(
-                nn.Conv3d(in_channels = chan_in, out_channels = chan_out, kernel_size = (frame_kernel_size, kernel_size, kernel_size), stride = (frame_stride, stride, stride), padding = (frame_padding, padding, padding), bias = conv_bias),
-                nn.Identity() if not exists(activation) else activation(),
-                nn.MaxPool3d(kernel_size=(frame_pooling_kernel_size, pooling_kernel_size, pooling_kernel_size),
+        self.conv_layers = msnn.SequentialCell(
+            [[msnn.SequentialCell(
+                [nn.Conv3d(chan_in, chan_out, kernel_size = (frame_kernel_size, kernel_size, kernel_size), stride = (frame_stride, stride, stride), padding = (frame_padding, padding, padding), bias = conv_bias), msnn.Identity() if not exists(activation) else activation(), nn.MaxPool3d(kernel_size=(frame_pooling_kernel_size, pooling_kernel_size, pooling_kernel_size),
                              stride=(frame_pooling_stride, pooling_stride, pooling_stride),
-                             padding=(frame_pooling_padding, pooling_padding, pooling_padding)) if max_pool else nn.Identity()
-            )
+                             padding=(frame_pooling_padding, pooling_padding, pooling_padding)) if max_pool else msnn.Identity()])
                 for chan_in, chan_out in n_filter_list_pairs
-            ])  # 'torch.nn.Conv3d':没有对应的mindspore参数 'device';
+            ]])
 
         self.apply(self.init_weight)
 
     def sequence_length(self, n_channels=3, frames=8, height=224, width=224):
-        return self.forward(ops.zeros(size = (1, n_channels, frames, height, width))).shape[1]  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        return self.forward(mint.zeros((1, n_channels, frames, height, width))).shape[1]
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.conv_layers(x)
         return rearrange(x, 'b c f h w -> b (f h w) c')
 
@@ -223,7 +224,7 @@ class Tokenizer(nn.Cell):
             nn.init.kaiming_normal_(m.weight)
 
 
-class TransformerClassifier(nn.Cell):
+class TransformerClassifier(msnn.Cell):
     def __init__(
         self,
         seq_pool=True,
@@ -253,31 +254,31 @@ class TransformerClassifier(nn.Cell):
 
         if not seq_pool:
             sequence_length += 1
-            self.class_emb = mindspore.Parameter(ops.zeros(size = 1, dtype = self.embedding_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+            self.class_emb = ms.Parameter(mint.zeros(size = (1, 1, self.embedding_dim)))
         else:
-            self.attention_pool = nn.Linear(in_features = self.embedding_dim, out_features = 1)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+            self.attention_pool = nn.Linear(self.embedding_dim, 1)
 
         if positional_embedding == 'none':
             self.positional_emb = None
         elif positional_embedding == 'learnable':
-            self.positional_emb = mindspore.Parameter(ops.zeros(size = 1, dtype = embedding_dim))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+            self.positional_emb = ms.Parameter(mint.zeros(size = (1, sequence_length, embedding_dim)))
             nn.init.trunc_normal_(self.positional_emb, std = 0.2)
         else:
             self.register_buffer('positional_emb', sinusoidal_embedding(sequence_length, embedding_dim))
 
         self.dropout = nn.Dropout(p = dropout_rate)
 
-        dpr = [x.item() for x in ops.linspace(start = 0, end = stochastic_depth_rate, steps = num_layers)]  # 'torch.linspace':没有对应的mindspore参数 'out';; 'torch.linspace':没有对应的mindspore参数 'layout';; 'torch.linspace':没有对应的mindspore参数 'device';; 'torch.linspace':没有对应的mindspore参数 'requires_grad';
+        dpr = [x.item() for x in mint.linspace(0, stochastic_depth_rate, num_layers)]
 
-        self.blocks = nn.CellList([
+        self.blocks = msnn.CellList([
             TransformerEncoderLayer(d_model=embedding_dim, nhead=num_heads,
                                     dim_feedforward=dim_feedforward, dropout=dropout_rate,
                                     attention_dropout=attention_dropout, drop_path_rate=layer_dpr)
             for layer_dpr in dpr])
 
-        self.norm = nn.LayerNorm(normalized_shape = embedding_dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(embedding_dim)
 
-        self.fc = nn.Linear(in_features = embedding_dim, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.fc = nn.Linear(embedding_dim, num_classes)
         self.apply(self.init_weight)
 
     @staticmethod
@@ -290,15 +291,15 @@ class TransformerClassifier(nn.Cell):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward(self, x):
+    def construct(self, x):
         b = x.shape[0]
 
         if not exists(self.positional_emb) and x.size(1) < self.sequence_length:
-            x = nn.functional.pad(input = x, pad = (0, 0, 0, self.n_channels - x.size(1)), mode = 'constant', value = 0)
+            x = nn.functional.pad(x, (0, 0, 0, self.n_channels - x.size(1)), mode = 'constant', value = 0)
 
         if not self.seq_pool:
             cls_token = repeat(self.class_emb, '1 1 d -> b 1 d', b = b)
-            x = ops.cat(tensors = (cls_token, x), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+            x = mint.cat((cls_token, x), dim = 1)
 
         if exists(self.positional_emb):
             x += self.positional_emb
@@ -312,7 +313,7 @@ class TransformerClassifier(nn.Cell):
 
         if self.seq_pool:
             attn_weights = rearrange(self.attention_pool(x), 'b n 1 -> b n')
-            x = ops.einsum(equation = 'b n, b n d -> b d', operands = attn_weights.softmax(dim = 1))
+            x = mint.einsum('b n, b n d -> b d', attn_weights.softmax(dim = 1), x)
         else:
             x = x[:, 0]
 
@@ -320,7 +321,7 @@ class TransformerClassifier(nn.Cell):
 
 # CCT Main model
 
-class CCT(nn.Cell):
+class CCT(msnn.Cell):
     def __init__(
         self,
         img_size=224,
@@ -381,6 +382,6 @@ class CCT(nn.Cell):
             *args, **kwargs
         )
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.tokenizer(x)
         return self.classifier(x)

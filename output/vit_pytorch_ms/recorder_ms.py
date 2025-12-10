@@ -1,13 +1,16 @@
-from functools import wraps
-from torch import nn
-
-from vit_pytorch.vit import Attention
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
 from mindspore.mint import nn, ops
+from functools import wraps
+
+# from vit_pytorch.vit import Attention
 
 def find_modules(nn_module, type):
     return [module for module in nn_module.modules() if isinstance(module, type)]
 
-class Recorder(nn.Cell):
+class Recorder(msnn.Cell):
     def __init__(self, vit, device = None):
         super().__init__()
         self.vit = vit
@@ -43,7 +46,7 @@ class Recorder(nn.Cell):
         recording = attn.clone().detach()
         self.recordings.append(recording)
 
-    def forward(self, img):
+    def construct(self, img):
         assert not self.ejected, 'recorder has been ejected, cannot be used anymore'
         self.clear()
         if not self.hook_registered:
@@ -55,5 +58,5 @@ class Recorder(nn.Cell):
         target_device = self.device if self.device is not None else img.device
         recordings = tuple(map(lambda t: t.to(target_device), self.recordings))
 
-        attns = ops.stack(tensors = recordings, dim = 1) if len(recordings) > 0 else None  # 'torch.stack':没有对应的mindspore参数 'out';
+        attns = mint.stack(recordings, dim = 1) if len(recordings) > 0 else None
         return pred, attns

@@ -1,12 +1,15 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 # Simpler Fast Vision Transformers with a Jumbo CLS Token
 # https://arxiv.org/abs/2502.15021
 
-import torch
-from torch import nn
+# from torch import nn
 
 from einops import rearrange, repeat, reduce, pack, unpack
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -16,16 +19,16 @@ def pair(t):
 def divisible_by(num, den):
     return (num % den) == 0
 
-def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
-    y, x = ops.meshgrid(tensors = ops.arange(start = h), indexing = "ij")  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = ms.float32):
+    y, x = mint.meshgrid(mint.arange(h), mint.arange(w), indexing = "ij")
     assert divisible_by(dim, 4), "feature dimension must be multiple of 4 for sincos emb"
 
-    omega = ops.arange(start = dim // 4) / (dim // 4 - 1)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+    omega = mint.arange(dim // 4) / (dim // 4 - 1)
     omega = temperature ** -omega
 
     y = y.flatten()[:, None] * omega[None, :]
     x = x.flatten()[:, None] * omega[None, :]
-    pos_emb = ops.cat(tensors = (x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+    pos_emb = mint.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
 
     return pos_emb.type(dtype)
 
@@ -33,41 +36,37 @@ def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32)
 
 def FeedForward(dim, mult = 4.):
     hidden_dim = int(dim * mult)
-    return nn.SequentialCell(
-        nn.LayerNorm(normalized_shape = dim),
-        nn.Linear(in_features = dim, out_features = hidden_dim),
-        nn.GELU(),
-        nn.Linear(in_features = hidden_dim, out_features = dim),
-    )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+    return msnn.SequentialCell(
+        [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64):
         super().__init__()
         inner_dim = dim_head *  heads
         self.heads = heads
         self.scale = dim_head ** -0.5
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
 
         self.attend = nn.Softmax(dim = -1)
 
-        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_out = nn.Linear(in_features = inner_dim, out_features = dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+        self.to_out = nn.Linear(inner_dim, dim, bias = False)
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.norm(x)
 
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
 
         attn = self.attend(dots)
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class JumboViT(nn.Cell):
+class JumboViT(msnn.Cell):
     def __init__(
         self,
         *,
@@ -92,12 +91,8 @@ class JumboViT(nn.Cell):
 
         patch_dim = channels * patch_height * patch_width
 
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim),
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
 
         self.pos_embedding = posemb_sincos_2d(
             h = image_height // patch_height,
@@ -107,33 +102,30 @@ class JumboViT(nn.Cell):
 
         jumbo_cls_dim = dim * jumbo_cls_k
 
-        self.jumbo_cls_token = mindspore.Parameter(ops.zeros(size = num_jumbo_cls))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';
+        self.jumbo_cls_token = ms.Parameter(mint.zeros(size = (num_jumbo_cls, jumbo_cls_dim)))
 
         jumbo_cls_to_tokens = Rearrange('b n (k d) -> b (n k) d', k = jumbo_cls_k)
         self.jumbo_cls_to_tokens = jumbo_cls_to_tokens
 
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = nn.CellList([])
+        self.norm = nn.LayerNorm(dim)
+        self.layers = msnn.CellList([])
 
         # attention and feedforwards
 
-        self.jumbo_ff = nn.SequentialCell(
-            Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k),
-            FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)), # they use separate parameters for the jumbo feedforward, weight tied for parameter efficient
-            jumbo_cls_to_tokens
-        )
+        self.jumbo_ff = msnn.SequentialCell(
+            [Rearrange('b (n k) d -> b n (k d)', k = jumbo_cls_k), FeedForward(jumbo_cls_dim, int(jumbo_cls_dim * jumbo_ff_mult)), jumbo_cls_to_tokens])
 
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head),
                 FeedForward(dim, mlp_dim),
             ]))
 
-        self.to_latent = nn.Identity()
+        self.to_latent = msnn.Identity()
 
-        self.linear_head = nn.Linear(in_features = dim, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.linear_head = nn.Linear(dim, num_classes)
 
-    def forward(self, img):
+    def construct(self, img):
 
         batch, device = img.shape[0], img.device
 
@@ -198,7 +190,7 @@ if __name__ == '__main__':
         jumbo_ff_mult = 2,
     )
 
-    images = ops.randn(size = 1, generator = 3, dtype = 64)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    images = mint.randn(size = (1, 3, 64, 64))
 
     logits = v(images)
     assert logits.shape == (1, 1000)

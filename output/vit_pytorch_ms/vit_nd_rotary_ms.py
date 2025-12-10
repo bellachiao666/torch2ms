@@ -1,11 +1,13 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from __future__ import annotations
-
-import torch
-from torch import nn, arange, cat, stack, Tensor
+# from torch import nn, arange, cat, stack, Tensor
 
 from einops import rearrange, repeat, reduce, pack, unpack
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
@@ -13,7 +15,7 @@ def exists(val):
     return val is not None
 
 def l2norm(t):
-    return nn.functional.normalize(input = t, p = 2, dim = -1)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
+    return nn.functional.normalize(t, p = 2, dim = -1)
 
 def join(arr, delimiter = ' '):
     return delimiter.join(arr)
@@ -35,14 +37,14 @@ def _phi(m: int) -> float:
 
 def make_directions(n: int, d: int) -> Tensor:
     g = _phi(d)
-    alpha = (1.0 / g) ** ops.arange(start = 1, end = d + 1, dtype = torch.float64)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-    i = ops.arange(start = 1, end = n + 1, dtype = torch.float64).unsqueeze(1)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-    z = ops.fmod(input = i * alpha, other = 1.0)  # 'torch.fmod':没有对应的mindspore参数 'out';
-    directions = ops.erfinv(input = 2.0 * z - 1.0)  # 'torch.erfinv':没有对应的mindspore参数 'out';
+    alpha = (1.0 / g) ** mint.arange(1, d + 1, dtype = ms.float64)
+    i = mint.arange(1, n + 1, dtype = ms.float64).unsqueeze(1)
+    z = mint.fmod(i * alpha, 1.0)
+    directions = mint.erfinv(2.0 * z - 1.0)
     directions = l2norm(directions)
     return directions.float()
 
-class GoldenGateRoPENd(nn.Cell):
+class GoldenGateRoPENd(msnn.Cell):
     def __init__(
         self,
         dim_pos: int,
@@ -56,10 +58,10 @@ class GoldenGateRoPENd(nn.Cell):
         n_freqs = dim_head // 2
         n_zero_freqs = round(rope_p_zero_freqs * n_freqs)
 
-        omega = ops.cat(tensors = (
-            ops.zeros(size = n_zero_freqs),
-            rope_min_freq * (rope_max_freq / rope_min_freq) ** ops.linspace(start = 0, end = 1, steps = n_freqs - n_zero_freqs),
-        ))  # 'torch.zeros':没有对应的mindspore参数 'out';; 'torch.zeros':没有对应的mindspore参数 'layout';; 'torch.zeros':没有对应的mindspore参数 'device';; 'torch.zeros':没有对应的mindspore参数 'requires_grad';; 'torch.linspace':没有对应的mindspore参数 'out';; 'torch.linspace':没有对应的mindspore参数 'layout';; 'torch.linspace':没有对应的mindspore参数 'device';; 'torch.linspace':没有对应的mindspore参数 'requires_grad';; 'torch.cat':没有对应的mindspore参数 'out';
+        omega = mint.cat((
+            mint.zeros(n_zero_freqs),
+            rope_min_freq * (rope_max_freq / rope_min_freq) ** mint.linspace(0, 1, n_freqs - n_zero_freqs),
+        ))
 
         directions = rearrange(
             make_directions(heads * n_freqs, dim_pos),
@@ -70,7 +72,7 @@ class GoldenGateRoPENd(nn.Cell):
         omega_expanded = rearrange(omega, 'f -> f 1')
         self.register_buffer('freqs', directions * omega_expanded)  # shape: (h, f, p)
 
-    def forward(self, input: Tensor, pos: Tensor) -> Tensor:
+    def construct(self, input: Tensor, pos: Tensor) -> Tensor:
         # input shape: (b, h, n, d) where d = head_dim
         # pos shape: (b, n, p) where p = pos_dim
         # self.freqs shape: (h, f, p) where f = d // 2
@@ -84,34 +86,28 @@ class GoldenGateRoPENd(nn.Cell):
         # Compute theta for each (batch, head, seq, freq)
         theta = reduce(freqs * positions, 'b h n f p -> b h n f', 'sum')
         
-        cos_theta = ops.cos(input = theta)  # 'torch.cos':没有对应的mindspore参数 'out';
-        sin_theta = ops.sin(input = theta)  # 'torch.sin':没有对应的mindspore参数 'out';
+        cos_theta = mint.cos(theta)
+        sin_theta = mint.sin(theta)
         
         # Apply rotation
         x_out = x * cos_theta - y * sin_theta
         y_out = x * sin_theta + y * cos_theta
         
-        output = ops.cat(tensors = (x_out, y_out), dim = -1)  # 'torch.cat':没有对应的mindspore参数 'out';
+        output = mint.cat((x_out, y_out), dim = -1)
         return output.type_as(input)
 
 # classes
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Linear(in_features = hidden_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
     
-    def forward(self, x):
+    def construct(self, x):
         return self.net(x)
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., rotary_emb = None):
         super().__init__()
         inner_dim = dim_head * heads
@@ -121,19 +117,17 @@ class Attention(nn.Cell):
         self.scale = dim_head ** -0.5
         self.rotary_emb = rotary_emb
         
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
         self.attend = nn.Softmax(dim = -1)
-        self.dropout = nn.Dropout(p = dropout)
+        self.dropout = nn.Dropout(dropout)
         
-        self.to_qk = nn.Linear(in_features = dim, out_features = inner_dim * 2, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_v = nn.Linear(in_features = dim, out_features = inner_dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_qk = nn.Linear(dim, inner_dim * 2, bias = False)
+        self.to_v = nn.Linear(dim, inner_dim, bias = False)
 
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = inner_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        ) if project_out else nn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
     
-    def forward(self, x, pos = None):
+    def construct(self, x, pos = None):
         x = self.norm(x)
         qkv = (*self.to_qk(x).chunk(2, dim = -1), self.to_v(x))
 
@@ -145,33 +139,33 @@ class Attention(nn.Cell):
             q = self.rotary_emb(q, pos)
             k = self.rotary_emb(k, pos)
         
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2)) * self.scale  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
         
         attn = self.attend(dots)
         attn = self.dropout(attn)
         
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0., rotary_emb = None):
         super().__init__()
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = nn.CellList([])
+        self.norm = nn.LayerNorm(dim)
+        self.layers = msnn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout, rotary_emb = rotary_emb),
                 FeedForward(dim, mlp_dim, dropout = dropout)
             ]))
     
-    def forward(self, x, pos = None):
+    def construct(self, x, pos = None):
         for attn, ff in self.layers:
             x = attn(x, pos) + x
             x = ff(x) + x
         return self.norm(x)
 
-class ViTND(nn.Cell):
+class ViTND(msnn.Cell):
     def __init__(
         self,
         *,
@@ -223,13 +217,10 @@ class ViTND(nn.Cell):
         
         rearrange_kwargs = {f'p{i}': p for i, p in enumerate(patch_size)}
         
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange(rearrange_str, **rearrange_kwargs),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim),
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';; 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange(rearrange_str, **rearrange_kwargs), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
         
-        self.dropout = nn.Dropout(p = emb_dropout)
+        self.dropout = nn.Dropout(emb_dropout)
         
         # Create rotary embeddings
         self.rotary_emb = GoldenGateRoPENd(
@@ -243,8 +234,8 @@ class ViTND(nn.Cell):
         
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, rotary_emb = self.rotary_emb)
         
-        self.to_latent = nn.Identity()
-        self.mlp_head = nn.Linear(in_features = dim, out_features = num_classes)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_latent = msnn.Identity()
+        self.mlp_head = nn.Linear(dim, num_classes)
     
     def muon_parameters(self):
         params = []
@@ -263,7 +254,7 @@ class ViTND(nn.Cell):
 
         return params
 
-    def forward(
+    def construct(
         self,
         x,
         return_embed = False
@@ -274,9 +265,9 @@ class ViTND(nn.Cell):
         
         # Generate position coordinates
 
-        grids = [ops.arange(start = d, dtype = torch.float32) for d in spatial_dims]  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-        grid = ops.meshgrid(*grids, indexing = 'ij')
-        pos = ops.stack(tensors = grid, dim = -1)  # (*spatial_dims, ndim); 'torch.stack':没有对应的mindspore参数 'out';
+        grids = [mint.arange(d, dtype = ms.float32) for d in spatial_dims]  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+        grid = mint.meshgrid(*grids, indexing = 'ij')
+        pos = mint.stack(grid, dim = -1)  # (*spatial_dims, ndim)
 
         # flatten spatial dimensions for attention with nd rotary
         
@@ -317,7 +308,7 @@ if __name__ == '__main__':
         emb_dropout = 0.1
     )
 
-    data = ops.randn(size = 2, generator = 3, dtype = 8)  # 'torch.randn':没有对应的mindspore参数 'out';; 'torch.randn':没有对应的mindspore参数 'layout';; 'torch.randn':没有对应的mindspore参数 'device';; 'torch.randn':没有对应的mindspore参数 'requires_grad';; 'torch.randn':没有对应的mindspore参数 'pin_memory';
+    data = mint.randn(size = (2, 3, 4, 8, 16, 32, 64))
 
     logits = model(data)
 

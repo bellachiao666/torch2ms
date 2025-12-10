@@ -1,11 +1,15 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
 from functools import partial
 
-import torch
-from torch import nn, einsum
+# import torch
+# from torch import nn, einsum
 
 from einops import rearrange, repeat
-from einops.layers.torch import Rearrange, Reduce
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange, Reduce
 
 # helpers
 
@@ -20,66 +24,54 @@ def cast_tuple(val, length = 1):
 
 # helper classes
 
-class Residual(nn.Cell):
+class Residual(msnn.Cell):
     def __init__(self, dim, fn):
         super().__init__()
         self.fn = fn
 
-    def forward(self, x):
+    def construct(self, x):
         return self.fn(x) + x
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = inner_dim),
-            nn.GELU(),
-            nn.Dropout(p = dropout),
-            nn.Linear(in_features = inner_dim, out_features = dim),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
-    def forward(self, x):
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, inner_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+    def construct(self, x):
         return self.net(x)
 
 # MBConv
 
-class SqueezeExcitation(nn.Cell):
+class SqueezeExcitation(msnn.Cell):
     def __init__(self, dim, shrinkage_rate = 0.25):
         super().__init__()
         hidden_dim = int(dim * shrinkage_rate)
 
-        self.gate = nn.SequentialCell(
-            Reduce('b c h w -> b c', 'mean'),
-            nn.Linear(in_features = dim, out_features = hidden_dim, bias = False),
-            nn.SiLU(),
-            nn.Linear(in_features = hidden_dim, out_features = dim, bias = False),
-            nn.Sigmoid(),
-            Rearrange('b c -> b c 1 1')
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.gate = msnn.SequentialCell(
+            [Reduce('b c h w -> b c', 'mean'), nn.Linear(dim, hidden_dim, bias = False), nn.SiLU(), nn.Linear(hidden_dim, dim, bias = False), nn.Sigmoid(), Rearrange('b c -> b c 1 1')])
 
-    def forward(self, x):
+    def construct(self, x):
         return x * self.gate(x)
 
 
-class MBConvResidual(nn.Cell):
+class MBConvResidual(msnn.Cell):
     def __init__(self, fn, dropout = 0.):
         super().__init__()
         self.fn = fn
         self.dropsample = Dropsample(dropout)
 
-    def forward(self, x):
+    def construct(self, x):
         out = self.fn(x)
         out = self.dropsample(out)
         return out + x
 
-class Dropsample(nn.Cell):
+class Dropsample(msnn.Cell):
     def __init__(self, prob = 0):
         super().__init__()
         self.prob = prob
   
-    def forward(self, x):
+    def construct(self, x):
         device = x.device
 
         if self.prob == 0. or (not self.training):
@@ -100,17 +92,8 @@ def MBConv(
     hidden_dim = int(expansion_rate * dim_out)
     stride = 2 if downsample else 1
 
-    net = nn.SequentialCell(
-        nn.Conv2d(in_channels = dim_in, out_channels = hidden_dim, kernel_size = 1),
-        nn.BatchNorm2d(num_features = hidden_dim),
-        nn.GELU(),
-        nn.Conv2d(in_channels = hidden_dim, out_channels = hidden_dim, kernel_size = 3, stride = stride, padding = 1, groups = hidden_dim),
-        nn.BatchNorm2d(num_features = hidden_dim),
-        nn.GELU(),
-        SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate),
-        nn.Conv2d(in_channels = hidden_dim, out_channels = dim_out, kernel_size = 1),
-        nn.BatchNorm2d(num_features = dim_out)
-    )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';; 'torch.nn.BatchNorm2d':没有对应的mindspore参数 'device';
+    net = msnn.SequentialCell(
+        [nn.Conv2d(dim_in, hidden_dim, 1), nn.BatchNorm2d(hidden_dim), nn.GELU(), nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim), nn.BatchNorm2d(hidden_dim), nn.GELU(), SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate), nn.Conv2d(hidden_dim, dim_out, 1), nn.BatchNorm2d(dim_out)])
 
     if dim_in == dim_out and not downsample:
         net = MBConvResidual(net, dropout = dropout)
@@ -119,7 +102,7 @@ def MBConv(
 
 # attention related classes
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(
         self,
         dim,
@@ -133,25 +116,21 @@ class Attention(nn.Cell):
         self.heads = dim // dim_head
         self.scale = dim_head ** -0.5
 
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.to_qkv = nn.Linear(in_features = dim, out_features = dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
+        self.to_qkv = nn.Linear(dim, dim * 3, bias = False)
 
-        self.attend = nn.SequentialCell(
-            nn.Softmax(dim = -1),
-            nn.Dropout(p = dropout)
-        )
+        self.attend = msnn.SequentialCell(
+            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
 
-        self.to_out = nn.SequentialCell(
-            nn.Linear(in_features = dim, out_features = dim, bias = False),
-            nn.Dropout(p = dropout)
-        )  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_out = msnn.SequentialCell(
+            [nn.Linear(dim, dim, bias = False), nn.Dropout(dropout)])
 
         # relative positional bias
 
-        self.rel_pos_bias = nn.Embedding(num_embeddings = (2 * window_size - 1) ** 2, embedding_dim = self.heads)  # 'torch.nn.Embedding':没有对应的mindspore参数 'device';
+        self.rel_pos_bias = nn.Embedding((2 * window_size - 1) ** 2, self.heads)
 
-        pos = ops.arange(start = window_size)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
-        grid = ops.stack(tensors = ops.meshgrid(tensors = pos, indexing = 'ij'))  # 'torch.stack':没有对应的mindspore参数 'out';
+        pos = mint.arange(window_size)
+        grid = mint.stack(mint.meshgrid(pos, pos, indexing = 'ij'))
         grid = rearrange(grid, 'c i j -> (i j) c')
         rel_pos = rearrange(grid, 'i ... -> i 1 ...') - rearrange(grid, 'j ... -> 1 j ...')
         rel_pos += window_size - 1
@@ -159,7 +138,7 @@ class Attention(nn.Cell):
 
         self.register_buffer('rel_pos_indices', rel_pos_indices, persistent = False)
 
-    def forward(self, x):
+    def construct(self, x):
         batch, height, width, window_height, window_width, _, device, h = *x.shape, x.device, self.heads
 
         x = self.norm(x)
@@ -182,7 +161,7 @@ class Attention(nn.Cell):
 
         # sim
 
-        sim = ops.einsum(equation = 'b h i d, b h j d -> b h i j', operands = q)
+        sim = mint.einsum('b h i d, b h j d -> b h i j', q, k)
 
         # add positional bias
 
@@ -195,7 +174,7 @@ class Attention(nn.Cell):
 
         # aggregate
 
-        out = ops.einsum(equation = 'b h i j, b h j d -> b h i d', operands = attn)
+        out = mint.einsum('b h i j, b h j d -> b h i d', attn, v)
 
         # merge heads
 
@@ -206,7 +185,7 @@ class Attention(nn.Cell):
         out = self.to_out(out)
         return rearrange(out, '(b x y) ... -> b x y ...', x = height, y = width)
 
-class MaxViT(nn.Cell):
+class MaxViT(msnn.Cell):
     def __init__(
         self,
         *,
@@ -228,10 +207,8 @@ class MaxViT(nn.Cell):
 
         dim_conv_stem = default(dim_conv_stem, dim)
 
-        self.conv_stem = nn.SequentialCell(
-            nn.Conv2d(in_channels = channels, out_channels = dim_conv_stem, kernel_size = 3, stride = 2, padding = 1),
-            nn.Conv2d(in_channels = dim_conv_stem, out_channels = dim_conv_stem, kernel_size = 3, padding = 1)
-        )  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device';
+        self.conv_stem = msnn.SequentialCell(
+            [nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1), nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)])
 
         # variables
 
@@ -241,7 +218,7 @@ class MaxViT(nn.Cell):
         dims = (dim_conv_stem, *dims)
         dim_pairs = tuple(zip(dims[:-1], dims[1:]))
 
-        self.layers = nn.CellList([])
+        self.layers = msnn.CellList([])
 
         # shorthand for window size for efficient block - grid like attention
 
@@ -254,36 +231,23 @@ class MaxViT(nn.Cell):
                 is_first = stage_ind == 0
                 stage_dim_in = layer_dim_in if is_first else layer_dim
 
-                block = nn.SequentialCell(
-                    MBConv(
+                block = msnn.SequentialCell(
+                    [MBConv(
                         stage_dim_in,
                         layer_dim,
                         downsample = is_first,
                         expansion_rate = mbconv_expansion_rate,
                         shrinkage_rate = mbconv_shrinkage_rate
-                    ),
-                    Rearrange('b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w),  # block-like attention
-                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
-                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
-                    Rearrange('b x y w1 w2 d -> b d (x w1) (y w2)'),
-
-                    Rearrange('b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w),  # grid-like attention
-                    Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)),
-                    Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)),
-                    Rearrange('b x y w1 w2 d -> b d (w1 x) (w2 y)'),
-                )
+                    ), Rearrange('b d (x w1) (y w2) -> b x y w1 w2 d', w1 = w, w2 = w), Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)), Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)), Rearrange('b x y w1 w2 d -> b d (x w1) (y w2)'), Rearrange('b d (w1 x) (w2 y) -> b x y w1 w2 d', w1 = w, w2 = w), Residual(layer_dim, Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = w)), Residual(layer_dim, FeedForward(dim = layer_dim, dropout = dropout)), Rearrange('b x y w1 w2 d -> b d (w1 x) (w2 y)')])
 
                 self.layers.append(block)
 
         # mlp head out
 
-        self.mlp_head = nn.SequentialCell(
-            Reduce('b d h w -> b d', 'mean'),
-            nn.LayerNorm(normalized_shape = dims[-1]),
-            nn.Linear(in_features = dims[-1], out_features = num_classes)
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.mlp_head = msnn.SequentialCell(
+            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.conv_stem(x)
 
         for stage in self.layers:

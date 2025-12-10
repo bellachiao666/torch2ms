@@ -1,24 +1,27 @@
-import torch
-from torch import nn
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+# from torch import nn
 
 from einops import rearrange
-from einops.layers.torch import Rearrange
-from mindspore.mint import nn, ops
+# from einops.layers.torch import Rearrange
 
 # helpers
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
-def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32):
-    y, x = ops.meshgrid(tensors = ops.arange(start = h), indexing = "ij")  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = ms.float32):
+    y, x = mint.meshgrid(mint.arange(h), mint.arange(w), indexing = "ij")
     assert (dim % 4) == 0, "feature dimension must be multiple of 4 for sincos emb"
-    omega = ops.arange(start = dim // 4) / (dim // 4 - 1)  # 'torch.arange':没有对应的mindspore参数 'out';; 'torch.arange':没有对应的mindspore参数 'layout';; 'torch.arange':没有对应的mindspore参数 'device';; 'torch.arange':没有对应的mindspore参数 'requires_grad';
+    omega = mint.arange(dim // 4) / (dim // 4 - 1)
     omega = 1.0 / (temperature ** omega)
 
     y = y.flatten()[:, None] * omega[None, :]
     x = x.flatten()[:, None] * omega[None, :]
-    pe = ops.cat(tensors = (x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)  # 'torch.cat':没有对应的mindspore参数 'out';
+    pe = mint.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
     return pe.type(dtype)
 
 # they use a query-key normalization that is equivalent to rms norm (no mean-centering, learned gamma), from vit 22B paper
@@ -26,46 +29,42 @@ def posemb_sincos_2d(h, w, dim, temperature: int = 10000, dtype = torch.float32)
 # in latest tweet, seem to claim more stable training at higher learning rates
 # unsure if this has taken off within Brain, or it has some hidden drawback
 
-class RMSNorm(nn.Cell):
+class RMSNorm(msnn.Cell):
     def __init__(self, heads, dim):
         super().__init__()
         self.scale = dim ** 0.5
-        self.gamma = mindspore.Parameter(ops.ones(size = heads, dtype = dim) / self.scale)  # 'torch.ones':没有对应的mindspore参数 'out';; 'torch.ones':没有对应的mindspore参数 'layout';; 'torch.ones':没有对应的mindspore参数 'device';; 'torch.ones':没有对应的mindspore参数 'requires_grad';
+        self.gamma = ms.Parameter(mint.ones(size = (heads, 1, dim)) / self.scale)
 
-    def forward(self, x):
-        normed = nn.functional.normalize(input = x, dim = -1)  # 'torch.nn.functional.normalize':没有对应的mindspore参数 'out';
+    def construct(self, x):
+        normed = nn.functional.normalize(x, dim = -1)
         return normed * self.scale * self.gamma
 
 # classes
 
-class FeedForward(nn.Cell):
+class FeedForward(msnn.Cell):
     def __init__(self, dim, hidden_dim):
         super().__init__()
-        self.net = nn.SequentialCell(
-            nn.LayerNorm(normalized_shape = dim),
-            nn.Linear(in_features = dim, out_features = hidden_dim),
-            nn.GELU(),
-            nn.Linear(in_features = hidden_dim, out_features = dim),
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
-    def forward(self, x):
+        self.net = msnn.SequentialCell(
+            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
+    def construct(self, x):
         return self.net(x)
 
-class Attention(nn.Cell):
+class Attention(msnn.Cell):
     def __init__(self, dim, heads = 8, dim_head = 64):
         super().__init__()
         inner_dim = dim_head *  heads
         self.heads = heads
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.norm = nn.LayerNorm(dim)
 
         self.attend = nn.Softmax(dim = -1)
 
         self.q_norm = RMSNorm(heads, dim_head)
         self.k_norm = RMSNorm(heads, dim_head)
 
-        self.to_qkv = nn.Linear(in_features = dim, out_features = inner_dim * 3, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
-        self.to_out = nn.Linear(in_features = inner_dim, out_features = dim, bias = False)  # 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+        self.to_out = nn.Linear(inner_dim, dim, bias = False)
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.norm(x)
 
         qkv = self.to_qkv(x).chunk(3, dim = -1)
@@ -74,31 +73,31 @@ class Attention(nn.Cell):
         q = self.q_norm(q)
         k = self.k_norm(k)
 
-        dots = ops.matmul(input = q, other = k.transpose(-1, -2))  # 'torch.matmul':没有对应的mindspore参数 'out';
+        dots = mint.matmul(q, k.transpose(-1, -2))
 
         attn = self.attend(dots)
 
-        out = ops.matmul(input = attn, other = v)  # 'torch.matmul':没有对应的mindspore参数 'out';
+        out = mint.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Cell):
+class Transformer(msnn.Cell):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim):
         super().__init__()
-        self.norm = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
-        self.layers = nn.CellList([])
+        self.norm = nn.LayerNorm(dim)
+        self.layers = msnn.CellList([])
         for _ in range(depth):
-            self.layers.append(nn.CellList([
+            self.layers.append(msnn.CellList([
                 Attention(dim, heads = heads, dim_head = dim_head),
                 FeedForward(dim, mlp_dim)
             ]))
-    def forward(self, x):
+    def construct(self, x):
         for attn, ff in self.layers:
             x = attn(x) + x
             x = ff(x) + x
         return self.norm(x)
 
-class SimpleViT(nn.Cell):
+class SimpleViT(msnn.Cell):
     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64):
         super().__init__()
         image_height, image_width = pair(image_size)
@@ -108,12 +107,8 @@ class SimpleViT(nn.Cell):
 
         patch_dim = channels * patch_height * patch_width
 
-        self.to_patch_embedding = nn.SequentialCell(
-            Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width),
-            nn.LayerNorm(normalized_shape = patch_dim),
-            nn.Linear(in_features = patch_dim, out_features = dim),
-            nn.LayerNorm(normalized_shape = dim),
-        )  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';; 'torch.nn.Linear':没有对应的mindspore参数 'device';
+        self.to_patch_embedding = msnn.SequentialCell(
+            [Rearrange("b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
 
         self.pos_embedding = posemb_sincos_2d(
             h = image_height // patch_height,
@@ -124,11 +119,11 @@ class SimpleViT(nn.Cell):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
 
         self.pool = "mean"
-        self.to_latent = nn.Identity()
+        self.to_latent = msnn.Identity()
 
-        self.linear_head = nn.LayerNorm(normalized_shape = dim)  # 'torch.nn.LayerNorm':没有对应的mindspore参数 'device';
+        self.linear_head = nn.LayerNorm(dim)
 
-    def forward(self, img):
+    def construct(self, img):
         device = img.device
 
         x = self.to_patch_embedding(img)
