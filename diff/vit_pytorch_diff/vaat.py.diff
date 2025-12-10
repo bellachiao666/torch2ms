@@ -1,0 +1,371 @@
+--- pytorch+++ mindspore@@ -1,17 +1,20 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ # vision-audio-action transformer - vaat
+ 
+ from __future__ import annotations
+ from contextlib import nullcontext
+ 
+-import torch
+-import torch.nn.functional as F
+-from torch import nn, cat, stack, arange, tensor
+-from torch.nn import Module, ModuleList
+-
+-from torchaudio.transforms import Spectrogram
++# import torch
++# from torch import nn, cat, stack, arange, tensor
++
++# from torchaudio.transforms import Spectrogram
+ 
+ from einops import rearrange, repeat, reduce, pack, unpack
+-from einops.layers.torch import Rearrange
++# from einops.layers.torch import Rearrange
+ 
+ # helpers
+ 
+@@ -30,27 +33,27 @@ def posemb_sincos_2d(
+     patches,
+     temperature = 10000,
+-    dtype = torch.float32
++    dtype = ms.float32
+ ):
+     _, h, w, dim, device, dtype = *patches.shape, patches.device, patches.dtype
+ 
+-    y, x = torch.meshgrid(arange(h, device = device), torch.arange(w, device = device), indexing = 'ij')
++    y, x = mint.meshgrid(mint.arange(h), mint.arange(w), indexing = 'ij')  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     assert (dim % 4) == 0, 'feature dimension must be multiple of 4 for sincos emb'
+ 
+-    omega = arange(dim // 4, device = device) / (dim // 4 - 1)
++    omega = mint.arange(dim // 4) / (dim // 4 - 1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     omega = temperature ** -omega
+ 
+     y = y.flatten()[:, None] * omega[None, :]
+     x = x.flatten()[:, None] * omega[None, :] 
+ 
+-    pe = cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
++    pe = mint.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
+     pe = pe.type(dtype)
+ 
+     return rearrange(pe, '(h w) d -> h w d', h = h, w = w)
+ 
+ # classes
+ 
+-class FiLM(Module):
++class FiLM(msnn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -58,20 +61,18 @@         super().__init__()
+         proj = nn.Linear(dim, dim * 2)
+ 
+-        self.to_gamma_beta = nn.Sequential(
+-            proj,
+-            Rearrange('b (two d) -> two b 1 d', two = 2)
+-        )
++        self.to_gamma_beta = msnn.SequentialCell(
++            [proj, Rearrange('b (two d) -> two b 1 d', two = 2)])
+ 
+         nn.init.zeros_(proj.weight)
+         nn.init.zeros_(proj.bias)
+ 
+-    def forward(self, tokens, cond):
++    def construct(self, tokens, cond):
+         gamma, beta = self.to_gamma_beta(cond)
+ 
+         return tokens * gamma + beta
+ 
+-class FeedForward(Module):
++class FeedForward(msnn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -79,19 +80,13 @@         dropout = 0.
+     ):
+         super().__init__()
+-        self.net = nn.Sequential(
+-            nn.LayerNorm(dim),
+-            nn.Linear(dim, hidden_dim),
+-            nn.GELU(),
+-            nn.Dropout(dropout),
+-            nn.Linear(hidden_dim, dim),
+-            nn.Dropout(dropout)
+-        )
+-
+-    def forward(self, x):
++        self.net = msnn.SequentialCell(
++            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++
++    def construct(self, x):
+         return self.net(x)
+ 
+-class Attention(Module):
++class Attention(msnn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -120,12 +115,10 @@         self.to_q = nn.Linear(dim, inner_dim, bias = False)
+         self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
+ 
+-        self.to_out = nn.Sequential(
+-            nn.Linear(inner_dim, dim),
+-            nn.Dropout(dropout)
+-        ) if project_out else nn.Identity()
+-
+-    def forward(self, x, context = None):
++        self.to_out = msnn.SequentialCell(
++            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
++
++    def construct(self, x, context = None):
+ 
+         assert not (self.cross_attend ^ exists(context)), 'context must be passed in if cross attending, or vice versa'
+ 
+@@ -144,16 +137,16 @@         qkv = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
+         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+ 
+-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
++        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
+ 
+         attn = self.attend(dots)
+         attn = self.dropout(attn)
+ 
+-        out = torch.matmul(attn, v)
++        out = mint.matmul(attn, v)
+         out = rearrange(out, 'b h n d -> b n (h d)')
+         return self.to_out(out)
+ 
+-class Transformer(Module):
++class Transformer(msnn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -165,15 +158,15 @@     ):
+         super().__init__()
+         self.norm = nn.LayerNorm(dim)
+-        self.layers = ModuleList([])
++        self.layers = msnn.CellList([])
+ 
+         for _ in range(depth):
+-            self.layers.append(ModuleList([
++            self.layers.append(msnn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
+ 
+-    def forward(
++    def construct(
+         self,
+         x,
+         return_hiddens = False
+@@ -194,7 +187,7 @@ 
+         return x, hiddens
+ 
+-class AST(Module):
++class AST(msnn.Cell):
+     # audio spectrogram transformer https://arxiv.org/abs/2104.01778
+ 
+     def __init__(
+@@ -227,12 +220,8 @@ 
+         self.patch_size = (patch_height, patch_width)
+ 
+-        self.to_patch_tokens = nn.Sequential(
+-            Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]),
+-            nn.LayerNorm(patch_input_dim),
+-            nn.Linear(patch_input_dim, dim),
+-            nn.LayerNorm(dim)
+-        )
++        self.to_patch_tokens = msnn.SequentialCell(
++            [Rearrange('b (h p1) (w p2) -> b h w (p1 p2)', p1 = self.patch_size[0], p2 = self.patch_size[1]), nn.LayerNorm(patch_input_dim), nn.Linear(patch_input_dim, dim), nn.LayerNorm(dim)])
+ 
+         self.accept_spec = accept_spec
+         self.accept_spec_time_first = accept_spec_time_first
+@@ -258,11 +247,11 @@ 
+         self.final_norm = nn.LayerNorm(dim)
+ 
+-        self.mlp_head = nn.Linear(dim, num_classes) if exists(num_classes) else nn.Identity()
+-
+-        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim) * 1e-2)
+-
+-    def forward(
++        self.mlp_head = nn.Linear(dim, num_classes) if exists(num_classes) else msnn.Identity()
++
++        self.register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, dim)) * 1e-2)
++
++    def construct(
+         self,
+         raw_audio_or_spec, # (b t) | (b f t)
+         return_hiddens = False
+@@ -315,7 +304,7 @@         normed = self.final_norm(attended)
+ 
+         if return_hiddens:
+-            return normed, stack(hiddens)
++            return normed, mint.stack(hiddens)
+ 
+         register_tokens, normed = unpack(normed, packed_shape, 'b * d')
+ 
+@@ -325,7 +314,7 @@ 
+         return maybe_logits
+ 
+-class ViT(Module):
++class ViT(msnn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -356,27 +345,23 @@         patch_dim = channels * patch_height * patch_width
+         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
+ 
+-        self.to_patch_embedding = nn.Sequential(
+-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+-            nn.LayerNorm(patch_dim),
+-            nn.Linear(patch_dim, dim),
+-            nn.LayerNorm(dim),
+-        )
+-
+-        self.pos_embedding = nn.Parameter(torch.randn(num_patches, dim))
+-        self.cls_token = nn.Parameter(torch.randn(dim))
++        self.to_patch_embedding = msnn.SequentialCell(
++            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++
++        self.pos_embedding = ms.Parameter(mint.randn(size = (num_patches, dim)))
++        self.cls_token = ms.Parameter(mint.randn(dim))
+         self.dropout = nn.Dropout(emb_dropout)
+ 
+         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+ 
+         self.pool = pool
+-        self.to_latent = nn.Identity()
++        self.to_latent = msnn.Identity()
+ 
+         self.mlp_head = nn.Linear(dim, num_classes)
+ 
+-        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim) * 1e-2)
+-
+-    def forward(self, img, return_hiddens = False):
++        self.register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, dim)) * 1e-2)
++
++    def construct(self, img, return_hiddens = False):
+         x = self.to_patch_embedding(img)
+         b, n, _ = x.shape
+ 
+@@ -394,7 +379,7 @@         # return the representation trajectory
+ 
+         if return_hiddens:
+-            return x, stack(hiddens)
++            return x, mint.stack(hiddens)
+ 
+         register_tokens, cls_tokens, x = unpack(x, packed_shape, 'b * d')
+ 
+@@ -409,7 +394,7 @@ # https://openreview.net/forum?id=TalHOvvLZu
+ # simple way to get SOTA on Libero dataset (beating fine-tuned pi-zero)
+ 
+-class VAAT(Module):
++class VAAT(msnn.Cell):
+     def __init__(
+         self,
+         vit: ViT | dict,
+@@ -479,36 +464,36 @@ 
+         self.is_video = is_video
+         self.time_seq_len = time_seq_len
+-        self.time_pos_emb = nn.Parameter(torch.randn(time_seq_len, vit_dim) * 1e-2) if is_video else None
++        self.time_pos_emb = ms.Parameter(mint.randn(size = (time_seq_len, vit_dim)) * 1e-2) if is_video else None
+ 
+         # maybe view embeddings
+ 
+-        self.image_view_emb = nn.Parameter(torch.randn(num_image_views, vit_dim) * 1e-2) if exists(num_image_views) and num_image_views > 1 else None
+-
+-        self.audio_view_emb = nn.Parameter(torch.randn(num_audio_views, ast_dim) * 1e-2) if exists(num_audio_views) and num_audio_views > 1 else None
++        self.image_view_emb = ms.Parameter(mint.randn(size = (num_image_views, vit_dim)) * 1e-2) if exists(num_image_views) and num_image_views > 1 else None
++
++        self.audio_view_emb = ms.Parameter(mint.randn(size = (num_audio_views, ast_dim)) * 1e-2) if exists(num_audio_views) and num_audio_views > 1 else None
+ 
+         # handle maybe task conditioning
+ 
+         self.has_tasks = exists(num_tasks)
+ 
+         if self.has_tasks:
+-            self.task_emb = nn.Parameter(torch.randn(num_tasks, dim) * 1e-2)
++            self.task_emb = ms.Parameter(mint.randn(size = (num_tasks, dim)) * 1e-2)
+ 
+         # register tokens from Darcet et al.
+ 
+-        self.register_tokens = nn.Parameter(torch.randn(num_register_tokens, dim) * 1e-2)
++        self.register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, dim)) * 1e-2)
+ 
+         # to action tokens
+ 
+-        self.action_pos_emb = nn.Parameter(torch.randn(action_chunk_len, dim) * 1e-2)
+-
+-        self.layers = ModuleList([])
++        self.action_pos_emb = ms.Parameter(mint.randn(size = (action_chunk_len, dim)) * 1e-2)
++
++        self.layers = msnn.CellList([])
+ 
+         for _ in range(depth):
+             maybe_film = FiLM(dim = dim) if self.has_tasks else None
+             maybe_self_attn = Attention(dim = dim, heads = self_attn_heads, dim_head = self_attn_dim_head, dropout = dropout) if add_self_attn else None
+ 
+-            self.layers.append(ModuleList([
++            self.layers.append(msnn.CellList([
+                 maybe_film,
+                 maybe_self_attn,
+                 Attention(dim = dim, dim_context = vit_dim, heads = heads, dim_head = dim_head, dropout = dropout, cross_attend = True),
+@@ -526,7 +511,7 @@         if exists(dim_extra_token):
+             self.to_extra_token = nn.Linear(dim_extra_token, dim)
+ 
+-    def forward(
++    def construct(
+         self,
+         video_or_image,   # (b v? c t? h w)      - batch, views [wrist + third person or more], channels, maybe time, height, width
+         audio_or_spec,    # (b v? t) | (b v?f t) - batch, audio len | batch, spec freq, time
+@@ -584,7 +569,7 @@         with vit_forward_context():
+             embed, hiddens = self.vit(images, return_hiddens = True)
+ 
+-        hiddens = cat((hiddens, embed[None, ...]))
++        hiddens = mint.cat((hiddens, embed[None, ...]))
+ 
+         # extract the hiddens needed for the action cross attention
+ 
+@@ -615,7 +600,7 @@         with ast_forward_context():
+             audio_embed, audio_hiddens = self.ast(audio_or_spec, return_hiddens = True)
+ 
+-        audio_hiddens = cat((audio_hiddens, audio_embed[None, ...]))
++        audio_hiddens = mint.cat((audio_hiddens, audio_embed[None, ...]))
+ 
+         # extract the hiddens needed for the action cross attention
+ 
+@@ -704,13 +689,13 @@             if not return_hiddens:
+                 return pred_action
+ 
+-            return pred_action, stack(hiddens)
++            return pred_action, mint.stack(hiddens)
+ 
+         assert pred_action.shape[1] == actions.shape[1]
+ 
+         # they found l1 loss suffices
+ 
+-        return F.l1_loss(pred_action, actions)
++        return nn.functional.l1_loss(pred_action, actions)
+ 
+ # quick test
+ 
+@@ -759,13 +744,13 @@         )
+     )
+ 
+-    images = torch.randn(2, 2, 3, 4, 256, 256) # (2 views with 4 frames)
+-    audio = torch.randn(2, 2, 14_100 * 5)
+-
+-    tasks = torch.randint(0, 4, (2,))
+-    extra = torch.randn(2, 33)                 # extra internal state
+-
+-    actions = torch.randn(2, 7, 20)         # actions for learning
++    images = mint.randn(size = (2, 2, 3, 4, 256, 256)) # (2 views with 4 frames)
++    audio = mint.randn(size = (2, 2, 14_100 * 5))
++
++    tasks = mint.randint(0, 4, (2,))
++    extra = mint.randn(size = (2, 33))                 # extra internal state
++
++    actions = mint.randn(size = (2, 7, 20))         # actions for learning
+ 
+     loss = vaat(images, audio, actions = actions, tasks = tasks, extra = extra, freeze_vit = True)
+     loss.backward()

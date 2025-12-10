@@ -1,0 +1,60 @@
+--- pytorch+++ mindspore@@ -1,12 +1,16 @@-import torch
+-from torch import nn
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# from torch import nn
+ from einops import rearrange, repeat
+-from einops.layers.torch import Rearrange
++# from einops.layers.torch import Rearrange
+ 
+ def pair(t):
+     return t if isinstance(t, tuple) else (t, t)
+ 
+-class ViT(nn.Module):
++class ViT(msnn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, transformer, pool = 'cls', channels = 3):
+         super().__init__()
+         image_size_h, image_size_w = pair(image_size)
+@@ -15,31 +19,25 @@         num_patches = (image_size_h // patch_size) * (image_size_w // patch_size)
+         patch_dim = channels * patch_size ** 2
+ 
+-        self.to_patch_embedding = nn.Sequential(
+-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size),
+-            nn.LayerNorm(patch_dim),
+-            nn.Linear(patch_dim, dim),
+-            nn.LayerNorm(dim)
+-        )
++        self.to_patch_embedding = msnn.SequentialCell(
++            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_size, p2 = patch_size), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+ 
+-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
+-        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
++        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
++        self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
+         self.transformer = transformer
+ 
+         self.pool = pool
+-        self.to_latent = nn.Identity()
++        self.to_latent = msnn.Identity()
+ 
+-        self.mlp_head = nn.Sequential(
+-            nn.LayerNorm(dim),
+-            nn.Linear(dim, num_classes)
+-        )
++        self.mlp_head = msnn.SequentialCell(
++            [nn.LayerNorm(dim), nn.Linear(dim, num_classes)])
+ 
+-    def forward(self, img):
++    def construct(self, img):
+         x = self.to_patch_embedding(img)
+         b, n, _ = x.shape
+ 
+         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
+-        x = torch.cat((cls_tokens, x), dim=1)
++        x = mint.cat((cls_tokens, x), dim = 1)
+         x += self.pos_embedding[:, :(n + 1)]
+         x = self.transformer(x)
+ 

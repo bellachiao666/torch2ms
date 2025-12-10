@@ -1,0 +1,153 @@
+--- pytorch+++ mindspore@@ -1,63 +1,63 @@-import torch
+-from torch import nn
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# from torch import nn
+ 
+ from einops import rearrange
+-from einops.layers.torch import Rearrange
++# from einops.layers.torch import Rearrange
+ 
+ # helpers
+ 
+ def pair(t):
+     return t if isinstance(t, tuple) else (t, t)
+ 
+-def posemb_sincos_2d(patches, temperature = 10000, dtype = torch.float32):
++def posemb_sincos_2d(patches, temperature = 10000, dtype = ms.float32):
+     _, h, w, dim, device, dtype = *patches.shape, patches.device, patches.dtype
+ 
+-    y, x = torch.meshgrid(torch.arange(h, device = device), torch.arange(w, device = device), indexing = 'ij')
++    y, x = mint.meshgrid(mint.arange(h), mint.arange(w), indexing = 'ij')  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     assert (dim % 4) == 0, 'feature dimension must be multiple of 4 for sincos emb'
+-    omega = torch.arange(dim // 4, device = device) / (dim // 4 - 1)
++    omega = mint.arange(dim // 4) / (dim // 4 - 1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     omega = 1. / (temperature ** omega)
+ 
+     y = y.flatten()[:, None] * omega[None, :]
+     x = x.flatten()[:, None] * omega[None, :] 
+-    pe = torch.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
++    pe = mint.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
+     return pe.type(dtype)
+ 
+ # patch dropout
+ 
+-class PatchDropout(nn.Module):
++class PatchDropout(msnn.Cell):
+     def __init__(self, prob):
+         super().__init__()
+         assert 0 <= prob < 1.
+         self.prob = prob
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         if not self.training or self.prob == 0.:
+             return x
+ 
+         b, n, _, device = *x.shape, x.device
+ 
+-        batch_indices = torch.arange(b, device = device)
++        batch_indices = mint.arange(b)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+         batch_indices = rearrange(batch_indices, '... -> ... 1')
+         num_patches_keep = max(1, int(n * (1 - self.prob)))
+-        patch_indices_keep = torch.randn(b, n, device = device).topk(num_patches_keep, dim = -1).indices
++        patch_indices_keep = mint.randn(size = (b, n)).topk(num_patches_keep, dim = -1).indices  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
+ 
+         return x[batch_indices, patch_indices_keep]
+ 
+ # classes
+ 
+-class FeedForward(nn.Module):
++class FeedForward(msnn.Cell):
+     def __init__(self, dim, hidden_dim):
+         super().__init__()
+-        self.net = nn.Sequential(
+-            nn.LayerNorm(dim),
+-            nn.Linear(dim, hidden_dim),
+-            nn.GELU(),
+-            nn.Linear(hidden_dim, dim),
+-        )
+-    def forward(self, x):
++        self.net = msnn.SequentialCell(
++            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Linear(hidden_dim, dim)])
++    def construct(self, x):
+         return self.net(x)
+ 
+-class Attention(nn.Module):
++class Attention(msnn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64):
+         super().__init__()
+         inner_dim = dim_head *  heads
+@@ -70,37 +70,37 @@         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+         self.to_out = nn.Linear(inner_dim, dim, bias = False)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.norm(x)
+ 
+         qkv = self.to_qkv(x).chunk(3, dim = -1)
+         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+ 
+-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
++        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
+ 
+         attn = self.attend(dots)
+ 
+-        out = torch.matmul(attn, v)
++        out = mint.matmul(attn, v)
+         out = rearrange(out, 'b h n d -> b n (h d)')
+         return self.to_out(out)
+ 
+-class Transformer(nn.Module):
++class Transformer(msnn.Cell):
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim):
+         super().__init__()
+         self.norm = nn.LayerNorm(dim)
+-        self.layers = nn.ModuleList([])
++        self.layers = msnn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(msnn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head),
+                 FeedForward(dim, mlp_dim)
+             ]))
+-    def forward(self, x):
++    def construct(self, x):
+         for attn, ff in self.layers:
+             x = attn(x) + x
+             x = ff(x) + x
+         return self.norm(x)
+ 
+-class SimpleViT(nn.Module):
++class SimpleViT(msnn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, patch_dropout = 0.5):
+         super().__init__()
+         image_height, image_width = pair(image_size)
+@@ -111,21 +111,17 @@         num_patches = (image_height // patch_height) * (image_width // patch_width)
+         patch_dim = channels * patch_height * patch_width
+ 
+-        self.to_patch_embedding = nn.Sequential(
+-            Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+-            nn.LayerNorm(patch_dim),
+-            nn.Linear(patch_dim, dim),
+-            nn.LayerNorm(dim)
+-        )
++        self.to_patch_embedding = msnn.SequentialCell(
++            [Rearrange('b c (h p1) (w p2) -> b h w (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
+ 
+         self.patch_dropout = PatchDropout(patch_dropout)
+ 
+         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
+ 
+-        self.to_latent = nn.Identity()
++        self.to_latent = msnn.Identity()
+         self.linear_head = nn.Linear(dim, num_classes)
+ 
+-    def forward(self, img):
++    def construct(self, img):
+         *_, h, w, dtype = *img.shape, img.dtype
+ 
+         x = self.to_patch_embedding(img)

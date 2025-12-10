@@ -1254,9 +1254,19 @@ def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff
         print(diff)
         print("=== 转换 DIFF 结束 ===")
 
-    os.makedirs("diff", exist_ok=True)
-    diff_filename = f"diff_({os.path.basename(filename)}-{os.path.basename(new_filename)}).diff"
-    diff_path = os.path.join("diff", diff_filename)
+    # 按 input 目录层级创建 diff 存储路径: diff/<input_root>_diff/<relative>.diff
+    if input_root and common == abs_input:
+        rel_path = os.path.relpath(filename, abs_input)
+        diff_root = os.path.join("diff", f"{os.path.basename(abs_input)}_diff")
+        diff_path = os.path.join(diff_root, rel_path + ".diff")
+    elif input_root:
+        diff_root = os.path.join("diff", f"{os.path.basename(abs_input)}_diff")
+        diff_path = os.path.join(diff_root, os.path.basename(filename) + ".diff")
+    else:
+        diff_root = "diff"
+        diff_path = os.path.join(diff_root, f"{os.path.basename(filename)}.diff")
+
+    os.makedirs(os.path.dirname(diff_path), exist_ok=True)
     with open(diff_path, "w", encoding="utf8") as f:
         f.write(diff)
     if show_diff:

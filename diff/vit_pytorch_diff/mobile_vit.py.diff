@@ -1,0 +1,240 @@
+--- pytorch+++ mindspore@@ -1,43 +1,35 @@-import torch
+-import torch.nn as nn
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# import torch.nn as nn
+ 
+ from einops import rearrange
+-from einops.layers.torch import Reduce
++# from einops.layers.torch import Reduce
+ 
+ # helpers
+ 
+ def conv_1x1_bn(inp, oup):
+-    return nn.Sequential(
+-        nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
+-        nn.BatchNorm2d(oup),
+-        nn.SiLU()
+-    )
++    return msnn.SequentialCell(
++        [nn.Conv2d(inp, oup, 1, 1, 0, bias = False), nn.BatchNorm2d(oup), nn.SiLU()])
+ 
+ def conv_nxn_bn(inp, oup, kernel_size=3, stride=1):
+-    return nn.Sequential(
+-        nn.Conv2d(inp, oup, kernel_size, stride, 1, bias=False),
+-        nn.BatchNorm2d(oup),
+-        nn.SiLU()
+-    )
++    return msnn.SequentialCell(
++        [nn.Conv2d(inp, oup, kernel_size, stride, 1, bias = False), nn.BatchNorm2d(oup), nn.SiLU()])
+ 
+ # classes
+ 
+-class FeedForward(nn.Module):
++class FeedForward(msnn.Cell):
+     def __init__(self, dim, hidden_dim, dropout=0.):
+         super().__init__()
+-        self.net = nn.Sequential(
+-            nn.LayerNorm(dim),
+-            nn.Linear(dim, hidden_dim),
+-            nn.SiLU(),
+-            nn.Dropout(dropout),
+-            nn.Linear(hidden_dim, dim),
+-            nn.Dropout(dropout)
+-        )
+-
+-    def forward(self, x):
++        self.net = msnn.SequentialCell(
++            [nn.LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.SiLU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++
++    def construct(self, x):
+         return self.net(x)
+ 
+-class Attention(nn.Module):
++class Attention(msnn.Cell):
+     def __init__(self, dim, heads=8, dim_head=64, dropout=0.):
+         super().__init__()
+         inner_dim = dim_head * heads
+@@ -45,32 +37,30 @@         self.scale = dim_head ** -0.5
+ 
+         self.norm = nn.LayerNorm(dim)
+-        self.attend = nn.Softmax(dim=-1)
++        self.attend = nn.Softmax(dim = -1)
+         self.dropout = nn.Dropout(dropout)
+ 
+-        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
+-
+-        self.to_out = nn.Sequential(
+-            nn.Linear(inner_dim, dim),
+-            nn.Dropout(dropout)
+-        )
+-
+-    def forward(self, x):
++        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
++
++        self.to_out = msnn.SequentialCell(
++            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
++
++    def construct(self, x):
+         x = self.norm(x)
+         qkv = self.to_qkv(x).chunk(3, dim=-1)
+ 
+         q, k, v = map(lambda t: rearrange(t, 'b p n (h d) -> b p h n d', h=self.heads), qkv)
+ 
+-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
++        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
+ 
+         attn = self.attend(dots)
+         attn = self.dropout(attn)
+ 
+-        out = torch.matmul(attn, v)
++        out = mint.matmul(attn, v)
+         out = rearrange(out, 'b p h n d -> b p n (h d)')
+         return self.to_out(out)
+ 
+-class Transformer(nn.Module):
++class Transformer(msnn.Cell):
+     """Transformer block described in ViT.
+     Paper: https://arxiv.org/abs/2010.11929
+     Based on: https://github.com/lucidrains/vit-pytorch
+@@ -78,20 +68,20 @@ 
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout=0.):
+         super().__init__()
+-        self.layers = nn.ModuleList([])
++        self.layers = msnn.CellList([])
+         for _ in range(depth):
+-            self.layers.append(nn.ModuleList([
++            self.layers.append(msnn.CellList([
+                 Attention(dim, heads, dim_head, dropout),
+                 FeedForward(dim, mlp_dim, dropout)
+             ]))
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         for attn, ff in self.layers:
+             x = attn(x) + x
+             x = ff(x) + x
+         return x
+ 
+-class MV2Block(nn.Module):
++class MV2Block(msnn.Cell):
+     """MV2 block described in MobileNetV2.
+     Paper: https://arxiv.org/pdf/1801.04381
+     Based on: https://github.com/tonylins/pytorch-mobilenet-v2
+@@ -106,39 +96,21 @@         self.use_res_connect = self.stride == 1 and inp == oup
+ 
+         if expansion == 1:
+-            self.conv = nn.Sequential(
++            self.conv = msnn.SequentialCell(
+                 # dw
+-                nn.Conv2d(hidden_dim, hidden_dim, 3, stride,
+-                          1, groups=hidden_dim, bias=False),
+-                nn.BatchNorm2d(hidden_dim),
+-                nn.SiLU(),
+-                # pw-linear
+-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+-                nn.BatchNorm2d(oup),
+-            )
++                [nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups = hidden_dim, bias = False), nn.BatchNorm2d(hidden_dim), nn.SiLU(), nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias = False), nn.BatchNorm2d(oup)])
+         else:
+-            self.conv = nn.Sequential(
++            self.conv = msnn.SequentialCell(
+                 # pw
+-                nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
+-                nn.BatchNorm2d(hidden_dim),
+-                nn.SiLU(),
+-                # dw
+-                nn.Conv2d(hidden_dim, hidden_dim, 3, stride,
+-                          1, groups=hidden_dim, bias=False),
+-                nn.BatchNorm2d(hidden_dim),
+-                nn.SiLU(),
+-                # pw-linear
+-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+-                nn.BatchNorm2d(oup),
+-            )
+-
+-    def forward(self, x):
++                [nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias = False), nn.BatchNorm2d(hidden_dim), nn.SiLU(), nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups = hidden_dim, bias = False), nn.BatchNorm2d(hidden_dim), nn.SiLU(), nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias = False), nn.BatchNorm2d(oup)])
++
++    def construct(self, x):
+         out = self.conv(x)
+         if self.use_res_connect:
+             out = out + x
+         return out
+ 
+-class MobileViTBlock(nn.Module):
++class MobileViTBlock(msnn.Cell):
+     def __init__(self, dim, depth, channel, kernel_size, patch_size, mlp_dim, dropout=0.):
+         super().__init__()
+         self.ph, self.pw = patch_size
+@@ -151,7 +123,7 @@         self.conv3 = conv_1x1_bn(dim, channel)
+         self.conv4 = conv_nxn_bn(2 * channel, channel, kernel_size)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         y = x.clone()
+ 
+         # Local representations
+@@ -166,11 +138,11 @@ 
+         # Fusion
+         x = self.conv3(x)
+-        x = torch.cat((x, y), 1)
++        x = mint.cat((x, y), 1)
+         x = self.conv4(x)
+         return x
+ 
+-class MobileViT(nn.Module):
++class MobileViT(msnn.Cell):
+     """MobileViT.
+     Paper: https://arxiv.org/abs/2110.02178
+     Based on: https://github.com/chinhsuanwu/mobilevit-pytorch
+@@ -199,38 +171,35 @@ 
+         self.conv1 = conv_nxn_bn(3, init_dim, stride=2)
+ 
+-        self.stem = nn.ModuleList([])
++        self.stem = msnn.CellList([])
+         self.stem.append(MV2Block(channels[0], channels[1], 1, expansion))
+         self.stem.append(MV2Block(channels[1], channels[2], 2, expansion))
+         self.stem.append(MV2Block(channels[2], channels[3], 1, expansion))
+         self.stem.append(MV2Block(channels[2], channels[3], 1, expansion))
+ 
+-        self.trunk = nn.ModuleList([])
+-        self.trunk.append(nn.ModuleList([
++        self.trunk = msnn.CellList([])
++        self.trunk.append(msnn.CellList([
+             MV2Block(channels[3], channels[4], 2, expansion),
+             MobileViTBlock(dims[0], depths[0], channels[5],
+                            kernel_size, patch_size, int(dims[0] * 2))
+         ]))
+ 
+-        self.trunk.append(nn.ModuleList([
++        self.trunk.append(msnn.CellList([
+             MV2Block(channels[5], channels[6], 2, expansion),
+             MobileViTBlock(dims[1], depths[1], channels[7],
+                            kernel_size, patch_size, int(dims[1] * 4))
+         ]))
+ 
+-        self.trunk.append(nn.ModuleList([
++        self.trunk.append(msnn.CellList([
+             MV2Block(channels[7], channels[8], 2, expansion),
+             MobileViTBlock(dims[2], depths[2], channels[9],
+                            kernel_size, patch_size, int(dims[2] * 4))
+         ]))
+ 
+-        self.to_logits = nn.Sequential(
+-            conv_1x1_bn(channels[-2], last_dim),
+-            Reduce('b c h w -> b c', 'mean'),
+-            nn.Linear(channels[-1], num_classes, bias=False)
+-        )
+-
+-    def forward(self, x):
++        self.to_logits = msnn.SequentialCell(
++            [conv_1x1_bn(channels[-2], last_dim), Reduce('b c h w -> b c', 'mean'), nn.Linear(channels[-1], num_classes, bias = False)])
++
++    def construct(self, x):
+         x = self.conv1(x)
+ 
+         for conv in self.stem:

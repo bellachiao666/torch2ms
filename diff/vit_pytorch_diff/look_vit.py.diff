@@ -1,0 +1,164 @@
+--- pytorch+++ mindspore@@ -1,10 +1,12 @@-import torch
+-from torch import nn
+-import torch.nn.functional as F
+-from torch.nn import Module, ModuleList
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# from torch import nn
+ 
+ from einops import einsum, rearrange, repeat, reduce
+-from einops.layers.torch import Rearrange
++# from einops.layers.torch import Rearrange
+ 
+ # helpers
+ 
+@@ -21,26 +23,26 @@ 
+ def posemb_sincos_2d(t, temperature = 10000):
+     h, w, d, device = *t.shape[1:], t.device
+-    y, x = torch.meshgrid(torch.arange(h, device = device), torch.arange(w, device = device), indexing = 'ij')
++    y, x = mint.meshgrid(mint.arange(h), mint.arange(w), indexing = 'ij')  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     assert (d % 4) == 0, "feature dimension must be multiple of 4 for sincos emb"
+-    omega = torch.arange(d // 4, device = device) / (d // 4 - 1)
++    omega = mint.arange(d // 4) / (d // 4 - 1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     omega = temperature ** -omega
+ 
+     y = y.flatten()[:, None] * omega[None, :]
+     x = x.flatten()[:, None] * omega[None, :]
+-    pos = torch.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
++    pos = mint.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim = 1)
+ 
+     return pos.float()
+ 
+ # bias-less layernorm with unit offset trick (discovered by Ohad Rubin)
+ 
+-class LayerNorm(Module):
++class LayerNorm(msnn.Cell):
+     def __init__(self, dim):
+         super().__init__()
+         self.ln = nn.LayerNorm(dim, elementwise_affine = False)
+-        self.gamma = nn.Parameter(torch.zeros(dim))
+-
+-    def forward(self, x):
++        self.gamma = ms.Parameter(mint.zeros(dim))
++
++    def construct(self, x):
+         normed = self.ln(x)
+         return normed * (self.gamma + 1)
+ 
+@@ -48,18 +50,12 @@ 
+ def MLP(dim, factor = 4, dropout = 0.):
+     hidden_dim = int(dim * factor)
+-    return nn.Sequential(
+-        LayerNorm(dim),
+-        nn.Linear(dim, hidden_dim),
+-        nn.GELU(),
+-        nn.Dropout(dropout),
+-        nn.Linear(hidden_dim, dim),
+-        nn.Dropout(dropout)
+-    )
++    return msnn.SequentialCell(
++        [LayerNorm(dim), nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
+ 
+ # attention
+ 
+-class Attention(Module):
++class Attention(msnn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -79,8 +75,8 @@ 
+         self.split_heads = Rearrange('b n (h d) -> b h n d', h = heads)
+ 
+-        self.norm = LayerNorm(dim) if not reuse_attention else nn.Identity()
+-        self.norm_context = LayerNorm(dim) if cross_attend else nn.Identity()
++        self.norm = LayerNorm(dim) if not reuse_attention else msnn.Identity()
++        self.norm_context = LayerNorm(dim) if cross_attend else msnn.Identity()
+ 
+         self.attend = nn.Softmax(dim = -1)
+         self.dropout = nn.Dropout(dropout)
+@@ -89,13 +85,10 @@         self.to_k = nn.Linear(dim, inner_dim, bias = False) if not reuse_attention else None
+         self.to_v = nn.Linear(dim, inner_dim, bias = False)
+ 
+-        self.to_out = nn.Sequential(
+-            Rearrange('b h n d -> b n (h d)'),
+-            nn.Linear(inner_dim, dim, bias = False),
+-            nn.Dropout(dropout)
+-        )
+-
+-    def forward(
++        self.to_out = msnn.SequentialCell(
++            [Rearrange('b h n d -> b n (h d)'), nn.Linear(inner_dim, dim, bias = False), nn.Dropout(dropout)])
++
++    def construct(
+         self,
+         x,
+         context = None,
+@@ -137,7 +130,7 @@ 
+ # LookViT
+ 
+-class LookViT(Module):
++class LookViT(msnn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -170,24 +163,20 @@         kernel_size = patch_conv_kernel_size
+         patch_dim = (highres_patch_size * highres_patch_size) * channels
+ 
+-        self.to_patches = nn.Sequential(
+-            Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = highres_patch_size, p2 = highres_patch_size),
+-            nn.Conv2d(patch_dim, dim, kernel_size, padding = kernel_size // 2),
+-            Rearrange('b c h w -> b h w c'),
+-            LayerNorm(dim),
+-        )
++        self.to_patches = msnn.SequentialCell(
++            [Rearrange('b c (h p1) (w p2) -> b (p1 p2 c) h w', p1 = highres_patch_size, p2 = highres_patch_size), nn.Conv2d(patch_dim, dim, kernel_size, padding = kernel_size // 2), Rearrange('b c h w -> b h w c'), LayerNorm(dim)])
+ 
+         # absolute positions
+ 
+         num_patches = (image_size // highres_patch_size) ** 2
+-        self.pos_embedding = nn.Parameter(torch.randn(num_patches, dim))
++        self.pos_embedding = ms.Parameter(mint.randn(size = (num_patches, dim)))
+ 
+         # lookvit blocks
+ 
+-        layers = ModuleList([])
++        layers = msnn.CellList([])
+ 
+         for _ in range(depth):
+-            layers.append(ModuleList([
++            layers.append(msnn.CellList([
+                 Attention(dim = dim, dim_head = dim_head, heads = heads, dropout = dropout),
+                 MLP(dim = dim, factor = mlp_factor, dropout = dropout),
+                 Attention(dim = dim, dim_head = cross_attn_dim_head, heads = cross_attn_heads, dropout = dropout, cross_attend = True),
+@@ -203,7 +192,7 @@ 
+         self.to_logits = nn.Linear(dim, num_classes, bias = False)
+ 
+-    def forward(self, img):
++    def construct(self, img):
+         assert img.shape[-2:] == (self.image_size, self.image_size)
+ 
+         # to patch tokens and positions
+@@ -214,11 +203,8 @@         pos_emb = posemb_sincos_2d(highres_tokens)
+         highres_tokens = highres_tokens + rearrange(pos_emb, '(h w) d -> h w d', h = size)
+ 
+-        tokens = F.interpolate(
+-            rearrange(highres_tokens, 'b h w d -> b d h w'),
+-            img.shape[-1] // self.patch_size,
+-            mode = 'bilinear'
+-        )
++        tokens = nn.functional.interpolate(
++            rearrange(highres_tokens, 'b h w d -> b d h w'), img.shape[-1] // self.patch_size, mode = 'bilinear')
+ 
+         tokens = rearrange(tokens, 'b c h w -> b (h w) c')
+         highres_tokens = rearrange(highres_tokens, 'b h w c -> b (h w) c')
+@@ -272,7 +258,7 @@         dropout = 0.1
+     ).cuda()
+ 
+-    img = torch.randn(2, 3, 256, 256).cuda()
++    img = mint.randn(size = (2, 3, 256, 256)).cuda()
+     pred = v(img)
+ 
+     assert pred.shape == (2, 1000)

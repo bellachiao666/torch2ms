@@ -1,0 +1,64 @@
+--- pytorch+++ mindspore@@ -1,9 +1,12 @@-import torch
+-from torch import nn
+-import torch.nn.functional as F
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# from torch import nn
+ from einops import repeat
+ 
+-class SimMIM(nn.Module):
++class SimMIM(msnn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -20,16 +23,16 @@         num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
+ 
+         self.to_patch = encoder.to_patch_embedding[0]
+-        self.patch_to_emb = nn.Sequential(*encoder.to_patch_embedding[1:])
++        self.patch_to_emb = msnn.SequentialCell([encoder.to_patch_embedding[1:]])
+ 
+         pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
+ 
+         # simple linear head
+ 
+-        self.mask_token = nn.Parameter(torch.randn(encoder_dim))
++        self.mask_token = ms.Parameter(mint.randn(encoder_dim))
+         self.to_pixels = nn.Linear(encoder_dim, pixel_values_per_patch)
+ 
+-    def forward(self, img):
++    def construct(self, img):
+         device = img.device
+ 
+         # get patches
+@@ -39,7 +42,7 @@ 
+         # for indexing purposes
+ 
+-        batch_range = torch.arange(batch, device = device)[:, None]
++        batch_range = mint.arange(batch)[:, None]  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+ 
+         # get positions
+ 
+@@ -58,12 +61,12 @@         # calculate of patches needed to be masked, and get positions (indices) to be masked
+ 
+         num_masked = int(self.masking_ratio * num_patches)
+-        masked_indices = torch.rand(batch, num_patches, device = device).topk(k = num_masked, dim = -1).indices
+-        masked_bool_mask = torch.zeros((batch, num_patches), device = device).scatter_(-1, masked_indices, 1).bool()
++        masked_indices = mint.rand(size = (batch, num_patches)).topk(k = num_masked, dim = -1).indices  # 'torch.rand':没有对应的mindspore参数 'device' (position 5);
++        masked_bool_mask = mint.zeros((batch, num_patches)).scatter_(-1, masked_indices, 1).bool()  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+ 
+         # mask tokens
+ 
+-        tokens = torch.where(masked_bool_mask[..., None], mask_tokens, tokens)
++        tokens = mint.where(masked_bool_mask[..., None], mask_tokens, tokens)
+ 
+         # attend with vision transformer
+ 
+@@ -83,5 +86,5 @@ 
+         # calculate reconstruction loss
+ 
+-        recon_loss = F.l1_loss(pred_pixel_values, masked_patches) / num_masked
++        recon_loss = nn.functional.l1_loss(pred_pixel_values, masked_patches) / num_masked
+         return recon_loss

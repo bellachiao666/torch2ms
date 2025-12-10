@@ -1,0 +1,228 @@
+--- pytorch+++ mindspore@@ -1,12 +1,15 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from functools import partial
+ 
+-import torch
+-from torch import nn, einsum
+-import torch.nn.functional as F
+-from torch.nn import Module, ModuleList, Sequential
++# import torch
++# from torch import nn, einsum
+ 
+ from einops import rearrange, repeat, reduce, pack, unpack
+-from einops.layers.torch import Rearrange, Reduce
++# from einops.layers.torch import Rearrange, Reduce
+ 
+ # helpers
+ 
+@@ -29,51 +32,39 @@ 
+ def FeedForward(dim, mult = 4, dropout = 0.):
+     inner_dim = int(dim * mult)
+-    return Sequential(
+-        nn.LayerNorm(dim),
+-        nn.Linear(dim, inner_dim),
+-        nn.GELU(),
+-        nn.Dropout(dropout),
+-        nn.Linear(inner_dim, dim),
+-        nn.Dropout(dropout)
+-    )
++    return msnn.SequentialCell(
++        [nn.LayerNorm(dim), nn.Linear(dim, inner_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(inner_dim, dim), nn.Dropout(dropout)])
+ 
+ # MBConv
+ 
+-class SqueezeExcitation(Module):
++class SqueezeExcitation(msnn.Cell):
+     def __init__(self, dim, shrinkage_rate = 0.25):
+         super().__init__()
+         hidden_dim = int(dim * shrinkage_rate)
+ 
+-        self.gate = Sequential(
+-            Reduce('b c h w -> b c', 'mean'),
+-            nn.Linear(dim, hidden_dim, bias = False),
+-            nn.SiLU(),
+-            nn.Linear(hidden_dim, dim, bias = False),
+-            nn.Sigmoid(),
+-            Rearrange('b c -> b c 1 1')
+-        )
+-
+-    def forward(self, x):
++        self.gate = msnn.SequentialCell(
++            [Reduce('b c h w -> b c', 'mean'), nn.Linear(dim, hidden_dim, bias = False), nn.SiLU(), nn.Linear(hidden_dim, dim, bias = False), nn.Sigmoid(), Rearrange('b c -> b c 1 1')])
++
++    def construct(self, x):
+         return x * self.gate(x)
+ 
+-class MBConvResidual(Module):
++class MBConvResidual(msnn.Cell):
+     def __init__(self, fn, dropout = 0.):
+         super().__init__()
+         self.fn = fn
+         self.dropsample = Dropsample(dropout)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         out = self.fn(x)
+         out = self.dropsample(out)
+         return out + x
+ 
+-class Dropsample(Module):
++class Dropsample(msnn.Cell):
+     def __init__(self, prob = 0):
+         super().__init__()
+         self.prob = prob
+   
+-    def forward(self, x):
++    def construct(self, x):
+         device = x.device
+ 
+         if self.prob == 0. or (not self.training):
+@@ -94,17 +85,8 @@     hidden_dim = int(expansion_rate * dim_out)
+     stride = 2 if downsample else 1
+ 
+-    net = Sequential(
+-        nn.Conv2d(dim_in, hidden_dim, 1),
+-        nn.BatchNorm2d(hidden_dim),
+-        nn.GELU(),
+-        nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim),
+-        nn.BatchNorm2d(hidden_dim),
+-        nn.GELU(),
+-        SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate),
+-        nn.Conv2d(hidden_dim, dim_out, 1),
+-        nn.BatchNorm2d(dim_out)
+-    )
++    net = msnn.SequentialCell(
++        [nn.Conv2d(dim_in, hidden_dim, 1), nn.BatchNorm2d(hidden_dim), nn.GELU(), nn.Conv2d(hidden_dim, hidden_dim, 3, stride = stride, padding = 1, groups = hidden_dim), nn.BatchNorm2d(hidden_dim), nn.GELU(), SqueezeExcitation(hidden_dim, shrinkage_rate = shrinkage_rate), nn.Conv2d(hidden_dim, dim_out, 1), nn.BatchNorm2d(dim_out)])
+ 
+     if dim_in == dim_out and not downsample:
+         net = MBConvResidual(net, dropout = dropout)
+@@ -113,7 +95,7 @@ 
+ # attention related classes
+ 
+-class Attention(Module):
++class Attention(msnn.Cell):
+     def __init__(
+         self,
+         dim,
+@@ -132,15 +114,11 @@         self.norm = nn.LayerNorm(dim)
+         self.to_qkv = nn.Linear(dim, dim * 3, bias = False)
+ 
+-        self.attend = nn.Sequential(
+-            nn.Softmax(dim = -1),
+-            nn.Dropout(dropout)
+-        )
+-
+-        self.to_out = nn.Sequential(
+-            nn.Linear(dim, dim, bias = False),
+-            nn.Dropout(dropout)
+-        )
++        self.attend = msnn.SequentialCell(
++            [nn.Softmax(dim = -1), nn.Dropout(dropout)])
++
++        self.to_out = msnn.SequentialCell(
++            [nn.Linear(dim, dim, bias = False), nn.Dropout(dropout)])
+ 
+         # relative positional bias
+ 
+@@ -148,17 +126,17 @@ 
+         self.rel_pos_bias = nn.Embedding(num_rel_pos_bias + 1, self.heads)
+ 
+-        pos = torch.arange(window_size)
+-        grid = torch.stack(torch.meshgrid(pos, pos, indexing = 'ij'))
++        pos = mint.arange(window_size)
++        grid = mint.stack(mint.meshgrid(pos, pos, indexing = 'ij'))
+         grid = rearrange(grid, 'c i j -> (i j) c')
+         rel_pos = rearrange(grid, 'i ... -> i 1 ...') - rearrange(grid, 'j ... -> 1 j ...')
+         rel_pos += window_size - 1
+         rel_pos_indices = (rel_pos * torch.tensor([2 * window_size - 1, 1])).sum(dim = -1)
+ 
+-        rel_pos_indices = F.pad(rel_pos_indices, (num_registers, 0, num_registers, 0), value = num_rel_pos_bias)
++        rel_pos_indices = nn.functional.pad(rel_pos_indices, (num_registers, 0, num_registers, 0), value = num_rel_pos_bias)
+         self.register_buffer('rel_pos_indices', rel_pos_indices, persistent = False)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         device, h, bias_indices = x.device, self.heads, self.rel_pos_indices
+ 
+         x = self.norm(x)
+@@ -177,7 +155,7 @@ 
+         # sim
+ 
+-        sim = einsum('b h i d, b h j d -> b h i j', q, k)
++        sim = mint.einsum('b h i d, b h j d -> b h i j', q, k)
+ 
+         # add positional bias
+ 
+@@ -190,14 +168,14 @@ 
+         # aggregate
+ 
+-        out = einsum('b h i j, b h j d -> b h i d', attn, v)
++        out = mint.einsum('b h i j, b h j d -> b h i d', attn, v)
+ 
+         # combine heads out
+ 
+         out = rearrange(out, 'b h n d -> b n (h d)')
+         return self.to_out(out)
+ 
+-class MaxViT(Module):
++class MaxViT(msnn.Cell):
+     def __init__(
+         self,
+         *,
+@@ -221,10 +199,8 @@ 
+         dim_conv_stem = default(dim_conv_stem, dim)
+ 
+-        self.conv_stem = Sequential(
+-            nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1),
+-            nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)
+-        )
++        self.conv_stem = msnn.SequentialCell(
++            [nn.Conv2d(channels, dim_conv_stem, 3, stride = 2, padding = 1), nn.Conv2d(dim_conv_stem, dim_conv_stem, 3, padding = 1)])
+ 
+         # variables
+ 
+@@ -234,7 +210,7 @@         dims = (dim_conv_stem, *dims)
+         dim_pairs = tuple(zip(dims[:-1], dims[1:]))
+ 
+-        self.layers = nn.ModuleList([])
++        self.layers = msnn.CellList([])
+ 
+         # window size
+ 
+@@ -263,25 +239,22 @@                 grid_attn = Attention(dim = layer_dim, dim_head = dim_head, dropout = dropout, window_size = window_size, num_registers = num_register_tokens)
+                 grid_ff = FeedForward(dim = layer_dim, dropout = dropout)
+ 
+-                register_tokens = nn.Parameter(torch.randn(num_register_tokens, layer_dim))
+-
+-                self.layers.append(ModuleList([
++                register_tokens = ms.Parameter(mint.randn(size = (num_register_tokens, layer_dim)))
++
++                self.layers.append(msnn.CellList([
+                     conv,
+-                    ModuleList([block_attn, block_ff]),
+-                    ModuleList([grid_attn, grid_ff])
++                    msnn.CellList([block_attn, block_ff]),
++                    msnn.CellList([grid_attn, grid_ff])
+                 ]))
+ 
+                 self.register_tokens.append(register_tokens)
+ 
+         # mlp head out
+ 
+-        self.mlp_head = nn.Sequential(
+-            Reduce('b d h w -> b d', 'mean'),
+-            nn.LayerNorm(dims[-1]),
+-            nn.Linear(dims[-1], num_classes)
+-        )
+-
+-    def forward(self, x):
++        self.mlp_head = msnn.SequentialCell(
++            [Reduce('b d h w -> b d', 'mean'), nn.LayerNorm(dims[-1]), nn.Linear(dims[-1], num_classes)])
++
++    def construct(self, x):
+         b, w = x.shape[0], self.window_size
+ 
+         x = self.conv_stem(x)

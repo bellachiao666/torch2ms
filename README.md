@@ -8,7 +8,7 @@
 
 ## 快速使用
 1. 准备好 `api_map.json`（已提供样例）。
-2. 运行转换：`python torch2ms.py <源文件.py>`
+2. 运行转换：`python torch2ms.py ./input/<源文件.py>`
 3. 生成结果：
    - 转换后文件：`<源文件>_ms.py`
    - 差异文件：`diff_(<源文件>-<源文件_ms>).diff`

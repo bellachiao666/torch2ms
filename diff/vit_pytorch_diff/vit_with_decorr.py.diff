@@ -1,0 +1,200 @@
+--- pytorch+++ mindspore@@ -1,13 +1,16 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ # https://arxiv.org/abs/2510.14657
+ # but instead of their decorr module updated with SGD, remove all projections and just return a decorrelation auxiliary loss
+ 
+-import torch
+-from torch import nn, stack, tensor
+-import torch.nn.functional as F
+-from torch.nn import Module, ModuleList
++# import torch
++# from torch import nn, stack, tensor
+ 
+ from einops import rearrange, repeat, reduce, einsum, pack, unpack
+-from einops.layers.torch import Rearrange
++# from einops.layers.torch import Rearrange
+ 
+ # helpers
+ 
+@@ -22,7 +25,7 @@ 
+ # decorr loss
+ 
+-class DecorrelationLoss(Module):
++class DecorrelationLoss(msnn.Cell):
+     def __init__(
+         self,
+         sample_frac = 1.,
+@@ -36,7 +39,7 @@         self.soft_validate_num_sampled = soft_validate_num_sampled
+         self.register_buffer('zero', tensor(0.), persistent = False)
+ 
+-    def forward(
++    def construct(
+         self,
+         tokens
+     ):
+@@ -52,16 +55,16 @@ 
+             tokens, packed_shape = pack([tokens], '* n d e')
+ 
+-            indices = torch.randn(tokens.shape[:2]).argsort(dim = -1)[..., :num_sampled, :]
+-
+-            batch_arange = torch.arange(tokens.shape[0], device = tokens.device)
++            indices = mint.randn(tokens.shape[:2]).argsort(dim = -1)[..., :num_sampled, :]
++
++            batch_arange = mint.arange(tokens.shape[0])  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+             batch_arange = rearrange(batch_arange, 'b -> b 1')
+ 
+             tokens = tokens[batch_arange, indices]
+             tokens, = unpack(tokens, packed_shape, '* n d e')
+ 
+         dist = einsum(tokens, tokens, '... n d, ... n e -> ... d e') / tokens.shape[-2]
+-        eye = torch.eye(dim, device = device)
++        eye = mint.eye(dim)  # 'torch.eye':没有对应的mindspore参数 'device' (position 5);
+ 
+         loss = dist.pow(2) * (1. - eye) / ((dim - 1) * dim)
+ 
+@@ -70,24 +73,19 @@ 
+ # classes
+ 
+-class FeedForward(Module):
++class FeedForward(msnn.Cell):
+     def __init__(self, dim, hidden_dim, dropout = 0.):
+         super().__init__()
+         self.norm = nn.LayerNorm(dim)
+ 
+-        self.net = nn.Sequential(
+-            nn.Linear(dim, hidden_dim),
+-            nn.GELU(),
+-            nn.Dropout(dropout),
+-            nn.Linear(hidden_dim, dim),
+-            nn.Dropout(dropout)
+-        )
+-
+-    def forward(self, x):
++        self.net = msnn.SequentialCell(
++            [nn.Linear(dim, hidden_dim), nn.GELU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout)])
++
++    def construct(self, x):
+         normed = self.norm(x)
+         return self.net(x), normed
+ 
+-class Attention(Module):
++class Attention(msnn.Cell):
+     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+         super().__init__()
+         inner_dim = dim_head *  heads
+@@ -102,40 +100,38 @@ 
+         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+ 
+-        self.to_out = nn.Sequential(
+-            nn.Linear(inner_dim, dim),
+-            nn.Dropout(dropout)
+-        ) if project_out else nn.Identity()
+-
+-    def forward(self, x):
++        self.to_out = msnn.SequentialCell(
++            [nn.Linear(inner_dim, dim), nn.Dropout(dropout)]) if project_out else msnn.Identity()
++
++    def construct(self, x):
+         normed = self.norm(x)
+ 
+         qkv = self.to_qkv(normed).chunk(3, dim = -1)
+         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+ 
+-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
++        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
+ 
+         attn = self.attend(dots)
+         attn = self.dropout(attn)
+ 
+-        out = torch.matmul(attn, v)
++        out = mint.matmul(attn, v)
+         out = rearrange(out, 'b h n d -> b n (h d)')
+ 
+         return self.to_out(out), normed
+ 
+-class Transformer(Module):
++class Transformer(msnn.Cell):
+     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+         super().__init__()
+         self.norm = nn.LayerNorm(dim)
+-        self.layers = ModuleList([])
++        self.layers = msnn.CellList([])
+ 
+         for _ in range(depth):
+-            self.layers.append(ModuleList([
++            self.layers.append(msnn.CellList([
+                 Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
+                 FeedForward(dim, mlp_dim, dropout = dropout)
+             ]))
+ 
+-    def forward(self, x):
++    def construct(self, x):
+ 
+         normed_inputs = []
+ 
+@@ -149,9 +145,9 @@             normed_inputs.append(attn_normed_inp)
+             normed_inputs.append(ff_normed_inp)
+ 
+-        return self.norm(x), stack(normed_inputs)
+-
+-class ViT(Module):
++        return self.norm(x), mint.stack(normed_inputs)
++
++class ViT(msnn.Cell):
+     def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., decorr_sample_frac = 1.):
+         super().__init__()
+         image_height, image_width = pair(image_size)
+@@ -163,21 +159,17 @@         patch_dim = channels * patch_height * patch_width
+         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
+ 
+-        self.to_patch_embedding = nn.Sequential(
+-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+-            nn.LayerNorm(patch_dim),
+-            nn.Linear(patch_dim, dim),
+-            nn.LayerNorm(dim),
+-        )
+-
+-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
+-        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
++        self.to_patch_embedding = msnn.SequentialCell(
++            [Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width), nn.LayerNorm(patch_dim), nn.Linear(patch_dim, dim), nn.LayerNorm(dim)])
++
++        self.pos_embedding = ms.Parameter(mint.randn(size = (1, num_patches + 1, dim)))
++        self.cls_token = ms.Parameter(mint.randn(size = (1, 1, dim)))
+         self.dropout = nn.Dropout(emb_dropout)
+ 
+         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+ 
+         self.pool = pool
+-        self.to_latent = nn.Identity()
++        self.to_latent = msnn.Identity()
+ 
+         self.mlp_head = nn.Linear(dim, num_classes)
+ 
+@@ -190,7 +182,7 @@ 
+         self.register_buffer('zero', torch.tensor(0.), persistent = False)
+ 
+-    def forward(
++    def construct(
+         self,
+         img,
+         return_decorr_aux_loss = None
+@@ -201,7 +193,7 @@         b, n, _ = x.shape
+ 
+         cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)
+-        x = torch.cat((cls_tokens, x), dim=1)
++        x = mint.cat((cls_tokens, x), dim = 1)
+         x += self.pos_embedding[:, :(n + 1)]
+         x = self.dropout(x)
+ 
+@@ -224,7 +216,7 @@ if __name__ == '__main__':
+     decorr_loss = DecorrelationLoss(0.1)
+ 
+-    hiddens = torch.randn(6, 2, 512, 256)
++    hiddens = mint.randn(size = (6, 2, 512, 256))
+ 
+     decorr_loss(hiddens)
+     decorr_loss(hiddens[0])
