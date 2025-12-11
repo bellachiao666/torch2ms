@@ -130,7 +130,7 @@
  
          self.pos_embedding = posemb_sincos_2d(
              h = image_height // patch_height,
-@@ -120,11 +128,11 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
+@@ -120,15 +128,15 @@         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
  
          self.pool = "mean"
 -        self.to_latent = nn.Identity()
@@ -143,6 +143,11 @@
          device, dtype = img.device, img.dtype
  
          x = self.to_patch_embedding(img)
+-        freqs = torch.view_as_real(fft2(img))
++        freqs = torch.view_as_real(fft2(img))  # 'torch.fft.fft2' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         f = self.to_freq_embedding(freqs)
+ 
 @@ -157,6 +165,6 @@         mlp_dim = 2048,
      )
  

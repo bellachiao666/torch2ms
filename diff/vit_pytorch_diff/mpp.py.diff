@@ -41,20 +41,26 @@
      def __init__(
          self,
          patch_size,
-@@ -49,7 +54,7 @@         self.mean = torch.tensor(mean).view(-1, 1, 1) if mean else None
-         self.std = torch.tensor(std).view(-1, 1, 1) if std else None
+@@ -46,10 +51,10 @@         self.output_channel_bits = output_channel_bits
+         self.max_pixel_val = max_pixel_val
+ 
+-        self.mean = torch.tensor(mean).view(-1, 1, 1) if mean else None
+-        self.std = torch.tensor(std).view(-1, 1, 1) if std else None
++        self.mean = torch.tensor(mean).view(-1, 1, 1) if mean else None  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.tensor.view' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        self.std = torch.tensor(std).view(-1, 1, 1) if std else None  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.tensor.view' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
 -    def forward(self, predicted_patches, target, mask):
 +    def construct(self, predicted_patches, target, mask):
          p, c, mpv, bits, device = self.patch_size, self.channels, self.max_pixel_val, self.output_channel_bits, target.device
          bin_size = mpv / (2 ** bits)
  
-@@ -61,13 +66,13 @@         target = target.clamp(max = mpv) # clamp just in case
+@@ -61,22 +66,22 @@         target = target.clamp(max = mpv) # clamp just in case
          avg_target = reduce(target, 'b c (h p1) (w p2) -> b (h w) c', 'mean', p1 = p, p2 = p).contiguous()
  
 -        channel_bins = torch.arange(bin_size, mpv, bin_size, device = device)
+-        discretized_target = torch.bucketize(avg_target, channel_bins)
 +        channel_bins = mint.arange(bin_size, mpv, bin_size)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
-         discretized_target = torch.bucketize(avg_target, channel_bins)
++        discretized_target = torch.bucketize(avg_target, channel_bins)  # 'torch.bucketize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
 -        bin_mask = (2 ** bits) ** torch.arange(0, c, device = device).long()
 +        bin_mask = (2 ** bits) ** mint.arange(0, c).long()  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
@@ -63,9 +69,12 @@
 -        target_label = torch.sum(bin_mask * discretized_target, dim = -1)
 +        target_label = mint.sum(bin_mask * discretized_target)
  
-         loss = F.cross_entropy(predicted_patches[mask], target_label[mask])
+-        loss = F.cross_entropy(predicted_patches[mask], target_label[mask])
++        loss = F.cross_entropy(predicted_patches[mask], target_label[mask])  # 'torch.nn.functional.cross_entropy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          return loss
-@@ -76,7 +81,7 @@ # main class
+ 
+ 
+ # main class
  
  
 -class MPP(nn.Module):

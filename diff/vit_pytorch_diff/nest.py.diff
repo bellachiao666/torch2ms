@@ -97,7 +97,7 @@
          LayerNorm(dim_out),
          nn.MaxPool2d(3, stride = 2, padding = 1)
 -    )
-+    ])
++    ])  # 'torch.nn.MaxPool2d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
 -class Transformer(nn.Module):
 +class Transformer(msnn.Cell):

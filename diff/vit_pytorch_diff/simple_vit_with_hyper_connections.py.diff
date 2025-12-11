@@ -64,9 +64,9 @@
 +        self.static_alpha = ms.Parameter(mint.cat([init_alpha0, mint.eye(num_residual_streams)], dim = 1))
 +
 +        self.dynamic_alpha_fn = ms.Parameter(mint.zeros(size = (dim, num_residual_streams + 1)))
-+        self.dynamic_alpha_scale = ms.Parameter(tensor(1e-2))
++        self.dynamic_alpha_scale = ms.Parameter(tensor(1e-2))  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        self.dynamic_beta_fn = ms.Parameter(mint.zeros(dim))
-+        self.dynamic_beta_scale = ms.Parameter(tensor(1e-2))
++        self.dynamic_beta_scale = ms.Parameter(tensor(1e-2))  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
      def width_connection(self, residuals):
          normed = self.norm(residuals)

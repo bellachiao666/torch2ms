@@ -42,11 +42,12 @@
 -        self.register_buffer('beta', torch.zeros(dim))
 -
 -    def forward(self, x):
+-        return F.layer_norm(x, x.shape[-1:], self.gamma, self.beta)
 +        self.gamma = ms.Parameter(mint.ones(dim))
 +        self.register_buffer('beta', mint.zeros(dim))
 +
 +    def construct(self, x):
-         return F.layer_norm(x, x.shape[-1:], self.gamma, self.beta)
++        return F.layer_norm(x, x.shape[-1:], self.gamma, self.beta)  # 'torch.nn.functional.layer_norm' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
  # they use a query-key normalization that is equivalent to rms norm (no mean-centering, learned gamma), from vit 22B paper
  
@@ -103,7 +104,13 @@
          self,
          x,
          context = None,
-@@ -168,19 +175,19 @@         out = rearrange(out, 'b h n d -> b n (h d)')
+@@ -163,24 +170,24 @@             attn_mask = attn_mask,
+             dropout_p = self.dropout_p if self.training else 0.,
+             scale = 1.  # RMSNorm already includes sqrt(dim) scaling
+-        )
++        )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         out = rearrange(out, 'b h n d -> b n (h d)')
          return self.to_out(out)
  
 -class Transformer(nn.Module):
@@ -185,7 +192,7 @@
          self,
          batched_images: List[Tensor] | List[List[Tensor]], # assume different resolution images already grouped correctly
          group_images = False,
-@@ -309,20 +318,18 @@                     token_dropout = self.calc_token_dropout(*image_dims)
+@@ -309,24 +318,22 @@                     token_dropout = self.calc_token_dropout(*image_dims)
                      seq_len = seq.shape[0]
                      num_keep = max(1, int(seq_len * (1 - token_dropout)))
 -                    keep_indices = torch.randn((seq_len,), device=device).topk(num_keep, dim=-1).indices
@@ -200,7 +207,7 @@
 -                torch.tensor(patch_counts, device=device)
 -            )
 +            image_ids = mint.repeat_interleave(
-+                arange(len(images)), torch.tensor(patch_counts, device=device))
++                arange(len(images)), torch.tensor(patch_counts, device=device))  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
              batched_image_ids.append(image_ids)
 -            batched_sequences.append(torch.cat(sequences, dim=0))
@@ -209,4 +216,17 @@
 +            batched_positions.append(mint.cat(positions, dim = 0))
  
          # derive key padding mask
+ 
+-        lengths = torch.tensor([seq.shape[-2] for seq in batched_sequences], device = device, dtype = torch.long)
++        lengths = torch.tensor([seq.shape[-2] for seq in batched_sequences], device = device, dtype = torch.long)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         seq_arange = arange(lengths.amax().item())
+         key_pad_mask = rearrange(seq_arange, 'n -> 1 n') < rearrange(lengths, 'b -> b 1')
+ 
+@@ -343,7 +350,7 @@ 
+         # need to know how many images for final attention pooling
+ 
+-        num_images = torch.tensor(num_images, device = device, dtype = torch.long)        
++        num_images = torch.tensor(num_images, device = device, dtype = torch.long)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # to patches
  

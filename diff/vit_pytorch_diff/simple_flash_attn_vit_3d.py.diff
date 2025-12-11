@@ -59,7 +59,12 @@
      def __init__(self, use_flash = False, config: Config = Config(True, True, True)):
          super().__init__()
          self.config = config
-@@ -58,7 +59,7 @@ 
+@@ -54,11 +55,11 @@         # flash attention - https://arxiv.org/abs/2205.14135
+         
+         with torch.backends.cuda.sdp_kernel(**self.config._asdict()):
+-            out = F.scaled_dot_product_attention(q, k, v)
++            out = F.scaled_dot_product_attention(q, k, v)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
          return out
  
 -    def forward(self, q, k, v):

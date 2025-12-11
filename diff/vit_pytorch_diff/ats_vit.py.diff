@@ -52,14 +52,24 @@
  
          # normalize to 1
  
-@@ -85,7 +89,7 @@ 
+@@ -71,7 +75,7 @@         # mask out pseudo logits for gumbel-max sampling
+ 
+         mask_without_cls = mask[:, 1:]
+-        mask_value = -torch.finfo(attn.dtype).max / 2
++        mask_value = -torch.finfo(attn.dtype).max / 2  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         pseudo_logits = pseudo_logits.masked_fill(~mask_without_cls, mask_value)
+ 
+         # expand k times, k being the adaptive sampling number
+@@ -85,8 +89,8 @@ 
          # calculate unique using torch.unique and then pad the sequence from the right
  
 -        unique_sampled_token_ids_list = [torch.unique(t, sorted = True) for t in torch.unbind(sampled_token_ids)]
+-        unique_sampled_token_ids = pad_sequence(unique_sampled_token_ids_list, batch_first = True)
 +        unique_sampled_token_ids_list = [mint.unique(t, sorted = True) for t in mint.unbind(sampled_token_ids)]
-         unique_sampled_token_ids = pad_sequence(unique_sampled_token_ids_list, batch_first = True)
++        unique_sampled_token_ids = pad_sequence(unique_sampled_token_ids_list, batch_first = True)  # 'torch.nn.utils.rnn.pad_sequence' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
          # calculate the new mask, based on the padding
+ 
 @@ -94,11 +98,11 @@ 
          # CLS token never gets masked out (gets a value of True)
  
@@ -100,7 +110,7 @@
      def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0., output_num_tokens = None):
          super().__init__()
          inner_dim = dim_head *  heads
-@@ -140,19 +145,20 @@         self.output_num_tokens = output_num_tokens
+@@ -140,23 +145,24 @@         self.output_num_tokens = output_num_tokens
          self.ats = AdaptiveTokenSampling(output_num_tokens) if exists(output_num_tokens) else None
  
 -        self.to_out = nn.Sequential(
@@ -125,6 +135,11 @@
  
          if exists(mask):
              dots_mask = rearrange(mask, 'b i -> b 1 i 1') * rearrange(mask, 'b j -> b 1 1 j')
+-            mask_value = -torch.finfo(dots.dtype).max
++            mask_value = -torch.finfo(dots.dtype).max  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             dots = dots.masked_fill(~dots_mask, mask_value)
+ 
+         attn = self.attend(dots)
 @@ -169,33 +175,33 @@         if exists(self.output_num_tokens) and (num_tokens - 1) > self.output_num_tokens:
              attn, mask, sampled_token_ids = self.ats(attn, v, mask = mask)
  

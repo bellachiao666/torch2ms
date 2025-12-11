@@ -59,7 +59,7 @@
          x = self.norm(x)
  
          x_kv = x # input for key / values projection
-@@ -69,12 +75,12 @@         if exists(memories):
+@@ -69,34 +75,34 @@         if exists(memories):
              # add memories to key / values if it is passed in
              memories = repeat(memories, 'n d -> b n d', b = x.shape[0]) if memories.ndim == 2 else memories
 -            x_kv = torch.cat((x_kv, memories), dim = 1)
@@ -72,8 +72,10 @@
 +        dots = mint.matmul(q, k.transpose(-1, -2)) * self.scale
  
          if exists(attn_mask):
-             dots = dots.masked_fill(~attn_mask, -torch.finfo(dots.dtype).max)
-@@ -82,21 +88,21 @@         attn = self.attend(dots)
+-            dots = dots.masked_fill(~attn_mask, -torch.finfo(dots.dtype).max)
++            dots = dots.masked_fill(~attn_mask, -torch.finfo(dots.dtype).max)  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         attn = self.attend(dots)
          attn = self.dropout(attn)
  
 -        out = torch.matmul(attn, v)

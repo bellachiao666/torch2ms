@@ -1,0 +1,132 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import pickle
+ from collections import namedtuple
+ 
+@@ -178,27 +183,27 @@     if not is_backend_tested("torch"):
+         pytest.skip()
+     else:
+-        import torch.jit
+-        from torch.nn import Conv2d, Linear, MaxPool2d, ReLU, Sequential
+-
+-        from einops.layers.torch import EinMix, Rearrange, Reduce
+-
+-        return Sequential(
+-            Conv2d(3, 6, kernel_size=(5, 5)),
++        # from torch.nn import Conv2d, Linear, MaxPool2d, ReLU, 
++
++        # from einops.layers.torch import EinMix, Rearrange, Reduce
++
++        return msnn.SequentialCell(
++            [
++            nn.Conv2d(3, 6, kernel_size = (5, 5)),
+             Reduce("b c (h h2) (w w2) -> b c h w", "max", h2=2, w2=2) if use_reduce else MaxPool2d(kernel_size=2),
+-            Conv2d(6, 16, kernel_size=(5, 5)),
++            nn.Conv2d(6, 16, kernel_size = (5, 5)),
+             Reduce("b c (h h2) (w w2) -> b c h w", "max", h2=2, w2=2),
+             torch.jit.script(Rearrange("b c h w -> b (c h w)"))
+             if add_scripted_layer
+             else Rearrange("b c h w -> b (c h w)"),
+-            Linear(16 * 5 * 5, 120),
+-            ReLU(),
+-            Linear(120, 84),
+-            ReLU(),
++            nn.Linear(16 * 5 * 5, 120),
++            nn.ReLU(),
++            nn.Linear(120, 84),
++            nn.ReLU(),
+             EinMix("b c1 -> (b c2)", weight_shape="c1 c2", bias_shape="c2", c1=84, c2=84),
+             EinMix("(b c2) -> b c3", weight_shape="c2 c3", bias_shape="c3", c2=84, c3=84),
+-            Linear(84, 10),
+-        )
++            nn.Linear(84, 10)
++        ])  # 'torch.nn.MaxPool2d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.jit.script' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def test_torch_layer():
+@@ -206,39 +211,38 @@         pytest.skip()
+     else:
+         # checked that torch present
+-        import torch
+-        import torch.jit
++        # import torch
+ 
+         model1 = create_torch_model(use_reduce=True)
+         model2 = create_torch_model(use_reduce=False)
+-        input = torch.randn([10, 3, 32, 32])
++        input = mint.randn([10, 3, 32, 32])
+         # random models have different predictions
+-        assert not torch.allclose(model1(input), model2(input))
++        assert not mint.allclose(model1(input), model2(input))
+         model2.load_state_dict(pickle.loads(pickle.dumps(model1.state_dict())))
+-        assert torch.allclose(model1(input), model2(input))
++        assert mint.allclose(model1(input), model2(input))
+ 
+         # tracing (freezing)
+-        model3 = torch.jit.trace(model2, example_inputs=input)
+-        torch.testing.assert_close(model1(input), model3(input), atol=1e-3, rtol=1e-3)
+-        torch.testing.assert_close(model1(input + 1), model3(input + 1), atol=1e-3, rtol=1e-3)
+-
+-        model4 = torch.jit.trace(model2, example_inputs=input)
+-        torch.testing.assert_close(model1(input), model4(input), atol=1e-3, rtol=1e-3)
+-        torch.testing.assert_close(model1(input + 1), model4(input + 1), atol=1e-3, rtol=1e-3)
++        model3 = mint.trace(model2)
++        torch.testing.assert_close(model1(input), model3(input), atol=1e-3, rtol=1e-3)  # 'torch.testing.assert_close' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        torch.testing.assert_close(model1(input + 1), model3(input + 1), atol=1e-3, rtol=1e-3)  # 'torch.testing.assert_close' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++        model4 = mint.trace(model2)
++        torch.testing.assert_close(model1(input), model4(input), atol=1e-3, rtol=1e-3)  # 'torch.testing.assert_close' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        torch.testing.assert_close(model1(input + 1), model4(input + 1), atol=1e-3, rtol=1e-3)  # 'torch.testing.assert_close' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def test_torch_layers_scripting():
+     if not is_backend_tested("torch"):
+         pytest.skip()
+     else:
+-        import torch
++        # import torch
+ 
+         for script_layer in [False, True]:
+             model1 = create_torch_model(use_reduce=True, add_scripted_layer=script_layer)
+-            model2 = torch.jit.script(model1)
+-            input = torch.randn([10, 3, 32, 32])
+-
+-            torch.testing.assert_close(model1(input), model2(input), atol=1e-3, rtol=1e-3)
++            model2 = torch.jit.script(model1)  # 'torch.jit.script' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            input = mint.randn([10, 3, 32, 32])
++
++            torch.testing.assert_close(model1(input), model2(input), atol=1e-3, rtol=1e-3)  # 'torch.testing.assert_close' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def test_keras_layer():
+@@ -259,20 +263,20 @@         from einops.layers.keras import EinMix, Rearrange, Reduce, keras_custom_objects
+ 
+         def create_keras_model():
+-            return Sequential(
++            return msnn.SequentialCell(
+                 [
+-                    Conv2d(6, kernel_size=5, input_shape=[32, 32, 3]),
++                    nn.Conv2d(6, kernel_size = 5),
+                     Reduce("b c (h h2) (w w2) -> b c h w", "max", h2=2, w2=2),
+-                    Conv2d(16, kernel_size=5),
++                    nn.Conv2d(16, kernel_size = 5),
+                     Reduce("b c (h h2) (w w2) -> b c h w", "max", h2=2, w2=2),
+                     Rearrange("b c h w -> b (c h w)"),
+-                    Linear(120),
+-                    ReLU(),
+-                    Linear(84),
+-                    ReLU(),
++                    nn.Linear(120),
++                    nn.ReLU(),
++                    nn.Linear(84),
++                    nn.ReLU(),
+                     EinMix("b c1 -> (b c2)", weight_shape="c1 c2", bias_shape="c2", c1=84, c2=84),
+                     EinMix("(b c2) -> b c3", weight_shape="c2 c3", bias_shape="c3", c2=84, c3=84),
+-                    Linear(10),
++                    nn.Linear(10),
+                 ]
+             )
+ 

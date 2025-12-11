@@ -64,6 +64,14 @@
          self, 
          x,
          context: Tensor | None = None
+@@ -103,7 +108,7 @@         out = F.scaled_dot_product_attention(
+             query, key, value,
+             dropout_p = self.dropout if self.training else 0.
+-        )
++        )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # merge heads
+ 
 @@ -111,20 +116,20 @@ 
          return self.to_out(out)
  
@@ -96,7 +104,7 @@
      def __init__(
          self,
          *,
-@@ -178,19 +183,20 @@         self.patch_size = patch_size
+@@ -178,24 +183,25 @@         self.patch_size = patch_size
          self.to_patches = Rearrange('c (f pf) (h p1) (w p2) -> f h w (c pf p1 p2)', p1 = patch_size, p2 = patch_size, pf = frame_patch_size)
  
 -        self.to_patch_embedding = nn.Sequential(
@@ -120,10 +128,20 @@
          # register tokens
  
 -        self.register_tokens = nn.Parameter(torch.zeros(num_registers, dim))
+-
+-        nn.init.normal_(self.pos_embed_frame, std = 0.02)
+-        nn.init.normal_(self.pos_embed_height, std = 0.02)
+-        nn.init.normal_(self.pos_embed_width, std = 0.02)
+-        nn.init.normal_(self.register_tokens, std = 0.02)
 +        self.register_tokens = ms.Parameter(mint.zeros(size = (num_registers, dim)))
++
++        nn.init.normal_(self.pos_embed_frame, std = 0.02)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.normal_(self.pos_embed_height, std = 0.02)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.normal_(self.pos_embed_width, std = 0.02)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.normal_(self.register_tokens, std = 0.02)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
-         nn.init.normal_(self.pos_embed_frame, std = 0.02)
-         nn.init.normal_(self.pos_embed_height, std = 0.02)
+         self.dropout = nn.Dropout(emb_dropout)
+ 
 @@ -203,23 +209,24 @@ 
          # final attention pooling queries
  
@@ -162,6 +180,14 @@
              fhw_indices = rearrange(fhw_indices, 'f h w c -> (f h w) c')
  
              positions.append(fhw_indices)
+@@ -247,7 +254,7 @@ 
+         # handle token dropout
+ 
+-        seq_lens = torch.tensor([i.shape[0] for i in tokens], device = device)
++        seq_lens = torch.tensor([i.shape[0] for i in tokens], device = device)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         if self.training and self.token_dropout_prob > 0:
+ 
 @@ -257,7 +264,7 @@             kept_positions = []
  
              for one_image_tokens, one_image_positions, seq_len, num_keep in zip(tokens, positions, seq_lens, keep_seq_lens):
@@ -184,7 +210,7 @@
  
          # linear projection to patch embeddings
  
-@@ -289,7 +296,7 @@ 
+@@ -289,11 +296,11 @@ 
          tokens = tokens.split(seq_lens.tolist())
  
 -        tokens = [torch.cat((self.register_tokens, one_tokens)) for one_tokens in tokens]
@@ -192,7 +218,19 @@
  
          # use nested tensor for transformers and save on padding computation
  
-@@ -314,7 +321,7 @@ 
+-        tokens = nested_tensor(tokens, layout = torch.jagged, device = device)
++        tokens = nested_tensor(tokens, layout = torch.jagged, device = device)  # 'torch.nested.nested_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # embedding dropout
+ 
+@@ -308,13 +315,13 @@ 
+         attn_pool_queries = [rearrange(self.attn_pool_queries, '... -> 1 ...')] * batch
+ 
+-        attn_pool_queries = nested_tensor(attn_pool_queries, layout = torch.jagged)
++        attn_pool_queries = nested_tensor(attn_pool_queries, layout = torch.jagged)  # 'torch.nested.nested_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         pooled = self.attn_pool(attn_pool_queries, tokens)
+ 
          # back to unjagged
  
 -        logits = torch.stack(pooled.unbind())

@@ -153,7 +153,8 @@
 +        grid = mint.stack((grid_x, grid_y))
          grid = rearrange(grid, 'c h w -> c (h w)')
          grid = (grid[:, :, None] - grid[:, None, :]) + (self.window_size - 1)
-         bias_indices = (grid * torch.tensor([1, self.window_size * 2 - 1], device = device)[:, None, None]).sum(dim = 0)
+-        bias_indices = (grid * torch.tensor([1, self.window_size * 2 - 1], device = device)[:, None, None]).sum(dim = 0)
++        bias_indices = (grid * torch.tensor([1, self.window_size * 2 - 1], device = device)[:, None, None]).sum(dim = 0)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          rel_pos_bias = self.local_rel_pos_bias(bias_indices)
          rel_pos_bias = rearrange(rel_pos_bias, 'i j h -> () h i j')
 -        rel_pos_bias = F.pad(rel_pos_bias, (1, 0, 1, 0), value = 0)

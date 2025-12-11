@@ -111,7 +111,7 @@
      def __init__(
          self,
          net,
-@@ -243,21 +248,22 @@ 
+@@ -243,40 +248,41 @@ 
          # default BYOL augmentation
  
 -        DEFAULT_AUG = torch.nn.Sequential(
@@ -134,11 +134,21 @@
 -                std=torch.tensor([0.229, 0.224, 0.225])),
 -        )
 +                std=torch.tensor([0.229, 0.224, 0.225]))
-+        ])
++        ])  # 'torchvision.transforms.RandomGrayscale' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torchvision.transforms.RandomHorizontalFlip' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torchvision.transforms.Normalize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
          self.augment1 = default(augment_fn, DEFAULT_AUG)
          self.augment2 = default(augment_fn2, DEFAULT_AUG)
-@@ -272,11 +278,11 @@         self.teacher_encoder = None
+ 
+         # local and global crops
+ 
+-        self.local_crop = T.RandomResizedCrop((image_size, image_size), scale = (0.05, local_upper_crop_scale))
+-        self.global_crop = T.RandomResizedCrop((image_size, image_size), scale = (global_lower_crop_scale, 1.))
++        self.local_crop = T.RandomResizedCrop((image_size, image_size), scale = (0.05, local_upper_crop_scale))  # 'torchvision.transforms.RandomResizedCrop' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        self.global_crop = T.RandomResizedCrop((image_size, image_size), scale = (global_lower_crop_scale, 1.))  # 'torchvision.transforms.RandomResizedCrop' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         self.student_encoder = NetWrapper(net, num_classes_K, projection_hidden_size, projection_layers, layer = hidden_layer)
+ 
+         self.teacher_encoder = None
          self.teacher_ema_updater = EMA(moving_average_decay)
  
 -        self.register_buffer('teacher_view_centers', torch.zeros(1, num_classes_K))

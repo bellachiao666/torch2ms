@@ -36,12 +36,16 @@
              proj,
              Rearrange('b (two d) -> two b 1 d', two = 2)
 -        )
-+        ])
- 
-         nn.init.zeros_(proj.weight)
-         nn.init.zeros_(proj.bias)
- 
+-
+-        nn.init.zeros_(proj.weight)
+-        nn.init.zeros_(proj.bias)
+-
 -    def forward(self, tokens, cond):
++        ])
++
++        nn.init.zeros_(proj.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.zeros_(proj.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
 +    def construct(self, tokens, cond):
          gamma, beta = self.to_gamma_beta(cond)
  
@@ -193,6 +197,14 @@
      def __init__(
          self,
          vit: ViT | dict,
+@@ -287,7 +294,7 @@ 
+         assert len(vit_layer_indices) == depth, f'number of vit layer indices {len(vit_layer_indices)} does not much the VAT depth {depth}'
+ 
+-        self.register_buffer('layer_indices', tensor(vit_layer_indices), persistent = False)
++        self.register_buffer('layer_indices', tensor(vit_layer_indices), persistent = False)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # handle maybe multiple frames
+ 
 @@ -295,34 +302,34 @@ 
          self.is_video = is_video
          self.time_seq_len = time_seq_len

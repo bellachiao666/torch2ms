@@ -66,12 +66,16 @@
              proj,
              Rearrange('b (two d) -> two b 1 d', two = 2)
 -        )
-+        ])
- 
-         nn.init.zeros_(proj.weight)
-         nn.init.zeros_(proj.bias)
- 
+-
+-        nn.init.zeros_(proj.weight)
+-        nn.init.zeros_(proj.bias)
+-
 -    def forward(self, tokens, cond):
++        ])
++
++        nn.init.zeros_(proj.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.zeros_(proj.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
 +    def construct(self, tokens, cond):
          gamma, beta = self.to_gamma_beta(cond)
  
@@ -184,6 +188,14 @@
  
          self.accept_spec = accept_spec
          self.accept_spec_time_first = accept_spec_time_first
+@@ -245,7 +252,7 @@             pad = spec_pad,
+             center = spec_center,
+             pad_mode = spec_pad_mode
+-        )
++        )  # 'torchaudio.transforms.Spectrogram' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         self.transformer = Transformer(
+             dim = dim,
 @@ -258,11 +265,11 @@ 
          self.final_norm = nn.LayerNorm(dim)
  
@@ -270,6 +282,22 @@
      def __init__(
          self,
          vit: ViT | dict,
+@@ -452,7 +460,7 @@ 
+         assert len(vit_layer_indices) == depth, f'number of vit layer indices {len(vit_layer_indices)} does not much the VAT depth {depth}'
+ 
+-        self.register_buffer('vit_layer_indices', tensor(vit_layer_indices), persistent = False)
++        self.register_buffer('vit_layer_indices', tensor(vit_layer_indices), persistent = False)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # ast
+ 
+@@ -471,7 +479,7 @@ 
+         assert len(ast_layer_indices) == depth, f'number of ast layer indices {len(ast_layer_indices)} does not much the VAAT depth {depth}'
+ 
+-        self.register_buffer('ast_layer_indices', tensor(vit_layer_indices), persistent = False)
++        self.register_buffer('ast_layer_indices', tensor(vit_layer_indices), persistent = False)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # handle maybe multiple frames
+ 
 @@ -479,36 +487,36 @@ 
          self.is_video = is_video
          self.time_seq_len = time_seq_len

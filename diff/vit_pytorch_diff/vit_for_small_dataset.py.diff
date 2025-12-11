@@ -45,7 +45,7 @@
          inner_dim = dim_head *  heads
          self.heads = heads
 -        self.temperature = nn.Parameter(torch.log(torch.tensor(dim_head ** -0.5)))
-+        self.temperature = ms.Parameter(mint.log(torch.tensor(dim_head ** -0.5)))
++        self.temperature = ms.Parameter(mint.log(torch.tensor(dim_head ** -0.5)))  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
          self.norm = nn.LayerNorm(dim)
          self.attend = nn.Softmax(dim = -1)
@@ -70,8 +70,9 @@
 +        dots = mint.matmul(q, k.transpose(-1, -2)) * self.temperature.exp()
  
 -        mask = torch.eye(dots.shape[-1], device = dots.device, dtype = torch.bool)
+-        mask_value = -torch.finfo(dots.dtype).max
 +        mask = mint.eye(dots.shape[-1], dtype = ms.bool)  # 'torch.eye':没有对应的mindspore参数 'device' (position 5);
-         mask_value = -torch.finfo(dots.dtype).max
++        mask_value = -torch.finfo(dots.dtype).max  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          dots = dots.masked_fill(mask, mask_value)
  
          attn = self.attend(dots)

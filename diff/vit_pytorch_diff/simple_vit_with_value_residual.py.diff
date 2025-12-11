@@ -61,7 +61,7 @@
              nn.Sigmoid(),
              Rearrange('b n h -> b h n 1')
 -        ) if learned_value_residual_mix else (lambda _: 0.5)
-+        ]) if learned_value_residual_mix else (lambda _: 0.5)
++        ]) if learned_value_residual_mix else (lambda _: 0.5)  # 'torch.nn.Sigmoid' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
 -    def forward(self, x, value_residual = None):
 +    def construct(self, x, value_residual = None):

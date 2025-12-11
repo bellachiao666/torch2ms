@@ -12,11 +12,13 @@
  
  from einops import rearrange, repeat
  
-@@ -75,25 +80,25 @@ def sinusoidal_embedding(n_channels, dim):
+@@ -74,26 +79,26 @@ 
+ def sinusoidal_embedding(n_channels, dim):
      pe = torch.FloatTensor([[p / (10000 ** (2 * (i // 2) / dim)) for i in range(dim)]
-                             for p in range(n_channels)])
+-                            for p in range(n_channels)])
 -    pe[:, 0::2] = torch.sin(pe[:, 0::2])
 -    pe[:, 1::2] = torch.cos(pe[:, 1::2])
++                            for p in range(n_channels)])  # 'torch.FloatTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    pe[:, 0::2] = mint.sin(pe[:, 0::2])
 +    pe[:, 1::2] = mint.cos(pe[:, 1::2])
      return rearrange(pe, '... -> 1 ...')
@@ -97,7 +99,7 @@
      def __init__(self,
                   kernel_size, stride, padding,
                   pooling_kernel_size=3, pooling_stride=2, pooling_padding=1,
-@@ -178,26 +183,26 @@ 
+@@ -178,35 +183,35 @@ 
          n_filter_list_pairs = zip(n_filter_list[:-1], n_filter_list[1:])
  
 -        self.conv_layers = nn.Sequential(
@@ -123,7 +125,7 @@
                  for chan_in, chan_out in n_filter_list_pairs
 -            ])
 +            ]
-+        ])
++        ])  # 'torch.nn.MaxPool2d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
          self.apply(self.init_weight)
  
@@ -137,10 +139,15 @@
          return rearrange(self.conv_layers(x), 'b c h w -> b (h w) c')
  
      @staticmethod
-@@ -206,7 +211,7 @@             nn.init.kaiming_normal_(m.weight)
- 
- 
+     def init_weight(m):
+         if isinstance(m, nn.Conv2d):
+-            nn.init.kaiming_normal_(m.weight)
+-
+-
 -class TransformerClassifier(nn.Module):
++            nn.init.kaiming_normal_(m.weight)  # 'torch.nn.init.kaiming_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++
 +class TransformerClassifier(msnn.Cell):
      def __init__(self,
                   seq_pool=True,
@@ -159,7 +166,8 @@
 -            self.positional_emb = nn.Parameter(torch.zeros(1, sequence_length, embedding_dim),
 +            self.positional_emb = ms.Parameter(mint.zeros(size = (1, sequence_length, embedding_dim)),
                                                 requires_grad=True)
-             nn.init.trunc_normal_(self.positional_emb, std=0.2)
+-            nn.init.trunc_normal_(self.positional_emb, std=0.2)
++            nn.init.trunc_normal_(self.positional_emb, std=0.2)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          else:
 -            self.positional_emb = nn.Parameter(sinusoidal_embedding(sequence_length, embedding_dim),
 +            self.positional_emb = ms.Parameter(sinusoidal_embedding(sequence_length, embedding_dim),
@@ -204,7 +212,20 @@
          else:
              x = x[:, 0]
  
-@@ -303,7 +308,7 @@ 
+@@ -294,16 +299,16 @@     @staticmethod
+     def init_weight(m):
+         if isinstance(m, nn.Linear):
+-            nn.init.trunc_normal_(m.weight, std=.02)
++            nn.init.trunc_normal_(m.weight, std=.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if isinstance(m, nn.Linear) and exists(m.bias):
+-                nn.init.constant_(m.bias, 0)
++                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         elif isinstance(m, nn.LayerNorm):
+-            nn.init.constant_(m.bias, 0)
+-            nn.init.constant_(m.weight, 1.0)
++            nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
  # CCT Main model
  
 -class CCT(nn.Module):

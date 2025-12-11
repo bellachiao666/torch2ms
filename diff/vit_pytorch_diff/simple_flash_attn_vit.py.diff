@@ -46,7 +46,20 @@
      def __init__(self, use_flash = False):
          super().__init__()
          self.use_flash = use_flash
-@@ -63,7 +68,7 @@ 
+@@ -46,7 +51,7 @@         if not torch.cuda.is_available() or not use_flash:
+             return
+ 
+-        device_properties = torch.cuda.get_device_properties(torch.device('cuda'))
++        device_properties = torch.cuda.get_device_properties(torch.device('cuda'))  # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.cuda.get_device_properties' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         if device_properties.major == 8 and device_properties.minor == 0:
+             self.cuda_config = Config(True, False, False)
+@@ -59,11 +64,11 @@         # flash attention - https://arxiv.org/abs/2205.14135
+         
+         with torch.backends.cuda.sdp_kernel(**config._asdict()):
+-            out = F.scaled_dot_product_attention(q, k, v)
++            out = F.scaled_dot_product_attention(q, k, v)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
          return out
  
 -    def forward(self, q, k, v):

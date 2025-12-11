@@ -27,10 +27,14 @@
      def __init__(
          self,
          sample_frac = 1.,
-@@ -36,7 +39,7 @@         self.soft_validate_num_sampled = soft_validate_num_sampled
-         self.register_buffer('zero', tensor(0.), persistent = False)
+@@ -34,9 +37,9 @@         self.sample_frac = sample_frac
  
+         self.soft_validate_num_sampled = soft_validate_num_sampled
+-        self.register_buffer('zero', tensor(0.), persistent = False)
+-
 -    def forward(
++        self.register_buffer('zero', tensor(0.), persistent = False)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
 +    def construct(
          self,
          tokens
@@ -178,10 +182,14 @@
  
          self.mlp_head = nn.Linear(dim, num_classes)
  
-@@ -190,7 +196,7 @@ 
-         self.register_buffer('zero', torch.tensor(0.), persistent = False)
+@@ -188,9 +194,9 @@         if self.has_decorr_loss:
+             self.decorr_loss = DecorrelationLoss(decorr_sample_frac)
  
+-        self.register_buffer('zero', torch.tensor(0.), persistent = False)
+-
 -    def forward(
++        self.register_buffer('zero', torch.tensor(0.), persistent = False)  # 'torch.tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
 +    def construct(
          self,
          img,

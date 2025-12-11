@@ -99,9 +99,11 @@
              nn.Softmax(dim = -1),
              nn.Dropout(dropout)
 -        )
+-
+-        self.to_qkv = nn.Conv1d(dim, inner_dim * 3, 1, bias = False)
 +        ])
- 
-         self.to_qkv = nn.Conv1d(dim, inner_dim * 3, 1, bias = False)
++
++        self.to_qkv = nn.Conv1d(dim, inner_dim * 3, 1, bias = False)  # 'torch.nn.Conv1d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
          # window tokens
  
@@ -121,7 +123,7 @@
 -            Rearrange('b (h c) n -> b h n c', h = heads),
 -        )
 +            Rearrange('b (h c) n -> b h n c', h = heads)
-+        ])
++        ])  # 'torch.nn.Conv1d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
          # window attention
  

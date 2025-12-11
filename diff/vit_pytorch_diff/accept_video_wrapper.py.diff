@@ -45,7 +45,24 @@
          self,
          video, # (b c t h w)
          eval_with_no_grad = False,
-@@ -132,7 +137,7 @@ # main
+@@ -88,9 +93,9 @@ 
+         # handle multiple outputs, say logits and embeddings returned from extractor - also handle some reduce aux loss being returned
+ 
+-        outputs, tree_spec = tree_flatten(outputs)
++        outputs, tree_spec = tree_flatten(outputs)  # 'torch.utils._pytree.tree_flatten' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+-        outputs = tuple(rearrange(t, '(b t) ... -> b t ...', t = time) if is_tensor(t) and t.numel() > 1 else t for t in outputs)
++        outputs = tuple(rearrange(t, '(b t) ... -> b t ...', t = time) if is_tensor(t) and t.numel() > 1 else t for t in outputs)  # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # maybe project embedding
+ 
+@@ -127,12 +132,12 @@ 
+             outputs[self.output_pos_add_pos_emb] = embed
+ 
+-        return tree_unflatten(outputs, tree_spec)
++        return tree_unflatten(outputs, tree_spec)  # 'torch.utils._pytree.tree_unflatten' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ # main
  
  if __name__ == '__main__':
 -    from vit_pytorch import ViT

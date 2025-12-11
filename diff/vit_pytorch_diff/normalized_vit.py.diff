@@ -42,7 +42,14 @@
      def __init__(
          self,
          dim,
-@@ -54,12 +58,12 @@     def weight(self):
+@@ -48,18 +52,18 @@             self.linear,
+             'weight',
+             L2Norm(dim = -1 if norm_dim_in else 0)
+-        )
++        )  # 'torch.nn.utils.parametrize.register_parametrization' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     @property
+     def weight(self):
          return self.linear.weight
  
 -    def forward(self, x):
@@ -74,7 +81,13 @@
          self,
          x
      ):
-@@ -110,7 +114,7 @@         out = self.merge_heads(out)
+@@ -105,12 +109,12 @@             q, k, v,
+             dropout_p = self.dropout if self.training else 0.,
+             scale = 1.
+-        )
++        )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         out = self.merge_heads(out)
          return self.to_out(out)
  
 -class FeedForward(Module):
@@ -130,8 +143,9 @@
          self.scale = dim ** 0.5
  
 -        self.layers = ModuleList([])
+-        self.residual_lerp_scales = nn.ParameterList([])
 +        self.layers = msnn.CellList([])
-         self.residual_lerp_scales = nn.ParameterList([])
++        self.residual_lerp_scales = nn.ParameterList([])  # 'torch.nn.ParameterList' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
          for _ in range(depth):
 -            self.layers.append(ModuleList([
@@ -143,11 +157,13 @@
              self.residual_lerp_scales.append(nn.ParameterList([
 -                nn.Parameter(torch.ones(dim) * residual_lerp_scale_init / self.scale),
 -                nn.Parameter(torch.ones(dim) * residual_lerp_scale_init / self.scale),
-+                ms.Parameter(mint.ones(dim) * residual_lerp_scale_init / self.scale),
-+                ms.Parameter(mint.ones(dim) * residual_lerp_scale_init / self.scale),
-             ]))
- 
+-            ]))
+-
 -        self.logit_scale = nn.Parameter(torch.ones(num_classes))
++                ms.Parameter(mint.ones(dim) * residual_lerp_scale_init / self.scale),
++                ms.Parameter(mint.ones(dim) * residual_lerp_scale_init / self.scale),
++            ]))  # 'torch.nn.ParameterList' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
 +        self.logit_scale = ms.Parameter(mint.ones(num_classes))
  
          self.to_pred = NormLinear(dim, num_classes)

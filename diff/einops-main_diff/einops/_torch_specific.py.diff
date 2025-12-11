@@ -1,0 +1,65 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ Specialization of einops for torch.
+ 
+@@ -13,7 +18,7 @@ import warnings
+ from typing import Dict, List, Tuple
+ 
+-import torch
++# import torch
+ 
+ from einops.einops import TransformRecipe, _reconstruct_from_shape_uncached
+ 
+@@ -47,7 +52,7 @@ 
+     @staticmethod
+     def stack_on_zeroth_dimension(tensors: List[torch.Tensor]):
+-        return torch.stack(tensors)
++        return mint.stack(tensors)
+ 
+     @staticmethod
+     def tile(x, repeats: List[int]):
+@@ -57,13 +62,13 @@     def add_axes(x, n_axes: int, pos2len: Dict[int, int]):
+         repeats = [-1] * n_axes
+         for axis_position, axis_length in pos2len.items():
+-            x = torch.unsqueeze(x, axis_position)
++            x = mint.unsqueeze(x, axis_position)
+             repeats[axis_position] = axis_length
+         return x.expand(repeats)
+ 
+     @staticmethod
+     def is_float_type(x):
+-        return x.dtype in [torch.float16, torch.float32, torch.float64, torch.bfloat16]
++        return x.dtype in [ms.float16, ms.float32, ms.float64, ms.bfloat16]
+ 
+     @staticmethod
+     def shape(x):
+@@ -105,7 +110,7 @@         # torch._dynamo and torch.compile appear in pytorch 2.0
+         return
+     try:
+-        from torch._dynamo import allow_in_graph
++        # from torch._dynamo import allow_in_graph
+     except ImportError:
+         warnings.warn(
+             "allow_ops_in_compiled_graph failed to import torch: ensure pytorch >=2.0", ImportWarning, stacklevel=1
+@@ -115,12 +120,12 @@     from .einops import einsum, rearrange, reduce, repeat
+     from .packing import pack, unpack
+ 
+-    allow_in_graph(rearrange)
+-    allow_in_graph(reduce)
+-    allow_in_graph(repeat)
+-    allow_in_graph(einsum)
+-    allow_in_graph(pack)
+-    allow_in_graph(unpack)
++    allow_in_graph(rearrange)  # 'torch._dynamo.allow_in_graph' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    allow_in_graph(reduce)  # 'torch._dynamo.allow_in_graph' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    allow_in_graph(repeat)  # 'torch._dynamo.allow_in_graph' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    allow_in_graph(einsum)  # 'torch._dynamo.allow_in_graph' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    allow_in_graph(pack)  # 'torch._dynamo.allow_in_graph' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    allow_in_graph(unpack)  # 'torch._dynamo.allow_in_graph' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # CF: https://github.com/pytorch/pytorch/blob/2df939aacac68e9621fbd5d876c78d86e72b41e2/torch/_dynamo/__init__.py#L222
+     global _ops_were_registered_in_torchdynamo

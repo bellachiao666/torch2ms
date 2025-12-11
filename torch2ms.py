@@ -473,6 +473,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         self.pt_assignment_wrapped = pt_assignment_wrapped or {}
         self.use_mint = use_mint
         self.notes_by_stmt = defaultdict(list)
+        self.notes_by_func = defaultdict(list)
         self.cell_class_stack = []
         self.api_by_class = {
             conf["pytorch"].split(".")[-1]: conf for conf in api_map.values()
@@ -480,23 +481,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         self.api_by_pt_full = {
             conf["pytorch"]: conf for conf in api_map.values()
         }
-        self.torch_dtype_names = {
-            "float32",
-            "float64",
-            "float16",
-            "bfloat16",
-            "float",
-            "double",
-            "half",
-            "int8",
-            "int16",
-            "int32",
-            "int64",
-            "uint8",
-            "bool",
-            "complex64",
-            "complex128",
-        }
+
         self.torch_dtype_names = {
             "float32",
             "float64",
@@ -554,6 +539,23 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         stmt = self._find_enclosing_stmt(node)
         if stmt is not None:
             self.notes_by_stmt[stmt].extend(notes)
+
+    def _find_enclosing_func(self, node: cst.CSTNode) -> Optional[cst.FunctionDef]:
+        """
+        向上寻找最近的函数定义节点，便于在函数签名附近添加注释。
+        """
+        parent = self.get_metadata(metadata.ParentNodeProvider, node, None)
+        while parent is not None and not isinstance(parent, cst.FunctionDef):
+            parent = self.get_metadata(metadata.ParentNodeProvider, parent, None)
+        return parent
+
+    def _record_func_note(self, node: cst.CSTNode, note: str) -> None:
+        """
+        将提示绑定到最近的函数定义，便于批量添加到函数上方。
+        """
+        func = self._find_enclosing_func(node)
+        if func:
+            self.notes_by_func[func].append(note)
 
     def _is_ms_cell_base(self, base_name: Optional[str]) -> bool:
         """
@@ -614,19 +616,17 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         self.cell_class_stack.append(is_cell)
         return True
 
-    def leave_ClassDef(
-        self,
-        original_node: cst.ClassDef,
-        updated_node: cst.ClassDef,
-    ) -> cst.ClassDef:
-        if self.cell_class_stack:
-            self.cell_class_stack.pop()
-        return updated_node
-
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         if self.cell_class_stack and self.cell_class_stack[-1]:
             if updated_node.name.value == "forward":
-                return updated_node.with_changes(name=cst.Name("construct"))
+                updated_node = updated_node.with_changes(name=cst.Name("construct"))
+
+        notes = self.notes_by_func.pop(original_node, [])
+        if notes:
+            leading = list(updated_node.leading_lines)
+            for note in dict.fromkeys(notes):
+                leading.append(cst.EmptyLine(comment=cst.Comment(f"# {note}")))
+            updated_node = updated_node.with_changes(leading_lines=leading)
         return updated_node
 
     def _resolve_ms_full_name(self, full_path: str) -> str:
@@ -857,6 +857,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         full_name = cst_helpers.get_full_name_for_node(updated_node.func)
         pt_full_name = self._resolve_pt_full_name(full_name)
         api_conf = None
+        missing_recorded = False
 
         if pt_full_name:
             api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(pt_full_name.split(".")[-1])
@@ -882,18 +883,17 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                 if notes:
                     self._record_note(original_node, notes)
                 return new_call
+            self._record_note(
+                original_node,
+                [f"'{wrapper_pt_full}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
+            )
+            missing_recorded = True
 
-        return updated_node
-
-    def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.BaseExpression:
-        full_name = cst_helpers.get_full_name_for_node(updated_node)
-        if not full_name:
-            return updated_node
-        pt_full_name = self._resolve_pt_full_name(full_name)
-        if pt_full_name and pt_full_name.startswith("torch."):
-            suffix = pt_full_name[len("torch.") :]
-            if suffix in self.torch_dtype_names:
-                return cst.parse_expression(f"ms.{suffix}")
+        if pt_full_name and not missing_recorded:
+            self._record_note(
+                original_node,
+                [f"'{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
+            )
         return updated_node
 
     def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.BaseExpression:
@@ -906,6 +906,29 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         suffix = pt_full_name[len("torch.") :]
         if suffix in self.torch_dtype_names:
             return cst.parse_expression(f"ms.{suffix}")
+        return updated_node
+
+    def leave_Annotation(self, original_node: cst.Annotation, updated_node: cst.Annotation) -> cst.Annotation:
+        """
+        处理类型标注中的 torch.*，优先按映射表替换；缺失时记录提示。
+        """
+        full_name = cst_helpers.get_full_name_for_node(updated_node.annotation)
+        pt_full_name = self._resolve_pt_full_name(full_name)
+        if not pt_full_name:
+            return updated_node
+
+        api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(
+            pt_full_name.split(".")[-1]
+        )
+        if api_conf:
+            ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+            new_expr = cst.parse_expression(ms_full_name)
+            return updated_node.with_changes(annotation=new_expr)
+
+        self._record_func_note(
+            original_node,
+            f"类型标注 '{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;",
+        )
         return updated_node
 
     def leave_ClassDef(
@@ -927,11 +950,15 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         输出:
             若能根据别名还原出 torch 全路径，并在映射表中找到对应 MindSpore 基类，则替换之。
         """
+        if self.cell_class_stack:
+            self.cell_class_stack.pop()
+
         if not updated_node.bases:
             return updated_node
 
         new_bases = []
         changed = False
+        missing_notes = []
         for base in updated_node.bases:
             full_name = cst_helpers.get_full_name_for_node(base.value)
             pt_full_name = self._resolve_pt_full_name(full_name)
@@ -948,12 +975,20 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                     # 兜底逻辑: 未在映射表中配置时，默认映射到 mindspore.nn.Cell
                     ms_full_name = self._resolve_ms_full_name("mindspore.nn.Cell")
                     ms_expr = cst.parse_expression(ms_full_name)
+                else:
+                    missing_notes.append(f"'{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;")
 
             if ms_expr is not None:
                 new_bases.append(base.with_changes(value=ms_expr))
                 changed = True
             else:
                 new_bases.append(base)
+
+        if missing_notes:
+            leading = list(updated_node.leading_lines)
+            for note in dict.fromkeys(missing_notes):
+                leading.append(cst.EmptyLine(comment=cst.Comment(f"# {note}")))
+            updated_node = updated_node.with_changes(leading_lines=leading)
 
         if changed:
             return updated_node.with_changes(bases=new_bases)
@@ -1234,19 +1269,19 @@ def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff
         #   input_root = "input"      -> output/input_ms/...
         #   input_root = "vit_pytorch" -> output/vit_pytorch_ms/...
         root_name = os.path.basename(os.path.normpath(abs_input))
-        output_root = os.path.join("output", f"{root_name}_ms")
+        output_root = os.path.join("output", f"{root_name}")
 
         if common == abs_input:
             rel_base = os.path.relpath(base, abs_input)
             out_base = os.path.join(output_root, rel_base)
         else:
-            # 不在 input_root 子树下时退化为: output/<root_name_ms>/<basename>
+            # 不在 input_root 子树下时退化为: output/<root_name>/<basename>
             out_base = os.path.join(output_root, os.path.basename(base))
     else:
         # 单文件模式: 仍然是 output/xxx_ms.py
         out_base = os.path.join("output", os.path.basename(base))
 
-    new_filename = f"{out_base}_ms{ext}"
+    new_filename = f"{out_base}{ext}"
     out_dir = os.path.dirname(new_filename)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
