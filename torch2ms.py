@@ -1,10 +1,16 @@
+"""
+torch2ms 主脚本。
+
+读取预置的 PyTorch→MindSpore API 对照表，借助 LibCST 对源码做抽象语法树级改写，
+同时生成必要的提示注释、补全 MindSpore 统一导入前缀，并输出转换后的代码与 diff。
+"""
+
 import difflib
 import json
 import os
 import sys
 from collections import OrderedDict, defaultdict
 from typing import Optional
-
 import libcst as cst
 from libcst import helpers as cst_helpers
 from libcst import metadata
@@ -543,6 +549,8 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
     def _find_enclosing_func(self, node: cst.CSTNode) -> Optional[cst.FunctionDef]:
         """
         向上寻找最近的函数定义节点，便于在函数签名附近添加注释。
+
+        用于收集需要展示在函数声明周围的提示信息，避免行尾注释分散难以查阅。
         """
         parent = self.get_metadata(metadata.ParentNodeProvider, node, None)
         while parent is not None and not isinstance(parent, cst.FunctionDef):
@@ -552,6 +560,8 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
     def _record_func_note(self, node: cst.CSTNode, note: str) -> None:
         """
         将提示绑定到最近的函数定义，便于批量添加到函数上方。
+
+        适合放置函数级别的提醒（如类型标注缺失映射），在 leave_FunctionDef 阶段统一落盘。
         """
         func = self._find_enclosing_func(node)
         if func:
@@ -583,7 +593,11 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
     def _wrap_sequential_args(self, args):
         """
-        将 SequentialCell 的可变参数包装成列表。
+        将 SequentialCell 的可变参数包装成列表，使调用符合 MindSpore 约定。
+
+        - 仅在纯位置参数且未显式提供 list/keyword 时包装；
+        - 已是关键字或单列表入参则直接返回；
+        - 以多行 list 形式输出以提升可读性。
         """
         if not args:
             return args
@@ -601,6 +615,13 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         return [cst.Arg(keyword=None, value=list_expr)]
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:
+        """
+        遍历类定义时记录“是否为 Cell”这一上下文。
+
+        - 若基类来自 torch.nn.Module 及其别名，则标记为需要后续重命名 forward。
+        - 若基类已是 MindSpore Cell，也视为需要保持 construct 语义。
+        结果会压栈到 `cell_class_stack`，在 leave_FunctionDef 中使用。
+        """
         base_names = [
             cst_helpers.get_full_name_for_node(base.value) for base in node.bases
         ]
@@ -617,6 +638,12 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         return True
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+        """
+        处理函数定义收尾阶段：
+
+        1) 若处于 Cell 类中，自动将 forward 重命名为 construct；
+        2) 将此前记录的提示信息插入到函数前的空行注释中，避免丢失人工确认项。
+        """
         if self.cell_class_stack and self.cell_class_stack[-1]:
             if updated_node.name.value == "forward":
                 updated_node = updated_node.with_changes(name=cst.Name("construct"))
@@ -897,6 +924,11 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         return updated_node
 
     def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.BaseExpression:
+        """
+        拦截属性访问，统一将 `torch.float32` 等 dtype 名替换为 `ms.float32`。
+
+        仅处理以 torch 开头、且后缀在 `torch_dtype_names` 列表内的情况，其他属性保持不变。
+        """
         full_name = cst_helpers.get_full_name_for_node(updated_node)
         if not full_name:
             return updated_node
@@ -1037,17 +1069,31 @@ class _NameUsageCollector(cst.CSTVisitor):
     """
 
     def __init__(self) -> None:
+        """
+        初始化名称收集器，准备一个空集合来记录实际被引用的标识符。
+        """
         self.used_names = set()
 
     def visit_Import(self, node: cst.Import) -> None:
+        """
+        避免进入 import 语句内部，直接返回 False 让遍历跳过子节点。
+
+        这样可以防止把“别名定义本身”视作使用行为，只统计后续真实引用。
+        """
         # 不进入 import 语句内部，避免把别名本身也统计为“使用”
         return False
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
+        """
+        与 `visit_Import` 相同，跳过 from ... import ... 的内部遍历。
+        """
         # 同上，跳过 from ... import ... 的内部
         return False
 
     def visit_Name(self, node: cst.Name) -> None:
+        """
+        收集实际出现的标识符名称，供后续导入清理判断是否仍被使用。
+        """
         self.used_names.add(node.value)
 
 
@@ -1059,10 +1105,16 @@ class TorchImportCleaner(cst.CSTTransformer):
     """
 
     def __init__(self, used_names) -> None:
+        """
+        保存一次遍历后得到的“已使用名称”集合，供 import 清理阶段参考。
+        """
         super().__init__()
         self.used_names = set(used_names)
 
     def leave_Import(self, original_node: cst.Import, updated_node: cst.Import) -> cst.BaseStatement:
+        """
+        清理普通 import 中未被使用的 torch 别名；若整条语句均无用则删除。
+        """
         new_aliases = []
         for alias in updated_node.names:
             module = cst_helpers.get_full_name_for_node(alias.name)
@@ -1088,6 +1140,9 @@ class TorchImportCleaner(cst.CSTTransformer):
         original_node: cst.ImportFrom,
         updated_node: cst.ImportFrom,
     ) -> cst.BaseStatement:
+        """
+        清理 from ... import ... 语句下未使用的 torch 别名，星号导入保守保留。
+        """
         if updated_node.module is None:
             return updated_node
 
@@ -1119,6 +1174,9 @@ class TorchImportCleaner(cst.CSTTransformer):
 def _ensure_default_ms_imports(code: str) -> str:
     """
     确保转换后的代码包含统一的 mindspore 导入前缀。
+
+    若缺失标准导入(ms/msnn/msops/mint 及 from mint import nn, ops)，则在文件头部插入；
+    已存在则不重复写入，保证幂等。
     """
     required = [
         "import mindspore as ms\n",
@@ -1148,6 +1206,9 @@ def _ensure_default_ms_imports(code: str) -> str:
 def _comment_torch_imports(code: str) -> str:
     """
     注释掉包含 torch 的 import 行，保留缩进。
+
+    在清理无用导入后调用，对仍残留的 torch 导入做“软屏蔽”，方便人工审阅和
+    逐步迁移，同时避免破坏原有缩进与换行格式。
     """
     new_lines = []
     for line in code.splitlines(keepends=True):
@@ -1180,6 +1241,12 @@ def convert_code(code: str) -> str:
 
     输出:
         返回转换后的 MindSpore 源码字符串，包含必要的参数名替换与行尾提示。
+
+    流程概览:
+        1) 收集 torch 导入/赋值别名；
+        2) 依据映射表改写调用和类型标注，并记录提示；
+        3) 清理已失效的 torch 导入，剩余的加注释屏蔽；
+        4) 补齐标准化的 MindSpore 导入前缀。
     """
     module = cst.parse_module(code)
     api_by_class = {
@@ -1250,6 +1317,8 @@ def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff
         input_root/foo/bar.py -> output/foo/bar_ms.py
     否则:
         some.py -> output/some_ms.py
+
+    另外会在 diff/<input_root>_diff 目录按相对路径保存对应的 diff，便于批量审阅。
     """
     with open(filename, "r", encoding="utf8") as f:
         code = f.read()
