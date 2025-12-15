@@ -1314,9 +1314,9 @@ def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff
     转换单个文件并写入 output 目录，同时生成 diff。
 
     当传入 input_root 时，会在 output 下保留相对目录结构:
-        input_root/foo/bar.py -> output/foo/bar_ms.py
+        input_root/foo/bar.py -> output/<input_root_basename>/foo/bar.py
     否则:
-        some.py -> output/some_ms.py
+        some.py -> output/some.py
 
     另外会在 diff/<input_root>_diff 目录按相对路径保存对应的 diff，便于批量审阅。
     """
@@ -1405,4 +1405,7 @@ if __name__ == "__main__":
                 _convert_and_save(src_path, input_root=target, show_diff=False)
         print("\n批量转换完成。")
     else:
-        _convert_and_save(target, show_diff=True)
+        abs_target = os.path.abspath(target)
+        tp_root = os.path.abspath(os.path.join("input", "torch_third_party"))
+        default_root = tp_root if os.path.commonpath([abs_target, tp_root]) == tp_root else None
+        _convert_and_save(target, input_root=default_root, show_diff=True)

@@ -7,11 +7,13 @@
 - 安装依赖：`pip install libcst`
 
 ## 快速使用
-1. 准备好 `api_map.json`（已提供样例）。
-2. 运行转换：`python torch2ms.py ./input/<源文件.py>`
+1. 将待转换的 PyTorch 代码放到 `input/torch_third_party/` 下（目录结构可自行扩展、文件名保持不变）。
+2. 运行转换：
+   - 转换整个三方目录：`python torch2ms.py input/torch_third_party`
+   - 或转换单个文件：`python torch2ms.py input/torch_third_party/<模块>/<文件>.py`
 3. 生成结果：
-   - 转换后文件：`<源文件>_ms.py`
-   - 差异文件：`diff_(<源文件>-<源文件_ms>).diff`
+   - 转换后文件：落在 `output/torch_third_party/` 下，与 `input/torch_third_party/` 目录层级一一对应，文件名保持不变。
+   - 差异文件：保存到 `diff/torch_third_party_diff/`，按相对路径生成 `.diff`。
 4. 控制台会打印一次 unified diff，便于快速预览改动。
 
 ## 说明

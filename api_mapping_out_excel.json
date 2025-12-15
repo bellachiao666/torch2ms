@@ -16948,6 +16948,32 @@
                     },
                     "name_equal": false,
                     "default_equal": true
+                },
+                {
+                    "logical": "device",
+                    "pytorch": {
+                        "name": "device",
+                        "default": null
+                    },
+                    "mindspore": {
+                        "name": null,
+                        "default": null
+                    },
+                    "name_equal": false,
+                    "default_equal": false
+                },
+                {
+                    "logical": "dtype",
+                    "pytorch": {
+                        "name": "dtype",
+                        "default": null
+                    },
+                    "mindspore": {
+                        "name": "dtype",
+                        "default": null
+                    },
+                    "name_equal": true,
+                    "default_equal": true
                 }
             ]
         },
@@ -19240,6 +19266,237 @@
                     },
                     "name_equal": true,
                     "default_equal": true
+                }
+            ]
+        },
+        "Conv1d": {
+            "pytorch": "torch.nn.Conv1d",
+            "mindspore": "mindspore.mint.nn.Conv1d",
+            "params": [
+                {
+                    "logical": "in_channels",
+                    "pytorch": { "name": "in_channels", "default": null },
+                    "mindspore": { "name": "in_channels", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "out_channels",
+                    "pytorch": { "name": "out_channels", "default": null },
+                    "mindspore": { "name": "out_channels", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "kernel_size",
+                    "pytorch": { "name": "kernel_size", "default": null },
+                    "mindspore": { "name": "kernel_size", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "stride",
+                    "pytorch": { "name": "stride", "default": 1 },
+                    "mindspore": { "name": "stride", "default": 1 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "padding",
+                    "pytorch": { "name": "padding", "default": 0 },
+                    "mindspore": { "name": "padding", "default": 0 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "dilation",
+                    "pytorch": { "name": "dilation", "default": 1 },
+                    "mindspore": { "name": "dilation", "default": 1 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "groups",
+                    "pytorch": { "name": "groups", "default": 1 },
+                    "mindspore": { "name": "groups", "default": 1 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "bias",
+                    "pytorch": { "name": "bias", "default": true },
+                    "mindspore": { "name": "bias", "default": true },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "padding_mode",
+                    "pytorch": { "name": "padding_mode", "default": "zeros" },
+                    "mindspore": { "name": "padding_mode", "default": "zeros" },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "device",
+                    "pytorch": { "name": "device", "default": null },
+                    "mindspore": { "name": null, "default": null },
+                    "name_equal": false,
+                    "default_equal": false
+                },
+                {
+                    "logical": "dtype",
+                    "pytorch": { "name": "dtype", "default": null },
+                    "mindspore": { "name": "dtype", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                }
+            ]
+        },
+        "MaxPool2d": {
+            "pytorch": "torch.nn.MaxPool2d",
+            "mindspore": "mindspore.mint.nn.MaxPool2d",
+            "params": [
+                {
+                    "logical": "kernel_size",
+                    "pytorch": { "name": "kernel_size", "default": null },
+                    "mindspore": { "name": "kernel_size", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "stride",
+                    "pytorch": { "name": "stride", "default": null },
+                    "mindspore": { "name": "stride", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "padding",
+                    "pytorch": { "name": "padding", "default": 0 },
+                    "mindspore": { "name": "padding", "default": 0 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "dilation",
+                    "pytorch": { "name": "dilation", "default": 1 },
+                    "mindspore": { "name": "dilation", "default": 1 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "return_indices",
+                    "pytorch": { "name": "return_indices", "default": false },
+                    "mindspore": { "name": null, "default": null },
+                    "name_equal": false,
+                    "default_equal": false
+                },
+                {
+                    "logical": "ceil_mode",
+                    "pytorch": { "name": "ceil_mode", "default": false },
+                    "mindspore": { "name": "ceil_mode", "default": false },
+                    "name_equal": true,
+                    "default_equal": true
+                }
+            ]
+        },
+        "MaxPool3d": {
+            "pytorch": "torch.nn.MaxPool3d",
+            "mindspore": "mindspore.mint.nn.MaxPool3d",
+            "params": [
+                {
+                    "logical": "kernel_size",
+                    "pytorch": { "name": "kernel_size", "default": null },
+                    "mindspore": { "name": "kernel_size", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "stride",
+                    "pytorch": { "name": "stride", "default": null },
+                    "mindspore": { "name": "stride", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "padding",
+                    "pytorch": { "name": "padding", "default": 0 },
+                    "mindspore": { "name": "padding", "default": 0 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "dilation",
+                    "pytorch": { "name": "dilation", "default": 1 },
+                    "mindspore": { "name": "dilation", "default": 1 },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "return_indices",
+                    "pytorch": { "name": "return_indices", "default": false },
+                    "mindspore": { "name": null, "default": null },
+                    "name_equal": false,
+                    "default_equal": false
+                },
+                {
+                    "logical": "ceil_mode",
+                    "pytorch": { "name": "ceil_mode", "default": false },
+                    "mindspore": { "name": "ceil_mode", "default": false },
+                    "name_equal": true,
+                    "default_equal": true
+                }
+            ]
+        },
+        "ParameterList": {
+            "pytorch": "torch.nn.ParameterList",
+            "mindspore": "mindspore.nn.ParameterTuple",
+            "params": [
+                {
+                    "logical": "parameters",
+                    "pytorch": { "name": "parameters", "default": null },
+                    "mindspore": { "name": "params", "default": null },
+                    "name_equal": false,
+                    "default_equal": true
+                }
+            ]
+        },
+        "Sigmoid": {
+            "pytorch": "torch.nn.Sigmoid",
+            "mindspore": "mindspore.mint.nn.Sigmoid",
+            "params": []
+        },
+        "tensor": {
+            "pytorch": "torch.tensor",
+            "mindspore": "mindspore.Tensor",
+            "params": [
+                {
+                    "logical": "data",
+                    "pytorch": { "name": "data", "default": null },
+                    "mindspore": { "name": "input_data", "default": null },
+                    "name_equal": false,
+                    "default_equal": true
+                },
+                {
+                    "logical": "dtype",
+                    "pytorch": { "name": "dtype", "default": null },
+                    "mindspore": { "name": "dtype", "default": null },
+                    "name_equal": true,
+                    "default_equal": true
+                },
+                {
+                    "logical": "device",
+                    "pytorch": { "name": "device", "default": null },
+                    "mindspore": { "name": null, "default": null },
+                    "name_equal": false,
+                    "default_equal": false
+                },
+                {
+                    "logical": "requires_grad",
+                    "pytorch": { "name": "requires_grad", "default": null },
+                    "mindspore": { "name": null, "default": null },
+                    "name_equal": false,
+                    "default_equal": false
                 }
             ]
         }
