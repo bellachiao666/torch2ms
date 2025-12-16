@@ -646,6 +646,17 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         1) 若处于 Cell 类中，自动将 forward 重命名为 construct；
         2) 将此前记录的提示信息插入到函数前的空行注释中，避免丢失人工确认项。
         """
+        deco_notes: List[str] = []
+        new_decorators = []
+        for dec in updated_node.decorators:
+            converted = self._convert_decorator(dec, deco_notes)
+            if converted is not None:
+                new_decorators.append(converted)
+        if len(new_decorators) != len(updated_node.decorators):
+            updated_node = updated_node.with_changes(decorators=tuple(new_decorators))
+        for note in dict.fromkeys(deco_notes):
+            self._record_func_note(original_node, note)
+
         if self.cell_class_stack and self.cell_class_stack[-1]:
             if updated_node.name.value == "forward":
                 updated_node = updated_node.with_changes(name=cst.Name("construct"))
@@ -993,6 +1004,35 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             return expr.with_changes(value=self._convert_annotation_expr(expr.value, missing_notes))
 
         return expr
+
+    def _convert_decorator(self, dec: cst.Decorator, notes: List[str]) -> Optional[cst.Decorator]:
+        """
+        统一转换装饰器表达式，支持属性和调用形式；未映射时记录提示。
+        """
+        expr = dec.decorator
+        target = expr.func if isinstance(expr, cst.Call) else expr
+        full_name = cst_helpers.get_full_name_for_node(target)
+        pt_full_name = self._resolve_pt_full_name(full_name)
+        if not pt_full_name:
+            return dec
+
+        # torch.no_grad 无 MindSpore 直接等价，保留提示并移除
+        if pt_full_name == "torch.no_grad":
+            notes.append("torch.no_grad 装饰器需手动替换为 MindSpore 等价实现;")
+            return None
+
+        api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(pt_full_name.split(".")[-1])
+        if api_conf:
+            ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+            if isinstance(expr, cst.Call):
+                new_args, arg_notes = self._reconstruct_args(expr, api_conf)
+                notes.extend(arg_notes)
+                new_call = expr.with_changes(func=cst.parse_expression(ms_full_name), args=new_args)
+                return dec.with_changes(decorator=new_call)
+            return dec.with_changes(decorator=cst.parse_expression(ms_full_name))
+
+        notes.append(f"装饰器 '{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;")
+        return dec
 
     def leave_Annotation(self, original_node: cst.Annotation, updated_node: cst.Annotation) -> cst.Annotation:
         """
