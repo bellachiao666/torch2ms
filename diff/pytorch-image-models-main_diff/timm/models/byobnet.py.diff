@@ -1,0 +1,485 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Bring-Your-Own-Blocks Network
+ 
+ A flexible network w/ dataclass based config for stacking those NN blocks.
+@@ -33,8 +38,8 @@ from functools import partial
+ from typing import Tuple, List, Dict, Optional, Union, Any, Callable, Sequence, Type
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
+ from timm.layers import (
+@@ -253,7 +258,7 @@     self_attn: Optional[Type[nn.Module]] = None
+ 
+ 
+-class DownsampleAvg(nn.Module):
++class DownsampleAvg(msnn.Cell):
+     """Average pool downsampling module.
+ 
+     AvgPool Downsampling as in 'D' ResNet variants.
+@@ -288,10 +293,10 @@             avg_pool_fn = AvgPool2dSame if avg_stride == 1 and dilation > 1 else nn.AvgPool2d
+             self.pool = avg_pool_fn(2, avg_stride, ceil_mode=True, count_include_pad=False)
+         else:
+-            self.pool = nn.Identity()
++            self.pool = msnn.Identity()
+         self.conv = layers.conv_norm_act(in_chs, out_chs, 1, apply_act=apply_act, **dd)
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass.
+ 
+         Args:
+@@ -335,10 +340,10 @@         else:
+             return layers.conv_norm_act(in_chs, out_chs, kernel_size=1, stride=stride, dilation=dilation[0], **kwargs)
+     else:
+-        return nn.Identity()  # identity shortcut
+-
+-
+-class BasicBlock(nn.Module):
++        return msnn.Identity()  # identity shortcut
++
++
++class BasicBlock(msnn.Cell):
+     """ ResNet Basic Block - kxk + kxk
+     """
+ 
+@@ -378,7 +383,7 @@         )
+ 
+         self.conv1_kxk = layers.conv_norm_act(in_chs, mid_chs, kernel_size, stride=stride, dilation=dilation[0], **dd)
+-        self.attn = nn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs)
++        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs)
+         self.conv2_kxk = layers.conv_norm_act(
+             mid_chs,
+             out_chs,
+@@ -389,18 +394,18 @@             apply_act=False,
+             **dd,
+         )
+-        self.attn_last = nn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+-        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else nn.Identity()
+-        self.act = nn.Identity() if linear_out else layers.act(inplace=True)
++        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
++        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
++        self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
+ 
+     def init_weights(self, zero_init_last: bool = False):
+         if zero_init_last and self.shortcut is not None and getattr(self.conv2_kxk.bn, 'weight', None) is not None:
+-            nn.init.zeros_(self.conv2_kxk.bn.weight)
++            nn.init.zeros_(self.conv2_kxk.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         for attn in (self.attn, self.attn_last):
+             if hasattr(attn, 'reset_parameters'):
+                 attn.reset_parameters()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1_kxk(x)
+         x = self.attn(x)
+@@ -412,7 +417,7 @@         return self.act(x)
+ 
+ 
+-class BottleneckBlock(nn.Module):
++class BottleneckBlock(msnn.Cell):
+     """ ResNet-like Bottleneck Block - 1x1 - kxk - 1x1
+     """
+ 
+@@ -474,21 +479,21 @@                 **dd,
+             )
+         else:
+-            self.conv2b_kxk = nn.Identity()
+-        self.attn = nn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
++            self.conv2b_kxk = msnn.Identity()
++        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
+         self.conv3_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)
+-        self.attn_last = nn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+-        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else nn.Identity()
+-        self.act = nn.Identity() if linear_out else layers.act(inplace=True)
++        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
++        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
++        self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
+ 
+     def init_weights(self, zero_init_last: bool = False):
+         if zero_init_last and self.shortcut is not None and getattr(self.conv3_1x1.bn, 'weight', None) is not None:
+-            nn.init.zeros_(self.conv3_1x1.bn.weight)
++            nn.init.zeros_(self.conv3_1x1.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         for attn in (self.attn, self.attn_last):
+             if hasattr(attn, 'reset_parameters'):
+                 attn.reset_parameters()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1_1x1(x)
+         x = self.conv2_kxk(x)
+@@ -502,7 +507,7 @@         return self.act(x)
+ 
+ 
+-class DarkBlock(nn.Module):
++class DarkBlock(msnn.Cell):
+     """ DarkNet-like (1x1 + 3x3 w/ stride) block
+ 
+     The GE-Net impl included a 1x1 + 3x3 block in their search space. It was not used in the feature models.
+@@ -549,7 +554,7 @@         )
+ 
+         self.conv1_1x1 = layers.conv_norm_act(in_chs, mid_chs, 1, **dd)
+-        self.attn = nn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
++        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
+         self.conv2_kxk = layers.conv_norm_act(
+             mid_chs,
+             out_chs,
+@@ -561,18 +566,18 @@             apply_act=False,
+             **dd,
+         )
+-        self.attn_last = nn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+-        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else nn.Identity()
+-        self.act = nn.Identity() if linear_out else layers.act(inplace=True)
++        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
++        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
++        self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
+ 
+     def init_weights(self, zero_init_last: bool = False):
+         if zero_init_last and self.shortcut is not None and getattr(self.conv2_kxk.bn, 'weight', None) is not None:
+-            nn.init.zeros_(self.conv2_kxk.bn.weight)
++            nn.init.zeros_(self.conv2_kxk.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         for attn in (self.attn, self.attn_last):
+             if hasattr(attn, 'reset_parameters'):
+                 attn.reset_parameters()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1_1x1(x)
+         x = self.attn(x)
+@@ -584,7 +589,7 @@         return self.act(x)
+ 
+ 
+-class EdgeBlock(nn.Module):
++class EdgeBlock(msnn.Cell):
+     """ EdgeResidual-like (3x3 + 1x1) block
+ 
+     A two layer block like DarkBlock, but with the order of the 3x3 and 1x1 convs reversed.
+@@ -638,20 +643,20 @@             drop_layer=drop_block,
+             **dd,
+         )
+-        self.attn = nn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
++        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
+         self.conv2_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)
+-        self.attn_last = nn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+-        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else nn.Identity()
+-        self.act = nn.Identity() if linear_out else layers.act(inplace=True)
++        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
++        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
++        self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
+ 
+     def init_weights(self, zero_init_last: bool = False):
+         if zero_init_last and self.shortcut is not None and getattr(self.conv2_1x1.bn, 'weight', None) is not None:
+-            nn.init.zeros_(self.conv2_1x1.bn.weight)
++            nn.init.zeros_(self.conv2_1x1.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         for attn in (self.attn, self.attn_last):
+             if hasattr(attn, 'reset_parameters'):
+                 attn.reset_parameters()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1_kxk(x)
+         x = self.attn(x)
+@@ -663,7 +668,7 @@         return self.act(x)
+ 
+ 
+-class RepVggBlock(nn.Module):
++class RepVggBlock(msnn.Cell):
+     """ RepVGG Block.
+ 
+     Adapted from impl at https://github.com/DingXiaoH/RepVGG
+@@ -726,21 +731,21 @@                 apply_act=False,
+                 **dd,
+             )
+-            self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. and use_ident else nn.Identity()
+-
+-        self.attn = nn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)
++            self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. and use_ident else msnn.Identity()
++
++        self.attn = msnn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)
+         self.act = layers.act(inplace=True)
+ 
+     def init_weights(self, zero_init_last: bool = False):
+         # NOTE this init overrides that base model init with specific changes for the block type
+         for m in self.modules():
+             if isinstance(m, nn.BatchNorm2d):
+-                nn.init.normal_(m.weight, .1, .1)
+-                nn.init.normal_(m.bias, 0, .1)
++                nn.init.normal_(m.weight, .1, .1)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++                nn.init.normal_(m.bias, 0, .1)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if hasattr(self.attn, 'reset_parameters'):
+             self.attn.reset_parameters()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         if self.reparam_conv is not None:
+             return self.act(self.attn(self.reparam_conv(x)))
+ 
+@@ -765,15 +770,7 @@ 
+         kernel, bias = self._get_kernel_bias()
+         self.reparam_conv = nn.Conv2d(
+-            in_channels=self.conv_kxk.conv.in_channels,
+-            out_channels=self.conv_kxk.conv.out_channels,
+-            kernel_size=self.conv_kxk.conv.kernel_size,
+-            stride=self.conv_kxk.conv.stride,
+-            padding=self.conv_kxk.conv.padding,
+-            dilation=self.conv_kxk.conv.dilation,
+-            groups=self.conv_kxk.conv.groups,
+-            bias=True,
+-        )
++            in_channels = self.conv_kxk.conv.in_channels, out_channels = self.conv_kxk.conv.out_channels, kernel_size = self.conv_kxk.conv.kernel_size, stride = self.conv_kxk.conv.stride, padding = self.conv_kxk.conv.padding, dilation = self.conv_kxk.conv.dilation, groups = self.conv_kxk.conv.groups, bias = True)
+         self.reparam_conv.weight.data = kernel
+         self.reparam_conv.bias.data = bias
+ 
+@@ -798,7 +795,7 @@             kernel_1x1, bias_1x1 = self._fuse_bn_tensor(self.conv_1x1)
+             # Pad scale branch kernel to match conv branch kernel size.
+             pad = self.conv_kxk.conv.kernel_size[0] // 2
+-            kernel_1x1 = torch.nn.functional.pad(kernel_1x1, [pad, pad, pad, pad])
++            kernel_1x1 = nn.functional.pad(kernel_1x1, [pad, pad, pad, pad])
+ 
+         # get weights and bias of skip branch
+         kernel_identity = 0
+@@ -830,7 +827,7 @@                 in_chs = self.conv_kxk.conv.in_channels
+                 input_dim = in_chs // self.groups
+                 kernel_size = self.conv_kxk.conv.kernel_size
+-                kernel_value = torch.zeros_like(self.conv_kxk.conv.weight)
++                kernel_value = mint.zeros_like(self.conv_kxk.conv.weight)
+                 for i in range(in_chs):
+                     kernel_value[i, i % input_dim, kernel_size[0] // 2, kernel_size[1] // 2] = 1
+                 self.id_tensor = kernel_value
+@@ -845,7 +842,7 @@         return kernel * t, beta - running_mean * gamma / std
+ 
+ 
+-class MobileOneBlock(nn.Module):
++class MobileOneBlock(msnn.Cell):
+     """ MobileOne building block.
+ 
+         This block has a multi-branched architecture at train-time
+@@ -911,7 +908,7 @@                     apply_act=False,
+                     **dd,
+                 ))
+-            self.conv_kxk = nn.ModuleList(convs)
++            self.conv_kxk = msnn.CellList(convs)
+ 
+             # Re-parameterizable scale branch
+             self.conv_scale = None
+@@ -925,12 +922,12 @@                     apply_act=False,
+                     **dd,
+                 )
+-            self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. and use_ident else nn.Identity()
+-
+-        self.attn = nn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)
++            self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. and use_ident else msnn.Identity()
++
++        self.attn = msnn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)
+         self.act = layers.act(inplace=True)
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """ Apply forward pass. """
+         # Inference mode forward pass.
+         if self.reparam_conv is not None:
+@@ -967,14 +964,7 @@ 
+         kernel, bias = self._get_kernel_bias()
+         self.reparam_conv = nn.Conv2d(
+-            in_channels=self.conv_kxk[0].conv.in_channels,
+-            out_channels=self.conv_kxk[0].conv.out_channels,
+-            kernel_size=self.conv_kxk[0].conv.kernel_size,
+-            stride=self.conv_kxk[0].conv.stride,
+-            padding=self.conv_kxk[0].conv.padding,
+-            dilation=self.conv_kxk[0].conv.dilation,
+-            groups=self.conv_kxk[0].conv.groups,
+-            bias=True)
++            in_channels = self.conv_kxk[0].conv.in_channels, out_channels = self.conv_kxk[0].conv.out_channels, kernel_size = self.conv_kxk[0].conv.kernel_size, stride = self.conv_kxk[0].conv.stride, padding = self.conv_kxk[0].conv.padding, dilation = self.conv_kxk[0].conv.dilation, groups = self.conv_kxk[0].conv.groups, bias = True)
+         self.reparam_conv.weight.data = kernel
+         self.reparam_conv.bias.data = bias
+ 
+@@ -999,7 +989,7 @@             kernel_scale, bias_scale = self._fuse_bn_tensor(self.conv_scale)
+             # Pad scale branch kernel to match conv branch kernel size.
+             pad = self.conv_kxk[0].conv.kernel_size[0] // 2
+-            kernel_scale = torch.nn.functional.pad(kernel_scale, [pad, pad, pad, pad])
++            kernel_scale = nn.functional.pad(kernel_scale, [pad, pad, pad, pad])
+ 
+         # get weights and bias of skip branch
+         kernel_identity = 0
+@@ -1036,7 +1026,7 @@                 in_chs = self.conv_kxk[0].conv.in_channels
+                 input_dim = in_chs // self.groups
+                 kernel_size = self.conv_kxk[0].conv.kernel_size
+-                kernel_value = torch.zeros_like(self.conv_kxk[0].conv.weight)
++                kernel_value = mint.zeros_like(self.conv_kxk[0].conv.weight)
+                 for i in range(in_chs):
+                     kernel_value[i, i % input_dim, kernel_size[0] // 2, kernel_size[1] // 2] = 1
+                 self.id_tensor = kernel_value
+@@ -1051,7 +1041,7 @@         return kernel * t, beta - running_mean * gamma / std
+ 
+ 
+-class SelfAttnBlock(nn.Module):
++class SelfAttnBlock(msnn.Cell):
+     """ ResNet-like Bottleneck Block - 1x1 - optional kxk - self attn - 1x1
+     """
+ 
+@@ -1107,22 +1097,22 @@             )
+             stride = 1  # striding done via conv if enabled
+         else:
+-            self.conv2_kxk = nn.Identity()
++            self.conv2_kxk = msnn.Identity()
+         opt_kwargs = {} if feat_size is None else dict(feat_size=feat_size)
+         # FIXME need to dilate self attn to have dilated network support, moop moop
+         self.self_attn = layers.self_attn(mid_chs, stride=stride, **opt_kwargs, **dd)
+-        self.post_attn = layers.norm_act(mid_chs, **dd) if post_attn_na else nn.Identity()
++        self.post_attn = layers.norm_act(mid_chs, **dd) if post_attn_na else msnn.Identity()
+         self.conv3_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)
+-        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else nn.Identity()
+-        self.act = nn.Identity() if linear_out else layers.act(inplace=True)
++        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
++        self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
+ 
+     def init_weights(self, zero_init_last: bool = False):
+         if zero_init_last and self.shortcut is not None and getattr(self.conv3_1x1.bn, 'weight', None) is not None:
+-            nn.init.zeros_(self.conv3_1x1.bn.weight)
++            nn.init.zeros_(self.conv3_1x1.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if hasattr(self.self_attn, 'reset_parameters'):
+             self.self_attn.reset_parameters()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1_1x1(x)
+         x = self.conv2_kxk(x)
+@@ -1146,6 +1136,7 @@ )
+ 
+ 
++# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def register_block(block_type: str, block_fn: nn.Module):
+     _block_registry[block_type] = block_fn
+ 
+@@ -1157,7 +1148,7 @@     return _block_registry[block](**kwargs)
+ 
+ 
+-class Stem(nn.Sequential):
++class Stem(msnn.SequentialCell):
+ 
+     def __init__(
+             self,
+@@ -1219,9 +1210,9 @@             elif pool == 'avg2':
+                 self.add_module('pool', nn.AvgPool2d(2))
+             elif 'max' in pool:
+-                self.add_module('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
++                self.add_module('pool', nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1))
+             elif 'avg' in pool:
+-                self.add_module('pool', nn.AvgPool2d(kernel_size=3, stride=2, padding=1, count_include_pad=False))
++                self.add_module('pool', nn.AvgPool2d(kernel_size = 3, stride = 2, padding = 1, count_include_pad = False))
+             curr_stride *= 2
+             prev_feat = 'pool'
+ 
+@@ -1434,11 +1425,15 @@             if stride > 1 and block_idx == 0:
+                 feat_size = reduce_feat_size(feat_size, stride)
+ 
+-        stages += [nn.Sequential(*blocks)]
++        stages += [msnn.SequentialCell([
++            blocks
++        ])]
+         prev_feat = dict(num_chs=prev_chs, reduction=net_stride, module=f'stages.{stage_idx}', stage=stage_idx + 1)
+ 
+     feature_info.append(prev_feat)
+-    return nn.Sequential(*stages), feature_info, feat_size
++    return msnn.SequentialCell([
++        stages
++    ]), feature_info, feat_size
+ 
+ 
+ def get_layer_fns(cfg: ByoModelCfg, allow_aa: bool = True):
+@@ -1454,7 +1449,7 @@     return layer_fn
+ 
+ 
+-class ByobNet(nn.Module):
++class ByobNet(msnn.Cell):
+     """Bring-your-own-blocks Network.
+ 
+     A flexible network backbone that allows building model stem + blocks via
+@@ -1544,7 +1539,7 @@             self.final_conv = stage_layers.conv_norm_act(prev_chs, self.num_features, 1, **dd)
+         else:
+             self.num_features = prev_chs
+-            self.final_conv = nn.Identity()
++            self.final_conv = msnn.Identity()
+         self.feature_info += [
+             dict(num_chs=self.num_features, reduction=reduction, module='final_conv', stage=len(self.stages))]
+         self.stage_ends = [f['stage'] for f in self.feature_info]
+@@ -1639,6 +1634,7 @@         """
+         self.grad_checkpointing = enable
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         """Get classifier module.
+@@ -1660,7 +1656,7 @@ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+@@ -1740,12 +1736,12 @@         max_index = self.stage_ends[max_index]
+         self.stages = self.stages[:max_index]  # truncate blocks w/ stem as idx 0
+         if max_index < self.stage_ends[-1]:
+-            self.final_conv = nn.Identity()
++            self.final_conv = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+ 
+-    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
++    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass through feature extraction.
+ 
+         Args:
+@@ -1762,7 +1758,7 @@         x = self.final_conv(x)
+         return x
+ 
+-    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
++    def forward_head(self, x: ms.Tensor, pre_logits: bool = False) -> ms.Tensor:
+         """Forward pass through head.
+ 
+         Args:
+@@ -1774,7 +1770,7 @@         """
+         return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass.
+ 
+         Args:
+@@ -1788,6 +1784,7 @@         return x
+ 
+ 
++# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = False) -> None:
+     """Initialize weights.
+ 
+@@ -1803,12 +1800,12 @@         if module.bias is not None:
+             module.bias.data.zero_()
+     elif isinstance(module, nn.Linear):
+-        nn.init.normal_(module.weight, mean=0.0, std=0.01)
++        nn.init.normal_(module.weight, mean=0.0, std=0.01)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if module.bias is not None:
+-            nn.init.zeros_(module.bias)
++            nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(module, nn.BatchNorm2d):
+-        nn.init.ones_(module.weight)
+-        nn.init.zeros_(module.bias)
++        nn.init.ones_(module.weight)  # 'torch.nn.init.ones_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif hasattr(module, 'init_weights'):
+         module.init_weights(zero_init_last=zero_init_last)
+ 

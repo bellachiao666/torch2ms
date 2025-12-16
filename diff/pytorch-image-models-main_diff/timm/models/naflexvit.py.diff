@@ -1,0 +1,568 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ NaFlex Vision Transformer
+ 
+ An improved version of the Vision Transformer with:
+@@ -22,9 +27,9 @@ from functools import partial
+ from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union, Any
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.nn as nn
++# import torch.nn.functional as F
+ 
+ from timm.data import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
+ from timm.layers import (
+@@ -156,7 +161,7 @@ 
+ 
+ def batch_patchify(
+-        x: torch.Tensor,
++        x: ms.Tensor,
+         patch_size: Tuple[int, int],
+         pad: bool = True,
+ ) -> Tuple[torch.Tensor, Tuple[int, int]]:
+@@ -178,7 +183,7 @@     if pad and (H % ph != 0 or W % pw != 0):
+         pad_h = (ph - H % ph) % ph
+         pad_w = (pw - W % pw) % pw
+-        x = F.pad(x, (0, pad_w, 0, pad_h))
++        x = nn.functional.pad(x, (0, pad_w, 0, pad_h))
+ 
+     nh, nw = H // ph, W // pw
+     patches = x.view(B, C, nh, ph, nw, pw).permute(0, 2, 4, 3, 5, 1).reshape(B, nh * nw, ph * pw * C)
+@@ -187,7 +192,7 @@     return patches, (nh, nw)
+ 
+ 
+-def calculate_naflex_grid_sizes(_coord: torch.Tensor):
++def calculate_naflex_grid_sizes(_coord: ms.Tensor):
+     # Calculate the appropriate grid size from coords
+     max_y = _coord[:, :, 0].amax(dim=1) + 1
+     max_x = _coord[:, :, 1].amax(dim=1) + 1
+@@ -197,6 +202,8 @@ class NaFlexRopeIterator:
+     """Iterator for generating batched ROPE embeddings for mixed mode with multiple grid sizes."""
+ 
++    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+         self,
+         rope_module,
+@@ -236,10 +243,8 @@             raise StopIteration
+ 
+         # Create batch tensor for current depth
+-        batch_embed = torch.zeros(
+-            self.batch_size, self.num_heads, self.seq_len, self.head_dim,
+-            dtype=self.dtype, device=self.device
+-        )
++        batch_embed = mint.zeros(
++            size = (self.batch_size, self.num_heads, self.seq_len, self.head_dim), dtype = self.dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+ 
+         # Fill in embeddings for each unique grid size
+         for grid_size in self.unique_sizes:
+@@ -303,7 +308,7 @@ 
+ 
+ @register_notrace_module
+-class NaFlexEmbeds(nn.Module):
++class NaFlexEmbeds(msnn.Cell):
+     """NaFlex Embedding module for Vision Transformers.
+ 
+     This module encapsulates the complete embedding process for Vision Transformers,
+@@ -408,8 +413,8 @@         self.num_prefix_tokens += reg_tokens
+ 
+         # Create class and register tokens
+-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd)) if class_token else None
+-        self.reg_token = nn.Parameter(torch.zeros(1, reg_tokens, embed_dim, **dd)) if reg_tokens else None
++        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd)) if class_token else None
++        self.reg_token = ms.Parameter(mint.zeros(1, reg_tokens, embed_dim, **dd)) if reg_tokens else None
+ 
+         # Calculate grid size and number of patches
+         self.default_img_size: Optional[Tuple[int, int]] = None
+@@ -465,7 +470,7 @@         assert not (proj_norm_layer is True and norm_layer is None), \
+             "`norm_layer` must be given when proj_norm_layer=True"
+         proj_norm_layer = norm_layer if proj_norm_layer is True else (proj_norm_layer or None)
+-        self.norm = proj_norm_layer(embed_dim) if proj_norm_layer else nn.Identity()
++        self.norm = proj_norm_layer(embed_dim) if proj_norm_layer else msnn.Identity()
+ 
+         # Create position embedding if needed - only for patches, never for prefix tokens
+         if pos_embed in ('factorized', 'learned') and self.pos_embed_grid_size is None:
+@@ -481,16 +486,16 @@             assert self.pos_embed_grid_size is not None
+             h, w = self.pos_embed_grid_size
+             self.pos_embed_type = 'factorized'
+-            self.pos_embed_y = nn.Parameter(torch.randn(1, h, embed_dim, **dd) * .02)
+-            self.pos_embed_x = nn.Parameter(torch.randn(1, w, embed_dim, **dd) * .02)
++            self.pos_embed_y = ms.Parameter(mint.randn(1, h, embed_dim, **dd) * .02)
++            self.pos_embed_x = ms.Parameter(mint.randn(1, w, embed_dim, **dd) * .02)
+         else:
+             assert self.pos_embed_grid_size is not None
+             h, w = self.pos_embed_grid_size
+-            self.pos_embed = nn.Parameter(torch.randn(1, h, w, embed_dim, **dd) * .02)
++            self.pos_embed = ms.Parameter(mint.randn(1, h, w, embed_dim, **dd) * .02)
+             self.pos_embed_type = 'learned'
+ 
+         # Dropout layer
+-        self.pos_drop = nn.Dropout(p=pos_drop_rate)
++        self.pos_drop = nn.Dropout(p = pos_drop_rate)
+ 
+     def feature_info(self, location) -> Dict[str, Any]:
+         """Get feature information for feature extraction.
+@@ -536,8 +541,8 @@     @disable_compiler
+     def _apply_learned_naflex_pos_embed(
+             self,
+-            x: torch.Tensor,
+-            patch_coord: torch.Tensor,
++            x: ms.Tensor,
++            patch_coord: ms.Tensor,
+     ) -> None:
+         """Apply learned position embeddings to NaFlex batch in-place.
+ 
+@@ -564,13 +569,7 @@                 pos_embed_flat = self.pos_embed.reshape(1, orig_h * orig_w, -1)
+             else:
+                 _interp_size = to_2tuple(max(size)) if self.pos_embed_ar_preserving else size
+-                pos_embed_flat = F.interpolate(
+-                    pos_embed_nchw,
+-                    size=_interp_size,
+-                    mode=self.pos_embed_interp_mode,
+-                    align_corners=False,
+-                    antialias=True,
+-                )[:, :, :size[0], :size[1]].flatten(2).transpose(1, 2)
++                pos_embed_flat = ms.Tensor.flatten(2).transpose(1, 2)  # 'torch.nn.functional.interpolate':没有对应的mindspore参数 'antialias' (position 6);
+             return pos_embed_flat.to(dtype=x.dtype)
+ 
+         # Determine unique grid sizes to avoid duplicate interpolation
+@@ -588,13 +587,13 @@                 0,
+                 torch.as_tensor(batch_indices, device=x.device),
+                 pos_embed_flat[:, :seq_len].expand(len(batch_indices), -1, -1)
+-            )
++            )  # 'torch.as_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     @disable_compiler
+     def _apply_learned_naflex_pos_embed_grid_sample(
+             self,
+-            x: torch.Tensor,
+-            patch_coord: torch.Tensor,
++            x: ms.Tensor,
++            patch_coord: ms.Tensor,
+     ) -> None:
+         """Apply learned position embeddings to NaFlex batch using grid_sample.
+ 
+@@ -619,27 +618,22 @@             scale_y = grid_size_y / shapes[:, 0]  # vertical zoom (B,)
+             scale_x = grid_size_x / shapes[:, 1]  # horizontal zoom (B,)
+ 
+-        theta = torch.zeros(B, 2, 3, device=device, dtype=torch.float32)
++        theta = mint.zeros(size = (B, 2, 3), dtype = ms.float32)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+         theta[:, 0, 0] = scale_x
+         theta[:, 1, 1] = scale_y
+         theta[:, 0, 2] = scale_x - 1  # translate x
+         theta[:, 1, 2] = scale_y - 1  # translate y
+ 
+-        grid = F.affine_grid(theta, (B, C, grid_size_y, grid_size_x), align_corners=False)
+-        pos_embed = F.grid_sample(
+-            self.pos_embed.permute(0, 3, 1, 2).expand(B, -1, -1, -1).float(),
+-            grid,
+-            mode=self.pos_embed_interp_mode,
+-            align_corners=False,
+-            padding_mode='border',
+-        ).to(dtype=x.dtype)  # (B, C, H_out, W_out)
+-
+-        bi = torch.arange(B, device=device, dtype=torch.long).unsqueeze(1)
++        grid = F.affine_grid(theta, (B, C, grid_size_y, grid_size_x), align_corners=False)  # 'torch.nn.functional.affine_grid' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        pos_embed = nn.functional.grid_sample(
++            self.pos_embed.permute(0, 3, 1, 2).expand(B, -1, -1, -1).float(), grid, mode = self.pos_embed_interp_mode, padding_mode = 'border', align_corners = False).to(dtype=x.dtype)  # (B, C, H_out, W_out); 'torch.nn.functional.grid_sample.to' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++        bi = mint.arange(B, dtype = torch.long).unsqueeze(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+         x += pos_embed[bi, :, patch_coord[..., 0], patch_coord[..., 1]]  # NOTE leave as '+='
+ 
+     def _apply_learned_pos_embed(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             grid_size: List[int],
+     ) -> None:
+         """Apply learned position embeddings to standard 2D batch in-place.
+@@ -661,13 +655,7 @@                 _interp_size = L, L
+             else:
+                 _interp_size = grid_size
+-            pos_embed_flat = F.interpolate(
+-                self.pos_embed.permute(0, 3, 1, 2).float(),  # B,C,H,W
+-                size=_interp_size,
+-                mode=self.pos_embed_interp_mode,
+-                align_corners=False,
+-                antialias=True,
+-            )[:, :, :grid_size[0], :grid_size[1]].flatten(2).transpose(1, 2)
++            pos_embed_flat = ms.Tensor.flatten(2).transpose(1, 2)  # 'torch.nn.functional.interpolate':没有对应的mindspore参数 'antialias' (position 6);
+         pos_embed_flat = pos_embed_flat.to(dtype=x.dtype)
+ 
+         x.add_(pos_embed_flat)
+@@ -675,8 +663,8 @@     @disable_compiler
+     def _apply_factorized_naflex_pos_embed(
+             self,
+-            x: torch.Tensor,
+-            patch_coord: torch.Tensor,
++            x: ms.Tensor,
++            patch_coord: ms.Tensor,
+     ) -> None:
+         """Apply factorized position embeddings to NaFlex batch in-place.
+ 
+@@ -699,19 +687,14 @@         for bi, k in enumerate(naflex_grid_sizes):
+             size_to_indices.setdefault(k, []).append(bi)
+ 
+-        def _interp1d(table: torch.Tensor, new_length: int, orig_length: int) -> torch.Tensor:
++        def _interp1d(table: ms.Tensor, new_length: int, orig_length: int) -> ms.Tensor:
+             """
+             Resample a 1-D positional-embedding table to specified length
+             and return it in (1, L, C) layout, dtype matching x.
+             """
+             if new_length == orig_length:
+                 return table.to(dtype=x.dtype)
+-            return F.interpolate(
+-                table.permute(0, 2, 1).float(),  # (1,C,L) → (1,C,L_out)
+-                size=new_length,
+-                mode='linear',
+-                align_corners=False,
+-            ).permute(0, 2, 1).to(dtype=x.dtype)  # → (1,L_out,C)
++            return mint.permute(0, 2, 1).to(dtype=x.dtype)  # → (1,L_out,C)
+ 
+         for k, batch_indices in size_to_indices.items():
+             target_h, target_w = k
+@@ -732,13 +715,13 @@                 0,
+                 torch.as_tensor(batch_indices, device=x.device),
+                 pos[:, :seq_len].expand(len(batch_indices), -1, -1)
+-            )
++            )  # 'torch.as_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     @disable_compiler
+     def _apply_factorized_naflex_pos_embed_grid_sample(
+             self,
+-            x: torch.Tensor,
+-            patch_coord: torch.Tensor,
++            x: ms.Tensor,
++            patch_coord: ms.Tensor,
+     ) -> None:
+         """Apply factorized position embeddings to NaFlex batch using grid_sample.
+ 
+@@ -765,26 +748,26 @@             scale_x = grid_size_x / shapes[:, 1]  # horizontal zoom (B,)
+             scale_y = grid_size_y / shapes[:, 0]  # vertical zoom (B,)
+ 
+-        def _interp1d(table: torch.Tensor, scale: torch.Tensor, out_length: torch.Tensor) -> torch.Tensor:
++        def _interp1d(table: ms.Tensor, scale: ms.Tensor, out_length: ms.Tensor) -> ms.Tensor:
+             pe = table.permute(0, 2, 1).unsqueeze(2).expand(B, -1, -1, -1).float()  # (1, L, C) -> (B, C, 1, L)
+-            theta = torch.zeros(B, 2, 3, device=x.device)
++            theta = mint.zeros(size = (B, 2, 3))  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+             theta[:, 0, 0] = scale
+             theta[:, 0, 2] = scale - 1
+             theta[:, 1, 1] = 1
+-            grid = F.affine_grid(theta, (B, C, 1, out_length), align_corners=False)
+-            pe = F.grid_sample(pe, grid, mode='bilinear', align_corners=False, padding_mode='border')
++            grid = F.affine_grid(theta, (B, C, 1, out_length), align_corners=False)  # 'torch.nn.functional.affine_grid' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            pe = nn.functional.grid_sample(pe, grid, mode = 'bilinear', padding_mode = 'border', align_corners = False)
+             return pe.to(x.dtype)
+ 
+         # Interpolate along each axis
+         pe_x = _interp1d(self.pos_embed_x, scale=scale_x, out_length=grid_size_x)
+         pe_y = _interp1d(self.pos_embed_y, scale=scale_y, out_length=grid_size_y)
+ 
+-        bi = torch.arange(B, device=device, dtype=torch.long).unsqueeze(1)
++        bi = mint.arange(B, dtype = torch.long).unsqueeze(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+         x += pe_x[bi, :, 0, patch_coord[..., 1]] + pe_y[bi, :, 0, patch_coord[..., 0]]
+ 
+     def _apply_factorized_pos_embed(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             grid_size: List[int],
+     ) -> None:
+         """Apply factorized position embeddings to standard 2D batch in-place.
+@@ -804,15 +787,10 @@         else:
+             len_y, len_x = target_h, target_w
+ 
+-        def _interp1d(table: torch.Tensor, new_length: int, orig_length: int) -> torch.Tensor:
++        def _interp1d(table: ms.Tensor, new_length: int, orig_length: int) -> ms.Tensor:
+             if new_length == orig_length:
+                 return table.to(dtype=x.dtype)
+-            return F.interpolate(
+-                table.permute(0, 2, 1).float(),  # (1,L,C) -> (1,C,L)
+-                size=new_length,
+-                mode='linear',
+-                align_corners=False,
+-            ).permute(0, 2, 1).to(dtype=x.dtype)  # (1,L,C)
++            return mint.permute(0, 2, 1).to(dtype=x.dtype)  # (1,L,C)
+ 
+         # Interpolate embeddings
+         pe_y = _interp1d(self.pos_embed_y, len_y, orig_h)[:, :target_h]  # (1,H,C)
+@@ -824,9 +802,9 @@ 
+         x.add_(pos_embed_flat)
+ 
+-    def forward(
++    def construct(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             patch_coord: Optional[torch.Tensor] = None,
+             patch_valid: Optional[torch.Tensor] = None,
+     ) -> Tuple[torch.Tensor, Optional[Tuple[int, int]]]:
+@@ -882,7 +860,7 @@                 H, W = x.shape[-2:]
+                 pad_h = (self.patch_size[0] - H % self.patch_size[0]) % self.patch_size[0]
+                 pad_w = (self.patch_size[1] - W % self.patch_size[1]) % self.patch_size[1]
+-                x = F.pad(x, (0, pad_w, 0, pad_h))
++                x = nn.functional.pad(x, (0, pad_w, 0, pad_h))
+ 
+             x = self.proj(x)
+ 
+@@ -922,7 +900,7 @@             to_cat.append(self.reg_token.expand(B, -1, -1))
+         # Add tokens to the beginning
+         if to_cat:
+-            x = torch.cat(to_cat + [x], dim=1)
++            x = mint.cat(to_cat + [x], dim = 1)
+ 
+         # Apply dropout
+         x = self.pos_drop(x)
+@@ -930,13 +908,14 @@         return x, grid_size
+ 
+ 
++# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ @register_notrace_function
+ def create_attention_mask(
+-        patch_valid: torch.Tensor,
++        patch_valid: ms.Tensor,
+         num_prefix_tokens: int = 0,
+         symmetric: bool = True,
+         q_len: Optional[int] = None,
+-        dtype: torch.dtype = torch.float32,
++        dtype: torch.dtype = ms.float32,
+ ) -> Optional[torch.Tensor]:
+     """Creates an attention mask from patch validity information.
+ 
+@@ -977,9 +956,9 @@     # Prepend prefix tokens if any
+     if num_prefix_tokens > 0:
+         # Create prefix validity tensor on the same device/dtype base as patch_valid
+-        prefix_valid = patch_valid.new_ones((B, num_prefix_tokens), dtype=torch.bool)
++        prefix_valid = patch_valid.new_ones((B, num_prefix_tokens), dtype=ms.bool)
+         # Concatenate prefix and patch validity. Shape becomes [B, num_prefix_tokens + N]
+-        patch_valid = torch.cat([prefix_valid, patch_valid], dim=1)
++        patch_valid = mint.cat([prefix_valid, patch_valid], dim = 1)
+         kv_len += num_prefix_tokens # Update total key/value sequence length
+ 
+     if symmetric:
+@@ -992,21 +971,21 @@         mask_bool = patch_valid[:, None, None, :].expand(B, 1, q_len, kv_len)
+ 
+     # Create the float mask and apply masking using additive mask convention
+-    mask_float = torch.zeros_like(mask_bool, dtype=dtype)
++    mask_float = mint.zeros_like(mask_bool, dtype = dtype)
+     # Fill with negative infinity where mask_bool is False (masked positions)
+-    mask_float.masked_fill_(~mask_bool, torch.finfo(dtype).min)
++    mask_float.masked_fill_(~mask_bool, torch.finfo(dtype).min)  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     return mask_float
+ 
+ 
+ @register_notrace_function
+ def global_pool_naflex(
+-        x: torch.Tensor,
++        x: ms.Tensor,
+         patch_valid: Optional[torch.Tensor] = None,
+         pool_type: str = 'token',
+         num_prefix_tokens: int = 1,
+         reduce_include_prefix: bool = False,
+-) -> torch.Tensor:
++) -> ms.Tensor:
+     """Global pooling with NaFlex support for masked tokens.
+ 
+     Applies global pooling while respecting patch validity masks to exclude
+@@ -1038,7 +1017,7 @@             # Include prefix tokens in pooling - they are always considered valid
+             # patch_valid only covers patch tokens, so create combined validity mask
+             prefix_valid = patch_valid.new_ones(x.shape[0], num_prefix_tokens)
+-            patch_valid = torch.cat([prefix_valid, patch_valid], dim=1)
++            patch_valid = mint.cat([prefix_valid, patch_valid], dim = 1)
+         else:
+             # Exclude prefix tokens from pooling (default behavior)
+             x = x[:, num_prefix_tokens:]
+@@ -1058,7 +1037,7 @@ 
+         # For max pooling we set masked positions to large negative value
+         masked_x = x.clone()
+-        masked_x[~patch_valid] = torch.finfo(masked_x.dtype).min
++        masked_x[~patch_valid] = torch.finfo(masked_x.dtype).min  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         masked_max = masked_x.amax(dim=1)
+ 
+         # Combine average and max
+@@ -1066,13 +1045,13 @@     elif pool_type == 'max':
+         # For max pooling we set masked positions to large negative value
+         masked_x = x.clone()
+-        masked_x[~patch_valid] = torch.finfo(masked_x.dtype).min
++        masked_x[~patch_valid] = torch.finfo(masked_x.dtype).min  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         return masked_x.amax(dim=1)
+     else:
+         assert False
+ 
+ 
+-class NaFlexVit(nn.Module):
++class NaFlexVit(msnn.Cell):
+     """NaFlexVit: Vision Transformer with NaFlex support for flexible input handling.
+ 
+     A flexible implementation of Vision Transformer that supports:
+@@ -1157,7 +1136,7 @@             enable_patch_interpolator=getattr(cfg, 'enable_patch_interpolator', False),
+             **dd,
+         )
+-        self.norm_pre = norm_layer(cfg.embed_dim, **dd) if cfg.pre_norm else nn.Identity()
++        self.norm_pre = norm_layer(cfg.embed_dim, **dd) if cfg.pre_norm else msnn.Identity()
+ 
+         # ROPE position embeddings at model level
+         self.rope: Optional[nn.Module] = None
+@@ -1202,7 +1181,8 @@         # Transformer blocks
+         dpr = calculate_drop_path_rates(cfg.drop_path_rate, cfg.depth)  # stochastic depth decay rule
+         # Create transformer blocks
+-        self.blocks = nn.Sequential(*[
++        self.blocks = msnn.SequentialCell([
++            [
+             block_fn(
+                 dim=cfg.embed_dim,
+                 num_heads=cfg.num_heads,
+@@ -1221,6 +1201,7 @@                 **dd,
+             )
+             for i in range(cfg.depth)
++        ]
+         ])
+ 
+         # Feature info for downstream tasks
+@@ -1230,7 +1211,7 @@             for i in range(cfg.depth)
+         ]
+ 
+-        self.norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and not cfg.fc_norm else nn.Identity()
++        self.norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and not cfg.fc_norm else msnn.Identity()
+ 
+         # Classifier Head
+         if cfg.global_pool == 'map':
+@@ -1249,9 +1230,9 @@         fc_norm = cfg.fc_norm
+         if fc_norm is None:
+             fc_norm = cfg.global_pool == 'avg'
+-        self.fc_norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and fc_norm else nn.Identity()
++        self.fc_norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and fc_norm else msnn.Identity()
+         self.head_drop = nn.Dropout(cfg.drop_rate)
+-        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+ 
+         if cfg.weight_init != 'skip':
+             self.init_weights(cfg.weight_init)
+@@ -1260,7 +1241,7 @@ 
+     def fix_init_weight(self) -> None:
+         """Apply initialization weight fix with layer-wise scaling."""
+-        def rescale(param: torch.Tensor, _layer_id: int) -> None:
++        def rescale(param: ms.Tensor, _layer_id: int) -> None:
+             with torch.no_grad():
+                 param.div_(math.sqrt(2.0 * _layer_id))
+ 
+@@ -1292,7 +1273,7 @@ 
+         def _load_weights_adapter(model, checkpoint_path, prefix=''):
+             """Adapter function to handle the different model structure"""
+-            state_dict = torch.load(checkpoint_path, map_location='cpu')
++            state_dict = torch.load(checkpoint_path, map_location='cpu')  # 'torch.load' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if isinstance(state_dict, dict) and 'state_dict' in state_dict:
+                 state_dict = state_dict['state_dict']
+ 
+@@ -1349,6 +1330,7 @@         if hasattr(self.embeds, 'patch_embed') and hasattr(self.embeds.patch_embed, 'set_grad_checkpointing'):
+             self.embeds.patch_embed.set_grad_checkpointing(enable)
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         """Get the classification head module.
+@@ -1361,8 +1343,8 @@     @disable_compiler
+     def _generate_rope_naflex(
+             self,
+-            x: torch.Tensor,
+-            patch_coord: torch.Tensor,
++            x: ms.Tensor,
++            patch_coord: ms.Tensor,
+     ) -> Union[torch.Tensor, List[torch.Tensor], Any]:
+         """Generate ROPE position embeddings for NaFlex batch with variable grid sizes.
+ 
+@@ -1404,7 +1386,7 @@             )
+ 
+         # Axial mode: [batch_size, seq_len, dim*2]
+-        rope_embeds = torch.zeros(B, seq_len, self.rope.dim * 2, dtype=x.dtype, device=x.device)
++        rope_embeds = mint.zeros(size = (B, seq_len, self.rope.dim * 2), dtype = x.dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+ 
+         if hasattr(self.rope, 'get_batch_embeds'):
+             # Batch mode - generate unique embeds from one grid and then assign
+@@ -1442,7 +1424,7 @@             elif global_pool != 'map' and self.attn_pool is not None:
+                 self.attn_pool = None  # remove attention pooling
+             self.global_pool = global_pool
+-        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else msnn.Identity()
+ 
+     def _forward_embeds(
+             self,
+@@ -1574,7 +1556,7 @@         else:
+             blocks = self.blocks[:max_index + 1]
+ 
+-        do_checkpointing = self.grad_checkpointing and not torch.jit.is_scripting()
++        do_checkpointing = self.grad_checkpointing and not torch.jit.is_scripting()  # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.rope_is_mixed and rope_embeds is not None:
+             # Mixed mode with per-layer embeddings (list or iterator)
+             for i, (blk, rope_embed) in enumerate(zip(self.blocks, rope_embeds)):
+@@ -1657,7 +1639,7 @@ 
+     def forward_features(
+             self,
+-            patches: torch.Tensor,
++            patches: ms.Tensor,
+             patch_coord: Optional[torch.Tensor] = None,
+             patch_valid: Optional[torch.Tensor] = None,
+             attn_mask: Optional[torch.Tensor] = None,
+@@ -1679,7 +1661,7 @@         attn_mask = embeds.get('attn_mask', None)
+ 
+         # Apply transformer blocks with masked attention and/or ROPE if provided
+-        do_checkpointing = self.grad_checkpointing and not torch.jit.is_scripting()
++        do_checkpointing = self.grad_checkpointing and not torch.jit.is_scripting()  # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.rope_is_mixed and rope_embeds is not None:
+             # Mixed mode with per-layer embeddings (list or iterator)
+             for i, (blk, rope_embed) in enumerate(zip(self.blocks, rope_embeds)):
+@@ -1721,10 +1703,10 @@ 
+     def _pool(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             pool_type: Optional[str] = None,
+             patch_valid: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
++    ) -> ms.Tensor:
+         if self.attn_pool is not None:
+             attn_mask = create_attention_mask(
+                 patch_valid,
+@@ -1751,22 +1733,22 @@ 
+     def forward_head(
+             self,
+-            patches: torch.Tensor,
++            patches: ms.Tensor,
+             pre_logits: bool = False,
+             patch_valid: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
++    ) -> ms.Tensor:
+         x = self._pool(patches, patch_valid=patch_valid)
+         x = self.fc_norm(x)
+         x = self.head_drop(x)
+         return x if pre_logits else self.head(x)
+ 
+-    def forward(
++    def construct(
+             self,
+             x: Union[torch.Tensor, Dict[str, torch.Tensor]],
+             patch_coord: Optional[torch.Tensor] = None,
+             patch_valid: Optional[torch.Tensor] = None,
+             attn_mask: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
++    ) -> ms.Tensor:
+         """Forward pass with optional NaFlex support.
+ 
+         Args:
+@@ -1822,8 +1804,8 @@         w = (patch_coord[i, :, 1].max() + 1).item()
+         patch = patch.reshape(h, w, 16, 16, 3).permute(4, 0, 2, 1, 3)
+         patch = patch.reshape(3, h*16, w*16)
+-        from torchvision.utils import save_image
+-        save_image(patch, f'patch_{i}.jpg', normalize=True)
++        # from torchvision.utils import save_image
++        save_image(patch, f'patch_{i}.jpg', normalize=True)  # 'torchvision.utils.save_image' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def get_init_weights_vit(mode: str = 'jax', head_bias: float = 0.0) -> Callable:

@@ -1,0 +1,101 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ CBAM (sort-of) Attention
+ 
+ Experimental impl of CBAM: Convolutional Block Attention Module: https://arxiv.org/abs/1807.06521
+@@ -8,17 +13,14 @@ Hacked together by / Copyright 2020 Ross Wightman
+ """
+ from typing import Optional, Tuple, Type, Union
+-
+-import torch
+-from torch import nn as nn
+-import torch.nn.functional as F
++# from torch import nn as nn
+ 
+ from .conv_bn_act import ConvNormAct
+ from .create_act import create_act_layer, get_act_layer
+ from .helpers import make_divisible
+ 
+ 
+-class ChannelAttn(nn.Module):
++class ChannelAttn(msnn.Cell):
+     """ Original CBAM channel attention module, currently avg + max pool variant only.
+     """
+     def __init__(
+@@ -42,7 +44,7 @@         self.fc2 = nn.Conv2d(rd_channels, channels, 1, bias=mlp_bias, **dd)
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x_avg = self.fc2(self.act(self.fc1(x.mean((2, 3), keepdim=True))))
+         x_max = self.fc2(self.act(self.fc1(x.amax((2, 3), keepdim=True))))
+         return x * self.gate(x_avg + x_max)
+@@ -69,10 +71,10 @@     def forward(self, x):
+         x_pool = 0.5 * x.mean((2, 3), keepdim=True) + 0.5 * x.amax((2, 3), keepdim=True)
+         x_attn = self.fc2(self.act(self.fc1(x_pool)))
+-        return x * F.sigmoid(x_attn)
++        return x * nn.functional.sigmoid(x_attn)
+ 
+ 
+-class SpatialAttn(nn.Module):
++class SpatialAttn(msnn.Cell):
+     """ Original CBAM spatial attention module
+     """
+     def __init__(
+@@ -86,13 +88,13 @@         self.conv = ConvNormAct(2, 1, kernel_size, apply_act=False, device=device, dtype=dtype)
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
+-        x_attn = torch.cat([x.mean(dim=1, keepdim=True), x.amax(dim=1, keepdim=True)], dim=1)
++    def construct(self, x):
++        x_attn = mint.cat([x.mean(dim=1, keepdim=True), x.amax(dim=1, keepdim=True)], dim = 1)
+         x_attn = self.conv(x_attn)
+         return x * self.gate(x_attn)
+ 
+ 
+-class LightSpatialAttn(nn.Module):
++class LightSpatialAttn(msnn.Cell):
+     """An experimental 'lightweight' variant that sums avg_pool and max_pool results.
+     """
+     def __init__(
+@@ -106,13 +108,13 @@         self.conv = ConvNormAct(1, 1, kernel_size, apply_act=False, device=device, dtype=dtype)
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x_attn = 0.5 * x.mean(dim=1, keepdim=True) + 0.5 * x.amax(dim=1, keepdim=True)
+         x_attn = self.conv(x_attn)
+         return x * self.gate(x_attn)
+ 
+ 
+-class CbamModule(nn.Module):
++class CbamModule(msnn.Cell):
+     def __init__(
+             self,
+             channels: int,
+@@ -140,13 +142,13 @@         )
+         self.spatial = SpatialAttn(spatial_kernel_size, gate_layer=gate_layer, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.channel(x)
+         x = self.spatial(x)
+         return x
+ 
+ 
+-class LightCbamModule(nn.Module):
++class LightCbamModule(msnn.Cell):
+     def __init__(
+             self,
+             channels: int,
+@@ -174,7 +176,7 @@         )
+         self.spatial = LightSpatialAttn(spatial_kernel_size, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.channel(x)
+         x = self.spatial(x)
+         return x

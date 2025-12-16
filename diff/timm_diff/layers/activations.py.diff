@@ -1,0 +1,192 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Activations
+ 
+ A collection of activations fn and modules with a common interface so that they can
+@@ -5,10 +10,7 @@ 
+ Hacked together by / Copyright 2020 Ross Wightman
+ """
+-
+-import torch
+-from torch import nn as nn
+-from torch.nn import functional as F
++# from torch import nn as nn
+ 
+ 
+ def swish(x, inplace: bool = False):
+@@ -17,12 +19,12 @@     return x.mul_(x.sigmoid()) if inplace else x.mul(x.sigmoid())
+ 
+ 
+-class Swish(nn.Module):
++class Swish(msnn.Cell):
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+         self.inplace = inplace
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return swish(x, self.inplace)
+ 
+ 
+@@ -30,16 +32,16 @@     """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681
+     NOTE: I don't have a working inplace variant
+     """
+-    return x.mul(F.softplus(x).tanh())
++    return x.mul(ms.Tensor.tanh())
+ 
+ 
+-class Mish(nn.Module):
++class Mish(msnn.Cell):
+     """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681
+     """
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return mish(x)
+ 
+ 
+@@ -48,12 +50,12 @@ 
+ 
+ # PyTorch has this, but not with a consistent inplace argument interface
+-class Sigmoid(nn.Module):
++class Sigmoid(msnn.Cell):
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+         self.inplace = inplace
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return x.sigmoid_() if self.inplace else x.sigmoid()
+ 
+ 
+@@ -62,26 +64,26 @@ 
+ 
+ # PyTorch has this, but not with a consistent inplace argument interface
+-class Tanh(nn.Module):
++class Tanh(msnn.Cell):
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+         self.inplace = inplace
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return x.tanh_() if self.inplace else x.tanh()
+ 
+ 
+ def hard_swish(x, inplace: bool = False):
+-    inner = F.relu6(x + 3.).div_(6.)
++    inner = nn.functional.relu6(x + 3.).div_(6.)  # 'torch.nn.functional.relu6.div_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     return x.mul_(inner) if inplace else x.mul(inner)
+ 
+ 
+-class HardSwish(nn.Module):
++class HardSwish(msnn.Cell):
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+         self.inplace = inplace
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return hard_swish(x, self.inplace)
+ 
+ 
+@@ -89,15 +91,15 @@     if inplace:
+         return x.add_(3.).clamp_(0., 6.).div_(6.)
+     else:
+-        return F.relu6(x + 3.) / 6.
++        return nn.functional.relu6(x + 3.) / 6.
+ 
+ 
+-class HardSigmoid(nn.Module):
++class HardSigmoid(msnn.Cell):
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+         self.inplace = inplace
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return hard_sigmoid(x, self.inplace)
+ 
+ 
+@@ -112,12 +114,12 @@         return 0.5 * x * (x + 2).clamp(min=0, max=2)
+ 
+ 
+-class HardMish(nn.Module):
++class HardMish(msnn.Cell):
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+         self.inplace = inplace
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return hard_mish(x, self.inplace)
+ 
+ 
+@@ -127,47 +129,47 @@     def __init__(self, num_parameters: int = 1, init: float = 0.25, inplace: bool = False) -> None:
+         super().__init__(num_parameters=num_parameters, init=init)
+ 
+-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+-        return F.prelu(input, self.weight)
++    def forward(self, input: ms.Tensor) -> ms.Tensor:
++        return nn.functional.prelu(input, self.weight)
+ 
+ 
+-def gelu(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
+-    return F.gelu(x)
++def gelu(x: ms.Tensor, inplace: bool = False) -> ms.Tensor:
++    return nn.functional.gelu(x)
+ 
+ 
+-class GELU(nn.Module):
++class GELU(msnn.Cell):
+     """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)
+     """
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+ 
+-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+-        return F.gelu(input)
++    def construct(self, input: ms.Tensor) -> ms.Tensor:
++        return nn.functional.gelu(input)
+ 
+ 
+-def gelu_tanh(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
+-    return F.gelu(x, approximate='tanh')
++def gelu_tanh(x: ms.Tensor, inplace: bool = False) -> ms.Tensor:
++    return nn.functional.gelu(x)
+ 
+ 
+-class GELUTanh(nn.Module):
++class GELUTanh(msnn.Cell):
+     """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)
+     """
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+ 
+-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+-        return F.gelu(input, approximate='tanh')
++    def construct(self, input: ms.Tensor) -> ms.Tensor:
++        return nn.functional.gelu(input)
+ 
+ 
+-def quick_gelu(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
+-    return x * torch.sigmoid(1.702 * x)
++def quick_gelu(x: ms.Tensor, inplace: bool = False) -> ms.Tensor:
++    return x * mint.sigmoid(1.702 * x)
+ 
+ 
+-class QuickGELU(nn.Module):
++class QuickGELU(msnn.Cell):
+     """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)
+     """
+     def __init__(self, inplace: bool = False):
+         super().__init__()
+ 
+-    def forward(self, input: torch.Tensor) -> torch.Tensor:
++    def construct(self, input: ms.Tensor) -> ms.Tensor:
+         return quick_gelu(input)

@@ -1,0 +1,45 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Global Context Attention Block
+ 
+ Paper: `GCNet: Non-local Networks Meet Squeeze-Excitation Networks and Beyond`
+@@ -9,8 +14,7 @@ """
+ from typing import Optional, Tuple, Type, Union
+ 
+-from torch import nn as nn
+-import torch.nn.functional as F
++# from torch import nn as nn
+ 
+ from .create_act import create_act_layer, get_act_layer
+ from .helpers import make_divisible
+@@ -18,7 +22,7 @@ from .norm import LayerNorm2d
+ 
+ 
+-class GlobalContext(nn.Module):
++class GlobalContext(msnn.Cell):
+ 
+     def __init__(
+             self,
+@@ -59,16 +63,16 @@ 
+     def reset_parameters(self):
+         if self.conv_attn is not None:
+-            nn.init.kaiming_normal_(self.conv_attn.weight, mode='fan_in', nonlinearity='relu')
++            nn.init.kaiming_normal_(self.conv_attn.weight, mode='fan_in', nonlinearity='relu')  # 'torch.nn.init.kaiming_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.mlp_add is not None:
+-            nn.init.zeros_(self.mlp_add.fc2.weight)
++            nn.init.zeros_(self.mlp_add.fc2.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         B, C, H, W = x.shape
+ 
+         if self.conv_attn is not None:
+             attn = self.conv_attn(x).reshape(B, 1, H * W)  # (B, 1, H * W)
+-            attn = F.softmax(attn, dim=-1).unsqueeze(3)  # (B, 1, H * W, 1)
++            attn = mint.unsqueeze(3)  # (B, 1, H * W, 1)
+             context = x.reshape(B, C, H * W).unsqueeze(1) @ attn
+             context = context.view(B, C, 1, 1)
+         else:

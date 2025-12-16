@@ -1,0 +1,109 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ DropBlock, DropPath
+ 
+ PyTorch implementations of DropBlock and DropPath (Stochastic Depth) regularization layers.
+@@ -16,13 +21,12 @@ """
+ from typing import List, Union
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.nn as nn
+ 
+ 
+ def drop_block_2d(
+-        x: torch.Tensor,
++        x: ms.Tensor,
+         drop_prob: float = 0.1,
+         block_size: int = 7,
+         gamma_scale: float = 1.0,
+@@ -59,15 +63,11 @@     # couple_channels=True means all channels share same spatial mask (matches paper)
+     noise_shape = (B, 1 if couple_channels else C, H, W)
+     with torch.no_grad():
+-        block_mask = torch.empty(noise_shape, dtype=x.dtype, device=x.device).bernoulli_(gamma)
++        block_mask = mint.empty(noise_shape, dtype = x.dtype, device = x.device).bernoulli_(gamma)
+ 
+         # Expand block centers to full blocks using max pooling
+-        block_mask = F.max_pool2d(
+-            block_mask,
+-            kernel_size=(kh, kw),
+-            stride=1,
+-            padding=(kh // 2, kw // 2),
+-        )
++        block_mask = nn.functional.max_pool2d(
++            block_mask, kernel_size = (kh, kw), stride = 1, padding = (kh // 2, kw // 2))
+         # Handle even kernel sizes - max_pool2d output is 1 larger in each even dimension
+         if kh % 2 == 0 or kw % 2 == 0:
+             # Fix for even kernels proposed by https://github.com/crutcher
+@@ -77,7 +77,7 @@ 
+     if with_noise:
+         with torch.no_grad():
+-            noise = torch.empty_like(keep_mask).normal_()
++            noise = mint.empty_like(keep_mask).normal_()
+             noise.mul_(block_mask)
+ 
+         if inplace:
+@@ -88,7 +88,7 @@         if scale_by_keep:
+             with torch.no_grad():
+                 # Normalize to maintain expected values (scale up kept activations)
+-                normalize_scale = keep_mask.numel() / keep_mask.to(dtype=torch.float32).sum().add(1e-7)
++                normalize_scale = keep_mask.numel() / keep_mask.to(dtype=ms.float32).sum().add(1e-7)
+                 keep_mask.mul_(normalize_scale.to(x.dtype))
+ 
+         if inplace:
+@@ -99,7 +99,7 @@     return x
+ 
+ 
+-class DropBlock2d(nn.Module):
++class DropBlock2d(msnn.Cell):
+     """ DropBlock. See https://arxiv.org/pdf/1810.12890.pdf
+ 
+     Args:
+@@ -140,7 +140,7 @@                 import warnings
+                 warnings.warn(f"DropBlock2d() got unexpected keyword argument '{k}'")
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         if not self.training or not self.drop_prob:
+             return x
+         return drop_block_2d(
+@@ -175,7 +175,7 @@     return x * random_tensor
+ 
+ 
+-class DropPath(nn.Module):
++class DropPath(msnn.Cell):
+     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
+     """
+     def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True):
+@@ -183,7 +183,7 @@         self.drop_prob = drop_prob
+         self.scale_by_keep = scale_by_keep
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
+ 
+     def extra_repr(self):
+@@ -216,16 +216,16 @@         # Single depth value - per-block pattern
+         if stagewise:
+             raise ValueError("stagewise=True requires depths to be a list of stage depths")
+-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depths, device='cpu')]
++        dpr = [x.item() for x in mint.linspace(0, drop_path_rate, depths)]  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
+         return dpr
+     else:
+         # List of depths - can be either pattern
+         total_depth = sum(depths)
+         if stagewise:
+             # Stage-wise pattern: same drop rate within each stage
+-            dpr = [x.tolist() for x in torch.linspace(0, drop_path_rate, total_depth, device='cpu').split(depths)]
++            dpr = [x.tolist() for x in mint.linspace(0, drop_path_rate, total_depth).split(depths)]  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
+             return dpr
+         else:
+             # Per-block pattern across all stages
+-            dpr = [x.item() for x in torch.linspace(0, drop_path_rate, total_depth, device='cpu')]
++            dpr = [x.item() for x in mint.linspace(0, drop_path_rate, total_depth)]  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
+             return dpr

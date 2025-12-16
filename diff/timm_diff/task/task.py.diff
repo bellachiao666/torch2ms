@@ -1,0 +1,50 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """Base training task abstraction.
+ 
+ This module provides the base TrainingTask class that encapsulates a complete
+@@ -6,11 +11,10 @@ """
+ from typing import Dict, Optional
+ 
+-import torch
+-import torch.nn as nn
++# import torch
+ 
+ 
+-class TrainingTask(nn.Module):
++class TrainingTask(msnn.Cell):
+     """Base class for training tasks.
+ 
+     A training task encapsulates a complete forward pass including loss computation.
+@@ -45,13 +49,13 @@             verbose: bool = True,
+     ):
+         super().__init__()
+-        self.device = device if device is not None else torch.device('cpu')
+-        self.dtype = dtype if dtype is not None else torch.get_default_dtype()
++        self.device = device if device is not None else torch.device('cpu')  # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        self.dtype = dtype if dtype is not None else torch.get_default_dtype()  # 'torch.get_default_dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         self.verbose = verbose
+ 
+     def to(self, *args, **kwargs):
+         """Move task to device/dtype, keeping self.device and self.dtype in sync."""
+-        dummy = torch.empty(0).to(*args, **kwargs)
++        dummy = mint.empty(0).to(*args, **kwargs)
+         self.device = dummy.device
+         self.dtype = dummy.dtype
+         return super().to(*args, **kwargs)
+@@ -83,10 +87,10 @@         # Default implementation - subclasses override if they need DDP
+         return self
+ 
+-    def forward(
++    def construct(
+             self,
+-            input: torch.Tensor,
+-            target: torch.Tensor,
++            input: ms.Tensor,
++            target: ms.Tensor,
+     ) -> Dict[str, torch.Tensor]:
+         """Perform forward pass and compute loss.
+ 

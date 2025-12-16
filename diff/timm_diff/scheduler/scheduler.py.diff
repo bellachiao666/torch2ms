@@ -1,0 +1,38 @@
+--- pytorch+++ mindspore@@ -1,8 +1,13 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import abc
+ from abc import ABC
+ from typing import Any, Dict, List, Optional
+ 
+-import torch
++# import torch
+ 
+ 
+ class Scheduler(ABC):
+@@ -24,6 +29,7 @@      * https://github.com/allenai/allennlp/tree/master/allennlp/training/learning_rate_schedulers
+     """
+ 
++    # 类型标注 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             optimizer: torch.optim.Optimizer,
+@@ -114,14 +120,14 @@         return apply_noise
+ 
+     def _calculate_noise(self, t) -> float:
+-        g = torch.Generator()
++        g = torch.Generator()  # 'torch.Generator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         g.manual_seed(self.noise_seed + t)
+         if self.noise_type == 'normal':
+             while True:
+                 # resample if noise out of percent limit, brute force but shouldn't spin much
+-                noise = torch.randn(1, generator=g).item()
++                noise = mint.randn(1, generator = g).item()
+                 if abs(noise) < self.noise_pct:
+                     return noise
+         else:
+-            noise = 2 * (torch.rand(1, generator=g).item() - 0.5) * self.noise_pct
++            noise = 2 * (mint.rand(1, generator = g).item() - 0.5) * self.noise_pct
+         return noise

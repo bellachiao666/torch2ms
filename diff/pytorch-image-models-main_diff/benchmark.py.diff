@@ -1,0 +1,125 @@
+--- pytorch+++ mindspore@@ -1,4 +1,9 @@ #!/usr/bin/env python3
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Model Benchmark Script
+ 
+ An inference and train step benchmark script for timm models.
+@@ -14,9 +19,8 @@ from contextlib import suppress
+ from functools import partial
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.parallel
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import resolve_data_config
+ from timm.layers import set_fast_norm
+@@ -39,7 +43,7 @@     has_fvcore_profiling = False
+ 
+ try:
+-    from functorch.compile import memory_efficient_fusion
++    # from functorch.compile import memory_efficient_fusion
+     has_functorch = True
+ except ImportError as e:
+     has_functorch = False
+@@ -152,10 +156,11 @@ 
+ def cuda_timestamp(sync=False, device=None):
+     if sync:
+-        torch.cuda.synchronize(device=device)
++        torch.cuda.synchronize(device=device)  # 'torch.cuda.synchronize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     return time.perf_counter()
+ 
+ 
++# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def count_params(model: nn.Module):
+     return sum([m.numel() for m in model.parameters()])
+ 
+@@ -163,18 +168,18 @@ def resolve_precision(precision: str):
+     assert precision in ('amp', 'amp_bfloat16', 'float16', 'bfloat16', 'float32')
+     amp_dtype = None  # amp disabled
+-    model_dtype = torch.float32
+-    data_dtype = torch.float32
++    model_dtype = ms.float32
++    data_dtype = ms.float32
+     if precision == 'amp':
+-        amp_dtype = torch.float16
++        amp_dtype = ms.float16
+     elif precision == 'amp_bfloat16':
+-        amp_dtype = torch.bfloat16
++        amp_dtype = ms.bfloat16
+     elif precision == 'float16':
+-        model_dtype = torch.float16
+-        data_dtype = torch.float16
++        model_dtype = ms.float16
++        data_dtype = ms.float16
+     elif precision == 'bfloat16':
+-        model_dtype = torch.bfloat16
+-        data_dtype = torch.bfloat16
++        model_dtype = ms.bfloat16
++        data_dtype = ms.bfloat16
+     return amp_dtype, model_dtype, data_dtype
+ 
+ 
+@@ -195,7 +200,7 @@     if force_cpu:
+         model = model.to('cpu')
+     device, dtype = next(model.parameters()).device, next(model.parameters()).dtype
+-    example_input = torch.ones((batch_size,) + input_size, device=device, dtype=dtype)
++    example_input = mint.ones((batch_size,) + input_size, dtype = dtype)  # 'torch.ones':没有对应的mindspore参数 'device' (position 4);
+     fca = FlopCountAnalysis(model, example_input)
+     aca = ActivationCountAnalysis(model, example_input)
+     if detailed:
+@@ -262,12 +267,12 @@ 
+         self.compiled = False
+         if torchscript:
+-            self.model = torch.jit.script(self.model)
++            self.model = torch.jit.script(self.model)  # 'torch.jit.script' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             self.compiled = True
+         elif torchcompile:
+             assert has_compile, 'A version of torch w/ torch.compile() is required, possibly a nightly.'
+-            torch._dynamo.reset()
+-            self.model = torch.compile(self.model, backend=torchcompile, mode=torchcompile_mode)
++            torch._dynamo.reset()  # 'torch._dynamo.reset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            self.model = torch.compile(self.model, backend=torchcompile, mode=torchcompile_mode)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             self.compiled = True
+         elif aot_autograd:
+             assert has_functorch, "functorch is needed for --aot-autograd"
+@@ -284,8 +289,8 @@             self.time_fn = timestamp
+ 
+     def _init_input(self):
+-        self.example_inputs = torch.randn(
+-            (self.batch_size,) + self.input_size, device=self.device, dtype=self.data_dtype)
++        self.example_inputs = mint.randn(
++            (self.batch_size,) + self.input_size, dtype = self.data_dtype)  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
+         if self.channels_last:
+             self.example_inputs = self.example_inputs.contiguous(memory_format=torch.channels_last)
+ 
+@@ -377,7 +382,7 @@         super().__init__(model_name=model_name, device=device, torchscript=torchscript, **kwargs)
+         self.model.train()
+ 
+-        self.loss = nn.CrossEntropyLoss().to(self.device)
++        self.loss = nn.CrossEntropyLoss().to(self.device)  # 'torch.nn.CrossEntropyLoss.to' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         self.target_shape = tuple()
+ 
+         self.optimizer = create_optimizer_v2(
+@@ -389,8 +394,8 @@             self.model.set_grad_checkpointing()
+ 
+     def _gen_target(self, batch_size):
+-        return torch.empty(
+-            (batch_size,) + self.target_shape, device=self.device, dtype=torch.long).random_(self.num_classes)
++        return mint.empty(
++            (batch_size,) + self.target_shape, dtype = torch.long, device = self.device).random_(self.num_classes)
+ 
+     def run(self):
+         def _step(detail=False):
+@@ -543,7 +548,7 @@     error_str = 'Unknown'
+     while batch_size:
+         try:
+-            torch.cuda.empty_cache()
++            torch.cuda.empty_cache()  # 'torch.cuda.empty_cache' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             bench = bench_fn(model_name=model_name, batch_size=batch_size, **bench_kwargs)
+             results = bench.run()
+             return results

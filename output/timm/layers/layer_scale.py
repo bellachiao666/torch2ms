@@ -1,0 +1,59 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+# import torch
+# from torch import nn
+
+
+class LayerScale(msnn.Cell):
+    """ LayerScale on tensors with channels in last-dim.
+    """
+    def __init__(
+            self,
+            dim: int,
+            init_values: float = 1e-5,
+            inplace: bool = False,
+            device=None,
+            dtype=None,
+    ) -> None:
+        super().__init__()
+        self.init_values = init_values
+        self.inplace = inplace
+        self.gamma = ms.Parameter(mint.empty(dim, dtype = dtype, device = device))
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.constant_(self.gamma, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+
+    def construct(self, x: ms.Tensor) -> ms.Tensor:
+        return x.mul_(self.gamma) if self.inplace else x * self.gamma
+
+
+class LayerScale2d(msnn.Cell):
+    """ LayerScale for tensors with torch 2D NCHW layout.
+    """
+    def __init__(
+            self,
+            dim: int,
+            init_values: float = 1e-5,
+            inplace: bool = False,
+            device=None,
+            dtype=None,
+    ):
+        super().__init__()
+        self.init_values = init_values
+        self.inplace = inplace
+        self.gamma = ms.Parameter(mint.empty(dim, dtype = dtype, device = device))
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.constant_(self.gamma, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+
+    def construct(self, x):
+        gamma = self.gamma.view(1, -1, 1, 1)
+        return x.mul_(gamma) if self.inplace else x * gamma
+

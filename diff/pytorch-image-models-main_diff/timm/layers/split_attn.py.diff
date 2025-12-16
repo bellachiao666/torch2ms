@@ -1,0 +1,66 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Split Attention Conv2d (for ResNeSt Models)
+ 
+ Paper: `ResNeSt: Split-Attention Networks` - /https://arxiv.org/abs/2004.08955
+@@ -7,32 +12,29 @@ Modified for torchscript compat, performance, and consistency with timm by Ross Wightman
+ """
+ from typing import Optional, Type, Union
+-
+-import torch
+-import torch.nn.functional as F
+-from torch import nn
++# from torch import nn
+ 
+ from .helpers import make_divisible
+ 
+ 
+-class RadixSoftmax(nn.Module):
++class RadixSoftmax(msnn.Cell):
+     def __init__(self, radix: int, cardinality: int):
+         super().__init__()
+         self.radix = radix
+         self.cardinality = cardinality
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         batch = x.size(0)
+         if self.radix > 1:
+             x = x.view(batch, self.cardinality, self.radix, -1).transpose(1, 2)
+-            x = F.softmax(x, dim=1)
++            x = nn.functional.softmax(x, dim = 1)
+             x = x.reshape(batch, -1)
+         else:
+-            x = torch.sigmoid(x)
++            x = mint.sigmoid(x)
+         return x
+ 
+ 
+-class SplitAttn(nn.Module):
++class SplitAttn(msnn.Cell):
+     """Split-Attention (aka Splat)
+     """
+     def __init__(
+@@ -77,16 +79,16 @@             **kwargs,
+             **dd,
+         )
+-        self.bn0 = norm_layer(mid_chs, **dd) if norm_layer else nn.Identity()
+-        self.drop = drop_layer() if drop_layer is not None else nn.Identity()
++        self.bn0 = norm_layer(mid_chs, **dd) if norm_layer else msnn.Identity()
++        self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
+         self.act0 = act_layer(inplace=True)
+         self.fc1 = nn.Conv2d(out_channels, attn_chs, 1, groups=groups, **dd)
+-        self.bn1 = norm_layer(attn_chs, **dd) if norm_layer else nn.Identity()
++        self.bn1 = norm_layer(attn_chs, **dd) if norm_layer else msnn.Identity()
+         self.act1 = act_layer(inplace=True)
+         self.fc2 = nn.Conv2d(attn_chs, mid_chs, 1, groups=groups, **dd)
+         self.rsoftmax = RadixSoftmax(radix, groups)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv(x)
+         x = self.bn0(x)
+         x = self.drop(x)

@@ -1,0 +1,287 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Optimzier Tests
+ 
+ These tests were adapted from PyTorch' optimizer tests.
+@@ -9,9 +14,9 @@ from copy import deepcopy
+ 
+ import pytest
+-import torch
+-from torch.nn import Parameter
+-from torch.testing._internal.common_utils import TestCase
++# import torch
++# from torch.nn import Parameter
++# from torch.testing._internal.common_utils import TestCase
+ 
+ from timm.optim import create_optimizer_v2, list_optimizers, get_optimizer_class, get_optimizer_info, OptimInfo
+ from timm.optim import param_groups_layer_decay, param_groups_weight_decay
+@@ -23,13 +28,13 @@ torch_device = os.environ.get('TORCH_DEVICE', 'cuda')
+ 
+ # HACK relying on internal PyTorch test functionality for comparisons that I don't want to write
+-torch_tc = TestCase()
++torch_tc = TestCase()  # 'torch.testing._internal.common_utils.TestCase' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def _test_basic_cases_template(weight, bias, input, constructor, scheduler_constructors):
+-    weight = Parameter(weight)
+-    bias = Parameter(bias)
+-    input = Parameter(input)
++    weight = ms.Parameter(weight)
++    bias = ms.Parameter(bias)
++    input = ms.Parameter(input)
+     optimizer = constructor(weight, bias)
+     schedulers = []
+     for scheduler_constructor in scheduler_constructors:
+@@ -61,9 +66,9 @@ 
+ 
+ def _test_state_dict(weight, bias, input, constructor):
+-    weight = Parameter(weight)
+-    bias = Parameter(bias)
+-    input = Parameter(input)
++    weight = ms.Parameter(weight)
++    bias = ms.Parameter(bias)
++    input = ms.Parameter(input)
+ 
+     def fn_base(optimizer, weight, bias):
+         optimizer.zero_grad()
+@@ -80,8 +85,8 @@         optimizer.step(fn)
+     # Clone the weights and construct new optimizer for them
+     with torch.no_grad():
+-        weight_c = Parameter(weight.clone().detach())
+-        bias_c = Parameter(bias.clone().detach())
++        weight_c = ms.Parameter(weight.clone().detach())
++        bias_c = ms.Parameter(bias.clone().detach())
+     optimizer_c = constructor(weight_c, bias_c)
+     fn_c = functools.partial(fn_base, optimizer_c, weight_c, bias_c)
+     # Load state dict
+@@ -93,13 +98,13 @@     for _i in range(20):
+         optimizer.step(fn)
+         optimizer_c.step(fn_c)
+-        torch_tc.assertEqual(weight, weight_c)
+-        torch_tc.assertEqual(bias, bias_c)
++        torch_tc.assertEqual(weight, weight_c)  # 'torch_tc.assertEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        torch_tc.assertEqual(bias, bias_c)  # 'torch_tc.assertEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     # Make sure state dict is deterministic with equal but not identical parameters
+-    torch_tc.assertEqual(optimizer.state_dict(), optimizer_c.state_dict())
++    torch_tc.assertEqual(optimizer.state_dict(), optimizer_c.state_dict())  # 'torch_tc.assertEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     # Make sure repeated parameters have identical representation in state dict
+     optimizer_c.param_groups.extend(optimizer_c.param_groups)
+-    torch_tc.assertEqual(optimizer.state_dict()['param_groups'][-1], optimizer_c.state_dict()['param_groups'][-1])
++    torch_tc.assertEqual(optimizer.state_dict()['param_groups'][-1], optimizer_c.state_dict()['param_groups'][-1])  # 'torch_tc.assertEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Check that state dict can be loaded even when we cast parameters
+     # to a different type and move to a different device.
+@@ -109,9 +114,9 @@         return
+ 
+     with torch.no_grad():
+-        input_device = Parameter(input.clone().detach().float().to(torch_device))
+-        weight_device = Parameter(weight.clone().detach().to(torch_device))
+-        bias_device = Parameter(bias.clone().detach().to(torch_device))
++        input_device = ms.Parameter(input.clone().detach().float().to(torch_device))
++        weight_device = ms.Parameter(weight.clone().detach().to(torch_device))
++        bias_device = ms.Parameter(bias.clone().detach().to(torch_device))
+     optimizer_device = constructor(weight_device, bias_device)
+     fn_device = functools.partial(fn_base, optimizer_device, weight_device, bias_device)
+ 
+@@ -120,13 +125,13 @@     optimizer_device.load_state_dict(state_dict_c)
+ 
+     # Make sure state dict wasn't modified
+-    torch_tc.assertEqual(state_dict, state_dict_c)
++    torch_tc.assertEqual(state_dict, state_dict_c)  # 'torch_tc.assertEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     for _i in range(20):
+         optimizer.step(fn)
+         optimizer_device.step(fn_device)
+-        torch_tc.assertEqual(weight, weight_device)
+-        torch_tc.assertEqual(bias, bias_device)
++        torch_tc.assertEqual(weight, weight_device)  # 'torch_tc.assertEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        torch_tc.assertEqual(bias, bias_device)  # 'torch_tc.assertEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # validate deepcopy() copies all public attributes
+     def getPublicAttr(obj):
+@@ -139,23 +144,23 @@     if scheduler_constructors is None:
+         scheduler_constructors = []
+     _test_state_dict(
+-        torch.randn(10, 5),
+-        torch.randn(10),
+-        torch.randn(5),
++        mint.randn(size = (10, 5)),
++        mint.randn(10),
++        mint.randn(5),
+         constructor
+     )
+     _test_basic_cases_template(
+-        torch.randn(10, 5),
+-        torch.randn(10),
+-        torch.randn(5),
++        mint.randn(size = (10, 5)),
++        mint.randn(10),
++        mint.randn(5),
+         constructor,
+         scheduler_constructors
+     )
+     # non-contiguous parameters
+     _test_basic_cases_template(
+-        torch.randn(10, 5, 2)[..., 0],
+-        torch.randn(10, 2)[..., 0],
+-        torch.randn(5),
++        mint.randn(size = (10, 5, 2))[..., 0],
++        mint.randn(size = (10, 2))[..., 0],
++        mint.randn(5),
+         constructor,
+         scheduler_constructors
+     )
+@@ -166,27 +171,28 @@         return
+ 
+     _test_basic_cases_template(
+-        torch.randn(10, 5).to(torch_device),
+-        torch.randn(10).to(torch_device),
+-        torch.randn(5).to(torch_device),
++        mint.randn(size = (10, 5)).to(torch_device),
++        mint.randn(10).to(torch_device),
++        mint.randn(5).to(torch_device),
+         constructor,
+         scheduler_constructors
+     )
+ 
+ 
+ def _test_model(optimizer, params, device=torch.device('cpu'), after_step=0):
+-    weight = torch.tensor(
+-        [[-0.2109, -0.4976], [-0.1413, -0.3420], [-0.2524, 0.6976]],
+-        device=device, requires_grad=True)
+-    bias = torch.tensor([-0.1085, -0.2979, 0.6892], device=device, requires_grad=True)
+-    weight2 = torch.tensor([[-0.0508, -0.3941, -0.2843]], device=device, requires_grad=True)
+-    bias2 = torch.tensor([-0.0711], device=device, requires_grad=True)
+-    input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
+-
+-    model = torch.nn.Sequential(torch.nn.Linear(2, 3),
+-                                torch.nn.Sigmoid(),
+-                                torch.nn.Linear(3, 1),
+-                                torch.nn.Sigmoid())
++    weight = ms.Tensor(
++        [[-0.2109, -0.4976], [-0.1413, -0.3420], [-0.2524, 0.6976]])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);; 'torch.tensor':没有对应的mindspore参数 'requires_grad' (position 3);
++    bias = ms.Tensor([-0.1085, -0.2979, 0.6892])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);; 'torch.tensor':没有对应的mindspore参数 'requires_grad' (position 3);
++    weight2 = ms.Tensor([[-0.0508, -0.3941, -0.2843]])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);; 'torch.tensor':没有对应的mindspore参数 'requires_grad' (position 3);
++    bias2 = ms.Tensor([-0.0711])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);; 'torch.tensor':没有对应的mindspore参数 'requires_grad' (position 3);
++    input = ms.Tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]).reshape(3, 2)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
++
++    model = msnn.SequentialCell([
++        nn.Linear(2, 3),
++        nn.Sigmoid(),
++        nn.Linear(3, 1),
++        nn.Sigmoid()
++    ])
+     model.to(device)
+ 
+     pretrained_dict = model.state_dict()
+@@ -218,21 +224,21 @@ 
+ def drosenbrock(tensor):
+     x, y = tensor
+-    return torch.tensor((-400 * x * (y - x ** 2) - 2 * (1 - x), 200 * (y - x ** 2)))
++    return ms.Tensor((-400 * x * (y - x ** 2) - 2 * (1 - x), 200 * (y - x ** 2)))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+ 
+ 
+ def _test_rosenbrock(constructor, scheduler_constructors=None):
+     if scheduler_constructors is None:
+         scheduler_constructors = []
+-    params_t = torch.tensor([1.5, 1.5])
+-
+-    params = Parameter(params_t)
++    params_t = ms.Tensor([1.5, 1.5])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++
++    params = ms.Parameter(params_t)
+     optimizer = constructor([params])
+     schedulers = []
+     for scheduler_constructor in scheduler_constructors:
+         schedulers.append(scheduler_constructor(optimizer))
+ 
+-    solution = torch.tensor([1, 1])
++    solution = ms.Tensor([1, 1])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+     initial_dist = params.clone().detach().dist(solution)
+ 
+ 
+@@ -241,19 +247,19 @@         # Depending on w, provide only the x or y gradient
+         if _sparse_grad:
+             if _w:
+-                i = torch.tensor([[0, 0]], dtype=torch.int64)
++                i = ms.Tensor([[0, 0]], dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                 x = grad[0]
+-                v = torch.tensor([x / 4.0, x - x / 4.0])
++                v = ms.Tensor([x / 4.0, x - x / 4.0])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+             else:
+-                i = torch.tensor([[1, 1]], dtype=torch.int64)
++                i = ms.Tensor([[1, 1]], dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                 y = grad[1]
+-                v = torch.tensor([y - y / 4.0, y / 4.0])
+-            grad_out = torch.sparse_coo_tensor(i, v, (2,), dtype=v.dtype)
++                v = ms.Tensor([y - y / 4.0, y / 4.0])  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++            grad_out = torch.sparse_coo_tensor(i, v, (2,), dtype=v.dtype)  # 'torch.sparse_coo_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             if _w:
+-                grad_out = torch.tensor([grad[0], 0], dtype=_param.dtype)
++                grad_out = ms.Tensor([grad[0], 0], dtype = _param.dtype)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+             else:
+-                grad_out = torch.tensor([0, grad[1]], dtype=_param.dtype)
++                grad_out = ms.Tensor([0, grad[1]], dtype = _param.dtype)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+         return grad_out
+ 
+ 
+@@ -279,7 +285,7 @@             else:
+                 scheduler.step()
+ 
+-    torch_tc.assertLessEqual(params.clone().detach().dist(solution), initial_dist)
++    torch_tc.assertLessEqual(params.clone().detach().dist(solution), initial_dist)  # 'torch_tc.assertLessEqual' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def _build_params_dict(weight, bias, **kwargs):
+@@ -561,11 +567,12 @@ 
+ 
+ def test_param_groups_layer_decay_with_min():
+-    model = torch.nn.Sequential(
+-        torch.nn.Linear(10, 5),
+-        torch.nn.ReLU(),
+-        torch.nn.Linear(5, 2)
+-    )
++    model = msnn.SequentialCell(
++        [
++        nn.Linear(10, 5),
++        nn.ReLU(),
++        nn.Linear(5, 2)
++    ])
+     
+     param_groups = param_groups_layer_decay(
+         model,
+@@ -584,11 +591,11 @@ 
+ 
+ def test_param_groups_layer_decay_with_matcher():
+-    class ModelWithMatcher(torch.nn.Module):
++    class ModelWithMatcher(msnn.Cell):
+         def __init__(self):
+             super().__init__()
+-            self.layer1 = torch.nn.Linear(10, 5)
+-            self.layer2 = torch.nn.Linear(5, 2)
++            self.layer1 = nn.Linear(10, 5)
++            self.layer2 = nn.Linear(5, 2)
+             
+         def group_matcher(self, coarse=False):
+             return lambda name: int(name.split('.')[0][-1])
+@@ -610,11 +617,12 @@ 
+ 
+ def test_param_groups_weight_decay():
+-    model = torch.nn.Sequential(
+-        torch.nn.Linear(10, 5),
+-        torch.nn.ReLU(),
+-        torch.nn.Linear(5, 2)
+-    )
++    model = msnn.SequentialCell(
++        [
++        nn.Linear(10, 5),
++        nn.ReLU(),
++        nn.Linear(5, 2)
++    ])
+     weight_decay = 0.01
+     no_weight_decay_list = ['1.weight']
+     

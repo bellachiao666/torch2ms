@@ -1,0 +1,219 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Nested Transformer (NesT) in PyTorch
+ 
+ A PyTorch implement of Aggregating Nested Transformers as described in:
+@@ -21,9 +26,9 @@ from functools import partial
+ from typing import List, Optional, Tuple, Type, Union
+ 
+-import torch
+-import torch.nn.functional as F
+-from torch import nn
++# import torch
++# import torch.nn.functional as F
++# from torch import nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import (
+@@ -51,7 +56,7 @@ _logger = logging.getLogger(__name__)
+ 
+ 
+-class Attention(nn.Module):
++class Attention(msnn.Cell):
+     """
+     This is much like `.vision_transformer.Attention` but uses *localised* self attention by accepting an input with
+      an extra "image block" dim
+@@ -80,7 +85,7 @@         self.proj = nn.Linear(dim, dim, **dd)
+         self.proj_drop = nn.Dropout(proj_drop)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         """
+         x is shape: B (batch_size), T (image blocks), N (seq length per image block), C (embed dim)
+         """
+@@ -90,7 +95,7 @@         q, k, v = qkv.unbind(0)  # make torchscript happy (cannot use tensor as tuple)
+ 
+         if self.fused_attn:
+-            x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_drop.p if self.training else 0.)
++            x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_drop.p if self.training else 0.)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = q @ k.transpose(-2, -1) # (B, H, T, N, N)
+@@ -105,7 +110,7 @@         return x  # (B, T, N, C)
+ 
+ 
+-class TransformerLayer(nn.Module):
++class TransformerLayer(msnn.Cell):
+     """
+     This is much like `.vision_transformer.Block` but:
+         - Called TransformerLayer here to allow for "block" as defined in the paper ("non-overlapping image blocks")
+@@ -136,7 +141,7 @@             proj_drop=proj_drop,
+             **dd,
+         )
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+         self.norm2 = norm_layer(dim, **dd)
+         mlp_hidden_dim = int(dim * mlp_ratio)
+         self.mlp = Mlp(
+@@ -146,16 +151,16 @@             drop=proj_drop,
+             **dd,
+         )
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-    def forward(self, x):
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++    def construct(self, x):
+         y = self.norm1(x)
+         x = x + self.drop_path1(self.attn(y))
+         x = x + self.drop_path2(self.mlp(self.norm2(x)))
+         return x
+ 
+ 
+-class ConvPool(nn.Module):
++class ConvPool(msnn.Cell):
+     def __init__(
+             self,
+             in_channels: int,
+@@ -171,7 +176,7 @@         self.norm = norm_layer(out_channels, **dd)
+         self.pool = create_pool2d('max', kernel_size=3, stride=2, padding=pad_type)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         """
+         x is expected to have shape (B, C, H, W)
+         """
+@@ -215,7 +220,7 @@     return x  # (B, H, W, C)
+ 
+ 
+-class NestLevel(nn.Module):
++class NestLevel(msnn.Cell):
+     """ Single hierarchical level of a Nested Transformer
+     """
+     def __init__(
+@@ -243,17 +248,18 @@         self.block_size = block_size
+         self.grad_checkpointing = False
+ 
+-        self.pos_embed = nn.Parameter(torch.zeros(1, num_blocks, seq_length, embed_dim, **dd))
++        self.pos_embed = ms.Parameter(mint.zeros(1, num_blocks, seq_length, embed_dim, **dd))
+ 
+         if prev_embed_dim is not None:
+             self.pool = ConvPool(prev_embed_dim, embed_dim, norm_layer=norm_layer, pad_type=pad_type, **dd)
+         else:
+-            self.pool = nn.Identity()
++            self.pool = msnn.Identity()
+ 
+         # Transformer encoder
+         if len(drop_path):
+             assert len(drop_path) == depth, 'Must provide as many drop path rates as there are transformer layers'
+-        self.transformer_encoder = nn.Sequential(*[
++        self.transformer_encoder = msnn.SequentialCell([
++            [
+             TransformerLayer(
+                 dim=embed_dim,
+                 num_heads=num_heads,
+@@ -266,9 +272,10 @@                 act_layer=act_layer,
+                 **dd,
+             )
+-            for i in range(depth)])
+-
+-    def forward(self, x):
++            for i in range(depth)]
++        ])
++
++    def construct(self, x):
+         """
+         expects x as (B, C, H, W)
+         """
+@@ -285,7 +292,7 @@         return x.permute(0, 3, 1, 2)  # (B, C, H', W')
+ 
+ 
+-class Nest(nn.Module):
++class Nest(msnn.Cell):
+     """ Nested Transformer (NesT)
+ 
+     A PyTorch impl of : `Aggregating Nested Transformers`
+@@ -367,7 +374,7 @@         self.patch_size = patch_size
+ 
+         # Number of blocks at each level
+-        self.num_blocks = (4 ** torch.arange(num_levels, device='cpu', dtype=torch.long)).flip(0).tolist()
++        self.num_blocks = (4 ** mint.arange(num_levels, dtype = torch.long)).flip(0).tolist()  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+         assert (img_size // patch_size) % math.sqrt(self.num_blocks[0]) == 0, \
+             'First level blocks don\'t fit evenly. Check `img_size`, `patch_size`, and `num_levels`'
+ 
+@@ -416,7 +423,9 @@             self.feature_info += [dict(num_chs=dim, reduction=curr_stride, module=f'levels.{i}')]
+             prev_dim = dim
+             curr_stride *= 2
+-        self.levels = nn.Sequential(*levels)
++        self.levels = msnn.SequentialCell([
++            levels
++        ])
+ 
+         # Final normalization layer
+         self.norm = norm_layer(embed_dims[-1], **dd)
+@@ -458,6 +467,7 @@         for l in self.levels:
+             l.grad_checkpointing = enable
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         return self.head
+@@ -469,7 +479,7 @@ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+@@ -529,7 +539,7 @@         take_indices, max_index = feature_take_indices(len(self.levels), indices)
+         self.levels = self.levels[:max_index + 1]  # truncate blocks w/ stem as idx 0
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+@@ -546,12 +556,13 @@         x = self.head_drop(x)
+         return x if pre_logits else self.head(x)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
+ 
+ 
++# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def _init_nest_weights(module: nn.Module, name: str = '', head_bias: float = 0.):
+     """ NesT weight initialization
+     Can replicate Jax implementation. Otherwise follows vision_transformer.py
+@@ -559,15 +570,15 @@     if isinstance(module, nn.Linear):
+         if name.startswith('head'):
+             trunc_normal_(module.weight, std=.02, a=-2, b=2)
+-            nn.init.constant_(module.bias, head_bias)
++            nn.init.constant_(module.bias, head_bias)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             trunc_normal_(module.weight, std=.02, a=-2, b=2)
+             if module.bias is not None:
+-                nn.init.zeros_(module.bias)
++                nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(module, nn.Conv2d):
+         trunc_normal_(module.weight, std=.02, a=-2, b=2)
+         if module.bias is not None:
+-            nn.init.zeros_(module.bias)
++            nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def resize_pos_embed(posemb, posemb_new):
+@@ -581,7 +592,7 @@     size_new = int(math.sqrt(num_blocks_new*seq_length_new))
+     # First change to (1, C, H, W)
+     posemb = deblockify(posemb, int(math.sqrt(seq_length_old))).permute(0, 3, 1, 2)
+-    posemb = F.interpolate(posemb, size=[size_new, size_new], mode='bicubic', align_corners=False)
++    posemb = nn.functional.interpolate(posemb, size = [size_new, size_new], mode = 'bicubic', align_corners = False)
+     # Now change to new (1, T, N, C)
+     posemb = blockify(posemb.permute(0, 2, 3, 1), int(math.sqrt(seq_length_new)))
+     return posemb

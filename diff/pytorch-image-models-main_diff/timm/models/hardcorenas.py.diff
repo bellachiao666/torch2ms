@@ -1,0 +1,12 @@
+--- pytorch+++ mindspore@@ -1,6 +1,11 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from functools import partial
+ 
+-import torch.nn as nn
++# import torch.nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from ._builder import build_model_with_cfg

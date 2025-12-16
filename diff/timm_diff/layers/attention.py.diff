@@ -1,0 +1,106 @@
+--- pytorch+++ mindspore@@ -1,8 +1,13 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from typing import Final, Optional, Type
+ 
+-import torch
+-from torch import nn as nn
+-from torch.nn import functional as F
++# import torch
++# from torch import nn as nn
++# from torch.nn import functional as F
+ 
+ from ._fx import register_notrace_function
+ from .config import use_fused_attn
+@@ -11,11 +16,11 @@ 
+ @torch.fx.wrap
+ @register_notrace_function
+-def maybe_add_mask(scores: torch.Tensor, attn_mask: Optional[torch.Tensor] = None):
++def maybe_add_mask(scores: ms.Tensor, attn_mask: Optional[torch.Tensor] = None):
+     return scores if attn_mask is None else scores + attn_mask
+ 
+ 
+-class Attention(nn.Module):
++class Attention(msnn.Cell):
+     """Standard Multi-head Self Attention module with QKV projection.
+ 
+     This module implements the standard multi-head attention mechanism used in transformers.
+@@ -73,18 +78,18 @@         self.fused_attn = use_fused_attn()
+ 
+         self.qkv = nn.Linear(dim, self.attn_dim * 3, bias=qkv_bias, **dd)
+-        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else nn.Identity()
+-        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else nn.Identity()
++        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
++        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
+         self.attn_drop = nn.Dropout(attn_drop)
+-        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else nn.Identity()
++        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else msnn.Identity()
+         self.proj = nn.Linear(self.attn_dim, dim_out, bias=proj_bias, **dd)
+         self.proj_drop = nn.Dropout(proj_drop)
+ 
+-    def forward(
+-            self,
+-            x: torch.Tensor,
++    def construct(
++            self,
++            x: ms.Tensor,
+             attn_mask: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
++    ) -> ms.Tensor:
+         B, N, C = x.shape
+         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+         q, k, v = qkv.unbind(0)
+@@ -95,7 +100,7 @@                 q, k, v,
+                 attn_mask=attn_mask,
+                 dropout_p=self.attn_drop.p if self.training else 0.,
+-            )
++            )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = q @ k.transpose(-2, -1)
+@@ -111,7 +116,7 @@         return x
+ 
+ 
+-class AttentionRope(nn.Module):
++class AttentionRope(msnn.Cell):
+     """ A Self Attention module with ROPE support.
+ 
+     Includes options for:
+@@ -186,14 +191,14 @@             self.k_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
+             self.v_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
+ 
+-        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else nn.Identity()
+-        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else nn.Identity()
++        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
++        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
+         self.attn_drop = nn.Dropout(attn_drop)
+-        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else nn.Identity()
++        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else msnn.Identity()
+         self.proj = nn.Linear(self.attn_dim, dim_out, bias=proj_bias, **dd)
+         self.proj_drop = nn.Dropout(proj_drop)
+ 
+-    def forward(
++    def construct(
+             self,
+             x,
+             rope: Optional[torch.Tensor] = None,
+@@ -225,15 +230,15 @@         if rope is not None:
+             npt = self.num_prefix_tokens
+             half = getattr(self, 'rotate_half', False)
+-            q = torch.cat([q[:, :, :npt, :], apply_rot_embed_cat(q[:, :, npt:, :], rope, half=half)], dim=2).type_as(v)
+-            k = torch.cat([k[:, :, :npt, :], apply_rot_embed_cat(k[:, :, npt:, :], rope, half=half)], dim=2).type_as(v)
++            q = mint.cat([q[:, :, :npt, :], apply_rot_embed_cat(q[:, :, npt:, :], rope, half=half)], dim = 2).type_as(v)
++            k = mint.cat([k[:, :, :npt, :], apply_rot_embed_cat(k[:, :, npt:, :], rope, half=half)], dim = 2).type_as(v)
+ 
+         if self.fused_attn:
+             x = F.scaled_dot_product_attention(
+                 q, k, v,
+                 attn_mask=attn_mask,
+                 dropout_p=self.attn_drop.p if self.training else 0.,
+-            )
++            )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = (q @ k.transpose(-2, -1))

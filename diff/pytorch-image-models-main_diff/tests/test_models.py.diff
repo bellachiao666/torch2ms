@@ -1,0 +1,295 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """Run tests for all models
+ 
+ Tests that run on CI should have a specific marker, e.g. @pytest.mark.base. This
+@@ -12,7 +17,7 @@ """
+ 
+ import pytest
+-import torch
++# import torch
+ import platform
+ import os
+ import fnmatch
+@@ -20,7 +25,7 @@ _IS_MAC = platform.system() == 'Darwin'
+ 
+ try:
+-    from torchvision.models.feature_extraction import create_feature_extractor, get_graph_node_names, NodePathTracer
++    # from torchvision.models.feature_extraction import create_feature_extractor, get_graph_node_names, NodePathTracer
+     has_fx_feature_extraction = True
+ except ImportError:
+     has_fx_feature_extraction = False
+@@ -45,8 +50,8 @@ if hasattr(torch._C, '_jit_set_profiling_executor'):
+     # legacy executor is too slow to compile large models for unit tests
+     # no need for the fusion performance here
+-    torch._C._jit_set_profiling_executor(True)
+-    torch._C._jit_set_profiling_mode(False)
++    torch._C._jit_set_profiling_executor(True)  # 'torch._C._jit_set_profiling_executor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    torch._C._jit_set_profiling_mode(False)  # 'torch._C._jit_set_profiling_mode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ # models with forward_intermediates() and support for FeatureGetterNet features_only wrapper
+ FEAT_INTER_FILTERS = [
+@@ -150,18 +155,18 @@         rand_output = model(rand_tensors['input'])
+         rand_features = model.forward_features(rand_tensors['input'])
+         rand_pre_logits = model.forward_head(rand_features, pre_logits=True)
+-        assert torch.allclose(rand_output, rand_tensors['output'], rtol=1e-3, atol=1e-4), 'rand output does not match'
+-        assert torch.allclose(rand_features, rand_tensors['features'], rtol=1e-3, atol=1e-4), 'rand features do not match'
+-        assert torch.allclose(rand_pre_logits, rand_tensors['pre_logits'], rtol=1e-3, atol=1e-4), 'rand pre_logits do not match'
++        assert mint.allclose(rand_output, rand_tensors['output'], rtol = 1e-3, atol = 1e-4), 'rand output does not match'
++        assert mint.allclose(rand_features, rand_tensors['features'], rtol = 1e-3, atol = 1e-4), 'rand features do not match'
++        assert mint.allclose(rand_pre_logits, rand_tensors['pre_logits'], rtol = 1e-3, atol = 1e-4), 'rand pre_logits do not match'
+ 
+         def _test_owl(owl_input, tol=(1e-3, 1e-4)):
+             owl_output = model(owl_input)
+             owl_features = model.forward_features(owl_input)
+             owl_pre_logits = model.forward_head(owl_features.clone(), pre_logits=True)
+             assert owl_output.softmax(1).argmax(1) == 24  # owl
+-            assert torch.allclose(owl_output, owl_tensors['output'], rtol=tol[0], atol=tol[1]), 'owl output does not match'
+-            assert torch.allclose(owl_features, owl_tensors['features'], rtol=tol[0], atol=tol[1]), 'owl output does not match'
+-            assert torch.allclose(owl_pre_logits, owl_tensors['pre_logits'], rtol=tol[0], atol=tol[1]), 'owl output does not match'
++            assert mint.allclose(owl_output, owl_tensors['output'], rtol = tol[0], atol = tol[1]), 'owl output does not match'
++            assert mint.allclose(owl_features, owl_tensors['features'], rtol = tol[0], atol = tol[1]), 'owl output does not match'
++            assert mint.allclose(owl_pre_logits, owl_tensors['pre_logits'], rtol = tol[0], atol = tol[1]), 'owl output does not match'
+ 
+         _test_owl(owl_tensors['input'])  # test with original pp owl tensor
+         _test_owl(pp(test_owl).unsqueeze(0), tol=(1e-1, 1e-1))  # re-process from original jpg, Pillow output can change a lot btw ver
+@@ -179,13 +184,13 @@     input_size = _get_input_size(model=model, target=TARGET_FWD_SIZE)
+     if max(input_size) > MAX_FWD_SIZE:
+         pytest.skip("Fixed input size model > limit.")
+-    inputs = torch.randn((batch_size, *input_size))
++    inputs = mint.randn((batch_size, *input_size))
+     inputs = inputs.to(torch_device)
+     model.to(torch_device)
+     outputs = model(inputs)
+ 
+     assert outputs.shape[0] == batch_size
+-    assert not torch.isnan(outputs).any(), 'Output included NaNs'
++    assert not ms.Tensor.isnan(outputs).any(), 'Output included NaNs'
+ 
+     # Test that grad-checkpointing, if supported, doesn't cause model failures or change in output
+     try:
+@@ -196,8 +201,8 @@     else:
+         outputs2 = model(inputs)
+         if isinstance(outputs, tuple):
+-            outputs2 = torch.cat(outputs2)
+-        assert torch.allclose(outputs, outputs2, rtol=1e-4, atol=1e-5), 'Output does not match'
++            outputs2 = mint.cat(outputs2)
++        assert mint.allclose(outputs, outputs2, rtol = 1e-4, atol = 1e-5), 'Output does not match'
+ 
+ 
+ @pytest.mark.base
+@@ -215,12 +220,12 @@     num_params = sum([x.numel() for x in model.parameters()])
+     model.train()
+ 
+-    inputs = torch.randn((batch_size, *input_size))
++    inputs = mint.randn((batch_size, *input_size))
+     inputs = inputs.to(torch_device)
+     model.to(torch_device)
+     outputs = model(inputs)
+     if isinstance(outputs, tuple):
+-        outputs = torch.cat(outputs)
++        outputs = mint.cat(outputs)
+     outputs.mean().backward()
+     for n, x in model.named_parameters():
+         assert x.grad is not None, f'No gradient for {n}'
+@@ -233,7 +238,7 @@     else:
+         assert outputs.shape[-1] == 42
+     assert num_params == num_grad, 'Some parameters are missing gradients'
+-    assert not torch.isnan(outputs).any(), 'Output included NaNs'
++    assert not ms.Tensor.isnan(outputs).any(), 'Output included NaNs'
+ 
+ 
+ # models with extra conv/linear layers after pooling
+@@ -276,7 +281,7 @@             not any([fnmatch.fnmatch(model_name, x) for x in EXCLUDE_FILTERS]):
+         # output sizes only checked if default res <= 448 * 448 to keep resource down
+         input_size = tuple([min(x, MAX_FWD_OUT_SIZE) for x in input_size])
+-        input_tensor = torch.randn((batch_size, *input_size), device=torch_device)
++        input_tensor = mint.randn((batch_size, *input_size))  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
+ 
+         # test forward_features (always unpooled) & forward_head w/ pre_logits
+         outputs = model.forward_features(input_tensor)
+@@ -347,7 +352,7 @@     if max(input_size) > 320:  # FIXME const
+         pytest.skip("Fixed input size model > limit.")
+ 
+-    input_tensor = torch.randn((batch_size, *input_size), device=torch_device)
++    input_tensor = mint.randn((batch_size, *input_size))  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
+     feat_dim = getattr(model, 'feature_dim', None)
+ 
+     outputs = model.forward_features(input_tensor)
+@@ -432,12 +437,12 @@         model = create_model(model_name, pretrained=False)
+     model.eval()
+ 
+-    model = torch.jit.script(model)
++    model = torch.jit.script(model)  # 'torch.jit.script' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     model.to(torch_device)
+-    outputs = model(torch.randn((batch_size, *input_size)))
++    outputs = model(mint.randn((batch_size, *input_size)))
+ 
+     assert outputs.shape[0] == batch_size
+-    assert not torch.isnan(outputs).any(), 'Output included NaNs'
++    assert not ms.Tensor.isnan(outputs).any(), 'Output included NaNs'
+ 
+ 
+ EXCLUDE_FEAT_FILTERS = [
+@@ -468,7 +473,7 @@     spatial_axis = get_spatial_dim(output_fmt)
+     import math
+ 
+-    outputs = model(torch.randn((batch_size, *input_size)))
++    outputs = model(mint.randn((batch_size, *input_size)))
+     assert len(expected_channels) == len(outputs)
+     spatial_size = input_size[-2:]
+     for e, r, o in zip(expected_channels, expected_reduction, outputs):
+@@ -476,7 +481,7 @@         assert o.shape[spatial_axis[0]] <= math.ceil(spatial_size[0] / r) + 1
+         assert o.shape[spatial_axis[1]] <= math.ceil(spatial_size[1] / r) + 1
+         assert o.shape[0] == batch_size
+-        assert not torch.isnan(o).any()
++        assert not ms.Tensor.isnan(o).any()
+ 
+ 
+ @pytest.mark.features
+@@ -498,7 +503,7 @@     spatial_axis = get_spatial_dim(output_fmt)
+     import math
+ 
+-    outputs = model(torch.randn((batch_size, *input_size)))
++    outputs = model(mint.randn((batch_size, *input_size)))
+     assert len(expected_channels) == len(outputs)
+     spatial_size = input_size[-2:]
+     for e, r, o in zip(expected_channels, expected_reduction, outputs):
+@@ -507,7 +512,7 @@         assert o.shape[spatial_axis[0]] <= math.ceil(spatial_size[0] / r) + 1
+         assert o.shape[spatial_axis[1]] <= math.ceil(spatial_size[1] / r) + 1
+         assert o.shape[0] == batch_size
+-        assert not torch.isnan(o).any()
++        assert not ms.Tensor.isnan(o).any()
+ 
+ 
+ @pytest.mark.features
+@@ -531,7 +536,7 @@     spatial_axis = get_spatial_dim(output_fmt)
+     import math
+ 
+-    inpt = torch.randn((batch_size, *input_size))
++    inpt = mint.randn((batch_size, *input_size))
+     output, intermediates = model.forward_intermediates(
+         inpt,
+         output_fmt=output_fmt,
+@@ -543,10 +548,10 @@         assert o.shape[spatial_axis[0]] <= math.ceil(spatial_size[0] / r) + 1
+         assert o.shape[spatial_axis[1]] <= math.ceil(spatial_size[1] / r) + 1
+         assert o.shape[0] == batch_size
+-        assert not torch.isnan(o).any()
++        assert not ms.Tensor.isnan(o).any()
+ 
+     output2 = model.forward_features(inpt)
+-    assert torch.allclose(output, output2)
++    assert mint.allclose(output, output2)
+ 
+     # Test that grad-checkpointing, if supported
+     try:
+@@ -559,7 +564,7 @@             inpt,
+             output_fmt=output_fmt,
+         )
+-        assert torch.allclose(output, output3, rtol=1e-4, atol=1e-5), 'Output does not match'
++        assert mint.allclose(output, output3, rtol = 1e-4, atol = 1e-5), 'Output does not match'
+ 
+ 
+ 
+@@ -573,12 +578,12 @@         #enable_cpatching=True,
+         param_shapes_constant=True
+     )
+-    train_nodes, eval_nodes = get_graph_node_names(model, tracer_kwargs=tracer_kwargs)
++    train_nodes, eval_nodes = get_graph_node_names(model, tracer_kwargs=tracer_kwargs)  # 'torchvision.models.feature_extraction.get_graph_node_names' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     eval_return_nodes = [eval_nodes[-1]]
+     train_return_nodes = [train_nodes[-1]]
+     if train:
+-        tracer = NodePathTracer(**tracer_kwargs)
++        tracer = NodePathTracer(**tracer_kwargs)  # 'torchvision.models.feature_extraction.NodePathTracer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         graph = tracer.trace(model)
+         graph_nodes = list(reversed(graph.nodes))
+         output_node_names = [n.name for n in graph_nodes[0]._input_nodes.keys()]
+@@ -591,7 +596,7 @@         train_return_nodes=train_return_nodes,
+         eval_return_nodes=eval_return_nodes,
+         tracer_kwargs=tracer_kwargs,
+-    )
++    )  # 'torchvision.models.feature_extraction.create_feature_extractor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     return fx_model
+ 
+ 
+@@ -633,19 +638,19 @@     if max(input_size) > MAX_FWD_FX_SIZE:
+         pytest.skip("Fixed input size model > limit.")
+     with torch.inference_mode():
+-        inputs = torch.randn((batch_size, *input_size))
++        inputs = mint.randn((batch_size, *input_size))
+         outputs = model(inputs)
+         if isinstance(outputs, tuple):
+-            outputs = torch.cat(outputs)
++            outputs = mint.cat(outputs)
+ 
+         model = _create_fx_model(model)
+         fx_outputs = tuple(model(inputs).values())
+         if isinstance(fx_outputs, tuple):
+-            fx_outputs = torch.cat(fx_outputs)
+-
+-    assert torch.all(fx_outputs == outputs)
++            fx_outputs = mint.cat(fx_outputs)
++
++    assert mint.all(fx_outputs == outputs)
+     assert outputs.shape[0] == batch_size
+-    assert not torch.isnan(outputs).any(), 'Output included NaNs'
++    assert not ms.Tensor.isnan(outputs).any(), 'Output included NaNs'
+ 
+ 
+ @pytest.mark.fxbackward
+@@ -669,9 +674,9 @@         pytest.skip("Skipping FX backward test on model with more than 100M params.")
+ 
+     model = _create_fx_model(model, train=True)
+-    outputs = tuple(model(torch.randn((batch_size, *input_size))).values())
++    outputs = tuple(model(mint.randn((batch_size, *input_size))).values())
+     if isinstance(outputs, tuple):
+-        outputs = torch.cat(outputs)
++        outputs = mint.cat(outputs)
+     outputs.mean().backward()
+     for n, x in model.named_parameters():
+         assert x.grad is not None, f'No gradient for {n}'
+@@ -679,7 +684,7 @@ 
+     assert outputs.shape[-1] == 42
+     assert num_params == num_grad, 'Some parameters are missing gradients'
+-    assert not torch.isnan(outputs).any(), 'Output included NaNs'
++    assert not ms.Tensor.isnan(outputs).any(), 'Output included NaNs'
+ 
+ 
+ if 'GITHUB_ACTIONS' not in os.environ:
+@@ -711,14 +716,14 @@             model = create_model(model_name, pretrained=False)
+         model.eval()
+ 
+-        model = torch.jit.script(_create_fx_model(model))
++        model = torch.jit.script(_create_fx_model(model))  # 'torch.jit.script' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.inference_mode():
+-            outputs = tuple(model(torch.randn((batch_size, *input_size))).values())
++            outputs = tuple(model(mint.randn((batch_size, *input_size))).values())
+             if isinstance(outputs, tuple):
+-                outputs = torch.cat(outputs)
++                outputs = mint.cat(outputs)
+ 
+         assert outputs.shape[0] == batch_size
+-        assert not torch.isnan(outputs).any(), 'Output included NaNs'
++        assert not ms.Tensor.isnan(outputs).any(), 'Output included NaNs'
+ 
+     @pytest.mark.timeout(120)
+     @pytest.mark.parametrize('model_name', ["regnetx_002"])
+@@ -742,12 +747,12 @@             model = create_model(model_name, pretrained=False, features_only=True, feature_cfg={"feature_cls": "fx"})
+         model.eval()
+ 
+-        model = torch.jit.script(model)
++        model = torch.jit.script(model)  # 'torch.jit.script' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.inference_mode():
+-            outputs = model(torch.randn((batch_size, *input_size)))
++            outputs = model(mint.randn((batch_size, *input_size)))
+ 
+         assert isinstance(outputs, list)
+ 
+         for tensor in outputs:
+             assert tensor.shape[0] == batch_size
+-            assert not torch.isnan(tensor).any(), 'Output included NaNs'
++            assert not ms.Tensor.isnan(tensor).any(), 'Output included NaNs'

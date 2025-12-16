@@ -1,0 +1,52 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ ECA module from ECAnet
+ 
+@@ -36,14 +41,13 @@ from typing import Optional, Tuple, Type, Union
+ import math
+ 
+-from torch import nn
+-import torch.nn.functional as F
++# from torch import nn
+ 
+ from .create_act import create_act_layer
+ from .helpers import make_divisible
+ 
+ 
+-class EcaModule(nn.Module):
++class EcaModule(msnn.Cell):
+     """Constructs an ECA module.
+ 
+     Args:
+@@ -95,7 +99,7 @@             self.conv2 = None
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         y = x.mean((2, 3)).view(x.shape[0], 1, -1)  # view for 1d conv
+         y = self.conv(y)
+         if self.conv2 is not None:
+@@ -108,7 +112,7 @@ EfficientChannelAttn = EcaModule  # alias
+ 
+ 
+-class CecaModule(nn.Module):
++class CecaModule(msnn.Cell):
+     """Constructs a circular ECA module.
+ 
+     ECA module where the conv uses circular padding rather than zero padding.
+@@ -158,10 +162,10 @@         self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=0, bias=has_act, **dd)
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         y = x.mean((2, 3)).view(x.shape[0], 1, -1)
+         # Manually implement circular padding, F.pad does not seemed to be bugged
+-        y = F.pad(y, (self.padding, self.padding), mode='circular')
++        y = nn.functional.pad(y, (self.padding, self.padding), mode = 'circular')
+         y = self.conv(y)
+         y = self.gate(y).view(x.shape[0], -1, 1, 1)
+         return x * y.expand_as(x)

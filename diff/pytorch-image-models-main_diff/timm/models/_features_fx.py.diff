@@ -1,0 +1,61 @@
+--- pytorch+++ mindspore@@ -1,10 +1,15 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ PyTorch FX Based Feature Extraction Helpers
+ Using https://pytorch.org/vision/stable/feature_extraction.html
+ """
+ from typing import Callable, Dict, List, Optional, Union, Tuple, Type
+ 
+-import torch
+-from torch import nn
++# import torch
++# from torch import nn
+ 
+ from timm.layers import (
+     create_feature_extractor,
+@@ -35,11 +40,12 @@ ]
+ 
+ 
+-class FeatureGraphNet(nn.Module):
++class FeatureGraphNet(msnn.Cell):
+     """ A FX Graph based feature extractor that works with the model feature_info metadata
+     """
+     return_dict: torch.jit.Final[bool]
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             model: nn.Module,
+@@ -57,14 +63,14 @@         self.graph_module = create_feature_extractor(model, return_nodes)
+         self.return_dict = return_dict
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         out = self.graph_module(x)
+         if self.return_dict:
+             return out
+         return list(out.values())
+ 
+ 
+-class GraphExtractNet(nn.Module):
++class GraphExtractNet(msnn.Cell):
+     """ A standalone feature extraction wrapper that maps dict -> list or single tensor
+     NOTE:
+       * one can use feature_extractor directly if dictionary output is desired
+@@ -80,6 +86,7 @@     """
+     return_dict: torch.jit.Final[bool]
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             model: nn.Module,
+@@ -92,7 +99,7 @@         self.graph_module = create_feature_extractor(model, return_nodes)
+         self.return_dict = return_dict
+ 
+-    def forward(self, x) -> Union[List[torch.Tensor], torch.Tensor]:
++    def construct(self, x) -> Union[List[torch.Tensor], torch.Tensor]:
+         out = self.graph_module(x)
+         if self.return_dict:
+             return out

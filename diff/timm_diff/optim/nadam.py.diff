@@ -1,0 +1,27 @@
+--- pytorch+++ mindspore@@ -1,9 +1,15 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import math
+ 
+-import torch
+-from torch.optim.optimizer import Optimizer
++# import torch
++# from torch.optim.optimizer import Optimizer
+ 
+ 
++# 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class NAdamLegacy(Optimizer):
+     """Implements Nadam algorithm (a variant of Adam based on Nesterov momentum).
+ 
+@@ -73,8 +79,8 @@                 if len(state) == 0:
+                     state['step'] = 0
+                     state['m_schedule'] = 1.
+-                    state['exp_avg'] = torch.zeros_like(p)
+-                    state['exp_avg_sq'] = torch.zeros_like(p)
++                    state['exp_avg'] = mint.zeros_like(p)
++                    state['exp_avg_sq'] = mint.zeros_like(p)
+ 
+                 # Warming momentum schedule
+                 m_schedule = state['m_schedule']

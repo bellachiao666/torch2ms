@@ -1,0 +1,57 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ BlurPool layer inspired by
+  - Kornia's Max_BlurPool2d
+@@ -8,16 +13,13 @@ from functools import partial
+ from math import comb  # Python 3.8
+ from typing import Callable, Optional, Type, Union
+-
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch.nn as nn
+ 
+ from .padding import get_padding
+ from .typing import LayerType
+ 
+ 
+-class BlurPool2d(nn.Module):
++class BlurPool2d(msnn.Cell):
+     r"""Creates a module that computes blurs and downsample a given feature map.
+     See :cite:`zhang2019shiftinvar` for more details.
+     Corresponds to the Downsample class, which does blurring and subsampling
+@@ -48,11 +50,8 @@         self.padding = [get_padding(filt_size, stride, dilation=1)] * 4
+ 
+         # (0.5 + 0.5 x)^N => coefficients = C(N,k) / 2^N,  k = 0..N
+-        coeffs = torch.tensor(
+-            [comb(filt_size - 1, k) for k in range(filt_size)],
+-            device='cpu',
+-            dtype=torch.float32,
+-        ) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1
++        coeffs = ms.Tensor(
++            [comb(filt_size - 1, k) for k in range(filt_size)], dtype = ms.float32) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1; 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+         blur_filter = (coeffs[:, None] * coeffs[None, :])[None, None, :, :]
+         if channels is not None:
+             blur_filter = blur_filter.repeat(self.channels, 1, 1, 1)
+@@ -63,15 +62,15 @@             persistent=False,
+         )
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+-        x = F.pad(x, self.padding, mode=self.pad_mode)
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
++        x = nn.functional.pad(x, self.padding, mode = self.pad_mode)
+         if self.channels is None:
+             channels = x.shape[1]
+             weight = self.filt.expand(channels, 1, self.filt_size, self.filt_size)
+         else:
+             channels = self.channels
+             weight = self.filt
+-        return F.conv2d(x, weight, stride=self.stride, groups=channels)
++        return nn.functional.conv2d(x, weight, stride = self.stride, groups = channels)
+ 
+ 
+ def _normalize_aa_layer(aa_layer: LayerType) -> Callable[..., nn.Module]:

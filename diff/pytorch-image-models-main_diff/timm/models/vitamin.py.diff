@@ -1,0 +1,164 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ ViTamin
+ 
+ Paper: Designing Scalable Vison Models in the Vision-Language Era
+@@ -24,8 +29,8 @@ from functools import partial
+ from typing import Optional, Union, Tuple
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
+ from timm.layers import create_act_layer, get_norm_layer, get_norm_act_layer, create_conv2d, \
+@@ -66,12 +71,12 @@     if isinstance(module, nn.Conv2d):
+         fan_out = module.kernel_size[0] * module.kernel_size[1] * module.out_channels
+         fan_out //= module.groups
+-        nn.init.normal_(module.weight, 0, math.sqrt(2.0 / fan_out))
++        nn.init.normal_(module.weight, 0, math.sqrt(2.0 / fan_out))  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if module.bias is not None:
+-            nn.init.zeros_(module.bias)
+-
+-
+-class Stem(nn.Module):
++            nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++
++class Stem(msnn.Cell):
+     def __init__(
+             self,
+             in_chs: int,
+@@ -94,14 +99,14 @@ 
+         named_apply(_init_conv, self)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv1(x)
+         x = self.norm1(x)
+         x = self.conv2(x)
+         return x
+ 
+ 
+-class Downsample2d(nn.Module):
++class Downsample2d(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -113,20 +118,20 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.pool = nn.AvgPool2d(kernel_size=3, stride=2, padding=1, count_include_pad=False)
++        self.pool = nn.AvgPool2d(kernel_size = 3, stride = 2, padding = 1, count_include_pad = False)
+ 
+         if dim != dim_out:
+             self.expand = nn.Conv2d(dim, dim_out, 1, bias=bias, **dd) # 1x1 conv
+         else:
+-            self.expand = nn.Identity()
+-
+-    def forward(self, x):
++            self.expand = msnn.Identity()
++
++    def construct(self, x):
+         x = self.pool(x)  # spatial downsample
+         x = self.expand(x)  # expand chs
+         return x
+ 
+ 
+-class StridedConv(nn.Module):
++class StridedConv(msnn.Cell):
+     """ downsample 2d as well
+     """
+     def __init__(
+@@ -146,13 +151,13 @@         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
+         self.norm = norm_layer(in_chans, **dd) # affine over C
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.norm(x)
+         x = self.proj(x)
+         return x
+ 
+ 
+-class MbConvLNBlock(nn.Module):
++class MbConvLNBlock(msnn.Cell):
+     """ Pre-Norm Conv Block - 1x1 - kxk - 1x1, w/ inverted bottleneck (expand)
+     """
+     def __init__(
+@@ -180,23 +185,23 @@         elif in_chs != out_chs:
+             self.shortcut = nn.Conv2d(in_chs, out_chs, 1, bias=True, **dd)
+         else:
+-            self.shortcut = nn.Identity()
++            self.shortcut = msnn.Identity()
+ 
+         self.pre_norm = prenorm_act_layer(in_chs, apply_act=False, **dd)
+-        self.down = nn.Identity()
++        self.down = msnn.Identity()
+         self.conv1_1x1 = create_conv2d(in_chs, mid_chs, 1, stride=1, bias=True, **dd)
+         self.act1 = create_act_layer(act_layer, inplace=True)
+         self.conv2_kxk = create_conv2d(
+             mid_chs, mid_chs, kernel_size, stride=stride, dilation=1, groups=mid_chs, bias=True, **dd)
+         self.act2 = create_act_layer(act_layer, inplace=True)
+         self.conv3_1x1 = create_conv2d(mid_chs, out_chs, 1, bias=True, **dd)
+-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+ 
+ 
+     def init_weights(self, scheme=''):
+         named_apply(partial(_init_conv, scheme=scheme), self)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         shortcut = self.shortcut(x)
+ 
+         x = self.pre_norm(x)
+@@ -217,7 +222,7 @@         return x
+ 
+ 
+-class MbConvStages(nn.Module):
++class MbConvStages(msnn.Cell):
+     """ MobileConv for stage 1 and stage 2 of ViTamin
+     """
+     def __init__(
+@@ -251,8 +256,12 @@                 )
+                 for d in range(cfg.depths[s])
+             ]
+-            stages += [nn.Sequential(*blocks)]
+-        self.stages = nn.Sequential(*stages)
++            stages += [msnn.SequentialCell([
++                blocks
++            ])]
++        self.stages = msnn.SequentialCell([
++            stages
++        ])
+ 
+         self.pool = StridedConv(
+             stride=2,
+@@ -261,7 +270,7 @@             **dd,
+         )
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.stem(x)
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stages, x)
+@@ -271,7 +280,7 @@         return x
+ 
+ 
+-class GeGluMlp(nn.Module):
++class GeGluMlp(msnn.Cell):
+     def __init__(
+             self,
+             in_features: int,
+@@ -293,7 +302,7 @@         self.w1 = nn.Linear(in_features, hidden_features, bias=bias, **dd)
+         self.w2 = nn.Linear(hidden_features, in_features, bias=bias, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.norm(x)
+         x = self.act(self.w0(x)) * self.w1(x)
+         x = self.w2(x)
