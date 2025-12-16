@@ -97,7 +97,6 @@ class SGDW(Optimizer):
 
     # FIXME figure out how to make _use_grad_for_differentiable interchangeable with no_grad decorator
     #   without args, for backwards compatibility with old pytorch
-    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

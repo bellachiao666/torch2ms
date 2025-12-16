@@ -50,7 +50,14 @@
  class Mars(Optimizer):
      """ MARS Optimizer
  
-@@ -164,11 +170,11 @@                 if len(state) <= 1:
+@@ -138,7 +144,6 @@         for group in self.param_groups:
+             group.setdefault('caution', False)
+ 
+-    @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step.
+ 
+@@ -164,11 +169,11 @@                 if len(state) <= 1:
                      state['step'] = 0
                      # Exponential moving average of gradient values
 -                    state['exp_avg'] = torch.zeros_like(p)

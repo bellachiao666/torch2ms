@@ -52,7 +52,14 @@
      def __init__(
              self,
              model,
-@@ -223,10 +229,10 @@                     ema_v.copy_(model_v)
+@@ -202,7 +208,6 @@ 
+         return decay
+ 
+-    @torch.no_grad()
+     def update(self, model, step: Optional[int] = None):
+         decay = self.get_decay(step)
+         if self.exclude_buffers:
+@@ -223,10 +228,10 @@                     ema_v.copy_(model_v)
  
              if hasattr(torch, '_foreach_lerp_'):
 -                torch._foreach_lerp_(ema_lerp_values, model_lerp_values, weight=1. - decay)
@@ -65,7 +72,7 @@
          else:
              for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
                  if ema_v.is_floating_point():
-@@ -240,10 +246,10 @@         model_params = tuple(model.parameters())
+@@ -240,10 +245,10 @@         model_params = tuple(model.parameters())
          if self.foreach:
              if hasattr(torch, '_foreach_lerp_'):
 -                torch._foreach_lerp_(ema_params, model_params, weight=1. - decay)
@@ -78,7 +85,12 @@
          else:
              for ema_p, model_p in zip(ema_params, model_params):
                  ema_p.lerp_(model_p.to(device=self.device), weight=1. - decay)
-@@ -256,5 +262,5 @@         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
+@@ -251,10 +256,9 @@         for ema_b, model_b in zip(self.module.buffers(), model.buffers()):
+             ema_b.copy_(model_b.to(device=self.device))
+ 
+-    @torch.no_grad()
+     def set(self, model):
+         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
              ema_v.copy_(model_v.to(device=self.device))
  
 -    def forward(self, *args, **kwargs):

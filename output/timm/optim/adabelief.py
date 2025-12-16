@@ -91,7 +91,6 @@ class AdaBelief(Optimizer):
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
 
-    @torch.no_grad()
     def reset(self):
         for group in self.param_groups:
             for p in group['params']:
@@ -109,7 +108,6 @@ class AdaBelief(Optimizer):
                     # Maintains max of all exp. moving avg. of sq. grad. values
                     state['max_exp_avg_var'] = mint.zeros_like(p)
 
-    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
         Arguments:

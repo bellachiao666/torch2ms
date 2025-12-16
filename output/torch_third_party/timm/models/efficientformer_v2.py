@@ -157,9 +157,9 @@ class Attention2d(msnn.Cell):
         self.proj = ConvNorm(self.dh, dim, 1, **dd)
 
         pos = mint.stack(ndgrid(
-            mint.arange(self.resolution[0], dtype = torch.long),
-            mint.arange(self.resolution[1], dtype = torch.long),
-        )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+            mint.arange(self.resolution[0], device=device, dtype=ms.int64),
+            mint.arange(self.resolution[1], device=device, dtype=ms.int64),
+        )).flatten(1)
         rel_pos = (pos[..., :, None] - pos[..., None, :]).abs()
         rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
         self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
@@ -273,13 +273,13 @@ class Attention2dDownsample(msnn.Cell):
 
         self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
         k_pos = mint.stack(ndgrid(
-            mint.arange(self.resolution[0], dtype = torch.long),
-            mint.arange(self.resolution[1], dtype = torch.long),
-        )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+            mint.arange(self.resolution[0], device=device, dtype=ms.int64),
+            mint.arange(self.resolution[1], device=device, dtype=ms.int64),
+        )).flatten(1)
         q_pos = mint.stack(ndgrid(
-            mint.arange(0, self.resolution[0], step = 2, dtype = torch.long),
-            mint.arange(0, self.resolution[1], step = 2, dtype = torch.long),
-        )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+            mint.arange(0, self.resolution[0], step=2, device=device, dtype=ms.int64),
+            mint.arange(0, self.resolution[1], step=2, device=device, dtype=ms.int64),
+        )).flatten(1)
         rel_pos = (q_pos[..., :, None] - k_pos[..., None, :]).abs()
         rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
@@ -580,9 +580,7 @@ class EfficientFormerV2Stage(msnn.Cell):
                 **dd,
             )
             blocks += [b]
-        self.blocks = msnn.SequentialCell([
-            blocks
-        ])
+        self.blocks = msnn.SequentialCell(*blocks)
 
     def construct(self, x):
         x = self.downsample(x)
@@ -660,9 +658,7 @@ class EfficientFormerV2(msnn.Cell):
             prev_dim = embed_dims[i]
             self.feature_info += [dict(num_chs=prev_dim, reduction=stride, module=f'stages.{i}')]
             stages.append(stage)
-        self.stages = msnn.SequentialCell([
-            stages
-        ])
+        self.stages = msnn.SequentialCell(*stages)
 
         # Classifier head
         self.num_features = self.head_hidden_size = embed_dims[-1]

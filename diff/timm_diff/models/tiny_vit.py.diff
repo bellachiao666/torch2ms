@@ -26,17 +26,20 @@
      def __init__(
              self,
              in_chs: int,
-@@ -44,8 +49,8 @@         super().__init__()
+@@ -44,30 +49,28 @@         super().__init__()
          self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)
          self.bn = nn.BatchNorm2d(out_chs, **dd)
 -        torch.nn.init.constant_(self.bn.weight, bn_weight_init)
 -        torch.nn.init.constant_(self.bn.bias, 0)
+-
+-    @torch.no_grad()
 +        torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        torch.nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.no_grad()
++
      def fuse(self):
-@@ -54,20 +59,19 @@         w = c.weight * w[:, None, None, None]
+         c, bn = self.conv, self.bn
+         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
+         w = c.weight * w[:, None, None, None]
          b = bn.bias - bn.running_mean * bn.weight / \
              (bn.running_var + bn.eps) ** 0.5
 -        m = torch.nn.Conv2d(
@@ -60,7 +63,7 @@
              device=None,
              dtype=None,
      ):
-@@ -78,20 +82,20 @@         self.act = act_layer()
+@@ -78,20 +81,20 @@         self.act = act_layer()
          self.conv2 = ConvNorm(out_chs // 2, out_chs, 3, 2, 1, **dd)
  
 -    def forward(self, x):
@@ -83,7 +86,7 @@
              drop_path: float,
              device=None,
              dtype=None,
-@@ -105,9 +109,9 @@         self.act2 = act_layer()
+@@ -105,9 +108,9 @@         self.act2 = act_layer()
          self.conv3 = ConvNorm(mid_chs, out_chs, ks=1, bn_weight_init=0.0, **dd)
          self.act3 = act_layer()
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -95,7 +98,7 @@
          shortcut = x
          x = self.conv1(x)
          x = self.act1(x)
-@@ -120,12 +124,12 @@         return x
+@@ -120,12 +123,12 @@         return x
  
  
 -class PatchMerging(nn.Module):
@@ -109,7 +112,7 @@
              device=None,
              dtype=None,
      ):
-@@ -137,7 +141,7 @@         self.act2 = act_layer()
+@@ -137,7 +140,7 @@         self.act2 = act_layer()
          self.conv3 = ConvNorm(out_dim, out_dim, 1, 1, 0, **dd)
  
 -    def forward(self, x):
@@ -117,7 +120,7 @@
          x = self.conv1(x)
          x = self.act1(x)
          x = self.conv2(x)
-@@ -146,12 +150,12 @@         return x
+@@ -146,12 +149,12 @@         return x
  
  
 -class ConvLayer(nn.Module):
@@ -131,7 +134,7 @@
              drop_path: Union[float, List[float]] = 0.,
              conv_expand_ratio: float = 4.,
              device=None,
-@@ -161,7 +165,8 @@         super().__init__()
+@@ -161,7 +164,8 @@         super().__init__()
          self.dim = dim
          self.depth = depth
 -        self.blocks = nn.Sequential(*[
@@ -140,7 +143,7 @@
              MBConv(
                  dim,
                  dim,
-@@ -171,21 +176,22 @@                 **dd,
+@@ -171,21 +175,22 @@                 **dd,
              )
              for i in range(depth)
 +        ]
@@ -166,7 +169,7 @@
              drop: float = 0.,
              device=None,
              dtype=None,
-@@ -201,7 +207,7 @@         self.fc2 = nn.Linear(hidden_features, out_features, **dd)
+@@ -201,7 +206,7 @@         self.fc2 = nn.Linear(hidden_features, out_features, **dd)
          self.drop2 = nn.Dropout(drop)
  
 -    def forward(self, x):
@@ -174,7 +177,7 @@
          x = self.norm(x)
          x = self.fc1(x)
          x = self.act(x)
-@@ -211,9 +217,9 @@         return x
+@@ -211,9 +216,9 @@         return x
  
  
 -class Attention(torch.nn.Module):
@@ -185,7 +188,7 @@
  
      def __init__(
              self,
-@@ -251,12 +257,12 @@                 if offset not in attention_offsets:
+@@ -251,21 +256,22 @@                 if offset not in attention_offsets:
                      attention_offsets[offset] = len(attention_offsets)
                  idxs.append(attention_offsets[offset])
 -        self.attention_biases = torch.nn.Parameter(torch.zeros(num_heads, len(attention_offsets), **dd))
@@ -199,8 +202,10 @@
 +        )  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
          self.attention_bias_cache = {}
  
-     @torch.no_grad()
-@@ -265,7 +271,9 @@         if mode and self.attention_bias_cache:
+-    @torch.no_grad()
+     def train(self, mode=True):
+         super().train(mode)
+         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
@@ -210,7 +215,7 @@
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -274,7 +282,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -274,7 +280,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -218,7 +223,7 @@
          attn_bias = self.get_attention_biases(x.device)
          B, N, _ = x.shape
          # Normalization
-@@ -288,7 +296,7 @@         v = v.permute(0, 2, 1, 3)
+@@ -288,7 +294,7 @@         v = v.permute(0, 2, 1, 3)
  
          if self.fused_attn:
 -            x = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_bias)
@@ -226,7 +231,7 @@
          else:
              q = q * self.scale
              attn = q @ k.transpose(-2, -1)
-@@ -300,7 +308,7 @@         return x
+@@ -300,7 +306,7 @@         return x
  
  
 -class TinyVitBlock(nn.Module):
@@ -234,7 +239,7 @@
      """ TinyViT Block.
  
      Args:
-@@ -324,7 +332,7 @@             drop: float = 0.,
+@@ -324,7 +330,7 @@             drop: float = 0.,
              drop_path: float = 0.,
              local_conv_size: int = 3,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -242,7 +247,7 @@
              device=None,
              dtype=None,
      ):
-@@ -348,7 +356,7 @@             resolution=window_resolution,
+@@ -348,7 +354,7 @@             resolution=window_resolution,
              **dd,
          )
 -        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -250,7 +255,7 @@
  
          self.mlp = NormMlp(
              in_features=dim,
-@@ -357,12 +365,12 @@             drop=drop,
+@@ -357,12 +363,12 @@             drop=drop,
              **dd,
          )
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -264,7 +269,7 @@
          B, H, W, C = x.shape
          L = H * W
  
-@@ -376,7 +384,7 @@             pad_r = (self.window_size - W % self.window_size) % self.window_size
+@@ -376,7 +382,7 @@             pad_r = (self.window_size - W % self.window_size) % self.window_size
              padding = pad_b > 0 or pad_r > 0
              if padding:
 -                x = F.pad(x, (0, 0, 0, pad_r, 0, pad_b))
@@ -272,7 +277,7 @@
  
              # window partition
              pH, pW = H + pad_b, W + pad_r
-@@ -410,7 +418,7 @@ register_notrace_module(TinyVitBlock)
+@@ -410,7 +416,7 @@ register_notrace_module(TinyVitBlock)
  
  
 -class TinyVitStage(nn.Module):
@@ -280,7 +285,7 @@
      """ A basic TinyViT layer for one stage.
  
      Args:
-@@ -437,9 +445,9 @@             mlp_ratio: float = 4.,
+@@ -437,9 +443,9 @@             mlp_ratio: float = 4.,
              drop: float = 0.,
              drop_path: Union[float, List[float]] = 0.,
 -            downsample: Optional[Type[nn.Module]] = None,
@@ -291,7 +296,7 @@
              device=None,
              dtype=None,
      ):
-@@ -457,11 +465,12 @@                 **dd,
+@@ -457,11 +463,12 @@                 **dd,
              )
          else:
 -            self.downsample = nn.Identity()
@@ -305,7 +310,7 @@
              TinyVitBlock(
                  dim=out_dim,
                  num_heads=num_heads,
-@@ -473,9 +482,10 @@                 act_layer=act_layer,
+@@ -473,9 +480,10 @@                 act_layer=act_layer,
                  **dd,
              )
 -            for i in range(depth)])
@@ -318,7 +323,7 @@
          x = self.downsample(x)
          x = x.permute(0, 2, 3, 1)  # BCHW -> BHWC
          x = self.blocks(x)
-@@ -486,7 +496,7 @@         return f"dim={self.out_dim}, depth={self.depth}"
+@@ -486,7 +494,7 @@         return f"dim={self.out_dim}, depth={self.depth}"
  
  
 -class TinyVit(nn.Module):
@@ -326,7 +331,7 @@
      def __init__(
              self,
              in_chans: int = 3,
-@@ -502,7 +512,7 @@             use_checkpoint: bool = False,
+@@ -502,7 +510,7 @@             use_checkpoint: bool = False,
              mbconv_expand_ratio: float = 4.0,
              local_conv_size: int = 3,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -334,7 +339,7 @@
              device=None,
              dtype=None,
      ):
-@@ -526,7 +536,7 @@         dpr = calculate_drop_path_rates(drop_path_rate, sum(depths))
+@@ -526,7 +534,7 @@         dpr = calculate_drop_path_rates(drop_path_rate, sum(depths))
  
          # build stages
 -        self.stages = nn.Sequential()
@@ -342,7 +347,7 @@
          stride = self.patch_embed.stride
          prev_dim = embed_dims[0]
          self.feature_info = []
-@@ -581,7 +591,7 @@         if isinstance(m, nn.Linear):
+@@ -581,7 +589,7 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -350,7 +355,7 @@
  
      @torch.jit.ignore
      def no_weight_decay_keywords(self):
-@@ -607,7 +617,7 @@         self.grad_checkpointing = enable
+@@ -607,7 +615,7 @@         self.grad_checkpointing = enable
  
      @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
@@ -358,7 +363,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -616,13 +626,13 @@ 
+@@ -616,13 +624,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -373,7 +378,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -685,7 +695,7 @@         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+@@ -685,7 +693,7 @@         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
          return x
  
 -    def forward(self, x):

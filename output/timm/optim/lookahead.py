@@ -11,8 +11,6 @@ Hacked together by / Copyright 2020 Ross Wightman
 """
 from collections import OrderedDict
 from typing import Callable, Dict
-
-# import torch
 # from torch.optim.optimizer import Optimizer
 from collections import defaultdict
 
@@ -38,7 +36,6 @@ class Lookahead(Optimizer):
             for group in self._base_optimizer.param_groups:
                 group.setdefault(name, default)
 
-    @torch.no_grad()
     def update_slow(self, group):
         for fast_p in group["params"]:
             if fast_p.grad is None:
@@ -55,7 +52,6 @@ class Lookahead(Optimizer):
         for group in self._base_optimizer.param_groups:
             self.update_slow(group)
 
-    @torch.no_grad()
     def step(self, closure=None):
         loss = self._base_optimizer.step(closure)
         for group in self._base_optimizer.param_groups:

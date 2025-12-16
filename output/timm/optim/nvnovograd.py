@@ -69,7 +69,6 @@ class NvNovoGrad(Optimizer):
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
 
-    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

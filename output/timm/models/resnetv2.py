@@ -822,7 +822,6 @@ def _init_weights(module: msnn.Cell, name: str = '', zero_init_last: bool = True
         module.zero_init_last()
 
 
-@torch.no_grad()
 def _load_weights(model: msnn.Cell, checkpoint_path: str, prefix: str = 'resnet/'):
     import numpy as np
 

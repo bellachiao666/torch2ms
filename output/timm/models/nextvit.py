@@ -233,7 +233,6 @@ class NextConvBlock(msnn.Cell):
         self.mlp_drop_path = DropPath(drop_path)
         self.is_fused = False
 
-    @torch.no_grad()
     def reparameterize(self):
         if not self.is_fused:
             merge_pre_bn(self.mlp.fc1, self.norm)
@@ -392,7 +391,6 @@ class NextTransformerBlock(msnn.Cell):
         self.mlp_drop_path = DropPath(drop_path)
         self.is_fused = False
 
-    @torch.no_grad()
     def reparameterize(self):
         if not self.is_fused:
             merge_pre_bn(self.e_mhsa.q, self.norm1)

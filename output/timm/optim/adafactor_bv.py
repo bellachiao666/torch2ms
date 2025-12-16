@@ -129,7 +129,6 @@ class AdafactorBigVision(Optimizer):
                     # look into this further. Better to override _process_value_according_to_param_policy?
                     p_state['exp_avg'] = p_state['exp_avg'].to(dtype=self.defaults['momentum_dtype'])
 
-    @torch.no_grad()
     def step(self, closure=None):
         loss = None
         if closure is not None:

@@ -46,7 +46,6 @@ class SGDP(Optimizer):
         )
         super(SGDP, self).__init__(params, defaults)
 
-    @torch.no_grad()
     def step(self, closure=None):
         loss = None
         if closure is not None:

@@ -490,24 +490,6 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             conf["pytorch"]: conf for conf in api_map.values()
         }
 
-        self.torch_dtype_names = {
-            "float32",
-            "float64",
-            "float16",
-            "bfloat16",
-            "float",
-            "double",
-            "half",
-            "int8",
-            "int16",
-            "int32",
-            "int64",
-            "uint8",
-            "bool",
-            "complex64",
-            "complex128",
-        }
-
     def _find_enclosing_stmt(self, node: cst.CSTNode) -> Optional[cst.CSTNode]:
         """
         获取包裹当前节点的最外层简单语句节点，方便追加注释。
@@ -943,9 +925,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
     def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.BaseExpression:
         """
-        拦截属性访问，统一将 `torch.float32` 等 dtype 名替换为 `ms.float32`。
-
-        仅处理以 torch 开头、且后缀在 `torch_dtype_names` 列表内的情况，其他属性保持不变。
+        拦截属性访问，按映射表直接替换对应的 MindSpore 属性（含 dtype 常量等）。
         """
         full_name = cst_helpers.get_full_name_for_node(updated_node)
         if not full_name:
@@ -953,9 +933,12 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         pt_full_name = self._resolve_pt_full_name(full_name)
         if not pt_full_name or not pt_full_name.startswith("torch."):
             return updated_node
-        suffix = pt_full_name[len("torch.") :]
-        if suffix in self.torch_dtype_names:
-            return cst.parse_expression(f"ms.{suffix}")
+        api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(
+            pt_full_name.split(".")[-1]
+        )
+        if api_conf:
+            ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+            return cst.parse_expression(ms_full_name)
         return updated_node
 
     def _convert_annotation_expr(

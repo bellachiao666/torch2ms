@@ -26,7 +26,7 @@
  
      def __init__(
              self,
-@@ -76,13 +81,13 @@         self.proj = nn.Linear(self.val_attn_dim, dim, **dd)
+@@ -76,23 +81,24 @@         self.proj = nn.Linear(self.val_attn_dim, dim, **dd)
  
          resolution = to_2tuple(resolution)
 -        pos = torch.stack(ndgrid(
@@ -44,7 +44,10 @@
          self.register_buffer('attention_bias_idxs', rel_pos)
          self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
  
-@@ -92,7 +97,9 @@         if mode and self.attention_bias_cache:
+-    @torch.no_grad()
+     def train(self, mode=True):
+         super().train(mode)
+         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
@@ -54,7 +57,7 @@
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -101,7 +108,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -101,7 +107,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):  # x (B,N,C)
@@ -62,7 +65,7 @@
          B, N, C = x.shape
          qkv = self.qkv(x)
          qkv = qkv.reshape(B, N, self.num_heads, -1).permute(0, 2, 1, 3)
-@@ -116,13 +123,13 @@         return x
+@@ -116,13 +122,13 @@         return x
  
  
 -class Stem4(nn.Sequential):
@@ -78,7 +81,7 @@
              device=None,
              dtype=None,
      ):
-@@ -138,7 +145,7 @@         self.add_module('act2', act_layer())
+@@ -138,7 +144,7 @@         self.add_module('act2', act_layer())
  
  
 -class Downsample(nn.Module):
@@ -86,7 +89,7 @@
      """
      Downsampling via strided conv w/ norm
      Input: tensor in shape [B, C, H, W]
-@@ -152,7 +159,7 @@             kernel_size: int = 3,
+@@ -152,7 +158,7 @@             kernel_size: int = 3,
              stride: int = 2,
              padding: Optional[int] = None,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -94,7 +97,7 @@
              device=None,
              dtype=None,
      ):
-@@ -163,23 +170,23 @@         self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
+@@ -163,23 +169,23 @@         self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
          self.norm = norm_layer(out_chs, **dd)
  
 -    def forward(self, x):
@@ -121,7 +124,7 @@
      """
      Implementation of pooling for PoolFormer
      --pool_size: pooling size
-@@ -187,13 +194,13 @@ 
+@@ -187,13 +193,13 @@ 
      def __init__(self, pool_size: int = 3):
          super().__init__()
 -        self.pool = nn.AvgPool2d(pool_size, stride=1, padding=pool_size // 2, count_include_pad=False)
@@ -138,7 +141,7 @@
      """
      Implementation of MLP with 1*1 convolutions.
      Input: tensor with shape [B, C, H, W]
-@@ -204,8 +211,8 @@             in_features: int,
+@@ -204,8 +210,8 @@             in_features: int,
              hidden_features: Optional[int] = None,
              out_features: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -148,7 +151,7 @@
              drop: float = 0.,
              device=None,
              dtype=None,
-@@ -215,13 +222,13 @@         out_features = out_features or in_features
+@@ -215,13 +221,13 @@         out_features = out_features or in_features
          hidden_features = hidden_features or in_features
          self.fc1 = nn.Conv2d(in_features, hidden_features, 1, **dd)
 -        self.norm1 = norm_layer(hidden_features, **dd) if norm_layer is not None else nn.Identity()
@@ -164,7 +167,7 @@
          x = self.fc1(x)
          x = self.norm1(x)
          x = self.act(x)
-@@ -232,14 +239,14 @@         return x
+@@ -232,14 +238,14 @@         return x
  
  
 -class MetaBlock1d(nn.Module):
@@ -181,7 +184,7 @@
              proj_drop: float = 0.,
              drop_path: float = 0.,
              layer_scale_init_value: float = 1e-5,
-@@ -251,7 +258,7 @@         self.norm1 = norm_layer(dim, **dd)
+@@ -251,7 +257,7 @@         self.norm1 = norm_layer(dim, **dd)
          self.token_mixer = Attention(dim, **dd)
          self.ls1 = LayerScale(dim, layer_scale_init_value, **dd)
 -        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -189,7 +192,7 @@
  
          self.norm2 = norm_layer(dim, **dd)
          self.mlp = Mlp(
-@@ -262,23 +269,23 @@             **dd,
+@@ -262,23 +268,23 @@             **dd,
          )
          self.ls2 = LayerScale(dim, layer_scale_init_value, **dd)
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -218,7 +221,7 @@
              proj_drop: float = 0.,
              drop_path: float = 0.,
              layer_scale_init_value: float = 1e-5,
-@@ -289,7 +296,7 @@         super().__init__()
+@@ -289,7 +295,7 @@         super().__init__()
          self.token_mixer = Pooling(pool_size=pool_size)
          self.ls1 = LayerScale2d(dim, layer_scale_init_value, **dd)
 -        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -226,7 +229,7 @@
  
          self.mlp = ConvMlpWithNorm(
              dim,
-@@ -300,15 +307,15 @@             **dd,
+@@ -300,15 +306,15 @@             **dd,
          )
          self.ls2 = LayerScale2d(dim, layer_scale_init_value, **dd)
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -245,7 +248,7 @@
  
      def __init__(
              self,
-@@ -319,9 +326,9 @@             num_vit: int = 1,
+@@ -319,9 +325,9 @@             num_vit: int = 1,
              pool_size: int = 3,
              mlp_ratio: float = 4.,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -257,7 +260,7 @@
              proj_drop: float = .0,
              drop_path: float = 0.,
              layer_scale_init_value: float = 1e-5,
-@@ -337,7 +344,7 @@             dim = dim_out
+@@ -337,7 +343,7 @@             dim = dim_out
          else:
              assert dim == dim_out
 -            self.downsample = nn.Identity()
@@ -265,7 +268,7 @@
  
          blocks = []
          if num_vit and num_vit >= depth:
-@@ -373,9 +380,11 @@                 if num_vit and num_vit == remain_idx:
+@@ -373,9 +379,11 @@                 if num_vit and num_vit == remain_idx:
                      blocks.append(Flat())
  
 -        self.blocks = nn.Sequential(*blocks)
@@ -279,7 +282,7 @@
          x = self.downsample(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -384,7 +393,7 @@         return x
+@@ -384,7 +392,7 @@         return x
  
  
 -class EfficientFormer(nn.Module):
@@ -287,7 +290,7 @@
  
      def __init__(
              self,
-@@ -398,9 +407,9 @@             mlp_ratios: float = 4,
+@@ -398,9 +406,9 @@             mlp_ratios: float = 4,
              pool_size: int = 3,
              layer_scale_init_value: float = 1e-5,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -299,7 +302,7 @@
              drop_rate: float = 0.,
              proj_drop_rate: float = 0.,
              drop_path_rate: float = 0.,
-@@ -443,15 +452,17 @@             prev_dim = embed_dims[i]
+@@ -443,15 +451,17 @@             prev_dim = embed_dims[i]
              stages.append(stage)
              self.feature_info += [dict(num_chs=embed_dims[i], reduction=2**(i+2), module=f'stages.{i}')]
 -        self.stages = nn.Sequential(*stages)
@@ -319,7 +322,7 @@
          self.distilled_training = False  # must set this True to train w/ distillation token
  
          self.apply(self._init_weights)
-@@ -461,7 +472,7 @@         if isinstance(m, nn.Linear):
+@@ -461,7 +471,7 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -327,7 +330,7 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -481,15 +492,15 @@             s.grad_checkpointing = enable
+@@ -481,15 +491,15 @@             s.grad_checkpointing = enable
  
      @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
@@ -345,7 +348,7 @@
  
      @torch.jit.ignore
      def set_distilled_training(self, enable=True):
-@@ -497,13 +508,13 @@ 
+@@ -497,13 +507,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -360,7 +363,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -560,7 +571,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -560,7 +570,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -368,7 +371,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -585,7 +596,7 @@             # during standard train/finetune, inference average the classifier predictions
+@@ -585,7 +595,7 @@             # during standard train/finetune, inference average the classifier predictions
              return (x + x_dist) / 2
  
 -    def forward(self, x):

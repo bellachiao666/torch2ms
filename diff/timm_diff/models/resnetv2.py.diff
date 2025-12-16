@@ -272,7 +272,7 @@
      """Initialize module weights.
  
      Args:
-@@ -802,28 +809,28 @@         zero_init_last: Zero-initialize last layer weights.
+@@ -802,28 +809,27 @@         zero_init_last: Zero-initialize last layer weights.
      """
      if isinstance(module, nn.Linear) or ('head.fc' in name and isinstance(module, nn.Conv2d)):
 -        nn.init.normal_(module.weight, mean=0.0, std=0.01)
@@ -294,7 +294,7 @@
          module.zero_init_last()
  
  
- @torch.no_grad()
+-@torch.no_grad()
 -def _load_weights(model: nn.Module, checkpoint_path: str, prefix: str = 'resnet/'):
 +def _load_weights(model: msnn.Cell, checkpoint_path: str, prefix: str = 'resnet/'):
      import numpy as np

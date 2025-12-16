@@ -150,7 +150,6 @@ class Lamb(Optimizer):
         clip_global_norm = (global_norm / max_grad_norm).clamp_(min=1.0)
         return clip_global_norm
 
-    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
         Arguments:

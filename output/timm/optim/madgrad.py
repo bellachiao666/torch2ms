@@ -93,7 +93,6 @@ class MADGRAD(torch.optim.Optimizer):
     def supports_flat_params(self) -> bool:
         return True
 
-    @torch.no_grad()
     def step(self, closure: Optional[Callable[[], float]] = None) -> Optional[float]:
         """Performs a single optimization step.
 

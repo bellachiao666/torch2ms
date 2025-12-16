@@ -52,7 +52,6 @@ class ConvNorm(msnn.SequentialCell):
         torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         torch.nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self):
         c, bn = self.conv, self.bn
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -265,7 +264,6 @@ class Attention(msnn.Cell):
         )  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
         self.attention_bias_cache = {}
 
-    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:

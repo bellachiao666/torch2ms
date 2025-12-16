@@ -147,7 +147,14 @@
  class Muon(torch.optim.Optimizer):
      """Muon - MomentUm Orthogonalized by Newton-schulz
  
-@@ -808,14 +822,14 @@ 
+@@ -728,7 +742,6 @@             group.setdefault('algo', 'muon')
+             group.setdefault('scale_eps', False)
+ 
+-    @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step."""
+         loss = None
+@@ -808,14 +821,14 @@ 
                      # State initialization for Muon/AdaMuon
                      if "momentum_buffer" not in state:
 -                        state["momentum_buffer"] = torch.zeros_like(p, memory_format=torch.preserve_format)
@@ -164,7 +171,7 @@
                          muon_exp_avg_sqs.append(state["exp_avg_sq"])
                          muon_state_steps.append(state["step"])
                  else:
-@@ -826,9 +840,9 @@ 
+@@ -826,9 +839,9 @@ 
                      # State initialization for AdamW
                      if "step" not in state:
 -                        state["step"] = torch.tensor(0.)

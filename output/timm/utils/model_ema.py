@@ -208,7 +208,6 @@ class ModelEmaV3(msnn.Cell):
 
         return decay
 
-    @torch.no_grad()
     def update(self, model, step: Optional[int] = None):
         decay = self.get_decay(step)
         if self.exclude_buffers:
@@ -257,7 +256,6 @@ class ModelEmaV3(msnn.Cell):
         for ema_b, model_b in zip(self.module.buffers(), model.buffers()):
             ema_b.copy_(model_b.to(device=self.device))
 
-    @torch.no_grad()
     def set(self, model):
         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
             ema_v.copy_(model_v.to(device=self.device))

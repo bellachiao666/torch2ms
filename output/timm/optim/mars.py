@@ -144,7 +144,6 @@ class Mars(Optimizer):
         for group in self.param_groups:
             group.setdefault('caution', False)
 
-    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

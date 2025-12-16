@@ -39,7 +39,6 @@ class Residual(msnn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return x + self.m(x)
 
-    @torch.no_grad()
     def fuse(self) -> msnn.Cell:
         if isinstance(self.m, Conv2dNorm):
             m = self.m.fuse()
@@ -73,7 +72,6 @@ class Conv2dNorm(msnn.SequentialCell):
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self) -> nn.Conv2d:
         c, bn = self._modules.values()
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -104,7 +102,6 @@ class NormLinear(msnn.SequentialCell):
         if bias:
             nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self) -> nn.Linear:
         bn, l = self._modules.values()
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -449,7 +446,6 @@ class SHViT(msnn.Cell):
         x = self.forward_head(x)
         return x
 
-    @torch.no_grad()
     def fuse(self):
         def fuse_children(net):
             for child_name, child in net.named_children():

@@ -66,7 +66,6 @@ class ConvNorm(msnn.Cell):
 
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self):
         c, bn = self.linear, self.bn
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -98,7 +97,6 @@ class LinearNorm(msnn.Cell):
 
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self):
         l, bn = self.linear, self.bn
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -135,7 +133,6 @@ class NormLinear(msnn.Cell):
         if self.linear.bias is not None:
             nn.init.constant_(self.linear.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self):
         bn, l = self.bn, self.linear
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -266,7 +263,6 @@ class Attention(msnn.Cell):
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
         self.attention_bias_cache = {}
 
-    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
@@ -379,7 +375,6 @@ class AttentionDownsample(msnn.Cell):
 
         self.attention_bias_cache = {}  # per-device attention_biases cache
 
-    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:

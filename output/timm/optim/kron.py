@@ -221,7 +221,6 @@ class Kron(torch.optim.Optimizer):
         super().__setstate__(state)
         self._param_exprs = {}
 
-    @torch.no_grad()
     def step(self, closure=None):
         loss = None
         if closure is not None:

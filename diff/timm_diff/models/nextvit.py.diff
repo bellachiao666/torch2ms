@@ -136,7 +136,11 @@
              device=None,
              dtype=None,
      ):
-@@ -232,10 +237,10 @@     def reparameterize(self):
+@@ -228,14 +233,13 @@         self.mlp_drop_path = DropPath(drop_path)
+         self.is_fused = False
+ 
+-    @torch.no_grad()
+     def reparameterize(self):
          if not self.is_fused:
              merge_pre_bn(self.mlp.fc1, self.norm)
 -            self.norm = nn.Identity()
@@ -148,7 +152,7 @@
          x = self.patch_embed(x)
          x = x + self.attn_drop_path(self.mhca(x))
  
-@@ -244,7 +249,7 @@         return x
+@@ -244,7 +248,7 @@         return x
  
  
 -class EfficientAttention(nn.Module):
@@ -156,7 +160,7 @@
      """
      Efficient Multi-Head Self Attention
      """
-@@ -259,7 +264,7 @@             attn_drop: float = 0.,
+@@ -259,7 +263,7 @@             attn_drop: float = 0.,
              proj_drop: float = 0.,
              sr_ratio: int = 1,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm1d,
@@ -164,7 +168,7 @@
              device=None,
              dtype=None,
      ):
-@@ -282,13 +287,13 @@         self.sr_ratio = sr_ratio
+@@ -282,13 +286,13 @@         self.sr_ratio = sr_ratio
          self.N_ratio = sr_ratio ** 2
          if sr_ratio > 1:
 -            self.sr = nn.AvgPool1d(kernel_size=self.N_ratio, stride=self.N_ratio)
@@ -179,7 +183,7 @@
          B, N, C = x.shape
          q = self.q(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
  
-@@ -303,7 +308,7 @@             x = F.scaled_dot_product_attention(
+@@ -303,7 +307,7 @@             x = F.scaled_dot_product_attention(
                  q, k, v,
                  dropout_p=self.attn_drop.p if self.training else 0.,
 -            )
@@ -187,7 +191,7 @@
          else:
              q = q * self.scale
              attn = q @ k.transpose(-1, -2)
-@@ -317,7 +322,7 @@         return x
+@@ -317,7 +321,7 @@         return x
  
  
 -class NextTransformerBlock(nn.Module):
@@ -195,7 +199,7 @@
      """
      Next Transformer Block
      """
-@@ -334,8 +339,8 @@             mix_block_ratio: float = 0.75,
+@@ -334,8 +338,8 @@             mix_block_ratio: float = 0.75,
              attn_drop: float = 0.,
              drop: float = 0.,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -205,7 +209,14 @@
              device=None,
              dtype=None,
      ):
-@@ -394,17 +399,17 @@             if self.e_mhsa.norm is not None:
+@@ -387,24 +391,23 @@         self.mlp_drop_path = DropPath(drop_path)
+         self.is_fused = False
+ 
+-    @torch.no_grad()
+     def reparameterize(self):
+         if not self.is_fused:
+             merge_pre_bn(self.e_mhsa.q, self.norm1)
+             if self.e_mhsa.norm is not None:
                  merge_pre_bn(self.e_mhsa.k, self.norm1, self.e_mhsa.norm)
                  merge_pre_bn(self.e_mhsa.v, self.norm1, self.e_mhsa.norm)
 -                self.e_mhsa.norm = nn.Identity()
@@ -226,7 +237,7 @@
          x = self.patch_embed(x)
          B, C, H, W = x.shape
  
-@@ -415,20 +420,20 @@ 
+@@ -415,20 +418,20 @@ 
          out = self.projection(x)
          out = out + self.mhca_drop_path(self.mhca(out))
 -        x = torch.cat([x, out], dim=1)
@@ -249,7 +260,7 @@
              stride: int = 2,
              sr_ratio: int = 1,
              mix_block_ratio: float = 1.0,
-@@ -436,8 +441,8 @@             attn_drop: float = 0.,
+@@ -436,8 +439,8 @@             attn_drop: float = 0.,
              drop_path: Union[float, List[float], Tuple[float, ...]] = 0.,
              head_dim: int = 32,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -259,7 +270,7 @@
              device=None,
              dtype=None,
      ):
-@@ -482,13 +487,15 @@                 blocks.append(layer)
+@@ -482,13 +485,15 @@                 blocks.append(layer)
              in_chs = out_chs
  
 -        self.blocks = nn.Sequential(*blocks)
@@ -276,7 +287,7 @@
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
          else:
-@@ -496,7 +503,7 @@         return x
+@@ -496,7 +501,7 @@         return x
  
  
 -class NextViT(nn.Module):
@@ -284,7 +295,7 @@
      def __init__(
              self,
              in_chans: int,
-@@ -511,8 +518,8 @@             drop_rate: float = 0.,
+@@ -511,8 +516,8 @@             drop_rate: float = 0.,
              head_dim: int = 32,
              mix_block_ratio: float = 0.75,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -294,7 +305,7 @@
              device=None,
              dtype=None,
      ):
-@@ -545,7 +552,8 @@             [NextConvBlock, NextConvBlock, NextConvBlock, NextConvBlock, NextTransformerBlock] * (depths[2] // 5),
+@@ -545,7 +550,8 @@             [NextConvBlock, NextConvBlock, NextConvBlock, NextConvBlock, NextTransformerBlock] * (depths[2] // 5),
              [NextConvBlock] * (depths[3] - 1) + [NextTransformerBlock]]
  
 -        self.stem = nn.Sequential(
@@ -303,7 +314,7 @@
              ConvNormAct(
                  in_chans, stem_chs[0], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
              ConvNormAct(
-@@ -553,8 +561,8 @@             ConvNormAct(
+@@ -553,8 +559,8 @@             ConvNormAct(
                  stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
              ConvNormAct(
 -                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
@@ -313,7 +324,7 @@
          in_chs = out_chs = stem_chs[-1]
          stages = []
          idx = 0
-@@ -579,7 +587,9 @@             stages += [stage]
+@@ -579,7 +585,9 @@             stages += [stage]
              idx += depths[stage_idx]
          self.num_features = self.head_hidden_size = out_chs
 -        self.stages = nn.Sequential(*stages)
@@ -323,7 +334,7 @@
          self.norm = norm_layer(out_chs, **dd)
          self.head = ClassifierHead(pool_type=global_pool, in_features=out_chs, num_classes=num_classes, **dd)
  
-@@ -591,11 +601,11 @@             if isinstance(m, nn.Linear):
+@@ -591,11 +599,11 @@             if isinstance(m, nn.Linear):
                  trunc_normal_(m.weight, std=.02)
                  if hasattr(m, 'bias') and m.bias is not None:
 -                    nn.init.constant_(m.bias, 0)
@@ -336,7 +347,7 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -614,7 +624,7 @@             stage.set_grad_checkpointing(enable=enable)
+@@ -614,7 +622,7 @@             stage.set_grad_checkpointing(enable=enable)
  
      @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
@@ -344,7 +355,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -623,13 +633,13 @@ 
+@@ -623,13 +631,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -359,7 +370,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -685,7 +695,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -685,7 +693,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -367,7 +378,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -702,7 +712,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -702,7 +710,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):

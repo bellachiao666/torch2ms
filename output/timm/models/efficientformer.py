@@ -91,7 +91,6 @@ class Attention(msnn.Cell):
         self.register_buffer('attention_bias_idxs', rel_pos)
         self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
 
-    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:

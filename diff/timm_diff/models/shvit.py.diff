@@ -17,7 +17,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import GroupNorm1, SqueezeExcite, SelectAdaptivePool2d, LayerType, trunc_normal_
-@@ -27,28 +31,28 @@ __all__ = ['SHViT']
+@@ -27,28 +31,27 @@ __all__ = ['SHViT']
  
  
 -class Residual(nn.Module):
@@ -31,7 +31,7 @@
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          return x + self.m(x)
  
-     @torch.no_grad()
+-    @torch.no_grad()
 -    def fuse(self) -> nn.Module:
 +    def fuse(self) -> msnn.Cell:
          if isinstance(self.m, Conv2dNorm):
@@ -52,17 +52,20 @@
      def __init__(
              self,
              in_channels: int,
-@@ -66,8 +70,8 @@         self.add_module('c', nn.Conv2d(
+@@ -66,32 +69,22 @@         self.add_module('c', nn.Conv2d(
              in_channels, out_channels, kernel_size, stride, padding, bias=False, **dd, **kwargs))
          self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))
 -        nn.init.constant_(self.bn.weight, bn_weight_init)
 -        nn.init.constant_(self.bn.bias, 0)
+-
+-    @torch.no_grad()
 +        nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.no_grad()
++
      def fuse(self) -> nn.Conv2d:
-@@ -76,22 +80,13 @@         w = c.weight * w[:, None, None, None]
+         c, bn = self._modules.values()
+         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
+         w = c.weight * w[:, None, None, None]
          b = bn.bias - bn.running_mean * bn.weight / (bn.running_var + bn.eps) ** 0.5
          m = nn.Conv2d(
 -            in_channels=w.size(1) * self.c.groups,
@@ -86,15 +89,18 @@
      def __init__(
              self,
              in_features: int,
-@@ -107,7 +102,7 @@         self.add_module('l', nn.Linear(in_features, out_features, bias=bias, **dd))
+@@ -107,9 +100,8 @@         self.add_module('l', nn.Linear(in_features, out_features, bias=bias, **dd))
          trunc_normal_(self.l.weight, std=std)
          if bias:
 -            nn.init.constant_(self.l.bias, 0)
+-
+-    @torch.no_grad()
 +            nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.no_grad()
++
      def fuse(self) -> nn.Linear:
-@@ -119,18 +114,18 @@             b = b @ self.l.weight.T
+         bn, l = self._modules.values()
+         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
+@@ -119,18 +111,18 @@             b = b @ self.l.weight.T
          else:
              b = (l.weight @ b[:, None]).view(-1) + self.l.bias
 -        m = nn.Linear(w.size(1), w.size(0), device=l.weight.device, dtype=l.weight.dtype)
@@ -115,7 +121,7 @@
              device=None,
              dtype=None,
      ):
-@@ -144,7 +139,7 @@         self.se = SqueezeExcite(hid_dim, 0.25, **dd)
+@@ -144,7 +136,7 @@         self.se = SqueezeExcite(hid_dim, 0.25, **dd)
          self.conv3 = Conv2dNorm(hid_dim, out_dim, **dd)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -123,7 +129,7 @@
          x = self.conv1(x)
          x = self.act1(x)
          x = self.conv2(x)
-@@ -154,12 +149,12 @@         return x
+@@ -154,12 +146,12 @@         return x
  
  
 -class FFN(nn.Module):
@@ -137,7 +143,7 @@
              device=None,
              dtype=None,
      ):
-@@ -169,22 +164,22 @@         self.act = act_layer()
+@@ -169,22 +161,22 @@         self.act = act_layer()
          self.pw2 = Conv2dNorm(embed_dim, dim, bn_weight_init=0, **dd)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -163,7 +169,7 @@
              device=None,
              dtype=None,
      ):
-@@ -198,32 +193,35 @@         self.pre_norm = norm_layer(pdim, **dd)
+@@ -198,32 +190,35 @@         self.pre_norm = norm_layer(pdim, **dd)
  
          self.qkv = Conv2dNorm(pdim, qk_dim * 2 + pdim, **dd)
 -        self.proj = nn.Sequential(act_layer(), Conv2dNorm(dim, dim, bn_weight_init=0, **dd))
@@ -210,7 +216,7 @@
              device=None,
              dtype=None,
      ):
-@@ -233,17 +231,17 @@         if type == "s":
+@@ -233,17 +228,17 @@         if type == "s":
              self.mixer = Residual(SHSA(dim, qk_dim, pdim, norm_layer, act_layer, **dd))
          else:
 -            self.mixer = nn.Identity()
@@ -230,7 +236,7 @@
      def __init__(
              self,
              prev_dim: int,
-@@ -252,27 +250,30 @@             pdim: int,
+@@ -252,27 +247,30 @@             pdim: int,
              type: str,
              depth: int,
 -            norm_layer: Type[nn.Module] = GroupNorm1,
@@ -268,7 +274,7 @@
          x = self.downsample(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -281,7 +282,7 @@         return x
+@@ -281,7 +279,7 @@         return x
  
  
 -class SHViT(nn.Module):
@@ -276,7 +282,7 @@
      def __init__(
              self,
              in_chans: int = 3,
-@@ -293,8 +294,8 @@             depth: Tuple[int, int, int] = (1, 2, 3),
+@@ -293,8 +291,8 @@             depth: Tuple[int, int, int] = (1, 2, 3),
              types: Tuple[str, str, str] = ("s", "s", "s"),
              drop_rate: float = 0.,
 -            norm_layer: Type[nn.Module] = GroupNorm1,
@@ -286,7 +292,7 @@
              device=None,
              dtype=None,
      ):
-@@ -306,7 +307,8 @@ 
+@@ -306,7 +304,8 @@ 
          # Patch embedding
          stem_chs = embed_dim[0]
 -        self.patch_embed = nn.Sequential(
@@ -295,7 +301,7 @@
              Conv2dNorm(in_chans, stem_chs // 8, 3, 2, 1, **dd),
              act_layer(),
              Conv2dNorm(stem_chs // 8, stem_chs // 4, 3, 2, 1, **dd),
-@@ -314,7 +316,7 @@             Conv2dNorm(stem_chs // 4, stem_chs // 2, 3, 2, 1, **dd),
+@@ -314,7 +313,7 @@             Conv2dNorm(stem_chs // 4, stem_chs // 2, 3, 2, 1, **dd),
              act_layer(),
              Conv2dNorm(stem_chs // 2, stem_chs, 3, 2, 1, **dd)
 -        )
@@ -303,7 +309,7 @@
  
          # Build SHViT blocks
          stages = []
-@@ -333,13 +335,15 @@             ))
+@@ -333,13 +332,15 @@             ))
              prev_chs = embed_dim[i]
              self.feature_info.append(dict(num_chs=prev_chs, reduction=2**(i+4), module=f'stages.{i}'))
 -        self.stages = nn.Sequential(*stages)
@@ -321,7 +327,7 @@
  
      @torch.jit.ignore
      def no_weight_decay(self) -> Set:
-@@ -362,25 +366,25 @@             s.grad_checkpointing = enable
+@@ -362,25 +363,25 @@             s.grad_checkpointing = enable
  
      @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
@@ -351,7 +357,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -428,19 +432,19 @@             self.reset_classifier(0, '')
+@@ -428,24 +429,23 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -374,7 +380,12 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -459,7 +463,7 @@         fuse_children(self)
+ 
+-    @torch.no_grad()
+     def fuse(self):
+         def fuse_children(net):
+             for child_name, child in net.named_children():
+@@ -459,7 +459,7 @@         fuse_children(self)
  
  
 -def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:

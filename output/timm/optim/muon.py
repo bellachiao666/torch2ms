@@ -742,7 +742,6 @@ class Muon(torch.optim.Optimizer):
             group.setdefault('algo', 'muon')
             group.setdefault('scale_eps', False)
 
-    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step."""
         loss = None

@@ -486,11 +486,11 @@
           "logical": "rtol",
           "pytorch": {
             "name": "rtol",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "rtol",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -499,11 +499,11 @@
           "logical": "atol",
           "pytorch": {
             "name": "atol",
-            "default": 1e-8
+            "default": 1e-08
           },
           "mindspore": {
             "name": "atol",
-            "default": 1e-8
+            "default": 1e-08
           },
           "name_equal": true,
           "default_equal": true
@@ -4076,11 +4076,11 @@
           "logical": "rtol",
           "pytorch": {
             "name": "rtol",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "rtol",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -4089,11 +4089,11 @@
           "logical": "atol",
           "pytorch": {
             "name": "atol",
-            "default": 1e-8
+            "default": 1e-08
           },
           "mindspore": {
             "name": "atol",
-            "default": 1e-8
+            "default": 1e-08
           },
           "name_equal": true,
           "default_equal": true
@@ -6055,7 +6055,6 @@
         }
       ]
     },
-
     "Tensor": {
       "pytorch": "torch.Tensor",
       "mindspore": "mindspore.Tensor",
@@ -11562,11 +11561,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -11659,11 +11658,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -11756,11 +11755,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -12886,11 +12885,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -13091,11 +13090,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -13411,13 +13410,11 @@
         }
       ]
     },
-    
     "Module": {
       "pytorch": "torch.nn.Module",
       "mindspore": "mindspore.nn.Cell",
       "params": []
     },
-
     "ModuleList": {
       "pytorch": "torch.nn.ModuleList",
       "mindspore": "mindspore.nn.CellList",
@@ -13850,11 +13847,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -14501,11 +14498,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-5
+            "default": 1e-05
           },
           "name_equal": true,
           "default_equal": true
@@ -18738,11 +18735,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-8
+            "default": 1e-08
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-8
+            "default": 1e-08
           },
           "name_equal": true,
           "default_equal": true
@@ -18887,11 +18884,11 @@
           "logical": "eps",
           "pytorch": {
             "name": "eps",
-            "default": 1e-8
+            "default": 1e-08
           },
           "mindspore": {
             "name": "eps",
-            "default": 1e-8
+            "default": 1e-08
           },
           "name_equal": true,
           "default_equal": true
@@ -19282,78 +19279,144 @@
       "params": [
         {
           "logical": "in_channels",
-          "pytorch": { "name": "in_channels", "default": null },
-          "mindspore": { "name": "in_channels", "default": null },
+          "pytorch": {
+            "name": "in_channels",
+            "default": null
+          },
+          "mindspore": {
+            "name": "in_channels",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "out_channels",
-          "pytorch": { "name": "out_channels", "default": null },
-          "mindspore": { "name": "out_channels", "default": null },
+          "pytorch": {
+            "name": "out_channels",
+            "default": null
+          },
+          "mindspore": {
+            "name": "out_channels",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "kernel_size",
-          "pytorch": { "name": "kernel_size", "default": null },
-          "mindspore": { "name": "kernel_size", "default": null },
+          "pytorch": {
+            "name": "kernel_size",
+            "default": null
+          },
+          "mindspore": {
+            "name": "kernel_size",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "stride",
-          "pytorch": { "name": "stride", "default": 1 },
-          "mindspore": { "name": "stride", "default": 1 },
+          "pytorch": {
+            "name": "stride",
+            "default": 1
+          },
+          "mindspore": {
+            "name": "stride",
+            "default": 1
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "padding",
-          "pytorch": { "name": "padding", "default": 0 },
-          "mindspore": { "name": "padding", "default": 0 },
+          "pytorch": {
+            "name": "padding",
+            "default": 0
+          },
+          "mindspore": {
+            "name": "padding",
+            "default": 0
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "dilation",
-          "pytorch": { "name": "dilation", "default": 1 },
-          "mindspore": { "name": "dilation", "default": 1 },
+          "pytorch": {
+            "name": "dilation",
+            "default": 1
+          },
+          "mindspore": {
+            "name": "dilation",
+            "default": 1
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "groups",
-          "pytorch": { "name": "groups", "default": 1 },
-          "mindspore": { "name": "groups", "default": 1 },
+          "pytorch": {
+            "name": "groups",
+            "default": 1
+          },
+          "mindspore": {
+            "name": "groups",
+            "default": 1
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "bias",
-          "pytorch": { "name": "bias", "default": true },
-          "mindspore": { "name": "bias", "default": true },
+          "pytorch": {
+            "name": "bias",
+            "default": true
+          },
+          "mindspore": {
+            "name": "bias",
+            "default": true
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "padding_mode",
-          "pytorch": { "name": "padding_mode", "default": "zeros" },
-          "mindspore": { "name": "padding_mode", "default": "zeros" },
+          "pytorch": {
+            "name": "padding_mode",
+            "default": "zeros"
+          },
+          "mindspore": {
+            "name": "padding_mode",
+            "default": "zeros"
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "device",
-          "pytorch": { "name": "device", "default": null },
-          "mindspore": { "name": null, "default": null },
+          "pytorch": {
+            "name": "device",
+            "default": null
+          },
+          "mindspore": {
+            "name": null,
+            "default": null
+          },
           "name_equal": false,
           "default_equal": false
         },
         {
           "logical": "dtype",
-          "pytorch": { "name": "dtype", "default": null },
-          "mindspore": { "name": "dtype", "default": null },
+          "pytorch": {
+            "name": "dtype",
+            "default": null
+          },
+          "mindspore": {
+            "name": "dtype",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         }
@@ -19365,43 +19428,79 @@
       "params": [
         {
           "logical": "kernel_size",
-          "pytorch": { "name": "kernel_size", "default": null },
-          "mindspore": { "name": "kernel_size", "default": null },
+          "pytorch": {
+            "name": "kernel_size",
+            "default": null
+          },
+          "mindspore": {
+            "name": "kernel_size",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "stride",
-          "pytorch": { "name": "stride", "default": null },
-          "mindspore": { "name": "stride", "default": null },
+          "pytorch": {
+            "name": "stride",
+            "default": null
+          },
+          "mindspore": {
+            "name": "stride",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "padding",
-          "pytorch": { "name": "padding", "default": 0 },
-          "mindspore": { "name": "padding", "default": 0 },
+          "pytorch": {
+            "name": "padding",
+            "default": 0
+          },
+          "mindspore": {
+            "name": "padding",
+            "default": 0
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "dilation",
-          "pytorch": { "name": "dilation", "default": 1 },
-          "mindspore": { "name": "dilation", "default": 1 },
+          "pytorch": {
+            "name": "dilation",
+            "default": 1
+          },
+          "mindspore": {
+            "name": "dilation",
+            "default": 1
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "return_indices",
-          "pytorch": { "name": "return_indices", "default": false },
-          "mindspore": { "name": null, "default": null },
+          "pytorch": {
+            "name": "return_indices",
+            "default": false
+          },
+          "mindspore": {
+            "name": null,
+            "default": null
+          },
           "name_equal": false,
           "default_equal": false
         },
         {
           "logical": "ceil_mode",
-          "pytorch": { "name": "ceil_mode", "default": false },
-          "mindspore": { "name": "ceil_mode", "default": false },
+          "pytorch": {
+            "name": "ceil_mode",
+            "default": false
+          },
+          "mindspore": {
+            "name": "ceil_mode",
+            "default": false
+          },
           "name_equal": true,
           "default_equal": true
         }
@@ -19413,43 +19512,79 @@
       "params": [
         {
           "logical": "kernel_size",
-          "pytorch": { "name": "kernel_size", "default": null },
-          "mindspore": { "name": "kernel_size", "default": null },
+          "pytorch": {
+            "name": "kernel_size",
+            "default": null
+          },
+          "mindspore": {
+            "name": "kernel_size",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "stride",
-          "pytorch": { "name": "stride", "default": null },
-          "mindspore": { "name": "stride", "default": null },
+          "pytorch": {
+            "name": "stride",
+            "default": null
+          },
+          "mindspore": {
+            "name": "stride",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "padding",
-          "pytorch": { "name": "padding", "default": 0 },
-          "mindspore": { "name": "padding", "default": 0 },
+          "pytorch": {
+            "name": "padding",
+            "default": 0
+          },
+          "mindspore": {
+            "name": "padding",
+            "default": 0
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "dilation",
-          "pytorch": { "name": "dilation", "default": 1 },
-          "mindspore": { "name": "dilation", "default": 1 },
+          "pytorch": {
+            "name": "dilation",
+            "default": 1
+          },
+          "mindspore": {
+            "name": "dilation",
+            "default": 1
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "return_indices",
-          "pytorch": { "name": "return_indices", "default": false },
-          "mindspore": { "name": null, "default": null },
+          "pytorch": {
+            "name": "return_indices",
+            "default": false
+          },
+          "mindspore": {
+            "name": null,
+            "default": null
+          },
           "name_equal": false,
           "default_equal": false
         },
         {
           "logical": "ceil_mode",
-          "pytorch": { "name": "ceil_mode", "default": false },
-          "mindspore": { "name": "ceil_mode", "default": false },
+          "pytorch": {
+            "name": "ceil_mode",
+            "default": false
+          },
+          "mindspore": {
+            "name": "ceil_mode",
+            "default": false
+          },
           "name_equal": true,
           "default_equal": true
         }
@@ -19461,8 +19596,14 @@
       "params": [
         {
           "logical": "parameters",
-          "pytorch": { "name": "parameters", "default": null },
-          "mindspore": { "name": "params", "default": null },
+          "pytorch": {
+            "name": "parameters",
+            "default": null
+          },
+          "mindspore": {
+            "name": "params",
+            "default": null
+          },
           "name_equal": false,
           "default_equal": true
         }
@@ -19479,33 +19620,137 @@
       "params": [
         {
           "logical": "data",
-          "pytorch": { "name": "data", "default": null },
-          "mindspore": { "name": "input_data", "default": null },
+          "pytorch": {
+            "name": "data",
+            "default": null
+          },
+          "mindspore": {
+            "name": "input_data",
+            "default": null
+          },
           "name_equal": false,
           "default_equal": true
         },
         {
           "logical": "dtype",
-          "pytorch": { "name": "dtype", "default": null },
-          "mindspore": { "name": "dtype", "default": null },
+          "pytorch": {
+            "name": "dtype",
+            "default": null
+          },
+          "mindspore": {
+            "name": "dtype",
+            "default": null
+          },
           "name_equal": true,
           "default_equal": true
         },
         {
           "logical": "device",
-          "pytorch": { "name": "device", "default": null },
-          "mindspore": { "name": null, "default": null },
+          "pytorch": {
+            "name": "device",
+            "default": null
+          },
+          "mindspore": {
+            "name": null,
+            "default": null
+          },
           "name_equal": false,
           "default_equal": false
         },
         {
           "logical": "requires_grad",
-          "pytorch": { "name": "requires_grad", "default": null },
-          "mindspore": { "name": null, "default": null },
+          "pytorch": {
+            "name": "requires_grad",
+            "default": null
+          },
+          "mindspore": {
+            "name": null,
+            "default": null
+          },
           "name_equal": false,
           "default_equal": false
         }
       ]
+    },
+    "torch.float32": {
+      "pytorch": "torch.float32",
+      "mindspore": "mindspore.float32",
+      "params": []
+    },
+    "torch.float64": {
+      "pytorch": "torch.float64",
+      "mindspore": "mindspore.float64",
+      "params": []
+    },
+    "torch.float16": {
+      "pytorch": "torch.float16",
+      "mindspore": "mindspore.float16",
+      "params": []
+    },
+    "torch.bfloat16": {
+      "pytorch": "torch.bfloat16",
+      "mindspore": "mindspore.bfloat16",
+      "params": []
+    },
+    "torch.float": {
+      "pytorch": "torch.float",
+      "mindspore": "mindspore.float32",
+      "params": []
+    },
+    "torch.double": {
+      "pytorch": "torch.double",
+      "mindspore": "mindspore.float64",
+      "params": []
+    },
+    "torch.half": {
+      "pytorch": "torch.half",
+      "mindspore": "mindspore.float16",
+      "params": []
+    },
+    "torch.int8": {
+      "pytorch": "torch.int8",
+      "mindspore": "mindspore.int8",
+      "params": []
+    },
+    "torch.int16": {
+      "pytorch": "torch.int16",
+      "mindspore": "mindspore.int16",
+      "params": []
+    },
+    "torch.int32": {
+      "pytorch": "torch.int32",
+      "mindspore": "mindspore.int32",
+      "params": []
+    },
+    "torch.int64": {
+      "pytorch": "torch.int64",
+      "mindspore": "mindspore.int64",
+      "params": []
+    },
+    "torch.long": {
+      "pytorch": "torch.long",
+      "mindspore": "mindspore.int64",
+      "params": []
+    },
+    "torch.uint8": {
+      "pytorch": "torch.uint8",
+      "mindspore": "mindspore.uint8",
+      "params": []
+    },
+    "torch.bool": {
+      "pytorch": "torch.bool",
+      "mindspore": "mindspore.bool_",
+      "params": []
+    },
+    "torch.complex64": {
+      "pytorch": "torch.complex64",
+      "mindspore": "mindspore.complex64",
+      "params": []
+    },
+    "torch.complex128": {
+      "pytorch": "torch.complex128",
+      "mindspore": "mindspore.complex128",
+      "params": []
     }
   }
 }

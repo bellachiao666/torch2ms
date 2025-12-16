@@ -16,7 +16,14 @@
  class AdaBelief(Optimizer):
      r"""Implements AdaBelief algorithm. Modified from Adam in PyTorch
  
-@@ -95,13 +101,13 @@                 # State initialization
+@@ -85,7 +91,6 @@         for group in self.param_groups:
+             group.setdefault('amsgrad', False)
+ 
+-    @torch.no_grad()
+     def reset(self):
+         for group in self.param_groups:
+             for p in group['params']:
+@@ -95,15 +100,14 @@                 # State initialization
                  state['step'] = 0
                  # Exponential moving average of gradient values
 -                state['exp_avg'] = torch.zeros_like(p)
@@ -28,11 +35,14 @@
                  if amsgrad:
                      # Maintains max of all exp. moving avg. of sq. grad. values
 -                    state['max_exp_avg_var'] = torch.zeros_like(p)
+-
+-    @torch.no_grad()
 +                    state['max_exp_avg_var'] = mint.zeros_like(p)
- 
-     @torch.no_grad()
++
      def step(self, closure=None):
-@@ -120,14 +126,14 @@                 if p.grad is None:
+         """Performs a single optimization step.
+         Arguments:
+@@ -120,14 +124,14 @@                 if p.grad is None:
                      continue
                  grad = p.grad
 -                if grad.dtype in {torch.float16, torch.bfloat16}:
@@ -48,7 +58,7 @@
                      p_fp32 = p_fp32.float()
  
                  amsgrad = group['amsgrad']
-@@ -137,12 +143,12 @@                 if len(state) == 0:
+@@ -137,12 +141,12 @@                 if len(state) == 0:
                      state['step'] = 0
                      # Exponential moving average of gradient values
 -                    state['exp_avg'] = torch.zeros_like(p_fp32)
@@ -63,7 +73,7 @@
                  
                  # perform weight decay, check if decoupled weight decay
                  if group['decoupled_decay']:
-@@ -169,7 +175,7 @@                 if amsgrad:
+@@ -169,7 +173,7 @@                 if amsgrad:
                      max_exp_avg_var = state['max_exp_avg_var']
                      # Maintains the maximum of all 2nd moment running avg. till now
 -                    torch.max(max_exp_avg_var, exp_avg_var.add_(group['eps']), out=max_exp_avg_var)
@@ -71,7 +81,7 @@
  
                      # Use the max. for normalizing running avg. of gradient
                      denom = (max_exp_avg_var.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
-@@ -212,7 +218,7 @@                     elif step_size > 0:
+@@ -212,7 +216,7 @@                     elif step_size > 0:
                          p_fp32.add_(exp_avg, alpha=-step_size * group['lr'])
                  
 -                if p.dtype in {torch.float16, torch.bfloat16}:

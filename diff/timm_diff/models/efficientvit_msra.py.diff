@@ -24,15 +24,18 @@
      def __init__(
              self,
              in_chs: int,
-@@ -40,7 +45,7 @@         super().__init__()
+@@ -40,24 +45,22 @@         super().__init__()
          self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)
          self.bn = nn.BatchNorm2d(out_chs, **dd)
 -        torch.nn.init.constant_(self.bn.weight, bn_weight_init)
+-
+-    @torch.no_grad()
 +        torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.no_grad()
++
      def fuse(self):
-@@ -49,15 +54,14 @@         w = c.weight * w[:, None, None, None]
+         c, bn = self.conv, self.bn
+         w = bn.weight / (bn.running_var + bn.eps)**0.5
+         w = c.weight * w[:, None, None, None]
          b = bn.bias - bn.running_mean * bn.weight / \
              (bn.running_var + bn.eps)**0.5
 -        m = torch.nn.Conv2d(
@@ -50,15 +53,18 @@
      def __init__(
              self,
              in_features: int,
-@@ -76,7 +80,7 @@ 
+@@ -76,9 +79,8 @@ 
          trunc_normal_(self.linear.weight, std=std)
          if self.linear.bias is not None:
 -            nn.init.constant_(self.linear.bias, 0)
+-
+-    @torch.no_grad()
 +            nn.init.constant_(self.linear.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.no_grad()
++
      def fuse(self):
-@@ -89,13 +93,13 @@             b = b @ self.linear.weight.T
+         bn, linear = self.bn, self.linear
+         w = bn.weight / (bn.running_var + bn.eps)**0.5
+@@ -89,13 +91,13 @@             b = b @ self.linear.weight.T
          else:
              b = (linear.weight @ b[:, None]).view(-1) + self.linear.bias
 -        m = torch.nn.Linear(w.size(1), w.size(0))
@@ -73,7 +79,7 @@
      def __init__(
              self,
              dim: int,
-@@ -107,31 +111,31 @@         super().__init__()
+@@ -107,31 +109,31 @@         super().__init__()
          hid_dim = int(dim * 4)
          self.conv1 = ConvNorm(dim, hid_dim, 1, 1, 0, **dd)
 -        self.act = torch.nn.ReLU()
@@ -112,7 +118,7 @@
      def __init__(
          self,
          ed: int,
-@@ -142,16 +146,16 @@         dd = {'device': device, 'dtype': dtype}
+@@ -142,16 +144,16 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.pw1 = ConvNorm(ed, h, **dd)
 -        self.act = torch.nn.ReLU()
@@ -132,7 +138,7 @@
  
      r""" Cascaded Group Attention.
  
-@@ -187,12 +191,13 @@         for i in range(num_heads):
+@@ -187,12 +189,13 @@         for i in range(num_heads):
              qkvs.append(ConvNorm(dim // num_heads, self.key_dim * 2 + self.val_dim, **dd))
              dws.append(ConvNorm(self.key_dim, self.key_dim, kernels[i], 1, kernels[i] // 2, groups=self.key_dim, **dd))
 -        self.qkvs = torch.nn.ModuleList(qkvs)
@@ -150,7 +156,7 @@
  
          points = list(itertools.product(range(resolution), range(resolution)))
          N = len(points)
-@@ -204,12 +209,12 @@                 if offset not in attention_offsets:
+@@ -204,21 +207,22 @@                 if offset not in attention_offsets:
                      attention_offsets[offset] = len(attention_offsets)
                  idxs.append(attention_offsets[offset])
 -        self.attention_biases = torch.nn.Parameter(torch.zeros(num_heads, len(attention_offsets), **dd))
@@ -164,8 +170,10 @@
 +        )  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
          self.attention_bias_cache = {}
  
-     @torch.no_grad()
-@@ -218,7 +223,9 @@         if mode and self.attention_bias_cache:
+-    @torch.no_grad()
+     def train(self, mode=True):
+         super().train(mode)
+         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
@@ -175,7 +183,7 @@
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -227,7 +234,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -227,7 +231,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -183,7 +191,7 @@
          B, C, H, W = x.shape
          feats_in = x.chunk(len(self.qkvs), dim=1)
          feats_out = []
-@@ -247,11 +254,11 @@             feat = v @ attn.transpose(-2, -1)
+@@ -247,11 +251,11 @@             feat = v @ attn.transpose(-2, -1)
              feat = feat.view(B, self.val_dim, H, W)
              feats_out.append(feat)
 -        x = self.proj(torch.cat(feats_out, 1))
@@ -196,7 +204,7 @@
      r""" Local Window Attention.
  
      Args:
-@@ -291,7 +298,7 @@             **dd,
+@@ -291,7 +295,7 @@             **dd,
          )
  
 -    def forward(self, x):
@@ -204,7 +212,7 @@
          H = W = self.resolution
          B, C, H_, W_ = x.shape
          # Only check this for classification models
-@@ -303,7 +310,7 @@             x = x.permute(0, 2, 3, 1)
+@@ -303,7 +307,7 @@             x = x.permute(0, 2, 3, 1)
              pad_b = (self.window_resolution - H % self.window_resolution) % self.window_resolution
              pad_r = (self.window_resolution - W % self.window_resolution) % self.window_resolution
 -            x = torch.nn.functional.pad(x, (0, 0, 0, pad_r, 0, pad_b))
@@ -212,7 +220,7 @@
  
              pH, pW = H + pad_b, W + pad_r
              nH = pH // self.window_resolution
-@@ -320,7 +327,7 @@         return x
+@@ -320,7 +324,7 @@         return x
  
  
 -class EfficientVitBlock(torch.nn.Module):
@@ -220,7 +228,7 @@
      """ A basic EfficientVit building block.
  
      Args:
-@@ -364,11 +371,11 @@         self.dw1 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))
+@@ -364,11 +368,11 @@         self.dw1 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))
          self.ffn1 = ResidualDrop(ConvMlp(dim, int(dim * 2), **dd))
  
 -    def forward(self, x):
@@ -233,7 +241,7 @@
      def __init__(
              self,
              in_dim: int,
-@@ -391,23 +398,27 @@             down_blocks = []
+@@ -391,23 +395,27 @@             down_blocks = []
              down_blocks.append((
                  'res1',
 -                torch.nn.Sequential(
@@ -270,7 +278,7 @@
              self.resolution = resolution
  
          blocks = []
-@@ -422,15 +433,17 @@                 kernels,
+@@ -422,15 +430,17 @@                 kernels,
                  **dd,
              ))
 -        self.blocks = nn.Sequential(*blocks)
@@ -291,7 +299,7 @@
      def __init__(
              self,
              in_chans: int,
-@@ -441,16 +454,16 @@         super().__init__()
+@@ -441,16 +451,16 @@         super().__init__()
          dd = {'device': device, 'dtype': dtype}
          self.add_module('conv1', ConvNorm(in_chans, dim // 8, 3, 2, 1, **dd))
 -        self.add_module('relu1', torch.nn.ReLU())
@@ -311,7 +319,7 @@
      def __init__(
              self,
              img_size: int = 224,
-@@ -505,16 +518,18 @@             resolution = stage.resolution
+@@ -505,16 +515,18 @@             resolution = stage.resolution
              stages.append(stage)
              self.feature_info += [dict(num_chs=ed, reduction=stride, module=f'stages.{i}')]
 -        self.stages = nn.Sequential(*stages)
@@ -332,7 +340,7 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -536,7 +551,7 @@         self.grad_checkpointing = enable
+@@ -536,7 +548,7 @@         self.grad_checkpointing = enable
  
      @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
@@ -340,7 +348,7 @@
          return self.head.linear
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -546,19 +561,19 @@                 self.global_pool = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
+@@ -546,19 +558,19 @@                 self.global_pool = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
              else:
                  assert num_classes == 0
 -                self.global_pool = nn.Identity()
@@ -363,7 +371,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -622,7 +637,7 @@         x = self.global_pool(x)
+@@ -622,7 +634,7 @@         x = self.global_pool(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

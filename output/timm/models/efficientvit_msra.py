@@ -47,7 +47,6 @@ class ConvNorm(msnn.SequentialCell):
         self.bn = nn.BatchNorm2d(out_chs, **dd)
         torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self):
         c, bn = self.conv, self.bn
         w = bn.weight / (bn.running_var + bn.eps)**0.5
@@ -82,7 +81,6 @@ class NormLinear(msnn.SequentialCell):
         if self.linear.bias is not None:
             nn.init.constant_(self.linear.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.no_grad()
     def fuse(self):
         bn, linear = self.bn, self.linear
         w = bn.weight / (bn.running_var + bn.eps)**0.5
@@ -217,7 +215,6 @@ class CascadedGroupAttention(msnn.Cell):
         )  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
         self.attention_bias_cache = {}
 
-    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:

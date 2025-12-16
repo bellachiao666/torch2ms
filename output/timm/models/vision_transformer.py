@@ -1339,7 +1339,6 @@ def resize_pos_embed(
     )
 
 
-@torch.no_grad()
 def _load_weights(model: VisionTransformer, checkpoint_path: str, prefix: str = '', load_bfloat16: bool = False) -> None:
     """ Load weights from .npz checkpoints for official Google Brain Flax implementation
     """

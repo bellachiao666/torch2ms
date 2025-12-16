@@ -104,7 +104,6 @@ class Adan(Optimizer):
             group.setdefault('no_prox', False)
             group.setdefault('caution', False)
 
-    @torch.no_grad()
     def restart_opt(self):
         for group in self.param_groups:
             group['step'] = 0
@@ -120,7 +119,6 @@ class Adan(Optimizer):
                     # Exponential moving average of gradient difference
                     state['exp_avg_diff'] = mint.zeros_like(p)
 
-    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step."""
         loss = None

@@ -63,11 +63,10 @@
 -        pos = torch.stack(ndgrid(
 -            torch.arange(self.resolution[0], device=device, dtype=torch.long),
 -            torch.arange(self.resolution[1], device=device, dtype=torch.long),
--        )).flatten(1)
 +        pos = mint.stack(ndgrid(
-+            mint.arange(self.resolution[0], dtype = torch.long),
-+            mint.arange(self.resolution[1], dtype = torch.long),
-+        )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++            mint.arange(self.resolution[0], device=device, dtype=ms.int64),
++            mint.arange(self.resolution[1], device=device, dtype=ms.int64),
+         )).flatten(1)
          rel_pos = (pos[..., :, None] - pos[..., None, :]).abs()
          rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
 -        self.attention_biases = torch.nn.Parameter(torch.zeros(num_heads, self.N, **dd))
@@ -137,20 +136,18 @@
 -        k_pos = torch.stack(ndgrid(
 -            torch.arange(self.resolution[0], device=device, dtype=torch.long),
 -            torch.arange(self.resolution[1], device=device, dtype=torch.long),
--        )).flatten(1)
++        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
++        k_pos = mint.stack(ndgrid(
++            mint.arange(self.resolution[0], device=device, dtype=ms.int64),
++            mint.arange(self.resolution[1], device=device, dtype=ms.int64),
+         )).flatten(1)
 -        q_pos = torch.stack(ndgrid(
 -            torch.arange(0, self.resolution[0], step=2, device=device, dtype=torch.long),
 -            torch.arange(0, self.resolution[1], step=2, device=device, dtype=torch.long),
--        )).flatten(1)
-+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
-+        k_pos = mint.stack(ndgrid(
-+            mint.arange(self.resolution[0], dtype = torch.long),
-+            mint.arange(self.resolution[1], dtype = torch.long),
-+        )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
 +        q_pos = mint.stack(ndgrid(
-+            mint.arange(0, self.resolution[0], step = 2, dtype = torch.long),
-+            mint.arange(0, self.resolution[1], step = 2, dtype = torch.long),
-+        )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++            mint.arange(0, self.resolution[0], step=2, device=device, dtype=ms.int64),
++            mint.arange(0, self.resolution[1], step=2, device=device, dtype=ms.int64),
+         )).flatten(1)
          rel_pos = (q_pos[..., :, None] - k_pos[..., None, :]).abs()
          rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
          self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
@@ -325,21 +322,19 @@
  
          blocks = []
          for block_idx in range(depth):
-@@ -573,9 +580,11 @@                 **dd,
+@@ -573,9 +580,9 @@                 **dd,
              )
              blocks += [b]
 -        self.blocks = nn.Sequential(*blocks)
 -
 -    def forward(self, x):
-+        self.blocks = msnn.SequentialCell([
-+            blocks
-+        ])
++        self.blocks = msnn.SequentialCell(*blocks)
 +
 +    def construct(self, x):
          x = self.downsample(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -584,7 +593,7 @@         return x
+@@ -584,7 +591,7 @@         return x
  
  
 -class EfficientFormerV2(nn.Module):
@@ -347,13 +342,11 @@
      def __init__(
              self,
              depths: Tuple[int, ...],
-@@ -651,16 +660,18 @@             prev_dim = embed_dims[i]
+@@ -651,16 +658,16 @@             prev_dim = embed_dims[i]
              self.feature_info += [dict(num_chs=prev_dim, reduction=stride, module=f'stages.{i}')]
              stages.append(stage)
 -        self.stages = nn.Sequential(*stages)
-+        self.stages = msnn.SequentialCell([
-+            stages
-+        ])
++        self.stages = msnn.SequentialCell(*stages)
  
          # Classifier head
          self.num_features = self.head_hidden_size = embed_dims[-1]
@@ -368,7 +361,7 @@
          else:
              self.head_dist = None
  
-@@ -672,7 +683,7 @@         if isinstance(m, nn.Linear):
+@@ -672,7 +679,7 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -376,7 +369,7 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -692,15 +703,15 @@             s.grad_checkpointing = enable
+@@ -692,15 +699,15 @@             s.grad_checkpointing = enable
  
      @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
@@ -394,7 +387,7 @@
  
      @torch.jit.ignore
      def set_distilled_training(self, enable=True):
-@@ -708,13 +719,13 @@ 
+@@ -708,13 +715,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -409,7 +402,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -768,7 +779,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -768,7 +775,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -417,7 +410,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -793,7 +804,7 @@             # during standard train/finetune, inference average the classifier predictions
+@@ -793,7 +800,7 @@             # during standard train/finetune, inference average the classifier predictions
              return (x + x_dist) / 2
  
 -    def forward(self, x):
