@@ -863,13 +863,6 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         for extra_val in positional_values[pos_idx:]:
             ms_args.append(cst.Arg(keyword=None, value=extra_val))
 
-        # 确保 LibCST 参数顺序合法：位置参数必须在关键字参数之前，否则会触发
-        # "Cannot have positional argument after keyword argument" 的校验错误。
-        if any(arg.keyword is None for arg in ms_args) and any(arg.keyword is not None for arg in ms_args):
-            positional = [arg for arg in ms_args if arg.keyword is None]
-            keyword = [arg for arg in ms_args if arg.keyword is not None]
-            ms_args = positional + keyword
-
         return ms_args, mismatch_notes
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
@@ -1340,10 +1333,6 @@ def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff
             common = os.path.commonpath([abs_input, abs_file])
         except ValueError:
             common = ""
-
-        # 在 output 下创建“同名目录+_ms”，比如:
-        #   input_root = "input"      -> output/input_ms/...
-        #   input_root = "vit_pytorch" -> output/vit_pytorch_ms/...
         root_name = os.path.basename(os.path.normpath(abs_input))
         output_root = os.path.join("output", f"{root_name}")
 
