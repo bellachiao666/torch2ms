@@ -30,6 +30,14 @@
      """
      Stem implemented by a layer of convolution.
      Conv2d params constant across all models.
+@@ -66,7 +71,7 @@             self,
+             in_channels: int,
+             out_channels: int,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -80,15 +85,15 @@             padding=2,
              **dd,
          )
@@ -49,7 +57,14 @@
      """
      Downsampling implemented by a layer of convolution.
      """
-@@ -106,7 +111,7 @@     ):
+@@ -100,13 +105,13 @@             kernel_size: int,
+             stride: int = 1,
+             padding: int = 0,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.norm = norm_layer(in_channels, **dd) if norm_layer else nn.Identity()
@@ -154,6 +169,16 @@
      r"""
      Inverted separable convolution from MobileNetV2: https://arxiv.org/abs/1801.04381.
      """
+@@ -278,8 +283,8 @@             self,
+             dim: int,
+             expansion_ratio: float = 2,
+-            act1_layer: Type[nn.Module] = StarReLU,
+-            act2_layer: Type[nn.Module] = nn.Identity,
++            act1_layer: Type[msnn.Cell] = StarReLU,
++            act2_layer: Type[msnn.Cell] = nn.Identity,
+             bias: bool = False,
+             kernel_size: int = 7,
+             padding: int = 3,
 @@ -304,7 +309,7 @@         self.act2 = act2_layer(**dd) if issubclass(act2_layer, StarReLU) else act2_layer()
          self.pwconv2 = nn.Conv2d(mid_channels, dim, kernel_size=1, bias=bias, **dd)
  
@@ -188,6 +213,16 @@
      """ MLP classification head
      """
  
+@@ -336,8 +341,8 @@             dim: int,
+             num_classes: int = 1000,
+             mlp_ratio: float = 4,
+-            act_layer: Type[nn.Module] = SquaredReLU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
++            act_layer: Type[msnn.Cell] = SquaredReLU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
+             drop_rate: float = 0.,
+             bias: bool = True,
+             device=None,
 @@ -352,7 +357,7 @@         self.fc2 = nn.Linear(hidden_features, num_classes, bias=bias, **dd)
          self.head_drop = nn.Dropout(drop_rate)
  
@@ -204,6 +239,19 @@
      """
      Implementation of one MetaFormer block.
      """
+@@ -369,10 +374,10 @@     def __init__(
+             self,
+             dim: int,
+-            token_mixer: Type[nn.Module] = Pooling,
+-            mlp_act: Type[nn.Module] = StarReLU,
++            token_mixer: Type[msnn.Cell] = Pooling,
++            mlp_act: Type[msnn.Cell] = StarReLU,
+             mlp_bias: bool = False,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+             proj_drop: float = 0.,
+             drop_path: float = 0.,
+             use_nchw: bool = True,
 @@ -389,9 +394,9 @@ 
          self.norm1 = norm_layer(dim, **dd)
          self.token_mixer = token_mixer(dim=dim, proj_drop=proj_drop, **dd, **kwargs)
@@ -232,7 +280,7 @@
          x = self.res_scale1(x) + \
              self.layer_scale1(
                  self.drop_path1(
-@@ -423,7 +428,7 @@         return x
+@@ -423,18 +428,18 @@         return x
  
  
 -class MetaFormerStage(nn.Module):
@@ -240,6 +288,21 @@
  
      def __init__(
              self,
+             in_chs: int,
+             out_chs: int,
+             depth: int = 2,
+-            token_mixer: Type[nn.Module] = nn.Identity,
+-            mlp_act: Type[nn.Module] = StarReLU,
++            token_mixer: Type[msnn.Cell] = nn.Identity,
++            mlp_act: Type[msnn.Cell] = StarReLU,
+             mlp_bias: bool = False,
+-            downsample_norm: Optional[Type[nn.Module]] = LayerNorm2d,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
++            downsample_norm: Optional[Type[msnn.Cell]] = LayerNorm2d,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+             proj_drop: float = 0.,
+             dp_rates: List[float] = [0.] * 2,
+             layer_scale_init_value: Optional[float] = None,
 @@ -449,7 +454,7 @@         self.use_nchw = not issubclass(token_mixer, Attention)
  
          # don't downsample if in_chs and out_chs are the same
@@ -281,6 +344,28 @@
      r""" MetaFormer
          A PyTorch impl of : `MetaFormer Baselines for Vision`  -
            https://arxiv.org/abs/2210.13452
+@@ -529,17 +536,17 @@             global_pool: str = 'avg',
+             depths: Tuple[int, ...] = (2, 2, 6, 2),
+             dims: Tuple[int, ...] = (64, 128, 320, 512),
+-            token_mixers: Union[Type[nn.Module], List[Type[nn.Module]]] = Pooling,
+-            mlp_act: Type[nn.Module] = StarReLU,
++            token_mixers: Union[Type[msnn.Cell], List[Type[msnn.Cell]]] = Pooling,
++            mlp_act: Type[msnn.Cell] = StarReLU,
+             mlp_bias: bool = False,
+             drop_path_rate: float = 0.,
+             proj_drop_rate: float = 0.,
+             drop_rate: float = 0.0,
+             layer_scale_init_values: Optional[Union[float, List[float]]] = None,
+             res_scale_init_values: Union[Tuple[Optional[float], ...], List[Optional[float]]] = (None, None, 1.0, 1.0),
+-            downsample_norm: Optional[Type[nn.Module]] = LayerNorm2dNoBias,
+-            norm_layers: Union[Type[nn.Module], List[Type[nn.Module]]] = LayerNorm2dNoBias,
+-            output_norm: Type[nn.Module] = LayerNorm2d,
++            downsample_norm: Optional[Type[msnn.Cell]] = LayerNorm2dNoBias,
++            norm_layers: Union[Type[msnn.Cell], List[Type[msnn.Cell]]] = LayerNorm2dNoBias,
++            output_norm: Type[msnn.Cell] = LayerNorm2d,
+             use_mlp_head: bool = True,
+             device=None,
+             dtype=None,
 @@ -604,7 +611,9 @@             prev_dim = dims[i]
              self.feature_info += [dict(num_chs=dims[i], reduction=2**(i+2), module=f'stages.{i}')]
  
@@ -322,14 +407,15 @@
  
      @torch.jit.ignore
      def set_grad_checkpointing(self, enable=True):
-@@ -640,6 +651,7 @@         for stage in self.stages:
-             stage.set_grad_checkpointing(enable=enable)
+@@ -641,7 +652,7 @@             stage.set_grad_checkpointing(enable=enable)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -649,19 +661,19 @@         self.num_classes = num_classes
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
+@@ -649,25 +660,25 @@         self.num_classes = num_classes
          if global_pool is not None:
              self.head.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -            self.head.flatten = nn.Flatten(1) if global_pool else nn.Identity()
@@ -351,7 +437,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -718,7 +730,7 @@             self.reset_classifier(0, '')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -718,7 +729,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_head(self, x: Tensor, pre_logits: bool = False):
@@ -359,7 +452,7 @@
          # NOTE nn.Sequential in head broken down since can't call head[:-1](x) in torchscript :(
          x = self.head.global_pool(x)
          x = self.head.norm(x)
-@@ -726,7 +738,7 @@         x = self.head.drop(x)
+@@ -726,7 +737,7 @@         x = self.head.drop(x)
          return x if pre_logits else self.head.fc(x)
  
 -    def forward_features(self, x: Tensor):
@@ -367,7 +460,7 @@
          x = self.stem(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.stages, x)
-@@ -734,7 +746,7 @@             x = self.stages(x)
+@@ -734,7 +745,7 @@             x = self.stages(x)
          return x
  
 -    def forward(self, x: Tensor):

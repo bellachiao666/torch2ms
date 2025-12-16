@@ -73,8 +73,8 @@ class MLPBlock(msnn.Cell):
             mlp_ratio: float,
             drop_path: float,
             layer_scale_init_value: float,
-            act_layer: Type[nn.Module] = partial(nn.ReLU, inplace=True),
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = partial(nn.ReLU, inplace=True),
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             pconv_fw_type: str = 'split_cat',
             device=None,
             dtype=None,
@@ -120,8 +120,8 @@ class Block(msnn.Cell):
             mlp_ratio: float,
             drop_path: float,
             layer_scale_init_value: float,
-            act_layer: Type[nn.Module] = partial(nn.ReLU, inplace=True),
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = partial(nn.ReLU, inplace=True),
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             pconv_fw_type: str = 'split_cat',
             use_merge: bool = True,
             merge_size: Union[int, Tuple[int, int]] = 2,
@@ -169,7 +169,7 @@ class PatchEmbed(msnn.Cell):
             in_chans: int,
             embed_dim: int,
             patch_size: Union[int, Tuple[int, int]] = 4,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -187,7 +187,7 @@ class PatchMerging(msnn.Cell):
             self,
             dim: int,
             patch_size: Union[int, Tuple[int, int]] = 2,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -217,8 +217,8 @@ class FasterNet(msnn.Cell):
             drop_rate: float = 0.,
             drop_path_rate: float = 0.1,
             layer_scale_init_value: float = 0.,
-            act_layer: Type[nn.Module] = partial(nn.ReLU, inplace=True),
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = partial(nn.ReLU, inplace=True),
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             pconv_fw_type: str = 'split_cat',
             device=None,
             dtype=None,
@@ -309,9 +309,8 @@ class FasterNet(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg', device=None, dtype=None):
@@ -330,7 +329,7 @@ class FasterNet(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -398,8 +397,7 @@ class FasterNet(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
     # if 'avgpool_pre_head' in state_dict:
     #     return state_dict
     #

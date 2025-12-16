@@ -41,9 +41,9 @@ class GatherExcite(msnn.Cell):
             rd_channels: Optional[int] = None,
             rd_divisor: int = 1,
             add_maxpool: bool = False,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
             device=None,
             dtype=None,
     ):

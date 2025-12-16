@@ -190,7 +190,7 @@ class WindowMultiHeadAttention(msnn.Cell):
         relative_position_bias = relative_position_bias.unsqueeze(0)
         return relative_position_bias
 
-    def construct(self, x: ms.Tensor, mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         """Forward pass of window multi-head self-attention.
 
         Args:
@@ -260,7 +260,7 @@ class SwinTransformerV2CrBlock(msnn.Cell):
             drop_path: float = 0.0,
             extra_norm: bool = False,
             sequential_attn: bool = False,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -327,12 +327,15 @@ class SwinTransformerV2CrBlock(msnn.Cell):
         shift_size = [0 if f <= w else s for f, w, s in zip(self.feat_size, window_size, target_shift_size)]
         return tuple(window_size), tuple(shift_size)
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
-            x: Optional[torch.Tensor] = None,
+            x: Optional[ms.Tensor] = None,
             device: Optional[torch.device] = None,
             dtype: Optional[torch.dtype] = None,
-    ) -> Optional[torch.Tensor]:
+    ) -> Optional[ms.Tensor]:
         """Method generates the attention mask used in shift case."""
         # Make masks for shift case
         if any(self.shift_size):
@@ -459,7 +462,7 @@ class PatchMerging(msnn.Cell):
     def __init__(
             self,
             dim: int,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ) -> None:
@@ -503,7 +506,7 @@ class PatchEmbed(msnn.Cell):
             patch_size: Union[int, Tuple[int, int]] = 16,
             in_chans: int = 3,
             embed_dim: int = 768,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             strict_img_size: bool = True,
             device=None,
             dtype=None,
@@ -596,7 +599,7 @@ class SwinTransformerV2CrStage(msnn.Cell):
             proj_drop: float = 0.0,
             drop_attn: float = 0.0,
             drop_path: Union[List[float], float] = 0.0,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             extra_norm_period: int = 0,
             extra_norm_stage: bool = False,
             sequential_attn: bool = False,
@@ -727,7 +730,7 @@ class SwinTransformerV2Cr(msnn.Cell):
             proj_drop_rate: float = 0.0,
             attn_drop_rate: float = 0.0,
             drop_path_rate: float = 0.0,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             extra_norm_period: int = 0,
             extra_norm_stage: bool = False,
             sequential_attn: bool = False,
@@ -852,9 +855,8 @@ class SwinTransformerV2Cr(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore()
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Method returns the classification head of the model.
         Returns:
             head (nn.Module): Current classification head
@@ -879,7 +881,7 @@ class SwinTransformerV2Cr(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -941,8 +943,7 @@ class SwinTransformerV2Cr(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def init_weights(module: nn.Module, name: str = ''):
+def init_weights(module: msnn.Cell, name: str = ''):
     # FIXME WIP determining if there's a better weight init
     if isinstance(module, nn.Linear):
         if 'qkv' in name:

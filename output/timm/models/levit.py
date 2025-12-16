@@ -159,7 +159,7 @@ class Stem8(msnn.SequentialCell):
             self,
             in_chs: int,
             out_chs: int,
-            act_layer: Type[nn.Module],
+            act_layer: Type[msnn.Cell],
             device=None,
             dtype=None,
     ):
@@ -179,7 +179,7 @@ class Stem16(msnn.SequentialCell):
             self,
             in_chs: int,
             out_chs: int,
-            act_layer: Type[nn.Module],
+            act_layer: Type[msnn.Cell],
             device=None,
             dtype=None,
     ):
@@ -221,7 +221,7 @@ class Downsample(msnn.Cell):
 
 
 class Attention(msnn.Cell):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: Dict[str, ms.Tensor]
 
     def __init__(
             self,
@@ -231,7 +231,7 @@ class Attention(msnn.Cell):
             attn_ratio: float = 4.,
             resolution: Union[int, Tuple[int, int]] = 14,
             use_conv: bool = False,
-            act_layer: Type[nn.Module] = nn.SiLU,
+            act_layer: Type[msnn.Cell] = nn.SiLU,
             device=None,
             dtype=None,
     ):
@@ -272,7 +272,8 @@ class Attention(msnn.Cell):
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -309,7 +310,7 @@ class Attention(msnn.Cell):
 
 
 class AttentionDownsample(msnn.Cell):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: Dict[str, ms.Tensor]
 
     def __init__(
             self,
@@ -322,7 +323,7 @@ class AttentionDownsample(msnn.Cell):
             resolution: Union[int, Tuple[int, int]] = 14,
             use_conv: bool = False,
             use_pool: bool = False,
-            act_layer: Type[nn.Module] = nn.SiLU,
+            act_layer: Type[msnn.Cell] = nn.SiLU,
             device=None,
             dtype=None,
     ):
@@ -384,7 +385,8 @@ class AttentionDownsample(msnn.Cell):
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -429,7 +431,7 @@ class LevitMlp(msnn.Cell):
             hidden_features: Optional[int] = None,
             out_features: Optional[int] = None,
             use_conv: bool = False,
-            act_layer: Type[nn.Module] = nn.SiLU,
+            act_layer: Type[msnn.Cell] = nn.SiLU,
             drop: float = 0.,
             device=None,
             dtype=None,
@@ -462,8 +464,8 @@ class LevitDownsample(msnn.Cell):
             num_heads: int = 8,
             attn_ratio: float = 4.,
             mlp_ratio: float = 2.,
-            act_layer: Type[nn.Module] = nn.SiLU,
-            attn_act_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.SiLU,
+            attn_act_layer: Optional[Type[msnn.Cell]] = None,
             resolution: Union[int, Tuple[int, int]] = 14,
             use_conv: bool = False,
             use_pool: bool = False,
@@ -513,8 +515,8 @@ class LevitBlock(msnn.Cell):
             mlp_ratio: float = 2.,
             resolution: Union[int, Tuple[int, int]] = 14,
             use_conv: bool = False,
-            act_layer: Type[nn.Module] = nn.SiLU,
-            attn_act_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.SiLU,
+            attn_act_layer: Optional[Type[msnn.Cell]] = None,
             drop_path: float = 0.,
             device=None,
             dtype=None,
@@ -560,8 +562,8 @@ class LevitStage(msnn.Cell):
             num_heads: int = 8,
             attn_ratio: float = 4.0,
             mlp_ratio: float = 4.0,
-            act_layer: Type[nn.Module] = nn.SiLU,
-            attn_act_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.SiLU,
+            attn_act_layer: Optional[Type[msnn.Cell]] = None,
             resolution: Union[int, Tuple[int, int]] = 14,
             downsample: str = '',
             use_conv: bool = False,
@@ -636,7 +638,7 @@ class Levit(msnn.Cell):
             num_heads: Union[int, Tuple[int, ...]] = (3,),
             attn_ratio: Union[float, Tuple[float, ...]] = 2.,
             mlp_ratio: Union[float, Tuple[float, ...]] = 2.,
-            stem_backbone: Optional[nn.Module] = None,
+            stem_backbone: Optional[msnn.Cell] = None,
             stem_stride: Optional[int] = None,
             stem_type: str = 's16',
             down_op: str = 'subsample',
@@ -728,9 +730,8 @@ class Levit(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int , global_pool: Optional[str] = None):
@@ -748,7 +749,7 @@ class Levit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -835,9 +836,8 @@ class LevitDistilled(Levit):
         self.head_dist = NormLinear(self.num_features, self.num_classes, **dd) if self.num_classes > 0 else msnn.Identity()
         self.distilled_training = False  # must set this True to train w/ distillation token
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head, self.head_dist
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):

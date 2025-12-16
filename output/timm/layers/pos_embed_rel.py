@@ -10,8 +10,6 @@ Hacked together by / Copyright 2022 Ross Wightman
 import math
 import os
 from typing import Optional, Tuple
-
-# import torch
 # import torch.nn as nn
 
 from .grid import ndgrid
@@ -298,7 +296,7 @@ class RelPosBias(msnn.Cell):
         relative_position_bias = relative_position_bias.view(self.bias_shape).permute(2, 0, 1)
         return relative_position_bias.unsqueeze(0).contiguous()
 
-    def construct(self, attn, shared_rel_pos: Optional[torch.Tensor] = None):
+    def construct(self, attn, shared_rel_pos: Optional[ms.Tensor] = None):
         return attn + self.get_bias()
 
 
@@ -402,7 +400,7 @@ class RelPosMlp(msnn.Cell):
             relative_position_bias = nn.functional.pad(relative_position_bias, [self.prefix_tokens, 0, self.prefix_tokens, 0])
         return relative_position_bias.unsqueeze(0).contiguous()
 
-    def construct(self, attn, shared_rel_pos: Optional[torch.Tensor] = None):
+    def construct(self, attn, shared_rel_pos: Optional[ms.Tensor] = None):
         return attn + self.get_bias()
 
 
@@ -507,5 +505,5 @@ class RelPosBiasTf(msnn.Cell):
             self.width_lookup
         )
 
-    def construct(self, attn, shared_rel_pos: Optional[torch.Tensor] = None):
+    def construct(self, attn, shared_rel_pos: Optional[ms.Tensor] = None):
         return attn + self.get_bias()

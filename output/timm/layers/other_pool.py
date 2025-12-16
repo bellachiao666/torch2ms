@@ -122,7 +122,7 @@ class SimPool2d(msnn.Cell):
             qkv_bias: bool = False,
             qk_norm: bool = False,
             gamma: Optional[float] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -218,7 +218,7 @@ class SimPool1d(msnn.Cell):
             qkv_bias: bool = False,
             qk_norm: bool = False,
             gamma: Optional[float] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):

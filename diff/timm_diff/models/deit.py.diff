@@ -30,12 +30,11 @@
          self.distilled_training = False  # must set this True to train w/ distillation token
  
          self.init_weights(weight_init)
-@@ -60,14 +65,15 @@                 (r'^norm', (99999,))]  # final norm w/ last block
-         )
+@@ -61,13 +66,13 @@         )
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head, self.head_dist
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -47,7 +46,7 @@
  
      @torch.jit.ignore
      def set_distilled_training(self, enable=True):
-@@ -90,23 +96,21 @@             # deit-3, updated JAX (big vision)
+@@ -90,23 +95,21 @@             # deit-3, updated JAX (big vision)
              # position embedding does not overlap with class token, add then concat
              x = x + pos_embed
 -            x = torch.cat((

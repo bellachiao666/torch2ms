@@ -7,7 +7,6 @@ from mindspore.mint import nn, ops
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-# import torch
 # import torch.nn as nn
 from typing import Tuple, Optional, Union
 
@@ -22,7 +21,7 @@ _USE_EXPORT_CONV = False
 def conv2d_same(
         x,
         weight: ms.Tensor,
-        bias: Optional[torch.Tensor] = None,
+        bias: Optional[ms.Tensor] = None,
         stride: Tuple[int, int] = (1, 1),
         padding: Tuple[int, int] = (0, 0),
         dilation: Tuple[int, int] = (1, 1),

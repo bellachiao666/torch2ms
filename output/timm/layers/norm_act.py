@@ -44,13 +44,12 @@ except ImportError:
     from .fast_norm import rms_norm
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _create_act(
         act_layer: LayerType,
         act_kwargs: Dict[str, Any] = None,
         inplace: Optional[bool] = False,
         apply_act: bool = True,
-) -> nn.Module:
+) -> msnn.Cell:
     act_kwargs = act_kwargs or {}
     act_kwargs.setdefault('inplace', inplace)
     act = None
@@ -78,7 +77,7 @@ class BatchNormAct2d(nn.BatchNorm2d):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -216,7 +215,7 @@ class FrozenBatchNormAct2d(msnn.Cell):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -373,7 +372,7 @@ class GroupNormAct(nn.GroupNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -412,7 +411,7 @@ class GroupNorm1Act(nn.GroupNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -435,6 +434,8 @@ class GroupNorm1Act(nn.GroupNorm):
 class LayerNormAct(nn.LayerNorm):
     _fast_norm: torch.jit.Final[bool]
 
+    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             normalization_shape: Union[int, List[int], torch.Size],
@@ -444,7 +445,7 @@ class LayerNormAct(nn.LayerNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(normalization_shape, eps=eps, elementwise_affine=affine, **kwargs)
@@ -465,6 +466,8 @@ class LayerNormAct(nn.LayerNorm):
 
 class LayerNormActFp32(nn.LayerNorm):
 
+    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             normalization_shape: Union[int, List[int], torch.Size],
@@ -474,7 +477,7 @@ class LayerNormActFp32(nn.LayerNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(normalization_shape, eps=eps, elementwise_affine=affine, **kwargs)
@@ -502,7 +505,7 @@ class LayerNormAct2d(nn.LayerNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
@@ -533,7 +536,7 @@ class LayerNormAct2dFp32(nn.LayerNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
@@ -567,7 +570,7 @@ class RmsNormAct(RmsNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)
@@ -601,7 +604,7 @@ class RmsNormActFp32(RmsNorm):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)
@@ -632,7 +635,7 @@ class RmsNormAct2d(RmsNorm2d):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)
@@ -666,7 +669,7 @@ class RmsNormAct2dFp32(RmsNorm2d):
             act_layer: LayerType = nn.ReLU,
             act_kwargs: Dict[str, Any] = None,
             inplace: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)

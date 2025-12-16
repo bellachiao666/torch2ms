@@ -8,8 +8,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 from urllib.parse import urlsplit
 
-# from torch import nn
-
 from timm.layers import set_layer_config
 from ._helpers import load_checkpoint
 from ._hub import load_model_config_from_hf, load_model_config_from_path
@@ -46,7 +44,6 @@ def safe_model_name(model_name: str, remove_source: bool = True) -> str:
     return make_safe(model_name)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_model(
         model_name: str,
         pretrained: bool = False,
@@ -58,7 +55,7 @@ def create_model(
         exportable: Optional[bool] = None,
         no_jit: Optional[bool] = None,
         **kwargs: Any,
-) -> nn.Module:
+) -> msnn.Cell:
     """Create a model.
 
     Lookup model's entrypoint function and pass relevant args to create a new model.

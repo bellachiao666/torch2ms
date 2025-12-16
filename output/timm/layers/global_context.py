@@ -34,8 +34,8 @@ class GlobalContext(msnn.Cell):
             rd_ratio: float = 1./8,
             rd_channels: Optional[int] = None,
             rd_divisor: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
             device=None,
             dtype=None
     ):

@@ -108,14 +108,15 @@
              elif isinstance(m, nn.BatchNorm2d):
                  m.weight.data.fill_(1)
                  m.bias.data.zero_()
-@@ -211,6 +216,7 @@     def set_grad_checkpointing(self, enable=True):
-         assert not enable, "gradient checkpointing not supported"
+@@ -212,7 +217,7 @@         assert not enable, "gradient checkpointing not supported"
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.fc
-@@ -253,10 +259,10 @@     def forward_head(self, x, pre_logits: bool = False):
+ 
+     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+@@ -253,10 +258,10 @@     def forward_head(self, x, pre_logits: bool = False):
          x = self.global_pool(x)
          if self.drop_rate:
 -            F.dropout(x, self.drop_rate, training=self.training)

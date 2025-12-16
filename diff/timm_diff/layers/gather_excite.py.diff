@@ -23,6 +23,18 @@
      """ Gather-Excite Attention Module
      """
      def __init__(
+@@ -37,9 +41,9 @@             rd_channels: Optional[int] = None,
+             rd_divisor: int = 1,
+             add_maxpool: bool = False,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             device=None,
+             dtype=None,
+     ):
 @@ -49,7 +53,7 @@         act_layer = get_act_layer(act_layer)
          self.extent = extent
          if extra_params:

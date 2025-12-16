@@ -104,7 +104,7 @@
          return relative_position_bias.unsqueeze(0)
  
 -    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+    def construct(self, x: ms.Tensor, mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          """Forward pass.
  
          Args:
@@ -124,6 +124,16 @@
      """Swin Transformer Block.
  
      A transformer block with window-based self-attention and shifted windows.
+@@ -256,8 +261,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -300,7 +305,7 @@             proj_drop=proj_drop,
              **dd,
          )
@@ -140,7 +150,24 @@
  
          self.register_buffer(
              "attn_mask",
-@@ -336,7 +341,7 @@                 dtype = dtype
+@@ -318,12 +323,15 @@             persistent=False,
+         )
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def get_attn_mask(
+             self,
+-            x: Optional[torch.Tensor] = None,
++            x: Optional[ms.Tensor] = None,
+             device: Optional[torch.device] = None,
+             dtype: Optional[torch.dtype] = None,
+-    ) -> Optional[torch.Tensor]:
++    ) -> Optional[ms.Tensor]:
+         if any(self.shift_size):
+             # calculate attention mask for SW-MSA
+             if x is not None:
+@@ -336,7 +344,7 @@                 dtype = dtype
              H = math.ceil(H / self.window_size[0]) * self.window_size[0]
              W = math.ceil(W / self.window_size[1]) * self.window_size[1]
 -            img_mask = torch.zeros((1, H, W, 1), dtype=dtype, device=device)  # 1 H W 1
@@ -148,7 +175,7 @@
              cnt = 0
              for h in (
                      (0, -self.window_size[0]),
-@@ -411,14 +416,14 @@         # cyclic shift
+@@ -411,14 +419,14 @@         # cyclic shift
          has_shift = any(self.shift_size)
          if has_shift:
 -            shifted_x = torch.roll(x, shifts=(-self.shift_size[0], -self.shift_size[1]), dims=(1, 2))
@@ -164,7 +191,7 @@
          _, Hp, Wp, _ = shifted_x.shape
  
          # partition windows
-@@ -439,12 +444,12 @@ 
+@@ -439,12 +447,12 @@ 
          # reverse cyclic shift
          if has_shift:
 -            x = torch.roll(shifted_x, shifts=self.shift_size, dims=(1, 2))
@@ -178,7 +205,7 @@
          """Forward pass.
  
          Args:
-@@ -461,7 +466,7 @@         return x
+@@ -461,7 +469,7 @@         return x
  
  
 -class PatchMerging(nn.Module):
@@ -186,7 +213,15 @@
      """Patch Merging Layer.
  
      Downsample features by merging 2x2 neighboring patches.
-@@ -488,7 +493,7 @@         self.norm = norm_layer(4 * dim, **dd)
+@@ -471,7 +479,7 @@             self,
+             dim: int,
+             out_dim: Optional[int] = None,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
+@@ -488,7 +496,7 @@         self.norm = norm_layer(4 * dim, **dd)
          self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -194,7 +229,7 @@
          """Forward pass.
  
          Args:
-@@ -509,7 +514,7 @@         return x
+@@ -509,7 +517,7 @@         return x
  
  
 -class SwinTransformerStage(nn.Module):
@@ -202,7 +237,15 @@
      """A basic Swin Transformer layer for one stage.
  
      Contains multiple Swin Transformer blocks and optional downsampling.
-@@ -573,10 +578,11 @@             )
+@@ -532,7 +540,7 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: Union[List[float], float] = 0.,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
+@@ -573,10 +581,11 @@             )
          else:
              assert dim == out_dim
 -            self.downsample = nn.Identity()
@@ -215,7 +258,7 @@
              SwinTransformerBlock(
                  dim=out_dim,
                  input_resolution=self.output_resolution,
-@@ -594,7 +600,8 @@                 norm_layer=norm_layer,
+@@ -594,7 +603,8 @@                 norm_layer=norm_layer,
                  **dd,
              )
 -            for i in range(depth)])
@@ -224,7 +267,7 @@
  
      def set_input_size(
              self,
-@@ -621,7 +628,7 @@                 always_partition=always_partition,
+@@ -621,7 +631,7 @@                 always_partition=always_partition,
              )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -232,7 +275,7 @@
          """Forward pass.
  
          Args:
-@@ -639,7 +646,7 @@         return x
+@@ -639,7 +649,7 @@         return x
  
  
 -class SwinTransformer(nn.Module):
@@ -240,7 +283,17 @@
      """Swin Transformer.
  
      A PyTorch impl of : `Swin Transformer: Hierarchical Vision Transformer using Shifted Windows`  -
-@@ -760,7 +767,9 @@             if i > 0:
+@@ -666,8 +676,8 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.1,
+-            embed_layer: Type[nn.Module] = PatchEmbed,
+-            norm_layer: Union[str, Type[nn.Module]] = nn.LayerNorm,
++            embed_layer: Type[msnn.Cell] = PatchEmbed,
++            norm_layer: Union[str, Type[msnn.Cell]] = nn.LayerNorm,
+             weight_init: str = '',
+             device=None,
+             dtype=None,
+@@ -760,7 +770,9 @@             if i > 0:
                  scale *= 2
              self.feature_info += [dict(num_chs=out_dim, reduction=patch_size * scale, module=f'layers.{i}')]
 -        self.layers = nn.Sequential(*layers)
@@ -250,14 +303,15 @@
  
          self.norm = norm_layer(self.num_features, **dd)
          self.head = ClassifierHead(
-@@ -844,6 +853,7 @@         for l in self.layers:
-             l.grad_checkpointing = enable
+@@ -845,7 +857,7 @@             l.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
-@@ -861,7 +871,7 @@ 
+         return self.head.fc
+ 
+@@ -861,13 +873,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -265,7 +319,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -929,19 +939,19 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward features that returns intermediates.
+ 
+         Args:
+@@ -929,19 +941,19 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
          self.layers = self.layers[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -287,7 +348,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -953,7 +963,7 @@         """
+@@ -953,7 +965,7 @@         """
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -295,10 +356,11 @@
          """Forward pass.
  
          Args:
-@@ -967,6 +977,7 @@         return x
+@@ -967,7 +979,7 @@         return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> Dict[str, torch.Tensor]:
+-def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> Dict[str, torch.Tensor]:
++def checkpoint_filter_fn(state_dict: dict, model: msnn.Cell) -> Dict[str, ms.Tensor]:
      """Convert patch embedding weight from manual patchify + linear proj to conv.
  
+     Args:

@@ -47,6 +47,16 @@
      """ TNT Block
      """
  
+@@ -86,8 +91,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             legacy: bool = False,
+             device=None,
+             dtype=None,
 @@ -136,7 +141,7 @@             proj_drop=proj_drop,
              **dd,
          )
@@ -116,6 +126,14 @@
      """ Transformer in Transformer - https://arxiv.org/abs/2103.00112
      """
  
+@@ -259,7 +264,7 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             first_stride: int = 4,
+             legacy: bool = False,
+             device=None,
 @@ -293,10 +298,10 @@         self.proj = nn.Linear(num_pixel * inner_dim, embed_dim, **dd)
          self.norm2_proj = norm_layer(embed_dim, **dd)
  
@@ -158,14 +176,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -357,6 +362,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -358,7 +363,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -368,11 +374,11 @@             self.global_pool = global_pool
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -368,18 +373,18 @@             self.global_pool = global_pool
          device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
 -        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -178,7 +197,15 @@
              indices: Optional[Union[int, List[int]]] = None,
              return_prefix_tokens: bool = False,
              norm: bool = False,
-@@ -404,7 +410,7 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
+             stop_early: bool = False,
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -404,7 +409,7 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
  
          patch_embed = self.norm2_proj(self.proj(self.norm1_proj(pixel_embed.reshape(B, self.num_patches, -1))))
 -        patch_embed = torch.cat((self.cls_token.expand(B, -1, -1), patch_embed), dim=1)
@@ -186,7 +213,7 @@
          patch_embed = patch_embed + self.patch_pos
          patch_embed = self.pos_drop(patch_embed)
  
-@@ -454,7 +460,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -454,7 +459,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -194,7 +221,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -464,7 +470,7 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
+@@ -464,7 +469,7 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
  
          patch_embed = self.norm2_proj(self.proj(self.norm1_proj(pixel_embed.reshape(B, self.num_patches, -1))))
 -        patch_embed = torch.cat((self.cls_token.expand(B, -1, -1), patch_embed), dim=1)
@@ -202,7 +229,7 @@
          patch_embed = patch_embed + self.patch_pos
          patch_embed = self.pos_drop(patch_embed)
  
-@@ -483,7 +489,7 @@         x = self.head_drop(x)
+@@ -483,7 +488,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

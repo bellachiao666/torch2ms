@@ -25,7 +25,7 @@
          super().__init__(*args)
  
 -    def forward(self, x: torch.Tensor, concat_list: List[torch.Tensor]) -> torch.Tensor:
-+    def forward(self, x: ms.Tensor, concat_list: List[torch.Tensor]) -> ms.Tensor:
++    def forward(self, x: ms.Tensor, concat_list: List[ms.Tensor]) -> ms.Tensor:
          for i, module in enumerate(self):
              if i == 0:
                  concat_list.append(module(x))
@@ -41,6 +41,18 @@
  
      def __init__(
              self,
+@@ -52,9 +57,9 @@             residual: bool = False,
+             depthwise: bool = False,
+             attn: str = '',
+-            norm_layer: Type[nn.Module] = BatchNormAct2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            drop_path: Optional[nn.Module] = None,
++            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -90,7 +95,7 @@ 
          self.drop_path = drop_path
  
@@ -57,6 +69,16 @@
  
      def __init__(
              self,
+@@ -118,8 +123,8 @@             residual: bool = True,
+             depthwise: bool = False,
+             attn: str = 'ese',
+-            norm_layer: Type[nn.Module] = BatchNormAct2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             drop_path_rates: Optional[List[float]] = None,
+             device=None,
+             dtype=None,
 @@ -129,7 +134,7 @@         self.grad_checkpointing = False
  
          if downsample:
@@ -87,6 +109,16 @@
  
      def __init__(
              self,
+@@ -175,8 +182,8 @@             num_classes: int = 1000,
+             global_pool: str = 'avg',
+             output_stride: int = 32,
+-            norm_layer: Type[nn.Module] = BatchNormAct2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+             device=None,
 @@ -214,7 +221,7 @@         # Stem module
          last_stem_stride = stem_stride // 2
          conv_type = SeparableConvNormAct if cfg["depthwise"] else ConvNormAct
@@ -116,14 +148,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -267,6 +276,7 @@         for s in self.stages:
-             s.grad_checkpointing = enable
+@@ -268,7 +277,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -277,7 +287,7 @@ 
+ 
+     def reset_classifier(self, num_classes, global_pool: Optional[str] = None):
+@@ -277,13 +286,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -131,7 +164,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -343,7 +353,7 @@     def forward_head(self, x, pre_logits: bool = False):
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -343,7 +352,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):

@@ -110,7 +110,7 @@ class ConvNorm(msnn.Cell):
 
 
 class Attention2d(msnn.Cell):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: Dict[str, ms.Tensor]
 
     def __init__(
             self,
@@ -119,7 +119,7 @@ class Attention2d(msnn.Cell):
             num_heads: int = 8,
             attn_ratio: int = 4,
             resolution: Union[int, Tuple[int, int]] = 7,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             stride: Optional[int] = None,
             device=None,
             dtype=None,
@@ -172,7 +172,8 @@ class Attention2d(msnn.Cell):
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -232,7 +233,7 @@ class LocalGlobalQuery(msnn.Cell):
 
 
 class Attention2dDownsample(msnn.Cell):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: Dict[str, ms.Tensor]
 
     def __init__(
             self,
@@ -242,7 +243,7 @@ class Attention2dDownsample(msnn.Cell):
             attn_ratio: int = 4,
             resolution: Union[int, Tuple[int, int]] = 7,
             out_dim: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -291,7 +292,8 @@ class Attention2dDownsample(msnn.Cell):
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -331,8 +333,8 @@ class Downsample(msnn.Cell):
             padding: Union[int, Tuple[int, int]] = 1,
             resolution: Union[int, Tuple[int, int]] = 7,
             use_attn: bool = False,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Optional[Type[nn.Module]] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Optional[Type[msnn.Cell]] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -382,8 +384,8 @@ class ConvMlpWithNorm(msnn.Cell):
             in_features: int,
             hidden_features: Optional[int] = None,
             out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             drop: float = 0.,
             mid_conv: bool = False,
             device=None,
@@ -433,8 +435,8 @@ class EfficientFormerV2Block(msnn.Cell):
             self,
             dim: int,
             mlp_ratio: float = 4.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             proj_drop: float = 0.,
             drop_path: float = 0.,
             layer_scale_init_value: Optional[float] = 1e-5,
@@ -488,8 +490,8 @@ class Stem4(msnn.SequentialCell):
             self,
             in_chs: int,
             out_chs: int,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -536,8 +538,8 @@ class EfficientFormerV2Stage(msnn.Cell):
             proj_drop: float = .0,
             drop_path: Union[float, List[float]] = 0.,
             layer_scale_init_value: Optional[float] = 1e-5,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -702,9 +704,8 @@ class EfficientFormerV2(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head, self.head_dist
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -726,7 +727,7 @@ class EfficientFormerV2(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

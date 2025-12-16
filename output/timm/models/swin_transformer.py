@@ -197,7 +197,7 @@ class WindowAttention(msnn.Cell):
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
         return relative_position_bias.unsqueeze(0)
 
-    def construct(self, x: ms.Tensor, mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         """Forward pass.
 
         Args:
@@ -261,8 +261,8 @@ class SwinTransformerBlock(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -323,12 +323,15 @@ class SwinTransformerBlock(msnn.Cell):
             persistent=False,
         )
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
-            x: Optional[torch.Tensor] = None,
+            x: Optional[ms.Tensor] = None,
             device: Optional[torch.device] = None,
             dtype: Optional[torch.dtype] = None,
-    ) -> Optional[torch.Tensor]:
+    ) -> Optional[ms.Tensor]:
         if any(self.shift_size):
             # calculate attention mask for SW-MSA
             if x is not None:
@@ -476,7 +479,7 @@ class PatchMerging(msnn.Cell):
             self,
             dim: int,
             out_dim: Optional[int] = None,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -537,7 +540,7 @@ class SwinTransformerStage(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: Union[List[float], float] = 0.,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -673,8 +676,8 @@ class SwinTransformer(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.1,
-            embed_layer: Type[nn.Module] = PatchEmbed,
-            norm_layer: Union[str, Type[nn.Module]] = nn.LayerNorm,
+            embed_layer: Type[msnn.Cell] = PatchEmbed,
+            norm_layer: Union[str, Type[msnn.Cell]] = nn.LayerNorm,
             weight_init: str = '',
             device=None,
             dtype=None,
@@ -853,9 +856,8 @@ class SwinTransformer(msnn.Cell):
         for l in self.layers:
             l.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.head.fc
 
@@ -877,7 +879,7 @@ class SwinTransformer(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """Forward features that returns intermediates.
 
         Args:
@@ -977,8 +979,7 @@ class SwinTransformer(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: dict, model: msnn.Cell) -> Dict[str, ms.Tensor]:
     """Convert patch embedding weight from manual patchify + linear proj to conv.
 
     Args:

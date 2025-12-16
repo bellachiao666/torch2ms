@@ -24,6 +24,14 @@
      """Linear bottleneck block for ReXNet.
  
      A mobile inverted residual bottleneck block as used in MobileNetV2 and subsequent models.
+@@ -48,7 +53,7 @@             ch_div: int = 1,
+             act_layer: str = 'swish',
+             dw_act_layer: str = 'relu6',
+-            drop_path: Optional[nn.Module] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -109,7 +114,7 @@         """
          return self.conv_dw.out_channels if exp else self.out_channels
  
@@ -40,6 +48,14 @@
          return x
  
  
+@@ -184,7 +189,7 @@         drop_path_rate: float = 0.,
+         device=None,
+         dtype=None,
+-) -> Tuple[List[nn.Module], List[Dict[str, Any]]]:
++) -> Tuple[List[msnn.Cell], List[Dict[str, Any]]]:
+     """Build ReXNet blocks from configuration.
+ 
+     Args:
 @@ -240,7 +245,7 @@     return features, feature_info
  
  
@@ -58,14 +74,15 @@
  
          self.head = ClassifierHead(self.num_features, num_classes, global_pool, drop_rate, **dd)
  
-@@ -339,6 +346,7 @@         """
-         self.grad_checkpointing = enable
+@@ -340,7 +347,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier module.
-@@ -365,7 +373,7 @@ 
+ 
+         Returns:
+@@ -365,13 +372,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -73,7 +90,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -435,7 +443,7 @@             self.reset_classifier(0, '')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -435,7 +442,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -81,7 +105,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -451,7 +459,7 @@             x = self.features(x)
+@@ -451,7 +458,7 @@             x = self.features(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -89,7 +113,7 @@
          """Forward pass through head.
  
          Args:
-@@ -463,7 +471,7 @@         """
+@@ -463,7 +470,7 @@         """
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:

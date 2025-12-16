@@ -71,6 +71,14 @@
      """Image to Patch Embedding using multiple convolutional layers"""
  
      def __init__(
+@@ -91,7 +97,7 @@             patch_size: int = 16,
+             in_chans: int = 3,
+             embed_dim: int = 768,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+     ):
 @@ -104,34 +110,36 @@         self.num_patches = num_patches
  
          if patch_size == 16:
@@ -115,6 +123,14 @@
      """
      Local Patch Interaction module that allows explicit communication between tokens in 3x3 windows to augment the
      implicit communication performed by the block diagonal scatter attention. Implemented using 2 layers of separable
+@@ -142,7 +150,7 @@             self,
+             in_features: int,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             kernel_size: int = 3,
+             device=None,
+             dtype=None,
 @@ -152,14 +160,14 @@         out_features = out_features or in_features
          padding = kernel_size // 2
  
@@ -140,6 +156,16 @@
      """Class Attention Layer as in CaiT https://arxiv.org/abs/2103.17239"""
  
      def __init__(
+@@ -182,8 +190,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             eta: Optional[float] = 1.,
+             tokens_norm: bool = False,
+             device=None,
 @@ -200,7 +208,7 @@             proj_drop=proj_drop,
              **dd,
          )
@@ -232,6 +258,16 @@
      def __init__(
              self,
              dim: int,
+@@ -304,8 +312,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             eta: float = 1.,
+             device=None,
+             dtype=None,
 @@ -321,11 +329,11 @@             proj_drop=proj_drop,
              **dd,
          )
@@ -273,6 +309,16 @@
      """
      Based on timm and DeiT code bases
      https://github.com/rwightman/pytorch-image-models/tree/master/timm
+@@ -374,8 +382,8 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            act_layer: Optional[Type[nn.Module]] = None,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Optional[Type[msnn.Cell]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             cls_attn_layers: int = 2,
+             use_pos_embed: bool = True,
+             eta: float = 1.,
 @@ -433,14 +441,14 @@         )
          r = patch_size
  
@@ -315,14 +361,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -504,6 +512,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -505,7 +513,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -515,11 +524,11 @@             self.global_pool = global_pool
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -515,17 +523,17 @@             self.global_pool = global_pool
          device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
 -        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -335,7 +382,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -574,7 +583,7 @@             return intermediates
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -574,7 +582,7 @@             return intermediates
  
          # NOTE not supporting return of class tokens
 -        x = torch.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
@@ -343,7 +397,7 @@
          for blk in self.cls_attn_blocks:
              if self.grad_checkpointing and not torch.jit.is_scripting():
                  x = checkpoint(blk, x)
-@@ -596,9 +605,9 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -596,9 +604,9 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -354,7 +408,7 @@
              self.reset_classifier(0, '')
          return take_indices
  
-@@ -619,7 +628,7 @@             else:
+@@ -619,7 +627,7 @@             else:
                  x = blk(x, Hp, Wp)
  
 -        x = torch.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
@@ -362,7 +416,7 @@
  
          for blk in self.cls_attn_blocks:
              if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -636,7 +645,7 @@         x = self.head_drop(x)
+@@ -636,7 +644,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

@@ -25,7 +25,7 @@
      def __init__(
              self,
              in_channels: int,
-@@ -44,11 +48,11 @@             in_channels, out_channels, kernel_size, stride=stride, padding=padding, **dd, **kwargs))
+@@ -44,17 +48,17 @@             in_channels, out_channels, kernel_size, stride=stride, padding=padding, **dd, **kwargs))
          if with_bn:
              self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))
 -            nn.init.constant_(self.bn.weight, 1)
@@ -41,6 +41,13 @@
      def __init__(
              self,
              dim: int,
+             mlp_ratio: int = 3,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.ReLU6,
++            act_layer: Type[msnn.Cell] = nn.ReLU6,
+             device=None,
+             dtype=None,
+     ):
 @@ -66,9 +70,9 @@         self.g = ConvBN(mlp_ratio * dim, dim, 1, with_bn=True, **dd)
          self.dwconv2 = ConvBN(dim, dim, 7, 1, 3, groups=dim, with_bn=False, **dd)
          self.act = act_layer()
@@ -61,6 +68,14 @@
      def __init__(
              self,
              base_dim: int = 32,
+@@ -86,7 +90,7 @@             mlp_ratio: int = 4,
+             drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            act_layer: Type[nn.Module] = nn.ReLU6,
++            act_layer: Type[msnn.Cell] = nn.ReLU6,
+             num_classes: int = 1000,
+             in_chans: int = 3,
+             global_pool: str = 'avg',
 @@ -105,10 +109,11 @@         stem_chs = 32
  
          # stem layer
@@ -113,14 +128,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self) -> Set:
-@@ -161,6 +171,7 @@     def set_grad_checkpointing(self, enable: bool = True):
-         self.grad_checkpointing = enable
+@@ -162,7 +172,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -170,16 +181,16 @@         if global_pool is not None:
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -170,22 +180,22 @@         if global_pool is not None:
              # NOTE: cannot meaningfully change pooling of efficient head after creation
              self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -            self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
@@ -139,7 +155,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -241,12 +252,12 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -241,12 +251,12 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -153,7 +176,7 @@
          x = self.stem(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.stages, x)
-@@ -255,19 +266,20 @@         x = self.norm(x)
+@@ -255,20 +265,20 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -172,7 +195,8 @@
          return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
++def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
      return state_dict.get('state_dict', state_dict)
+ 
  

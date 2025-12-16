@@ -93,7 +93,7 @@ class MobileNetV5MultiScaleFusionAdapter(msnn.Cell):
 
     self.norm = norm_layer(self.out_channels, **dd)
 
-  def construct(self, inputs: List[torch.Tensor]) -> ms.Tensor:
+  def construct(self, inputs: List[ms.Tensor]) -> ms.Tensor:
     # Inputs list of [B, C, H, W] tensors
     high_resolution = inputs[0].shape[-2:]  # Assuming the first input is the highest resolution.
     resized_inputs = []
@@ -280,9 +280,8 @@ class MobileNetV5(msnn.Cell):
     def set_grad_checkpointing(self, enable: bool = True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
@@ -301,7 +300,7 @@ class MobileNetV5(msnn.Cell):
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             extra_blocks: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -514,7 +513,7 @@ class MobileNetV5Encoder(msnn.Cell):
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             extra_blocks: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -599,9 +598,9 @@ class MobileNetV5Encoder(msnn.Cell):
 
 
 def checkpoint_filter_fn(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model,
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     """ convert weights from gemma encoders """
     state_dict = state_dict.get('model', state_dict)
     state_dict = state_dict.get('state_dict', state_dict)

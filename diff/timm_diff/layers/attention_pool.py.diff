@@ -22,6 +22,16 @@
      """ Attention pooling w/ latent query
      """
      fused_attn: torch.jit.Final[bool]
+@@ -29,8 +34,8 @@             latent_dim: int = None,
+             pos_embed: str = '',
+             pool_type: str = 'token',
+-            norm_layer: Optional[Type[nn.Module]] = None,
+-            act_layer: Optional[Type[nn.Module]] = nn.GELU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
++            act_layer: Optional[Type[msnn.Cell]] = nn.GELU,
+             drop: float = 0.0,
+             device = None,
+             dtype = None
 @@ -49,13 +54,13 @@ 
          if pos_embed == 'abs':
              assert feat_size is not None
@@ -56,7 +66,7 @@
          trunc_normal_tf_(self.latent, std=self.latent_dim ** -0.5)
  
 -    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):
-+    def construct(self, x, attn_mask: Optional[torch.Tensor] = None):
++    def construct(self, x, attn_mask: Optional[ms.Tensor] = None):
          B, N, C = x.shape
  
          if self.pos_embed is not None:

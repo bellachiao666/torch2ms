@@ -49,6 +49,16 @@
      """ MLP using 1x1 convs that keeps spatial dims
      copied from timm: https://github.com/huggingface/pytorch-image-models/blob/v0.6.11/timm/models/layers/mlp.py
      """
+@@ -70,8 +74,8 @@             in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             bias: bool = True,
+             drop: float = 0.,
+             device=None,
 @@ -84,12 +88,12 @@         bias = to_2tuple(bias)
  
          self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)
@@ -71,6 +81,16 @@
      """ MLP classification head
      """
  
+@@ -108,8 +112,8 @@             num_classes: int = 1000,
+             pool_type: str = 'avg',
+             mlp_ratio: float = 3,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+             drop: float = 0.,
+             bias: bool = True,
+             device=None,
 @@ -135,9 +139,9 @@             assert pool_type, 'Cannot disable pooling'
              self.global_pool = SelectAdaptivePool2d(pool_type=pool_type, flatten=True)
  
@@ -91,6 +111,21 @@
      """ MetaNeXtBlock Block
      Args:
          dim (int): Number of input channels.
+@@ -158,11 +162,11 @@             self,
+             dim: int,
+             dilation: int = 1,
+-            token_mixer: Type[nn.Module] = InceptionDWConv2d,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            mlp_layer: Type[nn.Module] = ConvMlp,
++            token_mixer: Type[msnn.Cell] = InceptionDWConv2d,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            mlp_layer: Type[msnn.Cell] = ConvMlp,
+             mlp_ratio: float = 4,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             ls_init_value: float = 1e-6,
+             drop_path: float = 0.,
+             device=None,
 @@ -173,10 +177,10 @@         self.token_mixer = token_mixer(dim, dilation=dilation, **dd)
          self.norm = norm_layer(dim, **dd)
          self.mlp = mlp_layer(dim, int(mlp_ratio * dim), act_layer=act_layer, **dd)
@@ -113,6 +148,18 @@
      def __init__(
              self,
              in_chs: int,
+@@ -197,9 +201,9 @@             dilation: Tuple[int, int] = (1, 1),
+             drop_path_rates: Optional[List[float]] = None,
+             ls_init_value: float = 1.0,
+-            token_mixer: Type[nn.Module] = InceptionDWConv2d,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            token_mixer: Type[msnn.Cell] = InceptionDWConv2d,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             mlp_ratio: float = 4,
+             device=None,
+             dtype=None,
 @@ -208,7 +212,8 @@         super().__init__()
          self.grad_checkpointing = False
          if stride > 1 or dilation[0] != dilation[1]:
@@ -157,6 +204,18 @@
      r""" MetaNeXt
          A PyTorch impl of : `InceptionNeXt: When Inception Meets ConvNeXt` - https://arxiv.org/abs/2303.16900
  
+@@ -273,9 +280,9 @@             output_stride: int = 32,
+             depths: Tuple[int, ...] = (3, 3, 9, 3),
+             dims: Tuple[int, ...] = (96, 192, 384, 768),
+-            token_mixers: Union[Type[nn.Module], List[Type[nn.Module]]] = InceptionDWConv2d,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            token_mixers: Union[Type[msnn.Cell], List[Type[msnn.Cell]]] = InceptionDWConv2d,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             mlp_ratios: Union[int, Tuple[int, ...]] = (4, 4, 4, 3),
+             drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
 @@ -295,17 +302,18 @@         self.drop_rate = drop_rate
          self.feature_info = []
  
@@ -186,14 +245,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -351,6 +359,7 @@             ]
-         )
+@@ -352,7 +360,7 @@         )
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc2
-@@ -370,7 +379,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -370,13 +378,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -201,7 +261,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -432,7 +441,7 @@     def forward_head(self, x, pre_logits: bool = False):
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -432,7 +440,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):

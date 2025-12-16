@@ -25,6 +25,14 @@
      def __init__(
              self,
              in_chs: int,
+@@ -42,7 +46,7 @@             ratio: int = 2,
+             dw_size: int = 3,
+             stride: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -52,26 +56,28 @@         init_chs = math.ceil(out_chs / ratio)
          new_chs = init_chs * (ratio - 1)
  
@@ -64,6 +72,14 @@
      def __init__(
              self,
              in_chs: int,
+@@ -80,7 +86,7 @@             ratio: int = 2,
+             dw_size: int = 3,
+             stride: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -90,35 +96,38 @@         self.out_chs = out_chs
          init_chs = math.ceil(out_chs / ratio)
          new_chs = init_chs * (ratio - 1)
@@ -120,6 +136,14 @@
      def __init__(
              self,
              in_chs: int,
+@@ -127,7 +136,7 @@             ratio: int = 2,
+             dw_size: int = 3,
+             stride: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             mode: str = 'original',
+             device=None,
+             dtype=None,
 @@ -142,12 +151,12 @@         self.num_conv_branches = 3
          self.infer_mode = False
          if not self.infer_mode:
@@ -272,6 +296,14 @@
      """ GhostV1/V2 bottleneck w/ optional SE"""
  
      def __init__(
+@@ -364,7 +357,7 @@             out_chs: int,
+             dw_kernel_size: int = 3,
+             stride: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             se_ratio: float = 0.,
+             mode: str = 'original',
+             device=None,
 @@ -406,9 +399,10 @@ 
          # shortcut
          if in_chs == out_chs and self.stride == 1:
@@ -306,6 +338,14 @@
      """ GhostV3 bottleneck w/ optional SE"""
  
      def __init__(
+@@ -456,7 +450,7 @@             out_chs: int,
+             dw_kernel_size: int = 3,
+             stride: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             se_ratio: float = 0.,
+             mode: str = 'original',
+             device=None,
 @@ -470,15 +464,15 @@         self.num_conv_branches = 3
          self.infer_mode = False
          if not self.infer_mode:
@@ -462,14 +502,15 @@
  
          # FIXME init
  
-@@ -733,6 +723,7 @@     def set_grad_checkpointing(self, enable: bool = True):
-         self.grad_checkpointing = enable
+@@ -734,28 +724,28 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.classifier
-@@ -741,15 +732,15 @@         self.num_classes = num_classes
+ 
+     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+         self.num_classes = num_classes
          # cannot meaningfully change pooling of efficient head after creation
          self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -        self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
@@ -487,7 +528,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -816,7 +807,7 @@             self.reset_classifier(0, '')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -816,7 +806,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -495,7 +543,7 @@
          x = self.conv_stem(x)
          x = self.bn1(x)
          x = self.act1(x)
-@@ -826,16 +817,16 @@             x = self.blocks(x)
+@@ -826,16 +816,16 @@             x = self.blocks(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -514,10 +562,11 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -844,6 +835,7 @@         reparameterize_model(self, inplace=False)
+@@ -844,7 +834,7 @@         reparameterize_model(self, inplace=False)
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
++def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
      if 'state_dict' in state_dict:
          state_dict = state_dict['state_dict']
+ 

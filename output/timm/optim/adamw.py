@@ -179,12 +179,12 @@ class AdamWLegacy(Optimizer):
 
 
 def adamw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        max_exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        max_exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         foreach: Optional[bool] = None,
         capturable: bool = False,
         *,
@@ -240,12 +240,12 @@ def adamw(
 
 
 def _single_tensor_adamw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        max_exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        max_exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         *,
         amsgrad: bool,
         beta1: float,
@@ -326,12 +326,12 @@ def _single_tensor_adamw(
 
 
 def _multi_tensor_adamw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        max_exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        max_exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         *,
         amsgrad: bool,
         beta1: float,

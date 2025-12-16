@@ -19,11 +19,10 @@ def onnx_forward(onnx_file, example_input):
     return output
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def onnx_export(
-        model: torch.nn.Module,
+        model: msnn.Cell,
         output_file: str,
-        example_input: Optional[torch.Tensor] = None,
+        example_input: Optional[ms.Tensor] = None,
         training: bool = False,
         verbose: bool = False,
         check: bool = True,

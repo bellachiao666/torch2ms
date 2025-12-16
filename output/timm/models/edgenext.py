@@ -95,8 +95,8 @@ class ConvBlock(msnn.Cell):
             conv_bias: bool = True,
             expand_ratio: float = 4,
             ls_init_value: float = 1e-6,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop_path: float = 0.,
             device=None,
             dtype=None,
@@ -195,8 +195,8 @@ class SplitTransposeBlock(msnn.Cell):
             conv_bias: bool = True,
             qkv_bias: bool = True,
             ls_init_value: float = 1e-6,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop_path: float = 0.,
             attn_drop: float = 0.,
             proj_drop: float = 0.,
@@ -291,9 +291,9 @@ class EdgeNeXtStage(msnn.Cell):
             conv_bias: float = True,
             ls_init_value: float = 1.0,
             drop_path_rates: Optional[List[float]] = None,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            norm_layer_cl: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+            norm_layer_cl: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -379,7 +379,7 @@ class EdgeNeXt(msnn.Cell):
             conv_bias: bool = True,
             stem_type: str = 'patch',
             head_norm_first: bool = False,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop_path_rate: float = 0.,
             drop_rate: float = 0.,
             device=None,
@@ -483,9 +483,8 @@ class EdgeNeXt(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -500,7 +499,7 @@ class EdgeNeXt(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

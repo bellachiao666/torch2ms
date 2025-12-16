@@ -24,6 +24,14 @@
      """MobileOne building block.
  
      This block has a multi-branched architecture at train-time
+@@ -63,7 +68,7 @@             use_act: bool = True,
+             use_scale_branch: bool = True,
+             num_conv_branches: int = 1,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+     ) -> None:
 @@ -94,7 +99,7 @@         self.num_conv_branches = num_conv_branches
  
          # Check if SE-ReLU is requested
@@ -52,6 +60,14 @@
          """Apply forward pass."""
          # Inference mode forward pass.
          if self.reparam_conv is not None:
+@@ -208,7 +213,7 @@ 
+         self.inference_mode = True
+ 
+-    def _get_kernel_bias(self) -> Tuple[torch.Tensor, torch.Tensor]:
++    def _get_kernel_bias(self) -> Tuple[ms.Tensor, ms.Tensor]:
+         """Method to obtain re-parameterized kernel and bias.
+         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L83
+ 
 @@ -222,7 +227,7 @@             kernel_scale, bias_scale = self._fuse_bn_tensor(self.conv_scale)
              # Pad scale branch kernel to match conv branch kernel size.
              pad = self.kernel_size // 2
@@ -60,6 +76,16 @@
  
          # get weights and bias of skip branch
          kernel_identity = 0
+@@ -245,8 +250,8 @@ 
+     def _fuse_bn_tensor(
+             self,
+-            branch: Union[nn.Sequential, nn.BatchNorm2d]
+-    ) -> Tuple[torch.Tensor, torch.Tensor]:
++            branch: Union[msnn.SequentialCell, nn.BatchNorm2d]
++    ) -> Tuple[ms.Tensor, ms.Tensor]:
+         """Method to fuse batchnorm layer with preceding conv layer.
+         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L95
+ 
 @@ -267,11 +272,8 @@             assert isinstance(branch, nn.BatchNorm2d)
              if not hasattr(self, "id_tensor"):
                  input_dim = self.in_chs // self.groups
@@ -81,6 +107,14 @@
      """Building Block of RepLKNet
  
      This class defines overparameterized large kernel conv block
+@@ -306,7 +308,7 @@             group_size: int,
+             small_kernel: Optional[int] = None,
+             use_se: bool = False,
+-            act_layer: Optional[nn.Module] = None,
++            act_layer: Optional[msnn.Cell] = None,
+             inference_mode: bool = False,
+             device=None,
+             dtype=None,
 @@ -367,11 +369,11 @@                     apply_act=False,
                      **dd,
                  )
@@ -96,6 +130,14 @@
          if self.reparam_conv is not None:
              out = self.reparam_conv(x)
          else:
+@@ -382,7 +384,7 @@         out = self.act(out)
+         return out
+ 
+-    def get_kernel_bias(self) -> Tuple[torch.Tensor, torch.Tensor]:
++    def get_kernel_bias(self) -> Tuple[ms.Tensor, ms.Tensor]:
+         """Method to obtain re-parameterized kernel and bias.
+         Reference: https://github.com/DingXiaoH/RepLKNet-pytorch
+ 
 @@ -394,8 +396,7 @@             small_k, small_b = self._fuse_bn(self.small_conv.conv, self.small_conv.bn)
              eq_b += small_b
              eq_k += nn.functional.pad(
@@ -105,7 +147,21 @@
          return eq_k, eq_b
  
      def reparameterize(self) -> None:
-@@ -454,7 +455,7 @@         use_scale_branch: bool = True,
+@@ -425,7 +426,7 @@     def _fuse_bn(
+             conv: nn.Conv2d,
+             bn: nn.BatchNorm2d
+-    ) -> Tuple[torch.Tensor, torch.Tensor]:
++    ) -> Tuple[ms.Tensor, ms.Tensor]:
+         """Method to fuse batchnorm layer with conv layer.
+ 
+         Args:
+@@ -449,12 +450,12 @@ def convolutional_stem(
+         in_chs: int,
+         out_chs: int,
+-        act_layer: Type[nn.Module] = nn.GELU,
++        act_layer: Type[msnn.Cell] = nn.GELU,
+         inference_mode: bool = False,
+         use_scale_branch: bool = True,
          device=None,
          dtype=None,
 -) -> nn.Sequential:
@@ -162,6 +218,14 @@
      """Convolutional patch embedding layer."""
  
      def __init__(
+@@ -581,7 +583,7 @@             stride: int,
+             in_chs: int,
+             embed_dim: int,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             lkc_use_act: bool = False,
+             use_se: bool = False,
+             inference_mode: bool = False,
 @@ -599,7 +601,8 @@         """
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
@@ -234,11 +298,19 @@
      """Convolutional FFN Module."""
  
      def __init__(
-@@ -804,13 +807,14 @@         self.drop = nn.Dropout(drop)
+@@ -772,7 +775,7 @@             in_chs: int,
+             hidden_channels: Optional[int] = None,
+             out_chs: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop: float = 0.0,
+             device=None,
+             dtype=None,
+@@ -804,13 +807,13 @@         self.drop = nn.Dropout(drop)
          self.apply(self._init_weights)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def _init_weights(self, m: nn.Module) -> None:
+-    def _init_weights(self, m: nn.Module) -> None:
++    def _init_weights(self, m: msnn.Cell) -> None:
          if isinstance(m, nn.Conv2d):
              trunc_normal_(m.weight, std=0.02)
              if m.bias is not None:
@@ -251,7 +323,7 @@
          x = self.conv(x)
          x = self.fc1(x)
          x = self.act(x)
-@@ -820,7 +824,7 @@         return x
+@@ -820,7 +823,7 @@         return x
  
  
 -class RepConditionalPosEnc(nn.Module):
@@ -259,7 +331,7 @@
      """Implementation of conditional positional encoding.
  
      For more details refer to paper:
-@@ -888,7 +892,7 @@                 **dd,
+@@ -888,7 +891,7 @@                 **dd,
              )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -267,7 +339,7 @@
          if self.reparam_conv is not None:
              x = self.reparam_conv(x)
          else:
-@@ -898,16 +902,13 @@     def reparameterize(self) -> None:
+@@ -898,16 +901,13 @@     def reparameterize(self) -> None:
          # Build equivalent Id tensor
          input_dim = self.dim // self.groups
 -        kernel_value = torch.zeros(
@@ -285,7 +357,7 @@
          for i in range(self.dim):
              kernel_value[
                  i,
-@@ -923,14 +924,7 @@ 
+@@ -923,14 +923,7 @@ 
          # Introduce reparam conv
          self.reparam_conv = nn.Conv2d(
 -            self.dim,
@@ -300,7 +372,7 @@
          self.reparam_conv.weight.data = w_final
          self.reparam_conv.bias.data = b_final
  
-@@ -941,7 +935,7 @@         self.__delattr__("pos_enc")
+@@ -941,7 +934,7 @@         self.__delattr__("pos_enc")
  
  
 -class RepMixerBlock(nn.Module):
@@ -308,7 +380,15 @@
      """Implementation of Metaformer block with RepMixer as token mixer.
  
      For more details on Metaformer structure, please refer to:
-@@ -994,16 +988,16 @@         if layer_scale_init_value is not None:
+@@ -953,7 +946,7 @@             dim: int,
+             kernel_size: int = 3,
+             mlp_ratio: float = 4.0,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             proj_drop: float = 0.0,
+             drop_path: float = 0.0,
+             layer_scale_init_value: float = 1e-5,
+@@ -994,16 +987,16 @@         if layer_scale_init_value is not None:
              self.layer_scale = LayerScale2d(dim, layer_scale_init_value, **dd)
          else:
 -            self.layer_scale = nn.Identity()
@@ -329,7 +409,17 @@
      """Implementation of metaformer block with MHSA as token mixer.
  
      For more details on Metaformer structure, please refer to:
-@@ -1041,8 +1035,8 @@         if layer_scale_init_value is not None:
+@@ -1014,8 +1007,8 @@             self,
+             dim: int,
+             mlp_ratio: float = 4.0,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+             proj_drop: float = 0.0,
+             drop_path: float = 0.0,
+             layer_scale_init_value: float = 1e-5,
+@@ -1041,8 +1034,8 @@         if layer_scale_init_value is not None:
              self.layer_scale_1 = LayerScale2d(dim, layer_scale_init_value, **dd)
          else:
 -            self.layer_scale_1 = nn.Identity()
@@ -339,7 +429,7 @@
  
          self.mlp = ConvMlp(
              in_chs=dim,
-@@ -1054,16 +1048,16 @@         if layer_scale_init_value is not None:
+@@ -1054,16 +1047,16 @@         if layer_scale_init_value is not None:
              self.layer_scale_2 = LayerScale2d(dim, layer_scale_init_value, **dd)
          else:
 -            self.layer_scale_2 = nn.Identity()
@@ -360,7 +450,21 @@
      def __init__(
              self,
              dim: int,
-@@ -1120,12 +1114,12 @@             )
+@@ -1074,11 +1067,11 @@             se_downsample: bool = False,
+             down_patch_size: int = 7,
+             down_stride: int = 2,
+-            pos_emb_layer: Optional[nn.Module] = None,
++            pos_emb_layer: Optional[msnn.Cell] = None,
+             kernel_size: int = 3,
+             mlp_ratio: float = 4.0,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+             proj_drop_rate: float = 0.0,
+             drop_path_rate: Union[List[float], float] = 0.0,
+             layer_scale_init_value: Optional[float] = 1e-5,
+@@ -1120,12 +1113,12 @@             )
          else:
              assert dim == dim_out
 -            self.downsample = nn.Identity()
@@ -374,7 +478,7 @@
  
          blocks = []
          for block_idx in range(depth):
-@@ -1156,9 +1150,11 @@                 raise ValueError(
+@@ -1156,9 +1149,11 @@                 raise ValueError(
                      "Token mixer type: {} not supported".format(token_mixer_type)
                  )
 -        self.blocks = nn.Sequential(*blocks)
@@ -388,7 +492,7 @@
          x = self.downsample(x)
          x = self.pos_emb(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -1168,7 +1164,7 @@         return x
+@@ -1168,7 +1163,7 @@         return x
  
  
 -class FastVit(nn.Module):
@@ -396,7 +500,25 @@
      fork_feat: torch.jit.Final[bool]
  
      """
-@@ -1254,7 +1250,9 @@             if downsample:
+@@ -1186,7 +1181,7 @@             se_downsamples: Tuple[bool, ...] = (False, False, False, False),
+             repmixer_kernel_size: int = 3,
+             num_classes: int = 1000,
+-            pos_embs: Tuple[Optional[nn.Module], ...] = (None,) * 4,
++            pos_embs: Tuple[Optional[msnn.Cell], ...] = (None,) * 4,
+             down_patch_size: int = 7,
+             down_stride: int = 2,
+             drop_rate: float = 0.0,
+@@ -1198,8 +1193,8 @@             fork_feat: bool = False,
+             cls_ratio: float = 2.0,
+             global_pool: str = 'avg',
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             inference_mode: bool = False,
+             device=None,
+             dtype=None,
+@@ -1254,7 +1249,9 @@             if downsample:
                  scale *= 2
              self.feature_info += [dict(num_chs=prev_dim, reduction=4 * scale, module=f'stages.{i}')]
 -        self.stages = nn.Sequential(*stages)
@@ -406,7 +528,7 @@
          self.num_stages = len(self.stages)
          self.num_features = self.head_hidden_size = prev_dim
  
-@@ -1269,7 +1267,7 @@                     """For RetinaNet, `start_level=1`. The first norm layer will not used.
+@@ -1269,7 +1266,7 @@                     """For RetinaNet, `start_level=1`. The first norm layer will not used.
                      cmd: `FORK_LAST3=1 python -m torch.distributed.launch ...`
                      """
 -                    layer = nn.Identity()
@@ -414,11 +536,11 @@
                  else:
                      layer = norm_layer(embed_dims[i_emb], **dd)
                  layer_name = f"norm{i_layer}"
-@@ -1299,12 +1297,13 @@ 
+@@ -1299,12 +1296,12 @@ 
          self.apply(self._init_weights)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def _init_weights(self, m: nn.Module) -> None:
+-    def _init_weights(self, m: nn.Module) -> None:
++    def _init_weights(self, m: msnn.Cell) -> None:
          """Init. for classification"""
          if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=0.02)
@@ -428,14 +550,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -1326,6 +1325,7 @@         for s in self.stages:
-             s.grad_checkpointing = enable
+@@ -1327,7 +1324,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -1336,7 +1336,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -1336,13 +1333,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -443,7 +566,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -1394,7 +1394,7 @@             self.reset_classifier(0, '')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -1394,7 +1391,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -451,7 +581,7 @@
          # input embedding
          x = self.stem(x)
          outs = []
-@@ -1411,10 +1411,10 @@         x = self.final_conv(x)
+@@ -1411,10 +1408,10 @@         x = self.final_conv(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False):
@@ -463,7 +593,7 @@
          x = self.forward_features(x)
          if self.fork_feat:
              return x
-@@ -1586,7 +1586,7 @@                 # if CLIP projection, map to head.fc w/ bias = zeros
+@@ -1586,7 +1583,7 @@                 # if CLIP projection, map to head.fc w/ bias = zeros
                  k = k.replace('head.proj', 'head.fc.weight')
                  v = v.T
 -                out_dict['head.fc.bias'] = torch.zeros(v.shape[0])

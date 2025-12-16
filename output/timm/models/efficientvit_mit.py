@@ -61,8 +61,8 @@ class ConvNormAct(msnn.Cell):
             groups: int = 1,
             bias: bool = False,
             dropout: float = 0.,
-            norm_layer: Optional[Type[nn.Module]] = nn.BatchNorm2d,
-            act_layer: Optional[Type[nn.Module]] = nn.ReLU,
+            norm_layer: Optional[Type[msnn.Cell]] = nn.BatchNorm2d,
+            act_layer: Optional[Type[msnn.Cell]] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -98,8 +98,8 @@ class DSConv(msnn.Cell):
             kernel_size: int = 3,
             stride: int = 1,
             use_bias: Union[bool, Tuple[bool, bool]] = False,
-            norm_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = nn.BatchNorm2d,
-            act_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = (nn.ReLU6, None),
+            norm_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = nn.BatchNorm2d,
+            act_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = (nn.ReLU6, None),
             device=None,
             dtype=None,
     ):
@@ -146,8 +146,8 @@ class ConvBlock(msnn.Cell):
             mid_channels: Optional[int] = None,
             expand_ratio: float = 1,
             use_bias: Union[bool, Tuple[bool, bool]] = False,
-            norm_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = nn.BatchNorm2d,
-            act_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = (nn.ReLU6, None),
+            norm_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = nn.BatchNorm2d,
+            act_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = (nn.ReLU6, None),
             device=None,
             dtype=None,
     ):
@@ -195,8 +195,8 @@ class MBConv(msnn.Cell):
             mid_channels: Optional[int] = None,
             expand_ratio: float = 6,
             use_bias: Union[bool, Tuple[bool, ...]] = False,
-            norm_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = nn.BatchNorm2d,
-            act_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = (nn.ReLU6, nn.ReLU6, None),
+            norm_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = nn.BatchNorm2d,
+            act_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = (nn.ReLU6, nn.ReLU6, None),
             device=None,
             dtype=None,
     ):
@@ -256,8 +256,8 @@ class FusedMBConv(msnn.Cell):
             expand_ratio: float = 6,
             groups: int = 1,
             use_bias: Union[bool, Tuple[bool, ...]] = False,
-            norm_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = nn.BatchNorm2d,
-            act_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = (nn.ReLU6, None),
+            norm_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = nn.BatchNorm2d,
+            act_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = (nn.ReLU6, None),
             device=None,
             dtype=None,
     ):
@@ -306,9 +306,9 @@ class LiteMLA(msnn.Cell):
             heads_ratio: float = 1.0,
             dim: int = 8,
             use_bias: Union[bool, Tuple[bool, ...]] = False,
-            norm_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = (None, nn.BatchNorm2d),
-            act_layer: Union[Type[nn.Module], Tuple[Optional[Type[nn.Module]], ...]] = (None, None),
-            kernel_func: Type[nn.Module] = nn.ReLU,
+            norm_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = (None, nn.BatchNorm2d),
+            act_layer: Union[Type[msnn.Cell], Tuple[Optional[Type[msnn.Cell]], ...]] = (None, None),
+            kernel_func: Type[msnn.Cell] = nn.ReLU,
             scales: Tuple[int, ...] = (5,),
             eps: float = 1e-5,
             device=None,
@@ -408,8 +408,8 @@ class EfficientVitBlock(msnn.Cell):
             heads_ratio: float = 1.0,
             head_dim: int = 32,
             expand_ratio: float = 4,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.Hardswish,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.Hardswish,
             device=None,
             dtype=None,
     ):
@@ -448,9 +448,9 @@ class EfficientVitBlock(msnn.Cell):
 class ResidualBlock(msnn.Cell):
     def __init__(
             self,
-            main: Optional[nn.Module],
-            shortcut: Optional[nn.Module] = None,
-            pre_norm: Optional[nn.Module] = None,
+            main: Optional[msnn.Cell],
+            shortcut: Optional[msnn.Cell] = None,
+            pre_norm: Optional[msnn.Cell] = None,
     ):
         super().__init__()
         self.pre_norm = pre_norm if pre_norm is not None else msnn.Identity()
@@ -531,8 +531,8 @@ class Stem(msnn.SequentialCell):
             in_chs: int,
             out_chs: int,
             depth: int,
-            norm_layer: Type[nn.Module],
-            act_layer: Type[nn.Module],
+            norm_layer: Type[msnn.Cell],
+            act_layer: Type[msnn.Cell],
             block_type: str = 'default',
             device=None,
             dtype=None,
@@ -577,8 +577,8 @@ class EfficientVitStage(msnn.Cell):
             in_chs: int,
             out_chs: int,
             depth: int,
-            norm_layer: Type[nn.Module],
-            act_layer: Type[nn.Module],
+            norm_layer: Type[msnn.Cell],
+            act_layer: Type[msnn.Cell],
             expand_ratio: float,
             head_dim: int,
             vit_stage: bool = False,
@@ -645,8 +645,8 @@ class EfficientVitLargeStage(msnn.Cell):
             in_chs: int,
             out_chs: int,
             depth: int,
-            norm_layer: Type[nn.Module],
-            act_layer: Type[nn.Module],
+            norm_layer: Type[msnn.Cell],
+            act_layer: Type[msnn.Cell],
             head_dim: int,
             vit_stage: bool = False,
             fewer_norm: bool = False,
@@ -717,8 +717,8 @@ class ClassifierHead(msnn.Cell):
             widths: List[int],
             num_classes: int = 1000,
             dropout: float = 0.,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Optional[Type[nn.Module]] = nn.Hardswish,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Optional[Type[msnn.Cell]] = nn.Hardswish,
             pool_type: str = 'avg',
             norm_eps: float = 1e-5,
             device=None,
@@ -772,8 +772,8 @@ class EfficientVit(msnn.Cell):
             depths: Tuple[int, ...] = (),
             head_dim: int = 32,
             expand_ratio: float = 4,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.Hardswish,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.Hardswish,
             global_pool: str = 'avg',
             head_widths: Tuple[int, ...] = (),
             drop_rate: float = 0.0,
@@ -837,9 +837,8 @@ class EfficientVit(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.classifier[-1]
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -854,7 +853,7 @@ class EfficientVit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -930,8 +929,8 @@ class EfficientVitLarge(msnn.Cell):
         widths: Tuple[int, ...] = (),
         depths: Tuple[int, ...] = (),
         head_dim: int = 32,
-        norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-        act_layer: Type[nn.Module] = GELUTanh,
+        norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+        act_layer: Type[msnn.Cell] = GELUTanh,
         global_pool: str = 'avg',
         head_widths: Tuple[int, ...] = (),
         drop_rate: float = 0.0,
@@ -1000,9 +999,8 @@ class EfficientVitLarge(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.classifier[-1]
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -1017,7 +1015,7 @@ class EfficientVitLarge(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

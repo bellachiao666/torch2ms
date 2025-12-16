@@ -24,6 +24,21 @@
      """ ResNe(X)t Bottleneck Block
      """
  
+@@ -143,11 +148,11 @@             dilation: int = 1,
+             bottle_ratio: float = 0.25,
+             groups: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+             attn_last: bool = False,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
+             drop_path: float = 0.,
+             device=None,
+             dtype=None,
 @@ -170,16 +175,16 @@             **ckwargs,
              **dd,
          )
@@ -54,6 +69,20 @@
      """ DarkNet Block
      """
  
+@@ -204,10 +209,10 @@             dilation: int = 1,
+             bottle_ratio: float = 0.5,
+             groups: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
+             drop_path: float = 0.,
+             device=None,
+             dtype=None,
 @@ -218,7 +223,7 @@         ckwargs = dict(act_layer=act_layer, norm_layer=norm_layer)
  
          self.conv1 = ConvNormAct(in_chs, mid_chs, kernel_size=1, **ckwargs, **dd)
@@ -86,6 +115,20 @@
      """ EdgeResidual / Fused-MBConv / MobileNetV1-like 3x3 + 1x1 block (w/ activated output)
      """
  
+@@ -254,10 +259,10 @@             dilation: int = 1,
+             bottle_ratio: float = 0.5,
+             groups: int = 1,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
+             drop_path: float = 0.,
+             device=None,
+             dtype=None,
 @@ -277,14 +282,14 @@             **ckwargs,
              **dd,
          )
@@ -113,6 +156,14 @@
      """Cross Stage."""
      def __init__(
              self,
+@@ -311,7 +316,7 @@             down_growth: bool = False,
+             cross_linear: bool = False,
+             block_dpr: Optional[List[float]] = None,
+-            block_fn: Type[nn.Module] = BottleneckBlock,
++            block_fn: Type[msnn.Cell] = BottleneckBlock,
+             device=None,
+             dtype=None,
+             **block_kwargs,
 @@ -327,10 +332,11 @@ 
          if stride != 1 or first_dilation != dilation:
              if avg_down:
@@ -163,6 +214,14 @@
      """Cross Stage 3.
      Similar to CrossStage, but with only one transition conv for the output.
      """
+@@ -409,7 +415,7 @@             down_growth: bool = False,
+             cross_linear: bool = False,
+             block_dpr: Optional[List[float]] = None,
+-            block_fn: Type[nn.Module] = BottleneckBlock,
++            block_fn: Type[msnn.Cell] = BottleneckBlock,
+             device=None,
+             dtype=None,
+             **block_kwargs,
 @@ -425,10 +431,11 @@ 
          if stride != 1 or first_dilation != dilation:
              if avg_down:
@@ -204,6 +263,14 @@
      """DarkNet stage."""
  
      def __init__(
+@@ -498,7 +505,7 @@             groups: int = 1,
+             first_dilation: Optional[int] = None,
+             avg_down: bool = False,
+-            block_fn: Type[nn.Module] = BottleneckBlock,
++            block_fn: Type[msnn.Cell] = BottleneckBlock,
+             block_dpr: Optional[List[float]] = None,
+             device=None,
+             dtype=None,
 @@ -511,10 +518,11 @@         aa_layer = block_kwargs.pop('aa_layer', None)
  
          if avg_down:
@@ -234,7 +301,17 @@
          x = self.conv_down(x)
          x = self.blocks(x)
          return x
-@@ -564,7 +572,7 @@         dtype=None,
+@@ -557,14 +565,14 @@         stride: int = 2,
+         pool: str = '',
+         padding: str = '',
+-        act_layer: Type[nn.Module] = nn.ReLU,
+-        norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-        aa_layer: Optional[Type[nn.Module]] = None,
++        act_layer: Type[msnn.Cell] = nn.ReLU,
++        norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++        aa_layer: Optional[Type[msnn.Cell]] = None,
+         device=None,
+         dtype=None,
  ):
      dd = {'device': device, 'dtype': dtype}
 -    stem = nn.Sequential()
@@ -271,14 +348,15 @@
      """Cross Stage Partial base model.
  
      Paper: `CSPNet: A New Backbone that can Enhance Learning Capability of CNN` - https://arxiv.org/abs/1911.11929
-@@ -794,6 +804,7 @@     def set_grad_checkpointing(self, enable=True):
-         assert not enable, 'gradient checkpointing not supported'
+@@ -795,7 +805,7 @@         assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -810,7 +821,7 @@     def forward_head(self, x, pre_logits: bool = False):
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -810,7 +820,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -286,7 +364,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -818,13 +829,13 @@ 
+@@ -818,13 +828,13 @@ 
  def _init_weights(module, name, zero_init_last=False):
      if isinstance(module, nn.Conv2d):
 -        nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')

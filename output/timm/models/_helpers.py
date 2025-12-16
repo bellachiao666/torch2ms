@@ -46,6 +46,8 @@ def clean_state_dict(state_dict: Dict[str, Any]) -> Dict[str, Any]:
     return cleaned_state_dict
 
 
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def load_state_dict(
         checkpoint_path: str,
         use_ema: bool = True,
@@ -92,9 +94,10 @@ def load_state_dict(
         raise FileNotFoundError()
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def load_checkpoint(
-        model: torch.nn.Module,
+        model: msnn.Cell,
         checkpoint_path: str,
         use_ema: bool = True,
         device: Union[str, torch.device] = 'cpu',
@@ -135,10 +138,9 @@ def load_checkpoint(
     return incompatible_keys
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def remap_state_dict(
         state_dict: Dict[str, Any],
-        model: torch.nn.Module,
+        model: msnn.Cell,
         allow_reshape: bool = True
 ) -> Dict[str, Any]:
     """Remap checkpoint by iterating over state dicts in order (ignoring original keys).
@@ -165,9 +167,11 @@ def remap_state_dict(
     return out_dict
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def resume_checkpoint(
-        model: torch.nn.Module,
+        model: msnn.Cell,
         checkpoint_path: str,
         optimizer: Optional[torch.optim.Optimizer] = None,
         loss_scaler: Optional[Any] = None,

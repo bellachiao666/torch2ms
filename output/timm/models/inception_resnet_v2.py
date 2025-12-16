@@ -24,7 +24,7 @@ __all__ = ['InceptionResnetV2']
 class Mixed_5b(msnn.Cell):
     def __init__(
             self,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -66,7 +66,7 @@ class Block35(msnn.Cell):
     def __init__(
             self,
             scale: float = 1.0,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -107,7 +107,7 @@ class Block35(msnn.Cell):
 class Mixed_6a(msnn.Cell):
     def __init__(
             self,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -138,7 +138,7 @@ class Block17(msnn.Cell):
     def __init__(
             self,
             scale: float = 1.0,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -172,7 +172,7 @@ class Block17(msnn.Cell):
 class Mixed_7a(msnn.Cell):
     def __init__(
             self,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -216,7 +216,7 @@ class Block8(msnn.Cell):
             self,
             scale: float = 1.0,
             no_relu: bool = False,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -339,9 +339,8 @@ class InceptionResnetV2(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, "checkpointing not supported"
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.classif
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):

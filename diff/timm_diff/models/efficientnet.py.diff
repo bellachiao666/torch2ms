@@ -62,14 +62,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse: bool = False) -> Dict[str, Union[str, List]]:
-@@ -208,6 +216,7 @@         """
-         self.grad_checkpointing = enable
+@@ -209,7 +217,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier module."""
-@@ -226,7 +235,7 @@ 
+         return self.classifier
+ 
+@@ -226,14 +234,14 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -77,7 +78,15 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -309,13 +318,13 @@             max_index = self.stage_ends[max_index]
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+             extra_blocks: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward features that returns intermediates.
+ 
+         Args:
+@@ -309,13 +317,13 @@             max_index = self.stage_ends[max_index]
          self.blocks = self.blocks[:max_index]  # truncate blocks w/ stem as idx 0
          if prune_norm or max_index < len(self.blocks):
 -            self.conv_head = nn.Identity()
@@ -93,7 +102,7 @@
          """Forward pass through feature extraction layers."""
          x = self.conv_stem(x)
          x = self.bn1(x)
-@@ -327,7 +336,7 @@         x = self.bn2(x)
+@@ -327,7 +335,7 @@         x = self.bn2(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -101,7 +110,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -339,17 +348,17 @@         """
+@@ -339,17 +347,17 @@         """
          x = self.global_pool(x)
          if self.drop_rate > 0.:
 -            x = F.dropout(x, p=self.drop_rate, training=self.training)
@@ -121,7 +130,7 @@
      """ EfficientNet Feature Extractor
  
      A work-in-progress feature extraction module for EfficientNet, to use as a backbone for segmentation
-@@ -405,7 +414,9 @@             feature_location=feature_location,
+@@ -405,7 +413,9 @@             feature_location=feature_location,
              **dd,
          )
 -        self.blocks = nn.Sequential(*builder(stem_size, block_args))
@@ -131,11 +140,11 @@
          self.feature_info = FeatureInfo(builder.features, out_indices)
          self._stage_out_idx = {f['stage']: f['index'] for f in self.feature_info.get_dicts()}
  
-@@ -426,7 +437,7 @@         """
+@@ -426,7 +436,7 @@         """
          self.grad_checkpointing = enable
  
 -    def forward(self, x) -> List[torch.Tensor]:
-+    def construct(self, x) -> List[torch.Tensor]:
++    def construct(self, x) -> List[ms.Tensor]:
          x = self.conv_stem(x)
          x = self.bn1(x)
          if self.feature_hooks is None:

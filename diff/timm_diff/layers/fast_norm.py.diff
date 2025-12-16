@@ -54,8 +54,10 @@
 -    x: torch.Tensor,
 +    x: ms.Tensor,
      num_groups: int,
-     weight: Optional[torch.Tensor] = None,
-     bias: Optional[torch.Tensor] = None,
+-    weight: Optional[torch.Tensor] = None,
+-    bias: Optional[torch.Tensor] = None,
++    weight: Optional[ms.Tensor] = None,
++    bias: Optional[ms.Tensor] = None,
      eps: float = 1e-5
 -) -> torch.Tensor:
 +) -> ms.Tensor:
@@ -75,10 +77,13 @@
  
  def fast_layer_norm(
 -    x: torch.Tensor,
+-    normalized_shape: List[int],
+-    weight: Optional[torch.Tensor] = None,
+-    bias: Optional[torch.Tensor] = None,
 +    x: ms.Tensor,
-     normalized_shape: List[int],
-     weight: Optional[torch.Tensor] = None,
-     bias: Optional[torch.Tensor] = None,
++    normalized_shape: List[int],
++    weight: Optional[ms.Tensor] = None,
++    bias: Optional[ms.Tensor] = None,
      eps: float = 1e-5
 -) -> torch.Tensor:
 +) -> ms.Tensor:
@@ -89,7 +94,7 @@
  
      if has_apex:
          return fused_layer_norm_affine(x, weight, bias, normalized_shape, eps)
-@@ -105,11 +110,11 @@         x, weight, bias = x.to(dt), weight.to(dt), bias.to(dt) if bias is not None else None
+@@ -105,13 +110,13 @@         x, weight, bias = x.to(dt), weight.to(dt), bias.to(dt) if bias is not None else None
  
      with torch.amp.autocast(device_type=x.device.type, enabled=False):
 -        return F.layer_norm(x, normalized_shape, weight, bias, eps)
@@ -98,10 +103,14 @@
  
  def rms_norm(
 -    x: torch.Tensor,
+-    normalized_shape: List[int],
+-    weight: Optional[torch.Tensor] = None,
 +    x: ms.Tensor,
-     normalized_shape: List[int],
-     weight: Optional[torch.Tensor] = None,
++    normalized_shape: List[int],
++    weight: Optional[ms.Tensor] = None,
      eps: float = 1e-5,
+ ):
+     norm_ndim = len(normalized_shape)
 @@ -121,22 +126,22 @@         # dims = list(range(ndim - norm_ndim, ndim))  # this doesn't work on pytorch <= 1.13.x
          # NOTE -ve dims cause torchscript to crash in some cases, out of options to work around
          assert norm_ndim == 1
@@ -126,7 +135,7 @@
 -) -> torch.Tensor:
 +    x: ms.Tensor,
 +    normalized_shape: List[int],
-+    weight: Optional[torch.Tensor] = None,
++    weight: Optional[ms.Tensor] = None,
 +    eps: float = 1e-5,
 +) -> ms.Tensor:
      if torch.jit.is_scripting():
@@ -144,9 +153,11 @@
  
  def rms_norm2d(
 -    x: torch.Tensor,
+-    normalized_shape: List[int],
+-    weight: Optional[torch.Tensor] = None,
 +    x: ms.Tensor,
-     normalized_shape: List[int],
-     weight: Optional[torch.Tensor] = None,
++    normalized_shape: List[int],
++    weight: Optional[ms.Tensor] = None,
      eps: float = 1e-5,
  ):
      assert len(normalized_shape) == 1
@@ -168,20 +179,24 @@
 -) -> torch.Tensor:
 +    x: ms.Tensor,
 +    normalized_shape: List[int],
-+    weight: Optional[torch.Tensor] = None,
++    weight: Optional[ms.Tensor] = None,
 +    eps: float = 1e-5,
 +) -> ms.Tensor:
      if torch.jit.is_scripting():
          # this must be by itself, cannot merge with has_apex_rmsnorm
          return rms_norm2d(x, normalized_shape, weight, eps)
-@@ -208,7 +213,7 @@ 
+@@ -208,9 +213,9 @@ 
  
  def simple_norm(
 -    x: torch.Tensor,
+-    normalized_shape: List[int],
+-    weight: Optional[torch.Tensor] = None,
 +    x: ms.Tensor,
-     normalized_shape: List[int],
-     weight: Optional[torch.Tensor] = None,
++    normalized_shape: List[int],
++    weight: Optional[ms.Tensor] = None,
      eps: float = 1e-5,
+ ):
+     norm_ndim = len(normalized_shape)
 @@ -219,22 +224,22 @@         # dims = list(range(ndim - norm_ndim, ndim))  # this doesn't work on pytorch <= 1.13.x
          # NOTE -ve dims cause torchscript to crash in some cases, out of options to work around
          assert norm_ndim == 1
@@ -206,7 +221,7 @@
 -) -> torch.Tensor:
 +    x: ms.Tensor,
 +    normalized_shape: List[int],
-+    weight: Optional[torch.Tensor] = None,
++    weight: Optional[ms.Tensor] = None,
 +    eps: float = 1e-5,
 +) -> ms.Tensor:
      if torch.jit.is_scripting():

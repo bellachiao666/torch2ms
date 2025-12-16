@@ -29,6 +29,18 @@
  
                  exp_avgs.append(state['exp_avg'])
  
+@@ -133,9 +139,9 @@ 
+ 
+ def lion(
+-        params: List[torch.Tensor],
+-        grads: List[torch.Tensor],
+-        exp_avgs: List[torch.Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
+         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+         maximize: bool = False,
 @@ -153,7 +159,7 @@     if foreach is None:
          try:
              # cannot do foreach if this overload doesn't exist when caution enabled
@@ -37,6 +49,18 @@
          except:
              foreach = False
  
+@@ -180,9 +186,9 @@ 
+ 
+ def _single_tensor_lion(
+-        params: List[torch.Tensor],
+-        grads: List[torch.Tensor],
+-        exp_avgs: List[torch.Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
+         *,
+         beta1: float,
+         beta2: float,
 @@ -197,9 +203,9 @@         exp_avg = exp_avgs[i]
  
          if torch.is_complex(param):
@@ -49,6 +73,18 @@
  
          # Perform stepweight decay
          wd_scale = lr if max_lr is None else lr ** 2 / max_lr
+@@ -221,9 +227,9 @@ 
+ 
+ def _multi_tensor_lion(
+-        params: List[torch.Tensor],
+-        grads: List[torch.Tensor],
+-        exp_avgs: List[torch.Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
+         *,
+         beta1: float,
+         beta2: float,
 @@ -237,32 +243,32 @@         return
  
      if maximize:

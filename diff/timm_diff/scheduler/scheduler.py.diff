@@ -12,14 +12,16 @@
  
  
  class Scheduler(ABC):
-@@ -24,6 +29,7 @@      * https://github.com/allenai/allennlp/tree/master/allennlp/training/learning_rate_schedulers
+@@ -24,6 +29,9 @@      * https://github.com/allenai/allennlp/tree/master/allennlp/training/learning_rate_schedulers
      """
  
-+    # 类型标注 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(
              self,
              optimizer: torch.optim.Optimizer,
-@@ -114,14 +120,14 @@         return apply_noise
+@@ -114,14 +122,14 @@         return apply_noise
  
      def _calculate_noise(self, t) -> float:
 -        g = torch.Generator()

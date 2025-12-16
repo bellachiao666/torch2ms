@@ -42,7 +42,7 @@ class SequentialList(msnn.SequentialCell):
         # type: (torch.Tensor) -> (List[torch.Tensor])
         pass
 
-    def forward(self, x) -> List[torch.Tensor]:
+    def forward(self, x) -> List[ms.Tensor]:
         for module in self:
             x = module(x)
         return x
@@ -110,7 +110,7 @@ class SelecSlsBlock(msnn.Cell):
         self.conv5 = conv_bn(mid_chs, mid_chs // 2, 3, **dd)
         self.conv6 = conv_bn(2 * mid_chs + (0 if is_first else skip_chs), out_chs, 1, **dd)
 
-    def construct(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+    def construct(self, x: List[ms.Tensor]) -> List[ms.Tensor]:
         if not isinstance(x, list):
             x = [x]
         assert len(x) in [1, 2]
@@ -188,9 +188,8 @@ class SelecSls(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.fc
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):

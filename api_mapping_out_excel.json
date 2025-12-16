@@ -13411,6 +13411,13 @@
         }
       ]
     },
+    
+    "Module": {
+      "pytorch": "torch.nn.Module",
+      "mindspore": "mindspore.nn.Cell",
+      "params": []
+    },
+
     "ModuleList": {
       "pytorch": "torch.nn.ModuleList",
       "mindspore": "mindspore.nn.CellList",

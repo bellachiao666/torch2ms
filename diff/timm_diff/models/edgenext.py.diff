@@ -71,6 +71,16 @@
      def __init__(
              self,
              dim: int,
+@@ -91,8 +95,8 @@             conv_bias: bool = True,
+             expand_ratio: float = 4,
+             ls_init_value: float = 1e-6,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop_path: float = 0.,
+             device=None,
+             dtype=None,
 @@ -118,10 +122,10 @@             act_layer=act_layer,
              **dd,
          )
@@ -124,6 +134,16 @@
      def __init__(
              self,
              dim: int,
+@@ -191,8 +195,8 @@             conv_bias: bool = True,
+             qkv_bias: bool = True,
+             ls_init_value: float = 1e-6,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop_path: float = 0.,
+             attn_drop: float = 0.,
+             proj_drop: float = 0.,
 @@ -208,13 +212,13 @@         convs = []
          for i in range(self.num_scales):
              convs.append(create_conv2d(width, width, kernel_size=3, depthwise=True, bias=conv_bias, **dd))
@@ -169,6 +189,18 @@
      def __init__(
              self,
              in_chs: int,
+@@ -287,9 +291,9 @@             conv_bias: float = True,
+             ls_init_value: float = 1.0,
+             drop_path_rates: Optional[List[float]] = None,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
+-            norm_layer_cl: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
++            norm_layer_cl: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+     ):
 @@ -298,12 +302,13 @@         self.grad_checkpointing = False
  
          if downsample_block or stride == 1:
@@ -207,6 +239,14 @@
      def __init__(
              self,
              in_chans: int = 3,
+@@ -372,7 +379,7 @@             conv_bias: bool = True,
+             stem_type: str = 'patch',
+             head_norm_first: bool = False,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop_path_rate: float = 0.,
+             drop_rate: float = 0.,
+             device=None,
 @@ -389,15 +396,17 @@ 
          assert stem_type in ('patch', 'overlap')
          if stem_type == 'patch':
@@ -248,14 +288,15 @@
              self.head = NormMlpClassifierHead(
                  self.num_features,
                  num_classes,
-@@ -472,6 +483,7 @@         for s in self.stages:
-             s.grad_checkpointing = enable
+@@ -473,7 +484,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -482,7 +494,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -482,13 +493,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -263,7 +304,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -541,7 +553,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -541,7 +552,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm_pre = nn.Identity()
@@ -271,7 +319,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -555,7 +567,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -555,7 +566,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -279,7 +327,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -565,10 +577,10 @@     if isinstance(module, nn.Conv2d):
+@@ -565,10 +576,10 @@     if isinstance(module, nn.Conv2d):
          trunc_normal_tf_(module.weight, std=.02)
          if module.bias is not None:
 -            nn.init.zeros_(module.bias)

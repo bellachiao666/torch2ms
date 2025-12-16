@@ -111,6 +111,8 @@ class Kron(torch.optim.Optimizer):
         deterministic: Deterministic behaviour across save / load (resume). FIXME slow, needs work
     """
 
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
         self,
         params: ParamsT,

@@ -75,7 +75,7 @@ class Stem(msnn.Cell):
             in_chs: int = 3,
             out_chs: int = 96,
             stride: int = 4,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             device=None,
             dtype=None,
     ):
@@ -112,7 +112,7 @@ class Downsample(msnn.Cell):
             in_chs: int,
             out_chs: int,
             kernel_size: int = 3,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             device=None,
             dtype=None,
     ):
@@ -227,8 +227,8 @@ class ChannelBlock(msnn.Cell):
             mlp_ratio: float = 4.,
             qkv_bias: bool = False,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             ffn: bool = True,
             cpe_act: bool = False,
             v2: bool = False,
@@ -389,8 +389,8 @@ class SpatialBlock(msnn.Cell):
             mlp_ratio: float = 4.,
             qkv_bias: bool = True,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             ffn: bool = True,
             cpe_act: bool = False,
             device=None,
@@ -484,8 +484,8 @@ class DaVitStage(msnn.Cell):
             mlp_ratio: float = 4.,
             qkv_bias: bool = True,
             drop_path_rates: Tuple[float, ...] = (0, 0),
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            norm_layer_cl: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+            norm_layer_cl: Type[msnn.Cell] = nn.LayerNorm,
             ffn: bool = True,
             cpe_act: bool = False,
             down_kernel_size: int = 2,
@@ -706,9 +706,8 @@ class DaVit(msnn.Cell):
         for stage in self.stages:
             stage.set_grad_checkpointing(enable=enable)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -723,7 +722,7 @@ class DaVit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

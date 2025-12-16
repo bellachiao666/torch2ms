@@ -16,6 +16,14 @@
  
  from timm.layers import Format, _assert
  from ._manipulate import checkpoint
+@@ -189,7 +194,7 @@             x = x[0]  # unwrap input tuple
+         self._feature_outputs[x.device][hook_id] = x
+ 
+-    def get_output(self, device) -> Dict[str, torch.tensor]:
++    def get_output(self, device) -> Dict[str, ms.Tensor]:
+         output = self._feature_outputs[device]
+         self._feature_outputs[device] = OrderedDict()  # clear after reading
+         return output
 @@ -227,6 +232,7 @@     return return_layers
  
  
@@ -23,14 +31,23 @@
  class FeatureDictNet(nn.ModuleDict):
      """ Feature extractor with OrderedDict return
  
-@@ -242,6 +248,7 @@     All Sequential containers that are directly assigned to the original model will have their
-     modules assigned to this module with the name `model.features.1` being changed to `model.features_1`
-     """
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+@@ -244,7 +250,7 @@     """
      def __init__(
              self,
-             model: nn.Module,
-@@ -303,7 +310,7 @@                 if isinstance(x, (tuple, list)):
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
+             out_map: Sequence[Union[int, str]] = None,
+             output_fmt: str = 'NCHW',
+@@ -286,7 +292,7 @@     def set_grad_checkpointing(self, enable: bool = True):
+         self.grad_checkpointing = enable
+ 
+-    def _collect(self, x) -> (Dict[str, torch.Tensor]):
++    def _collect(self, x) -> (Dict[str, ms.Tensor]):
+         out = OrderedDict()
+         for i, (name, module) in enumerate(self.items()):
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+@@ -303,12 +309,12 @@                 if isinstance(x, (tuple, list)):
                      # If model tap is a tuple or list, concat or select first element
                      # FIXME this may need to be more generic / flexible for some nets
 -                    out[out_id] = torch.cat(x, 1) if self.concat else x[0]
@@ -38,28 +55,41 @@
                  else:
                      out[out_id] = x
          return out
-@@ -317,6 +324,7 @@ 
-     A specialization of FeatureDictNet that always returns features as a list (values() of dict).
-     """
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+-    def forward(self, x) -> Dict[str, torch.Tensor]:
++    def forward(self, x) -> Dict[str, ms.Tensor]:
+         return self._collect(x)
+ 
+ 
+@@ -319,7 +325,7 @@     """
      def __init__(
              self,
-             model: nn.Module,
-@@ -345,6 +353,7 @@         return list(self._collect(x).values())
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
+             output_fmt: str = 'NCHW',
+             feature_concat: bool = False,
+@@ -341,10 +347,11 @@             flatten_sequential=flatten_sequential,
+         )
+ 
+-    def forward(self, x) -> (List[torch.Tensor]):
++    def forward(self, x) -> (List[ms.Tensor]):
+         return list(self._collect(x).values())
  
  
 +# 'torch.nn.ModuleDict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class FeatureHookNet(nn.ModuleDict):
      """ FeatureHookNet
  
-@@ -358,6 +367,7 @@ 
-     FIXME this does not currently work with Torchscript, see FeatureHooks class
-     """
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+@@ -360,7 +367,7 @@     """
      def __init__(
              self,
-             model: nn.Module,
-@@ -382,7 +392,7 @@             default_hook_type: The default hook type to use if not specified in model.feature_info.
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
+             out_map: Optional[Sequence[Union[int, str]]] = None,
+             return_dict: bool = False,
+@@ -382,7 +389,7 @@             default_hook_type: The default hook type to use if not specified in model.feature_info.
          """
          super().__init__()
 -        assert not torch.jit.is_scripting()
@@ -67,17 +97,18 @@
          self.feature_info = _get_feature_info(model, out_indices)
          self.return_dict = return_dict
          self.output_fmt = Format(output_fmt)
-@@ -432,12 +442,14 @@         return out if self.return_dict else list(out.values())
+@@ -432,6 +439,7 @@         return out if self.return_dict else list(out.values())
  
  
 +# 'torch.nn.ModuleDict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class FeatureGetterNet(nn.ModuleDict):
      """ FeatureGetterNet
  
-     Wrap models with a feature getter method, like 'get_intermediate_layers'
- 
-     """
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+@@ -440,7 +448,7 @@     """
      def __init__(
              self,
-             model: nn.Module,
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = 4,
+             out_map: Optional[Sequence[Union[int, str]]] = None,
+             return_dict: bool = False,

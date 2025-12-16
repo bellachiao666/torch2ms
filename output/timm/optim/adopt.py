@@ -70,7 +70,7 @@ class Adopt(Optimizer):
     def __init__(
             self,
             params: ParamsT,
-            lr: Union[float, Tensor] = 1e-3,
+            lr: Union[float, ms.Tensor] = 1e-3,
             betas: Tuple[float, float] = (0.9, 0.9999),
             eps: float = 1e-6,
             clip_exp: Optional[float] = 0.333,
@@ -204,11 +204,11 @@ class Adopt(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            params_with_grad: List[Tensor] = []
-            grads: List[Tensor] = []
-            exp_avgs: List[Tensor] = []
-            exp_avg_sqs: List[Tensor] = []
-            state_steps: List[Tensor] = []
+            params_with_grad: List[ms.Tensor] = []
+            grads: List[ms.Tensor] = []
+            exp_avgs: List[ms.Tensor] = []
+            exp_avg_sqs: List[ms.Tensor] = []
+            state_steps: List[ms.Tensor] = []
             beta1, beta2 = group["betas"]
 
             has_complex = self._init_group(
@@ -248,18 +248,18 @@ class Adopt(Optimizer):
 
 
 def _single_tensor_adopt(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
-        grad_scale: Optional[Tensor],
-        found_inf: Optional[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
+        grad_scale: Optional[ms.Tensor],
+        found_inf: Optional[ms.Tensor],
         *,
         has_complex: bool,
         beta1: float,
         beta2: float,
-        lr: Union[float, Tensor],
+        lr: Union[float, ms.Tensor],
         weight_decay: float,
         clip_exp: Optional[float],
         max_lr: Optional[float],
@@ -335,18 +335,18 @@ def _single_tensor_adopt(
 
 
 def _multi_tensor_adopt(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
-        grad_scale: Optional[Tensor],
-        found_inf: Optional[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
+        grad_scale: Optional[ms.Tensor],
+        found_inf: Optional[ms.Tensor],
         *,
         has_complex: bool,
         beta1: float,
         beta2: float,
-        lr: Union[float, Tensor],
+        lr: Union[float, ms.Tensor],
         weight_decay: float,
         clip_exp: Optional[float],
         max_lr: Optional[float],
@@ -456,23 +456,23 @@ def _multi_tensor_adopt(
 
 #@_disable_dynamo_if_unsupported(single_tensor_fn=_single_tensor_adopt)  # FIXME internal context mgr, can't use
 def adopt(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
         foreach: Optional[bool] = None,
         capturable: bool = False,
         differentiable: bool = False,
-        grad_scale: Optional[Tensor] = None,
-        found_inf: Optional[Tensor] = None,
+        grad_scale: Optional[ms.Tensor] = None,
+        found_inf: Optional[ms.Tensor] = None,
         has_complex: bool = False,
         *,
         beta1: float,
         beta2: float,
-        lr: Union[float, Tensor],
+        lr: Union[float, ms.Tensor],
         weight_decay: float,
         clip_exp: Optional[float],
         max_lr: Optional[float],

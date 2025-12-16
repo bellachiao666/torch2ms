@@ -169,14 +169,28 @@
          _assert(x.dim() == 4, 'expected 4D input')
          x_dtype = x.dtype
          v_shape = (1, -1, 1, 1)
-@@ -315,7 +317,7 @@         return x * self.weight.view(v_shape).to(x_dtype) + self.bias.view(v_shape).to(x_dtype)
+@@ -315,14 +317,14 @@         return x * self.weight.view(v_shape).to(x_dtype) + self.bias.view(v_shape).to(x_dtype)
  
  
 -class EvoNorm2dS1(nn.Module):
+-    def __init__(
+-            self,
+-            num_features: int,
+-            groups: int = 32,
+-            group_size: Optional[int] = None,
+-            apply_act: bool = True,
+-            act_layer: Optional[Type[nn.Module]] = None,
 +class EvoNorm2dS1(msnn.Cell):
-     def __init__(
-             self,
-             num_features: int,
++    def __init__(
++            self,
++            num_features: int,
++            groups: int = 32,
++            group_size: Optional[int] = None,
++            apply_act: bool = True,
++            act_layer: Optional[Type[msnn.Cell]] = None,
+             eps: float = 1e-5,
+             device=None,
+             dtype=None,
 @@ -335,7 +337,7 @@         if act_layer is not None and apply_act:
              self.act = create_act_layer(act_layer)
          else:
@@ -211,14 +225,36 @@
          _assert(x.dim() == 4, 'expected 4D input')
          x_dtype = x.dtype
          v_shape = (1, -1, 1, 1)
-@@ -393,7 +395,7 @@         return x * self.weight.view(v_shape).to(x_dtype) + self.bias.view(v_shape).to(x_dtype)
+@@ -368,7 +370,7 @@             groups: int = 32,
+             group_size: Optional[int] = None,
+             apply_act: bool = True,
+-            act_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Optional[Type[msnn.Cell]] = None,
+             eps: float = 1e-3,
+             device=None,
+             dtype=None,
+@@ -393,14 +395,14 @@         return x * self.weight.view(v_shape).to(x_dtype) + self.bias.view(v_shape).to(x_dtype)
  
  
 -class EvoNorm2dS2(nn.Module):
+-    def __init__(
+-            self,
+-            num_features: int,
+-            groups: int = 32,
+-            group_size: Optional[int] = None,
+-            apply_act: bool = True,
+-            act_layer: Optional[Type[nn.Module]] = None,
 +class EvoNorm2dS2(msnn.Cell):
-     def __init__(
-             self,
-             num_features: int,
++    def __init__(
++            self,
++            num_features: int,
++            groups: int = 32,
++            group_size: Optional[int] = None,
++            apply_act: bool = True,
++            act_layer: Optional[Type[msnn.Cell]] = None,
+             eps: float = 1e-5,
+             device=None,
+             dtype=None,
 @@ -413,23 +415,23 @@         if act_layer is not None and apply_act:
              self.act = create_act_layer(act_layer)
          else:
@@ -253,3 +289,11 @@
          _assert(x.dim() == 4, 'expected 4D input')
          x_dtype = x.dtype
          v_shape = (1, -1, 1, 1)
+@@ -445,7 +447,7 @@             groups: int = 32,
+             group_size: Optional[int] = None,
+             apply_act: bool = True,
+-            act_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Optional[Type[msnn.Cell]] = None,
+             eps: float = 1e-3,
+             device=None,
+             dtype=None,

@@ -109,7 +109,8 @@ def scale_eps_for_ns(
     return eps * (din / dout) ** 0.5
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def zeropower_via_newtonschulz(
         G: ms.Tensor,
         steps: int,
@@ -187,7 +188,8 @@ def zeropower_via_newtonschulz(
     return X
 
 
-# 类型标注 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def get_lr_scale(
         param_shape: torch.Size,
         adjust_lr_fn: str = "match_rms_adamw",
@@ -217,7 +219,8 @@ def get_lr_scale(
         assert False, f'Invalid scaling function "{adjust_lr_fn}" for Muon'
 
 
-# 类型标注 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def get_adamuon_lr_scale(
         param_shape: torch.Size,
         adjust_lr_fn: str = "match_rms_adamw",
@@ -317,10 +320,12 @@ def _is_suitable_for_muon(
     return (True, "ok") if return_reason else True
 
 
+# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def reshape_for_muon(
         tensor: ms.Tensor,
         mode: str = "flatten",
-) -> Tuple[torch.Tensor, torch.Size]:
+) -> Tuple[ms.Tensor, torch.Size]:
     """Reshape high-dimensional tensor for Muon processing.
 
     Args:
@@ -353,9 +358,9 @@ def reshape_for_muon(
 
 
 def muon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        momentum_bufs: List[ms.Tensor],
         *,
         lr: float,
         weight_decay: float,
@@ -391,11 +396,11 @@ def muon(
 
 
 def adamuon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
-        exp_avg_sqs: List[torch.Tensor],
-        state_steps: List[torch.Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        momentum_bufs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         *,
         lr: float,
         weight_decay: float,
@@ -442,9 +447,9 @@ def adamuon(
 
 
 def _single_tensor_muon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        momentum_bufs: List[ms.Tensor],
         *,
         lr: float,
         weight_decay: float,
@@ -511,11 +516,11 @@ def _single_tensor_muon(
 
 
 def _single_tensor_adamuon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
-        exp_avg_sqs: List[torch.Tensor],
-        state_steps: List[torch.Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        momentum_bufs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         *,
         lr: float,
         weight_decay: float,

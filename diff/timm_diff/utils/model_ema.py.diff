@@ -44,7 +44,15 @@
      """ Model Exponential Moving Average V3
  
      Keep a moving average of everything in the model state_dict (parameters and buffers).
-@@ -223,10 +227,10 @@                     ema_v.copy_(model_v)
+@@ -153,6 +157,8 @@     This class is sensitive where it is initialized in the sequence of model init,
+     GPU assignment and distributed training wrappers.
+     """
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             model,
+@@ -223,10 +229,10 @@                     ema_v.copy_(model_v)
  
              if hasattr(torch, '_foreach_lerp_'):
 -                torch._foreach_lerp_(ema_lerp_values, model_lerp_values, weight=1. - decay)
@@ -57,7 +65,7 @@
          else:
              for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
                  if ema_v.is_floating_point():
-@@ -240,10 +244,10 @@         model_params = tuple(model.parameters())
+@@ -240,10 +246,10 @@         model_params = tuple(model.parameters())
          if self.foreach:
              if hasattr(torch, '_foreach_lerp_'):
 -                torch._foreach_lerp_(ema_params, model_params, weight=1. - decay)
@@ -70,7 +78,7 @@
          else:
              for ema_p, model_p in zip(ema_params, model_params):
                  ema_p.lerp_(model_p.to(device=self.device), weight=1. - decay)
-@@ -256,5 +260,5 @@         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
+@@ -256,5 +262,5 @@         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
              ema_v.copy_(model_v.to(device=self.device))
  
 -    def forward(self, *args, **kwargs):

@@ -89,7 +89,7 @@ class NaFlexCollator:
         """
         self.max_seq_len = max_seq_len or 576  # Default ViT-B/16 sequence length (577 = 24*24)
 
-    def __call__(self, batch: List[Tuple[Dict[str, torch.Tensor], Union[int, torch.Tensor]]]) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
+    def __call__(self, batch: List[Tuple[Dict[str, ms.Tensor], Union[int, ms.Tensor]]]) -> Tuple[Dict[str, ms.Tensor], ms.Tensor]:
         """Collate batch of NaFlex samples.
 
         Args:
@@ -213,7 +213,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
     across all ranks. Handles distributed training and multiple workers.
     """
 
-    # 类型标注 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             base_dataset: Dataset,
@@ -500,7 +500,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
         """
         return self._num_batches_per_rank
 
-    def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
+    def __iter__(self) -> Iterator[Tuple[Dict[str, ms.Tensor], ms.Tensor]]:
         """Iterates through pre-calculated batches for the current epoch.
 
         Yields:

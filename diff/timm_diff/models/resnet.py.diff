@@ -25,6 +25,31 @@
      """Basic residual block for ResNet.
  
      This is the standard residual block used in ResNet-18 and ResNet-34.
+@@ -43,18 +47,18 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             cardinality: int = 1,
+             base_width: int = 64,
+             reduce_first: int = 1,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
+-            drop_path: Optional[nn.Module] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ) -> None:
 @@ -97,7 +101,7 @@             **dd,
          )
          self.bn1 = norm_layer(first_planes, **dd)
@@ -53,6 +78,31 @@
      """Bottleneck residual block for ResNet.
  
      This is the bottleneck block used in ResNet-50, ResNet-101, and ResNet-152.
+@@ -163,18 +167,18 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             cardinality: int = 1,
+             base_width: int = 64,
+             reduce_first: int = 1,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
+-            drop_path: Optional[nn.Module] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ) -> None:
 @@ -221,7 +225,7 @@             **dd,
          )
          self.bn2 = norm_layer(width, **dd)
@@ -73,14 +123,19 @@
          shortcut = x
  
          x = self.conv1(x)
-@@ -271,6 +275,7 @@         return x
- 
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def downsample_conv(
-         in_channels: int,
-         out_channels: int,
-@@ -288,7 +293,7 @@     first_dilation = (first_dilation or dilation) if kernel_size > 1 else 1
+@@ -278,17 +282,17 @@         stride: int = 1,
+         dilation: int = 1,
+         first_dilation: Optional[int] = None,
+-        norm_layer: Optional[Type[nn.Module]] = None,
++        norm_layer: Optional[Type[msnn.Cell]] = None,
+         device=None,
+         dtype=None,
+-) -> nn.Module:
++) -> msnn.Cell:
+     dd = {'device': device, 'dtype': dtype}
+     norm_layer = norm_layer or nn.BatchNorm2d
+     kernel_size = 1 if stride == 1 and dilation == 1 else kernel_size
+     first_dilation = (first_dilation or dilation) if kernel_size > 1 else 1
      p = get_padding(kernel_size, stride, first_dilation)
  
 -    return nn.Sequential(*[
@@ -88,14 +143,17 @@
          nn.Conv2d(
              in_channels,
              out_channels,
-@@ -303,6 +308,7 @@     ])
- 
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def downsample_avg(
-         in_channels: int,
-         out_channels: int,
-@@ -318,12 +324,12 @@     norm_layer = norm_layer or nn.BatchNorm2d
+@@ -310,20 +314,20 @@         stride: int = 1,
+         dilation: int = 1,
+         first_dilation: Optional[int] = None,
+-        norm_layer: Optional[Type[nn.Module]] = None,
++        norm_layer: Optional[Type[msnn.Cell]] = None,
+         device=None,
+         dtype=None,
+-) -> nn.Module:
++) -> msnn.Cell:
+     dd = {'device': device, 'dtype': dtype}
+     norm_layer = norm_layer or nn.BatchNorm2d
      avg_stride = stride if dilation == 1 else 1
      if stride == 1 and dilation == 1:
 -        pool = nn.Identity()
@@ -109,7 +167,15 @@
          pool,
          nn.Conv2d(in_channels, out_channels, 1, stride=1, padding=0, bias=False, **dd),
          norm_layer(out_channels, **dd)
-@@ -428,13 +434,15 @@             inplanes = planes * block_fn.expansion
+@@ -359,7 +363,7 @@         device=None,
+         dtype=None,
+         **kwargs,
+-) -> Tuple[List[Tuple[str, nn.Module]], List[Dict[str, Any]]]:
++) -> Tuple[List[Tuple[str, msnn.Cell]], List[Dict[str, Any]]]:
+     """Create ResNet stages with specified block configurations.
+ 
+     Args:
+@@ -428,13 +432,15 @@             inplanes = planes * block_fn.expansion
              net_block_idx += 1
  
 -        stages.append((stage_name, nn.Sequential(*blocks)))
@@ -126,7 +192,15 @@
      """ResNet / ResNeXt / SE-ResNeXt / SE-Net
  
      This class implements all variants of ResNet, ResNeXt, SE-ResNeXt, and SENet that
-@@ -542,7 +550,7 @@             stem_chs = (stem_width, stem_width)
+@@ -485,7 +491,7 @@             channels: Optional[Tuple[int, ...]] = (64, 128, 256, 512),
+             act_layer: LayerType = nn.ReLU,
+             norm_layer: LayerType = nn.BatchNorm2d,
+-            aa_layer: Optional[Type[nn.Module]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
+             drop_rate: float = 0.0,
+             drop_path_rate: float = 0.,
+             drop_block_rate: float = 0.,
+@@ -542,7 +548,7 @@             stem_chs = (stem_width, stem_width)
              if 'tiered' in stem_type:
                  stem_chs = (3 * (stem_width // 4), stem_width)
 -            self.conv1 = nn.Sequential(*[
@@ -134,7 +208,7 @@
                  nn.Conv2d(in_chans, stem_chs[0], 3, stride=2, padding=1, bias=False, **dd),
                  norm_layer(stem_chs[0], **dd),
                  act_layer(inplace=True),
-@@ -558,22 +566,24 @@ 
+@@ -558,22 +564,24 @@ 
          # Stem pooling. The name 'maxpool' remains for weight compatibility.
          if replace_stem_pool:
 -            self.maxpool = nn.Sequential(*filter(None, [
@@ -163,7 +237,7 @@
  
          # Feature Blocks
          block_fns = to_ntuple(len(channels))(block)
-@@ -615,7 +625,7 @@         """
+@@ -615,7 +623,7 @@         """
          for n, m in self.named_modules():
              if isinstance(m, nn.Conv2d):
 -                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -171,7 +245,15 @@
          if zero_init_last:
              for m in self.modules():
                  if hasattr(m, 'zero_init_last'):
-@@ -667,7 +677,7 @@ 
+@@ -644,7 +652,7 @@         self.grad_checkpointing = enable
+ 
+     @torch.jit.ignore
+-    def get_classifier(self, name_only: bool = False) -> Union[str, nn.Module]:
++    def get_classifier(self, name_only: bool = False) -> Union[str, msnn.Cell]:
+         """Get the classifier module.
+ 
+         Args:
+@@ -667,13 +675,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -179,7 +261,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -734,12 +744,12 @@         layer_names = ('layer1', 'layer2', 'layer3', 'layer4')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward features that returns intermediates.
+ 
+         Args:
+@@ -734,12 +742,12 @@         layer_names = ('layer1', 'layer2', 'layer3', 'layer4')
          layer_names = layer_names[max_index:]
          for n in layer_names:
 -            setattr(self, n, nn.Identity())
@@ -193,7 +282,7 @@
          """Forward pass through feature extraction layers."""
          x = self.conv1(x)
          x = self.bn1(x)
-@@ -755,7 +765,7 @@             x = self.layer4(x)
+@@ -755,7 +763,7 @@             x = self.layer4(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -201,7 +290,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -767,10 +777,10 @@         """
+@@ -767,10 +775,10 @@         """
          x = self.global_pool(x)
          if self.drop_rate:
 -            x = F.dropout(x, p=float(self.drop_rate), training=self.training)

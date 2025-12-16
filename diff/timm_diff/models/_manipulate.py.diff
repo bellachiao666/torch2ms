@@ -19,49 +19,71 @@
  
  from timm.layers import use_reentrant_ckpt
  
-@@ -17,6 +21,7 @@            'group_with_matcher', 'group_modules', 'group_parameters', 'flatten_modules', 'checkpoint_seq', 'checkpoint']
+@@ -17,7 +21,7 @@            'group_with_matcher', 'group_modules', 'group_parameters', 'flatten_modules', 'checkpoint_seq', 'checkpoint']
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def model_parameters(model: nn.Module, exclude_head: bool = False):
+-def model_parameters(model: nn.Module, exclude_head: bool = False):
++def model_parameters(model: msnn.Cell, exclude_head: bool = False):
      if exclude_head:
          # FIXME this a bit of a quick and dirty hack to skip classifier head params based on ordering
-@@ -25,6 +30,7 @@         return model.parameters()
- 
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         return [p for p in model.parameters()][:-2]
+@@ -27,10 +31,10 @@ 
  def named_apply(
          fn: Callable,
-         module: nn.Module, name='',
-@@ -41,6 +47,7 @@     return module
+-        module: nn.Module, name='',
++        module: msnn.Cell, name='',
+         depth_first: bool = True,
+         include_root: bool = False,
+-) -> nn.Module:
++) -> msnn.Cell:
+     if not depth_first and include_root:
+         fn(module=module, name=name)
+     for child_name, child_module in module.named_children():
+@@ -42,7 +46,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def named_modules(
-         module: nn.Module,
+-        module: nn.Module,
++        module: msnn.Cell,
          name: str = '',
-@@ -57,6 +64,7 @@         yield name, module
+         depth_first: bool = True,
+         include_root: bool = False,
+@@ -58,7 +62,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def named_modules_with_params(
-         module: nn.Module,
+-        module: nn.Module,
++        module: msnn.Cell,
          name: str = '',
-@@ -137,6 +145,7 @@     return layer_id_to_param
+         depth_first: bool = True,
+         include_root: bool = False,
+@@ -138,7 +142,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def group_parameters(
-         module: nn.Module,
+-        module: nn.Module,
++        module: msnn.Cell,
          group_matcher,
-@@ -147,6 +156,7 @@         module.named_parameters(), group_matcher, return_values=return_values, reverse=reverse)
+         return_values: bool = False,
+         reverse: bool = False,
+@@ -148,7 +152,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def group_modules(
-         module: nn.Module,
+-        module: nn.Module,
++        module: msnn.Cell,
          group_matcher,
-@@ -206,7 +216,7 @@         *args,
+         return_values: bool = False,
+         reverse: bool = False,
+@@ -158,10 +162,10 @@ 
+ 
+ def flatten_modules(
+-        named_modules: Iterator[Tuple[str, nn.Module]],
++        named_modules: Iterator[Tuple[str, msnn.Cell]],
+         depth: int = 1,
+         prefix: Union[str, Tuple[str, ...]] = '',
+-        module_types: Union[str, Tuple[Type[nn.Module]]] = 'sequential',
++        module_types: Union[str, Tuple[Type[msnn.Cell]]] = 'sequential',
+ ):
+     prefix_is_tuple = isinstance(prefix, tuple)
+     if isinstance(module_types, str):
+@@ -206,7 +210,7 @@         *args,
          use_reentrant=use_reentrant,
          **kwargs,
 -    )
@@ -69,7 +91,7 @@
  
  
  def checkpoint_seq(
-@@ -279,13 +289,13 @@             run_function(start, end, functions),
+@@ -279,13 +283,13 @@             run_function(start, end, functions),
              x,
              use_reentrant=use_reentrant,
 -        )

@@ -224,8 +224,8 @@ class Block(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             sr_ratio: int = 1,
             ws: Optional[int] = None,
             device=None,
@@ -316,7 +316,7 @@ class PatchEmbed(msnn.Cell):
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
         self.norm = nn.LayerNorm(embed_dim, **dd)
 
-    def construct(self, x) -> Tuple[torch.Tensor, Size_]:
+    def construct(self, x) -> Tuple[ms.Tensor, Size_]:
         B, C, H, W = x.shape
 
         x = self.proj(x).flatten(2).transpose(1, 2)
@@ -349,7 +349,7 @@ class Twins(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
             block_cls: Any = Block,
             device=None,
             dtype=None,
@@ -429,9 +429,8 @@ class Twins(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -466,7 +465,7 @@ class Twins(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
         Args:
             x: Input image tensor

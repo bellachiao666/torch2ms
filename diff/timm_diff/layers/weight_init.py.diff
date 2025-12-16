@@ -22,14 +22,15 @@
      if mode == 'fan_in':
          denom = fan_in
      elif mode == 'fan_out':
-@@ -125,6 +130,7 @@     variance_scaling_(tensor, mode='fan_in', distribution='truncated_normal')
+@@ -126,7 +131,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def init_weight_vit(
-         module: nn.Module,
+-        module: nn.Module,
++        module: msnn.Cell,
          name: str,
-@@ -134,16 +140,17 @@ ):
+         init_bias: float = 0.02,
+         head_bias: float = 0.,
+@@ -134,34 +139,34 @@ ):
      if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d)):
          if name.startswith(classifier_name):
 -            nn.init.zeros_(module.weight)
@@ -46,11 +47,13 @@
          module.init_weights()
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def init_weight_jax(
-         module: nn.Module,
+-        module: nn.Module,
++        module: msnn.Cell,
          name: str,
-@@ -152,16 +159,16 @@ ):
+         head_bias: float = 0.,
+         classifier_name: str = 'head',
+ ):
      if isinstance(module, nn.Linear):
          if name.startswith(classifier_name):
 -            nn.init.zeros_(module.weight)

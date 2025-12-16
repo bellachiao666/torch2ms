@@ -26,13 +26,13 @@ from typing import Dict, List, Tuple, Union
 
 
 def mix_batch_variable_size(
-        imgs: List[torch.Tensor],
+        imgs: List[ms.Tensor],
         *,
         mixup_alpha: float = 0.8,
         cutmix_alpha: float = 1.0,
         switch_prob: float = 0.5,
         local_shuffle: int = 4,
-) -> Tuple[List[torch.Tensor], List[float], Dict[int, int]]:
+) -> Tuple[List[ms.Tensor], List[float], Dict[int, int]]:
     """Apply Mixup or CutMix on a batch of variable-sized images.
 
     Sorts images by aspect ratio and pairs neighboring samples. Only the mutual
@@ -83,7 +83,7 @@ def mix_batch_variable_size(
 
     odd_one = order[-1] if len(imgs) % 2 else None
 
-    mixed_imgs: List[torch.Tensor] = [None] * len(imgs)
+    mixed_imgs: List[ms.Tensor] = [None] * len(imgs)
     lam_list: List[float] = [1.0] * len(imgs)
 
     for i in range(len(imgs)):
@@ -213,9 +213,9 @@ class NaFlexMixup:
 
     def __call__(
             self,
-            imgs: List[torch.Tensor],
+            imgs: List[ms.Tensor],
             targets: ms.Tensor,
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    ) -> Tuple[List[ms.Tensor], List[ms.Tensor]]:
         """Apply the augmentation and generate matching targets.
 
         Args:

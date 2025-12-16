@@ -46,8 +46,8 @@ class ConvMlp(msnn.Cell):
             kernel_size: int = 7,
             mlp_ratio: float = 1.0,
             drop_rate: float = 0.2,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            conv_layer: Type[nn.Module] = nn.Conv2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            conv_layer: Type[msnn.Cell] = nn.Conv2d,
             device=None,
             dtype=None,
     ) -> None:
@@ -107,9 +107,9 @@ class VGG(msnn.Cell):
             in_chans: int = 3,
             output_stride: int = 32,
             mlp_ratio: float = 1.0,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            conv_layer: Type[nn.Module] = nn.Conv2d,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            conv_layer: Type[msnn.Cell] = nn.Conv2d,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             global_pool: str = 'avg',
             drop_rate: float = 0.,
             device=None,
@@ -141,7 +141,7 @@ class VGG(msnn.Cell):
         prev_chs = in_chans
         net_stride = 1
         pool_layer = nn.MaxPool2d
-        layers: List[nn.Module] = []
+        layers: List[msnn.Cell] = []
         for v in cfg:
             last_idx = len(layers) - 1
             if v == 'M':
@@ -205,9 +205,8 @@ class VGG(msnn.Cell):
         """
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier module.
 
         Returns:
@@ -278,7 +277,7 @@ class VGG(msnn.Cell):
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
 
-def _filter_fn(state_dict: dict) -> Dict[str, torch.Tensor]:
+def _filter_fn(state_dict: dict) -> Dict[str, ms.Tensor]:
     """Convert patch embedding weight from manual patchify + linear proj to conv.
 
     Args:

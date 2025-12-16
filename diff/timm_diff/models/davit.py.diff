@@ -47,7 +47,15 @@
      """ Size-agnostic implementation of 2D image to patch embedding,
          allowing input size to be adjusted during model forward operation
      """
-@@ -91,17 +96,17 @@         )
+@@ -70,7 +75,7 @@             in_chs: int = 3,
+             out_chs: int = 96,
+             stride: int = 4,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+             device=None,
+             dtype=None,
+     ):
+@@ -91,23 +96,23 @@         )
          self.norm = norm_layer(out_chs, **dd)
  
 -    def forward(self, x: Tensor):
@@ -67,6 +75,13 @@
      def __init__(
              self,
              in_chs: int,
+             out_chs: int,
+             kernel_size: int = 3,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+             device=None,
+             dtype=None,
+     ):
 @@ -127,19 +132,19 @@             **dd,
          )
  
@@ -121,6 +136,16 @@
  
      def __init__(
              self,
+@@ -222,8 +227,8 @@             mlp_ratio: float = 4.,
+             qkv_bias: bool = False,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             ffn: bool = True,
+             cpe_act: bool = False,
+             v2: bool = False,
 @@ -243,7 +248,7 @@             qkv_bias=qkv_bias,
              **dd,
          )
@@ -196,6 +221,16 @@
      r""" Windows Block.
      Args:
          dim (int): Number of input channels.
+@@ -384,8 +389,8 @@             mlp_ratio: float = 4.,
+             qkv_bias: bool = True,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             ffn: bool = True,
+             cpe_act: bool = False,
+             device=None,
 @@ -408,7 +413,7 @@             qkv_bias=qkv_bias,
              **dd,
          )
@@ -235,6 +270,16 @@
      def __init__(
              self,
              in_chs: int,
+@@ -479,8 +484,8 @@             mlp_ratio: float = 4.,
+             qkv_bias: bool = True,
+             drop_path_rates: Tuple[float, ...] = (0, 0),
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
+-            norm_layer_cl: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
++            norm_layer_cl: Type[msnn.Cell] = nn.LayerNorm,
+             ffn: bool = True,
+             cpe_act: bool = False,
+             down_kernel_size: int = 2,
 @@ -498,7 +503,7 @@         if downsample:
              self.downsample = Downsample(in_chs, out_chs, kernel_size=down_kernel_size, norm_layer=norm_layer, **dd)
          else:
@@ -303,14 +348,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -693,6 +706,7 @@         for stage in self.stages:
-             stage.set_grad_checkpointing(enable=enable)
+@@ -694,7 +707,7 @@             stage.set_grad_checkpointing(enable=enable)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -703,7 +717,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -703,13 +716,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -318,7 +364,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -765,7 +779,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -765,7 +778,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm_pre = nn.Identity()
@@ -326,7 +379,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -782,7 +796,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -782,7 +795,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x):

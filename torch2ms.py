@@ -5,6 +5,8 @@ torch2ms 主脚本。
 同时生成必要的提示注释、补全 MindSpore 统一导入前缀，并输出转换后的代码与 diff。
 """
 
+from __future__ import annotations
+
 import difflib
 import json
 import os
@@ -945,28 +947,69 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             return cst.parse_expression(f"ms.{suffix}")
         return updated_node
 
+    def _convert_annotation_expr(
+        self, expr: cst.BaseExpression, missing_notes: List[str]
+    ) -> cst.BaseExpression:
+        """
+        递归转换类型标注中的表达式，支持 Optional/Union/Type 等嵌套结构。
+        """
+        full_name = cst_helpers.get_full_name_for_node(expr)
+        if full_name:
+            pt_full_name = self._resolve_pt_full_name(full_name)
+            if pt_full_name:
+                api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(
+                    pt_full_name.split(".")[-1]
+                )
+                if api_conf:
+                    ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
+                    return cst.parse_expression(ms_full_name)
+                missing_notes.append(
+                    f"'{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"
+                )
+
+        if isinstance(expr, cst.Subscript):
+            new_value = self._convert_annotation_expr(expr.value, missing_notes)
+            new_slices = []
+            for sl in expr.slice:
+                if isinstance(sl.slice, cst.Index):
+                    inner = self._convert_annotation_expr(sl.slice.value, missing_notes)
+                    new_slices.append(sl.with_changes(slice=sl.slice.with_changes(value=inner)))
+                else:
+                    new_slices.append(sl)
+            return expr.with_changes(value=new_value, slice=tuple(new_slices))
+
+        if isinstance(expr, cst.Tuple):
+            new_elements = []
+            for elem in expr.elements:
+                if elem.value is None:
+                    new_elements.append(elem)
+                else:
+                    new_elements.append(
+                        elem.with_changes(value=self._convert_annotation_expr(elem.value, missing_notes))
+                    )
+            return expr.with_changes(elements=tuple(new_elements))
+
+        if isinstance(expr, cst.Attribute):
+            return expr.with_changes(value=self._convert_annotation_expr(expr.value, missing_notes))
+
+        return expr
+
     def leave_Annotation(self, original_node: cst.Annotation, updated_node: cst.Annotation) -> cst.Annotation:
         """
         处理类型标注中的 torch.*，优先按映射表替换；缺失时记录提示。
         """
-        full_name = cst_helpers.get_full_name_for_node(updated_node.annotation)
-        pt_full_name = self._resolve_pt_full_name(full_name)
-        if not pt_full_name:
-            return updated_node
+        missing_notes: List[str] = []
+        new_expr = self._convert_annotation_expr(updated_node.annotation, missing_notes)
 
-        api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(
-            pt_full_name.split(".")[-1]
-        )
-        if api_conf:
-            ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
-            new_expr = cst.parse_expression(ms_full_name)
-            return updated_node.with_changes(annotation=new_expr)
+        if missing_notes:
+            seen = set()
+            for note in missing_notes:
+                if note in seen:
+                    continue
+                self._record_func_note(original_node, note)
+                seen.add(note)
 
-        self._record_func_note(
-            original_node,
-            f"类型标注 '{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;",
-        )
-        return updated_node
+        return updated_node.with_changes(annotation=new_expr)
 
     def leave_ClassDef(
         self,

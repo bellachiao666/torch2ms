@@ -34,8 +34,8 @@ class AttentionPoolLatent(msnn.Cell):
             latent_dim: int = None,
             pos_embed: str = '',
             pool_type: str = 'token',
-            norm_layer: Optional[Type[nn.Module]] = None,
-            act_layer: Optional[Type[nn.Module]] = nn.GELU,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
+            act_layer: Optional[Type[msnn.Cell]] = nn.GELU,
             drop: float = 0.0,
             device = None,
             dtype = None
@@ -84,7 +84,7 @@ class AttentionPoolLatent(msnn.Cell):
             trunc_normal_tf_(self.pos_embed, std=self.pos_embed.shape[1] ** -0.5)
         trunc_normal_tf_(self.latent, std=self.latent_dim ** -0.5)
 
-    def construct(self, x, attn_mask: Optional[torch.Tensor] = None):
+    def construct(self, x, attn_mask: Optional[ms.Tensor] = None):
         B, N, C = x.shape
 
         if self.pos_embed is not None:

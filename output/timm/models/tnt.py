@@ -91,8 +91,8 @@ class Block(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             legacy: bool = False,
             device=None,
             dtype=None,
@@ -264,7 +264,7 @@ class TNT(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             first_stride: int = 4,
             legacy: bool = False,
             device=None,
@@ -362,9 +362,8 @@ class TNT(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -385,7 +384,7 @@ class TNT(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

@@ -68,7 +68,7 @@ class MobileOneBlock(msnn.Cell):
             use_act: bool = True,
             use_scale_branch: bool = True,
             num_conv_branches: int = 1,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ) -> None:
@@ -213,7 +213,7 @@ class MobileOneBlock(msnn.Cell):
 
         self.inference_mode = True
 
-    def _get_kernel_bias(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_kernel_bias(self) -> Tuple[ms.Tensor, ms.Tensor]:
         """Method to obtain re-parameterized kernel and bias.
         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L83
 
@@ -250,8 +250,8 @@ class MobileOneBlock(msnn.Cell):
 
     def _fuse_bn_tensor(
             self,
-            branch: Union[nn.Sequential, nn.BatchNorm2d]
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+            branch: Union[msnn.SequentialCell, nn.BatchNorm2d]
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
         """Method to fuse batchnorm layer with preceding conv layer.
         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L95
 
@@ -308,7 +308,7 @@ class ReparamLargeKernelConv(msnn.Cell):
             group_size: int,
             small_kernel: Optional[int] = None,
             use_se: bool = False,
-            act_layer: Optional[nn.Module] = None,
+            act_layer: Optional[msnn.Cell] = None,
             inference_mode: bool = False,
             device=None,
             dtype=None,
@@ -384,7 +384,7 @@ class ReparamLargeKernelConv(msnn.Cell):
         out = self.act(out)
         return out
 
-    def get_kernel_bias(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_kernel_bias(self) -> Tuple[ms.Tensor, ms.Tensor]:
         """Method to obtain re-parameterized kernel and bias.
         Reference: https://github.com/DingXiaoH/RepLKNet-pytorch
 
@@ -426,7 +426,7 @@ class ReparamLargeKernelConv(msnn.Cell):
     def _fuse_bn(
             conv: nn.Conv2d,
             bn: nn.BatchNorm2d
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
         """Method to fuse batchnorm layer with conv layer.
 
         Args:
@@ -450,7 +450,7 @@ class ReparamLargeKernelConv(msnn.Cell):
 def convolutional_stem(
         in_chs: int,
         out_chs: int,
-        act_layer: Type[nn.Module] = nn.GELU,
+        act_layer: Type[msnn.Cell] = nn.GELU,
         inference_mode: bool = False,
         use_scale_branch: bool = True,
         device=None,
@@ -583,7 +583,7 @@ class PatchEmbed(msnn.Cell):
             stride: int,
             in_chs: int,
             embed_dim: int,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             lkc_use_act: bool = False,
             use_se: bool = False,
             inference_mode: bool = False,
@@ -775,7 +775,7 @@ class ConvMlp(msnn.Cell):
             in_chs: int,
             hidden_channels: Optional[int] = None,
             out_chs: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop: float = 0.0,
             device=None,
             dtype=None,
@@ -807,8 +807,7 @@ class ConvMlp(msnn.Cell):
         self.drop = nn.Dropout(drop)
         self.apply(self._init_weights)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module) -> None:
+    def _init_weights(self, m: msnn.Cell) -> None:
         if isinstance(m, nn.Conv2d):
             trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
@@ -947,7 +946,7 @@ class RepMixerBlock(msnn.Cell):
             dim: int,
             kernel_size: int = 3,
             mlp_ratio: float = 4.0,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             proj_drop: float = 0.0,
             drop_path: float = 0.0,
             layer_scale_init_value: float = 1e-5,
@@ -1008,8 +1007,8 @@ class AttentionBlock(msnn.Cell):
             self,
             dim: int,
             mlp_ratio: float = 4.0,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             proj_drop: float = 0.0,
             drop_path: float = 0.0,
             layer_scale_init_value: float = 1e-5,
@@ -1068,11 +1067,11 @@ class FastVitStage(msnn.Cell):
             se_downsample: bool = False,
             down_patch_size: int = 7,
             down_stride: int = 2,
-            pos_emb_layer: Optional[nn.Module] = None,
+            pos_emb_layer: Optional[msnn.Cell] = None,
             kernel_size: int = 3,
             mlp_ratio: float = 4.0,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             proj_drop_rate: float = 0.0,
             drop_path_rate: Union[List[float], float] = 0.0,
             layer_scale_init_value: Optional[float] = 1e-5,
@@ -1182,7 +1181,7 @@ class FastVit(msnn.Cell):
             se_downsamples: Tuple[bool, ...] = (False, False, False, False),
             repmixer_kernel_size: int = 3,
             num_classes: int = 1000,
-            pos_embs: Tuple[Optional[nn.Module], ...] = (None,) * 4,
+            pos_embs: Tuple[Optional[msnn.Cell], ...] = (None,) * 4,
             down_patch_size: int = 7,
             down_stride: int = 2,
             drop_rate: float = 0.0,
@@ -1194,8 +1193,8 @@ class FastVit(msnn.Cell):
             fork_feat: bool = False,
             cls_ratio: float = 2.0,
             global_pool: str = 'avg',
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             inference_mode: bool = False,
             device=None,
             dtype=None,
@@ -1297,8 +1296,7 @@ class FastVit(msnn.Cell):
 
         self.apply(self._init_weights)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module) -> None:
+    def _init_weights(self, m: msnn.Cell) -> None:
         """Init. for classification"""
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=0.02)
@@ -1325,9 +1323,8 @@ class FastVit(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -1342,7 +1339,7 @@ class FastVit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

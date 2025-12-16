@@ -21,8 +21,7 @@ __all__ = ['model_parameters', 'named_apply', 'named_modules', 'named_modules_wi
            'group_with_matcher', 'group_modules', 'group_parameters', 'flatten_modules', 'checkpoint_seq', 'checkpoint']
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def model_parameters(model: nn.Module, exclude_head: bool = False):
+def model_parameters(model: msnn.Cell, exclude_head: bool = False):
     if exclude_head:
         # FIXME this a bit of a quick and dirty hack to skip classifier head params based on ordering
         return [p for p in model.parameters()][:-2]
@@ -30,13 +29,12 @@ def model_parameters(model: nn.Module, exclude_head: bool = False):
         return model.parameters()
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def named_apply(
         fn: Callable,
-        module: nn.Module, name='',
+        module: msnn.Cell, name='',
         depth_first: bool = True,
         include_root: bool = False,
-) -> nn.Module:
+) -> msnn.Cell:
     if not depth_first and include_root:
         fn(module=module, name=name)
     for child_name, child_module in module.named_children():
@@ -47,9 +45,8 @@ def named_apply(
     return module
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def named_modules(
-        module: nn.Module,
+        module: msnn.Cell,
         name: str = '',
         depth_first: bool = True,
         include_root: bool = False,
@@ -64,9 +61,8 @@ def named_modules(
         yield name, module
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def named_modules_with_params(
-        module: nn.Module,
+        module: msnn.Cell,
         name: str = '',
         depth_first: bool = True,
         include_root: bool = False,
@@ -145,9 +141,8 @@ def group_with_matcher(
     return layer_id_to_param
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def group_parameters(
-        module: nn.Module,
+        module: msnn.Cell,
         group_matcher,
         return_values: bool = False,
         reverse: bool = False,
@@ -156,9 +151,8 @@ def group_parameters(
         module.named_parameters(), group_matcher, return_values=return_values, reverse=reverse)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def group_modules(
-        module: nn.Module,
+        module: msnn.Cell,
         group_matcher,
         return_values: bool = False,
         reverse: bool = False,
@@ -168,10 +162,10 @@ def group_modules(
 
 
 def flatten_modules(
-        named_modules: Iterator[Tuple[str, nn.Module]],
+        named_modules: Iterator[Tuple[str, msnn.Cell]],
         depth: int = 1,
         prefix: Union[str, Tuple[str, ...]] = '',
-        module_types: Union[str, Tuple[Type[nn.Module]]] = 'sequential',
+        module_types: Union[str, Tuple[Type[msnn.Cell]]] = 'sequential',
 ):
     prefix_is_tuple = isinstance(prefix, tuple)
     if isinstance(module_types, str):

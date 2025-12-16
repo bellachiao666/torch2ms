@@ -122,8 +122,7 @@ class PatchMerging(msnn.Cell):
 
 
 class ResidualDrop(msnn.Cell):
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def __init__(self, m: nn.Module, drop: float = 0.):
+    def __init__(self, m: msnn.Cell, drop: float = 0.):
         super().__init__()
         self.m = m
         self.drop = drop
@@ -156,7 +155,7 @@ class ConvMlp(msnn.Cell):
 
 
 class CascadedGroupAttention(msnn.Cell):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: Dict[str, ms.Tensor]
 
     r""" Cascaded Group Attention.
 
@@ -224,7 +223,8 @@ class CascadedGroupAttention(msnn.Cell):
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -550,9 +550,8 @@ class EfficientVitMsra(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.linear
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -574,7 +573,7 @@ class EfficientVitMsra(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

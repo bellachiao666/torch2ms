@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import DropPath, calculate_drop_path_rates, NormMlpClassifierHead, ClassifierHead, EffectiveSEModule, \
-@@ -21,7 +26,7 @@ __all__ = ["RDNet"]
+@@ -21,54 +26,56 @@ __all__ = ["RDNet"]
  
  
 -class Block(nn.Module):
@@ -24,36 +24,44 @@
      def __init__(
              self,
              in_chs: int,
-@@ -34,19 +39,20 @@     ):
+             inter_chs: int,
+             out_chs: int,
+-            norm_layer: Type[nn.Module],
+-            act_layer: Type[nn.Module],
++            norm_layer: Type[msnn.Cell],
++            act_layer: Type[msnn.Cell],
+             device=None,
+             dtype=None,
+     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.layers = nn.Sequential(
 +        self.layers = msnn.SequentialCell(
 +            [
-             nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
-             norm_layer(in_chs, **dd),
-             nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
-             act_layer(),
--            nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
--        )
--
--    def forward(self, x):
++            nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
++            norm_layer(in_chs, **dd),
++            nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
++            act_layer(),
 +            nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd)
 +        ])
 +
 +    def construct(self, x):
-         return self.layers(x)
- 
- 
--class BlockESE(nn.Module):
++        return self.layers(x)
++
++
 +class BlockESE(msnn.Cell):
-     def __init__(
-             self,
-             in_chs: int,
-@@ -59,16 +65,17 @@     ):
-         dd = {'device': device, 'dtype': dtype}
-         super().__init__()
--        self.layers = nn.Sequential(
++    def __init__(
++            self,
++            in_chs: int,
++            inter_chs: int,
++            out_chs: int,
++            norm_layer: Type[msnn.Cell],
++            act_layer: Type[msnn.Cell],
++            device=None,
++            dtype=None,
++    ):
++        dd = {'device': device, 'dtype': dtype}
++        super().__init__()
 +        self.layers = msnn.SequentialCell(
 +            [
              nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
@@ -61,6 +69,31 @@
              nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
              act_layer(),
              nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
+-        )
+-
+-    def forward(self, x):
+-        return self.layers(x)
+-
+-
+-class BlockESE(nn.Module):
+-    def __init__(
+-            self,
+-            in_chs: int,
+-            inter_chs: int,
+-            out_chs: int,
+-            norm_layer: Type[nn.Module],
+-            act_layer: Type[nn.Module],
+-            device=None,
+-            dtype=None,
+-    ):
+-        dd = {'device': device, 'dtype': dtype}
+-        super().__init__()
+-        self.layers = nn.Sequential(
+-            nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
+-            norm_layer(in_chs, **dd),
+-            nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
+-            act_layer(),
+-            nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
 -            EffectiveSEModule(out_chs, **dd),
 -        )
 -
@@ -80,6 +113,16 @@
      def __init__(
              self,
              num_input_features: int = 64,
+@@ -94,8 +101,8 @@             block_idx: int = 0,
+             block_type: str = "Block",
+             ls_init_value: float = 1e-6,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+     ):
 @@ -107,7 +114,7 @@         self.block_idx = block_idx
          self.growth_rate = growth_rate
  
@@ -93,7 +136,7 @@
  
 -    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
 -        x = torch.cat(x, 1)
-+    def construct(self, x: List[torch.Tensor]) -> ms.Tensor:
++    def construct(self, x: List[ms.Tensor]) -> ms.Tensor:
 +        x = mint.cat(x, 1)
          x = self.layers(x)
  
@@ -174,14 +217,15 @@
              self.head = NormMlpClassifierHead(
                  self.num_features,
                  num_classes,
-@@ -340,6 +353,7 @@         for s in self.dense_stages:
-             s.grad_checkpointing = enable
+@@ -341,7 +354,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -350,7 +364,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -350,13 +363,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -189,7 +233,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -412,7 +426,7 @@         max_index = stage_ends[max_index]
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -412,7 +425,7 @@         max_index = stage_ends[max_index]
          self.dense_stages = self.dense_stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm_pre = nn.Identity()
@@ -197,7 +248,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -426,7 +440,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -426,7 +439,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -205,7 +256,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -434,12 +448,12 @@ 
+@@ -434,12 +447,12 @@ 
  def _init_weights(module, name=None, head_init_scale=1.0):
      if isinstance(module, nn.Conv2d):
 -        nn.init.kaiming_normal_(module.weight)

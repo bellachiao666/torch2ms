@@ -8,8 +8,6 @@ import logging
 from itertools import islice
 from typing import Collection, Optional
 
-# from torch import nn as nn
-
 from timm.models import group_parameters
 
 
@@ -21,9 +19,8 @@ def _matches_pattern(name: str, patterns: Collection[str]) -> bool:
     return any(fnmatch.fnmatch(name, pattern) for pattern in patterns)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def param_groups_weight_decay(
-        model: nn.Module,
+        model: msnn.Cell,
         weight_decay: float = 1e-5,
         no_weight_decay_list: Collection[str] = (),
         fallback_list: Collection[str] = (),
@@ -105,9 +102,8 @@ def auto_group_layers(model, layers_per_group=12, num_groups=None):
 _layer_map = auto_group_layers  # backward compat
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def param_groups_layer_decay(
-        model: nn.Module,
+        model: msnn.Cell,
         weight_decay: float = 0.05,
         no_weight_decay_list: Collection[str] = (),
         fallback_list: Collection[str] = (),

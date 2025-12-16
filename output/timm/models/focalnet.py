@@ -58,7 +58,7 @@ class FocalModulation(msnn.Cell):
             use_post_norm: bool = False,
             normalize_modulator: bool = False,
             proj_drop: float = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             device=None,
             dtype=None,
     ):
@@ -135,8 +135,8 @@ class FocalNetBlock(msnn.Cell):
             layerscale_value: Optional[float] = 1e-4,
             proj_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             device=None,
             dtype=None,
     ):
@@ -226,7 +226,7 @@ class FocalNetStage(msnn.Cell):
             layerscale_value: Optional[float] = 1e-4,
             proj_drop: float = 0.,
             drop_path: Union[float, List[float]] = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             device=None,
             dtype=None,
     ):
@@ -305,7 +305,7 @@ class Downsample(msnn.Cell):
             out_chs: int,
             stride: int = 4,
             overlap: bool = False,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -362,7 +362,7 @@ class FocalNet(msnn.Cell):
             drop_rate: float = 0.,
             proj_drop_rate: float = 0.,
             drop_path_rate: float = 0.1,
-            norm_layer: Type[nn.Module] = partial(LayerNorm2d, eps=1e-5),
+            norm_layer: Type[msnn.Cell] = partial(LayerNorm2d, eps=1e-5),
             device=None,
             dtype=None,
     ):
@@ -479,9 +479,8 @@ class FocalNet(msnn.Cell):
         for l in self.layers:
             l.set_grad_checkpointing(enable=enable)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -496,7 +495,7 @@ class FocalNet(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

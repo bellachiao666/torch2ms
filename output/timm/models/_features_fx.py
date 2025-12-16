@@ -9,7 +9,6 @@ Using https://pytorch.org/vision/stable/feature_extraction.html
 from typing import Callable, Dict, List, Optional, Union, Tuple, Type
 
 # import torch
-# from torch import nn
 
 from timm.layers import (
     create_feature_extractor,
@@ -45,10 +44,9 @@ class FeatureGraphNet(msnn.Cell):
     """
     return_dict: torch.jit.Final[bool]
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            model: nn.Module,
+            model: msnn.Cell,
             out_indices: Tuple[int, ...],
             out_map: Optional[Dict] = None,
             output_fmt: str = 'NCHW',
@@ -86,10 +84,9 @@ class GraphExtractNet(msnn.Cell):
     """
     return_dict: torch.jit.Final[bool]
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            model: nn.Module,
+            model: msnn.Cell,
             return_nodes: Union[Dict[str, str], List[str]],
             squeeze_out: bool = True,
             return_dict: bool = False,
@@ -99,7 +96,7 @@ class GraphExtractNet(msnn.Cell):
         self.graph_module = create_feature_extractor(model, return_nodes)
         self.return_dict = return_dict
 
-    def construct(self, x) -> Union[List[torch.Tensor], torch.Tensor]:
+    def construct(self, x) -> Union[List[ms.Tensor], ms.Tensor]:
         out = self.graph_module(x)
         if self.return_dict:
             return out

@@ -47,18 +47,18 @@ class BasicBlock(msnn.Cell):
             inplanes: int,
             planes: int,
             stride: int = 1,
-            downsample: Optional[nn.Module] = None,
+            downsample: Optional[msnn.Cell] = None,
             cardinality: int = 1,
             base_width: int = 64,
             reduce_first: int = 1,
             dilation: int = 1,
             first_dilation: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            attn_layer: Optional[Type[nn.Module]] = None,
-            aa_layer: Optional[Type[nn.Module]] = None,
-            drop_block: Optional[Type[nn.Module]] = None,
-            drop_path: Optional[nn.Module] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            attn_layer: Optional[Type[msnn.Cell]] = None,
+            aa_layer: Optional[Type[msnn.Cell]] = None,
+            drop_block: Optional[Type[msnn.Cell]] = None,
+            drop_path: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ) -> None:
@@ -167,18 +167,18 @@ class Bottleneck(msnn.Cell):
             inplanes: int,
             planes: int,
             stride: int = 1,
-            downsample: Optional[nn.Module] = None,
+            downsample: Optional[msnn.Cell] = None,
             cardinality: int = 1,
             base_width: int = 64,
             reduce_first: int = 1,
             dilation: int = 1,
             first_dilation: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            attn_layer: Optional[Type[nn.Module]] = None,
-            aa_layer: Optional[Type[nn.Module]] = None,
-            drop_block: Optional[Type[nn.Module]] = None,
-            drop_path: Optional[nn.Module] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            attn_layer: Optional[Type[msnn.Cell]] = None,
+            aa_layer: Optional[Type[msnn.Cell]] = None,
+            drop_block: Optional[Type[msnn.Cell]] = None,
+            drop_path: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ) -> None:
@@ -275,7 +275,6 @@ class Bottleneck(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def downsample_conv(
         in_channels: int,
         out_channels: int,
@@ -283,10 +282,10 @@ def downsample_conv(
         stride: int = 1,
         dilation: int = 1,
         first_dilation: Optional[int] = None,
-        norm_layer: Optional[Type[nn.Module]] = None,
+        norm_layer: Optional[Type[msnn.Cell]] = None,
         device=None,
         dtype=None,
-) -> nn.Module:
+) -> msnn.Cell:
     dd = {'device': device, 'dtype': dtype}
     norm_layer = norm_layer or nn.BatchNorm2d
     kernel_size = 1 if stride == 1 and dilation == 1 else kernel_size
@@ -308,7 +307,6 @@ def downsample_conv(
     ])
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def downsample_avg(
         in_channels: int,
         out_channels: int,
@@ -316,10 +314,10 @@ def downsample_avg(
         stride: int = 1,
         dilation: int = 1,
         first_dilation: Optional[int] = None,
-        norm_layer: Optional[Type[nn.Module]] = None,
+        norm_layer: Optional[Type[msnn.Cell]] = None,
         device=None,
         dtype=None,
-) -> nn.Module:
+) -> msnn.Cell:
     dd = {'device': device, 'dtype': dtype}
     norm_layer = norm_layer or nn.BatchNorm2d
     avg_stride = stride if dilation == 1 else 1
@@ -365,7 +363,7 @@ def make_blocks(
         device=None,
         dtype=None,
         **kwargs,
-) -> Tuple[List[Tuple[str, nn.Module]], List[Dict[str, Any]]]:
+) -> Tuple[List[Tuple[str, msnn.Cell]], List[Dict[str, Any]]]:
     """Create ResNet stages with specified block configurations.
 
     Args:
@@ -493,7 +491,7 @@ class ResNet(msnn.Cell):
             channels: Optional[Tuple[int, ...]] = (64, 128, 256, 512),
             act_layer: LayerType = nn.ReLU,
             norm_layer: LayerType = nn.BatchNorm2d,
-            aa_layer: Optional[Type[nn.Module]] = None,
+            aa_layer: Optional[Type[msnn.Cell]] = None,
             drop_rate: float = 0.0,
             drop_path_rate: float = 0.,
             drop_block_rate: float = 0.,
@@ -654,7 +652,7 @@ class ResNet(msnn.Cell):
         self.grad_checkpointing = enable
 
     @torch.jit.ignore
-    def get_classifier(self, name_only: bool = False) -> Union[str, nn.Module]:
+    def get_classifier(self, name_only: bool = False) -> Union[str, msnn.Cell]:
         """Get the classifier module.
 
         Args:
@@ -683,7 +681,7 @@ class ResNet(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """Forward features that returns intermediates.
 
         Args:

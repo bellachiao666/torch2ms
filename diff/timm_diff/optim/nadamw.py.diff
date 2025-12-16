@@ -48,6 +48,22 @@
  
                  exp_avgs.append(state['exp_avg'])
                  exp_avg_sqs.append(state['exp_avg_sq'])
+@@ -152,11 +158,11 @@ 
+ 
+ def nadamw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         foreach: Optional[bool] = None,
+         capturable: bool = False,
+         *,
 @@ -181,7 +187,7 @@     if foreach is None:
          try:
              # cannot do foreach if this overload doesn't exist when caution enabled
@@ -56,6 +72,22 @@
          except:
              foreach = False
  
+@@ -209,11 +215,11 @@ 
+ 
+ def _single_tensor_nadamw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         *,
+         beta1: float,
+         beta2: float,
 @@ -248,8 +254,8 @@ 
              # 1 - beta1 ** step can't be captured in a CUDA graph, even if step is a CUDA tensor
              # (incurs "RuntimeError: CUDA error: operation not permitted when stream is capturing")
@@ -66,6 +98,22 @@
  
              step_size = lr / bias_correction1
              step_size_neg = step_size.neg()
+@@ -292,11 +298,11 @@ 
+ 
+ def _multi_tensor_nadamw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         *,
+         beta1: float,
+         beta2: float,
 @@ -317,69 +323,69 @@         ), "If capturable=True, params and state_steps must be CUDA tensors."
  
      if maximize:

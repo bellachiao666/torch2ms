@@ -32,7 +32,7 @@ class SpatialMlp(msnn.Cell):
             in_features: int,
             hidden_features: Optional[int] = None,
             out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop: float = 0.,
             group: int = 8,
             spatial_conv: bool = False,
@@ -139,8 +139,8 @@ class Block(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             group: int = 8,
             attn_disabled: bool = False,
             spatial_conv: bool = False,
@@ -200,7 +200,7 @@ class Visformer(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             attn_stage: str = '111',
             use_pos_embed: bool = True,
             spatial_conv: str = '111',
@@ -208,7 +208,7 @@ class Visformer(msnn.Cell):
             group: int = 8,
             global_pool: str = 'avg',
             conv_init: bool = False,
-            embed_norm: Optional[Type[nn.Module]] = None,
+            embed_norm: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -432,9 +432,8 @@ class Visformer(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):

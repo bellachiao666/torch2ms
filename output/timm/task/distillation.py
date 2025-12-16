@@ -35,8 +35,9 @@ class DistillationTeacher(msnn.Cell):
         dtype: Model dtype (uses float32 if None)
     """
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             model_name: str,
@@ -106,8 +107,8 @@ class DistillationTeacher(msnn.Cell):
     def normalize_input(
             self,
             input: ms.Tensor,
-            student_mean: Optional[torch.Tensor] = None,
-            student_std: Optional[torch.Tensor] = None,
+            student_mean: Optional[ms.Tensor] = None,
+            student_std: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         """Normalize input to match teacher's expected normalization.
 
@@ -173,12 +174,14 @@ class LogitDistillationTask(TrainingTask):
         ... )
     """
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            student_model: nn.Module,
+            student_model: msnn.Cell,
             teacher: DistillationTeacher,
-            criterion: nn.Module,
+            criterion: msnn.Cell,
             loss_type: str = 'kl',
             distill_loss_weight: Optional[float] = None,
             task_loss_weight: Optional[float] = None,
@@ -272,7 +275,7 @@ class LogitDistillationTask(TrainingTask):
             self,
             input: ms.Tensor,
             target: ms.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> Dict[str, ms.Tensor]:
         """Forward pass with logit distillation.
 
         Args:
@@ -328,17 +331,16 @@ class FeatureDistillationTrainableModule(msnn.Cell):
         Tuple of (logits, projected_features)
     """
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            student_model: nn.Module,
-            projection: Optional[nn.Module] = None,
+            student_model: msnn.Cell,
+            projection: Optional[msnn.Cell] = None,
     ):
         super().__init__()
         self.student = student_model
         self.projection = projection
 
-    def construct(self, input: ms.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def construct(self, input: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
         """Forward pass through student and projection.
 
         Args:
@@ -398,12 +400,14 @@ class FeatureDistillationTask(TrainingTask):
         ... )
     """
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            student_model: nn.Module,
+            student_model: msnn.Cell,
             teacher: DistillationTeacher,
-            criterion: nn.Module,
+            criterion: msnn.Cell,
             distill_loss_weight: Optional[float] = None,
             task_loss_weight: Optional[float] = None,
             student_feature_dim: Optional[int] = None,
@@ -482,9 +486,8 @@ class FeatureDistillationTask(TrainingTask):
                 f"student_dim={student_feature_dim}, teacher_dim={teacher_feature_dim}"
             )
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @staticmethod
-    def _detect_feature_dim(model: nn.Module) -> int:
+    def _detect_feature_dim(model: msnn.Cell) -> int:
         """Auto-detect feature dimension from model.
 
         Tries head_hidden_size first (pre-logits dimension), then num_features.
@@ -534,7 +537,7 @@ class FeatureDistillationTask(TrainingTask):
             self,
             input: ms.Tensor,
             target: ms.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> Dict[str, ms.Tensor]:
         """Forward pass with feature distillation.
 
         Args:

@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
  from timm.layers import create_classifier, ConvNormAct
-@@ -17,55 +22,57 @@ __all__ = ['InceptionV4']
+@@ -17,77 +22,79 @@ __all__ = ['InceptionV4']
  
  
 -class Mixed3a(nn.Module):
@@ -32,7 +32,7 @@
 +class Mixed3a(msnn.Cell):
 +    def __init__(
 +            self,
-+            conv_block: Type[nn.Module] = ConvNormAct,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
 +            device=None,
 +            dtype=None,
 +    ):
@@ -67,7 +67,7 @@
 +class Mixed4a(msnn.Cell):
 +    def __init__(
 +            self,
-+            conv_block: Type[nn.Module] = ConvNormAct,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
 +            device=None,
 +            dtype=None,
 +    ):
@@ -102,15 +102,21 @@
 -
 -
 -class Mixed5a(nn.Module):
+-    def __init__(
+-            self,
+-            conv_block: Type[nn.Module] = ConvNormAct,
 +        out = mint.cat((x0, x1), 1)
 +        return out
 +
 +
 +class Mixed5a(msnn.Cell):
-     def __init__(
-             self,
-             conv_block: Type[nn.Module] = ConvNormAct,
-@@ -75,16 +82,16 @@         dd = {'device': device, 'dtype': dtype}
++    def __init__(
++            self,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
+             device=None,
+             dtype=None,
+     ):
+         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.conv = conv_block(192, 192, kernel_size=3, stride=2, **dd)
 -        self.maxpool = nn.MaxPool2d(3, stride=2)
@@ -126,15 +132,21 @@
 -
 -
 -class InceptionA(nn.Module):
+-    def __init__(
+-            self,
+-            conv_block: Type[nn.Module] = ConvNormAct,
 +        out = mint.cat((x0, x1), 1)
 +        return out
 +
 +
 +class InceptionA(msnn.Cell):
-     def __init__(
-             self,
-             conv_block: Type[nn.Module] = ConvNormAct,
-@@ -95,32 +102,35 @@         super().__init__()
++    def __init__(
++            self,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
+             device=None,
+             dtype=None,
+     ):
+@@ -95,35 +102,38 @@         super().__init__()
          self.branch0 = conv_block(384, 96, kernel_size=1, stride=1, **dd)
  
 -        self.branch1 = nn.Sequential(
@@ -177,15 +189,21 @@
 -
 -
 -class ReductionA(nn.Module):
+-    def __init__(
+-            self,
+-            conv_block: Type[nn.Module] = ConvNormAct,
 +        out = mint.cat((x0, x1, x2, x3), 1)
 +        return out
 +
 +
 +class ReductionA(msnn.Cell):
-     def __init__(
-             self,
-             conv_block: Type[nn.Module] = ConvNormAct,
-@@ -131,23 +141,24 @@         super().__init__()
++    def __init__(
++            self,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
+             device=None,
+             dtype=None,
+     ):
+@@ -131,26 +141,27 @@         super().__init__()
          self.branch0 = conv_block(384, 384, kernel_size=3, stride=2, **dd)
  
 -        self.branch1 = nn.Sequential(
@@ -212,15 +230,21 @@
 -
 -
 -class InceptionB(nn.Module):
+-    def __init__(
+-            self,
+-            conv_block: Type[nn.Module] = ConvNormAct,
 +        out = mint.cat((x0, x1, x2), 1)
 +        return out
 +
 +
 +class InceptionB(msnn.Cell):
-     def __init__(
-             self,
-             conv_block: Type[nn.Module] = ConvNormAct,
-@@ -158,67 +169,72 @@         super().__init__()
++    def __init__(
++            self,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
+             device=None,
+             dtype=None,
+     ):
+@@ -158,70 +169,75 @@         super().__init__()
          self.branch0 = conv_block(1024, 384, kernel_size=1, stride=1, **dd)
  
 -        self.branch1 = nn.Sequential(
@@ -283,7 +307,7 @@
 +class ReductionB(msnn.Cell):
 +    def __init__(
 +            self,
-+            conv_block: Type[nn.Module] = ConvNormAct,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
 +            device=None,
 +            dtype=None,
 +    ):
@@ -323,14 +347,20 @@
 -
 -
 -class InceptionC(nn.Module):
+-    def __init__(
+-            self,
+-            conv_block: Type[nn.Module] = ConvNormAct,
 +        out = mint.cat((x0, x1, x2), 1)
 +        return out
 +
 +
 +class InceptionC(msnn.Cell):
-     def __init__(
-             self,
-             conv_block: Type[nn.Module] = ConvNormAct,
++    def __init__(
++            self,
++            conv_block: Type[msnn.Cell] = ConvNormAct,
+             device=None,
+             dtype=None,
+     ):
 @@ -240,33 +256,34 @@         self.branch2_3a = conv_block(512, 256, kernel_size=(1, 3), stride=1, padding=(0, 1), **dd)
          self.branch2_3b = conv_block(512, 256, kernel_size=(3, 1), stride=1, padding=(1, 0), **dd)
  
@@ -387,14 +417,15 @@
          self.feature_info = [
              dict(num_chs=64, reduction=2, module='features.2'),
              dict(num_chs=160, reduction=4, module='features.3'),
-@@ -334,6 +353,7 @@     def set_grad_checkpointing(self, enable=True):
-         assert not enable, 'gradient checkpointing not supported'
+@@ -335,7 +354,7 @@         assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.last_linear
-@@ -345,7 +365,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+@@ -345,13 +364,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -402,7 +433,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -411,7 +431,7 @@         x = self.head_drop(x)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -411,7 +430,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.last_linear(x)
  
 -    def forward(self, x):

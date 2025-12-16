@@ -32,10 +32,10 @@ class SeparableConvNormAct(msnn.Cell):
             bias: bool = False,
             channel_multiplier: float = 1.0,
             pw_kernel_size: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             apply_act: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):

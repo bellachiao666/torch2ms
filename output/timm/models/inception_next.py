@@ -74,8 +74,8 @@ class ConvMlp(msnn.Cell):
             in_features: int,
             hidden_features: Optional[int] = None,
             out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             bias: bool = True,
             drop: float = 0.,
             device=None,
@@ -112,8 +112,8 @@ class MlpClassifierHead(msnn.Cell):
             num_classes: int = 1000,
             pool_type: str = 'avg',
             mlp_ratio: float = 3,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
             drop: float = 0.,
             bias: bool = True,
             device=None,
@@ -162,11 +162,11 @@ class MetaNeXtBlock(msnn.Cell):
             self,
             dim: int,
             dilation: int = 1,
-            token_mixer: Type[nn.Module] = InceptionDWConv2d,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            mlp_layer: Type[nn.Module] = ConvMlp,
+            token_mixer: Type[msnn.Cell] = InceptionDWConv2d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            mlp_layer: Type[msnn.Cell] = ConvMlp,
             mlp_ratio: float = 4,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             ls_init_value: float = 1e-6,
             drop_path: float = 0.,
             device=None,
@@ -201,9 +201,9 @@ class MetaNeXtStage(msnn.Cell):
             dilation: Tuple[int, int] = (1, 1),
             drop_path_rates: Optional[List[float]] = None,
             ls_init_value: float = 1.0,
-            token_mixer: Type[nn.Module] = InceptionDWConv2d,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            token_mixer: Type[msnn.Cell] = InceptionDWConv2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             mlp_ratio: float = 4,
             device=None,
             dtype=None,
@@ -280,9 +280,9 @@ class MetaNeXt(msnn.Cell):
             output_stride: int = 32,
             depths: Tuple[int, ...] = (3, 3, 9, 3),
             dims: Tuple[int, ...] = (96, 192, 384, 768),
-            token_mixers: Union[Type[nn.Module], List[Type[nn.Module]]] = InceptionDWConv2d,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.GELU,
+            token_mixers: Union[Type[msnn.Cell], List[Type[msnn.Cell]]] = InceptionDWConv2d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             mlp_ratios: Union[int, Tuple[int, ...]] = (4, 4, 4, 3),
             drop_rate: float = 0.,
             drop_path_rate: float = 0.,
@@ -359,9 +359,8 @@ class MetaNeXt(msnn.Cell):
             ]
         )
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc2
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -385,7 +384,7 @@ class MetaNeXt(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

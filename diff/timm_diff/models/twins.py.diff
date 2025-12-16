@@ -82,6 +82,16 @@
  
      def __init__(
              self,
+@@ -219,8 +224,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             sr_ratio: int = 1,
+             ws: Optional[int] = None,
+             device=None,
 @@ -235,7 +240,7 @@             self.attn = GlobalSubSampleAttn(dim, num_heads, attn_drop, proj_drop, sr_ratio, **dd)
          else:
              self.attn = LocallyGroupedAttn(dim, num_heads, attn_drop, proj_drop, ws, **dd)
@@ -138,7 +148,7 @@
          self.norm = nn.LayerNorm(embed_dim, **dd)
  
 -    def forward(self, x) -> Tuple[torch.Tensor, Size_]:
-+    def construct(self, x) -> Tuple[torch.Tensor, Size_]:
++    def construct(self, x) -> Tuple[ms.Tensor, Size_]:
          B, C, H, W = x.shape
  
          x = self.proj(x).flatten(2).transpose(1, 2)
@@ -150,6 +160,14 @@
      """ Twins Vision Transformer (Revisiting Spatial Attention)
  
      Adapted from PVT (PyramidVisionTransformer) class at https://github.com/whai362/PVT.git
+@@ -343,7 +349,7 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+             block_cls: Any = Block,
+             device=None,
+             dtype=None,
 @@ -359,21 +365,21 @@ 
          img_size = to_2tuple(img_size)
          prev_chs = in_chans
@@ -191,14 +209,15 @@
  
          # init weights
          self.apply(self._init_weights)
-@@ -423,6 +429,7 @@     def set_grad_checkpointing(self, enable=True):
-         assert not enable, 'gradient checkpointing not supported'
+@@ -424,7 +430,7 @@         assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -434,16 +441,16 @@             self.global_pool = global_pool
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -434,16 +440,16 @@             self.global_pool = global_pool
          device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
 -        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -218,7 +237,7 @@
          elif isinstance(m, nn.Conv2d):
              fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
              fan_out //= m.groups
-@@ -453,7 +460,7 @@ 
+@@ -453,13 +459,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -226,7 +245,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -517,7 +524,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+         Args:
+             x: Input image tensor
+@@ -517,7 +523,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          # FIXME add block pruning
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -234,7 +260,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -543,7 +550,7 @@         x = self.head_drop(x)
+@@ -543,7 +549,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

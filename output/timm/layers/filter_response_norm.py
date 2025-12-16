@@ -63,7 +63,7 @@ class FilterResponseNormAct2d(msnn.Cell):
             self,
             num_features: int,
             apply_act: bool = True,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             inplace: Optional[bool] = None,
             rms: bool = True,
             eps: float = 1e-5,

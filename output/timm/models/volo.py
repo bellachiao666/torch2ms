@@ -136,8 +136,8 @@ class Outlooker(msnn.Cell):
             mlp_ratio: float = 3.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             qkv_bias: bool = False,
             device=None,
             dtype=None,
@@ -274,8 +274,8 @@ class Transformer(msnn.Cell):
             qkv_bias: bool = False,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -393,8 +393,8 @@ class ClassBlock(msnn.Cell):
             drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -451,8 +451,7 @@ class ClassBlock(msnn.Cell):
         return mint.cat([cls_embed, x[:, 1:]], dim = 1)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def get_block(block_type: str, **kwargs: Any) -> nn.Module:
+def get_block(block_type: str, **kwargs: Any) -> msnn.Cell:
     """Get block based on type.
 
     Args:
@@ -738,7 +737,7 @@ class VOLO(msnn.Cell):
             pos_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             post_layers: Optional[Tuple[str, ...]] = ('ca', 'ca'),
             use_aux_head: bool = True,
             use_mix_token: bool = False,
@@ -885,8 +884,7 @@ class VOLO(msnn.Cell):
         trunc_normal_(self.pos_embed, std=.02)
         self.apply(self._init_weights)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module) -> None:
+    def _init_weights(self, m: msnn.Cell) -> None:
         """Initialize weights for modules.
 
         Args:
@@ -938,9 +936,8 @@ class VOLO(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get classifier module.
 
         Returns:
@@ -1008,7 +1005,7 @@ class VOLO(msnn.Cell):
                 x = block(x)
         return x
 
-    def forward_train(self, x: ms.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, Tuple[int, int, int, int]]]:
+    def forward_train(self, x: ms.Tensor) -> Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor, Tuple[int, int, int, int]]]:
         """Forward pass for training with mix token support.
 
         Args:
@@ -1077,7 +1074,7 @@ class VOLO(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

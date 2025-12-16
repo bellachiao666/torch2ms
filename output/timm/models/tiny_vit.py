@@ -71,7 +71,7 @@ class PatchEmbed(msnn.Cell):
             self,
             in_chs: int,
             out_chs: int,
-            act_layer: Type[nn.Module],
+            act_layer: Type[msnn.Cell],
             device=None,
             dtype=None,
     ):
@@ -95,7 +95,7 @@ class MBConv(msnn.Cell):
             in_chs: int,
             out_chs: int,
             expand_ratio: float,
-            act_layer: Type[nn.Module],
+            act_layer: Type[msnn.Cell],
             drop_path: float,
             device=None,
             dtype=None,
@@ -129,7 +129,7 @@ class PatchMerging(msnn.Cell):
             self,
             dim: int,
             out_dim: int,
-            act_layer: Type[nn.Module],
+            act_layer: Type[msnn.Cell],
             device=None,
             dtype=None,
     ):
@@ -155,7 +155,7 @@ class ConvLayer(msnn.Cell):
             self,
             dim: int,
             depth: int,
-            act_layer: Type[nn.Module],
+            act_layer: Type[msnn.Cell],
             drop_path: Union[float, List[float]] = 0.,
             conv_expand_ratio: float = 4.,
             device=None,
@@ -190,8 +190,8 @@ class NormMlp(msnn.Cell):
             in_features: int,
             hidden_features: Optional[int] = None,
             out_features: Optional[int] = None,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop: float = 0.,
             device=None,
             dtype=None,
@@ -219,7 +219,7 @@ class NormMlp(msnn.Cell):
 
 class Attention(msnn.Cell):
     fused_attn: torch.jit.Final[bool]
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: Dict[str, ms.Tensor]
 
     def __init__(
             self,
@@ -271,7 +271,8 @@ class Attention(msnn.Cell):
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -331,7 +332,7 @@ class TinyVitBlock(msnn.Cell):
             drop: float = 0.,
             drop_path: float = 0.,
             local_conv_size: int = 3,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -444,9 +445,9 @@ class TinyVitStage(msnn.Cell):
             mlp_ratio: float = 4.,
             drop: float = 0.,
             drop_path: Union[float, List[float]] = 0.,
-            downsample: Optional[Type[nn.Module]] = None,
+            downsample: Optional[Type[msnn.Cell]] = None,
             local_conv_size: int = 3,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -511,7 +512,7 @@ class TinyVit(msnn.Cell):
             use_checkpoint: bool = False,
             mbconv_expand_ratio: float = 4.0,
             local_conv_size: int = 3,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -615,9 +616,8 @@ class TinyVit(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -632,7 +632,7 @@ class TinyVit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

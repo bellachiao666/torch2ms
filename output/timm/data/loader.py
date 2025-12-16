@@ -83,8 +83,12 @@ def adapt_to_chs(x, n):
 
 class PrefetchLoader:
 
-    # 类型标注 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.utils.data' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.utils' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             loader: torch.utils.data.DataLoader,
@@ -203,8 +207,9 @@ def _worker_init(worker_id, worker_seeding='all'):
             np.random.seed(worker_info.seed % (2 ** 32 - 1))
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_loader(
         dataset: Union[ImageDataset, IterableImageDataset],
         input_size: Union[int, Tuple[int, int], Tuple[int, int, int]],

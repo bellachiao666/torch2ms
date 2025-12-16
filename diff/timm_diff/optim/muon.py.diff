@@ -14,10 +14,11 @@
  
  from ._types import ParamsT
  from .adamw import adamw
-@@ -104,15 +109,16 @@     return eps * (din / dout) ** 0.5
+@@ -104,15 +109,17 @@     return eps * (din / dout) ** 0.5
  
  
-+# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def zeropower_via_newtonschulz(
 -        G: torch.Tensor,
 +        G: ms.Tensor,
@@ -33,7 +34,7 @@
      """Newton-Schulz quintic iteration to compute the zeroth power / orthogonalization of gradient.
  
      Supports batched operation over leading dimensions.
-@@ -164,9 +170,9 @@ 
+@@ -164,9 +171,9 @@ 
      # Pre-allocate
      X = X.contiguous()
 -    A = torch.empty((*X.shape[:-1], X.size(-2)), device=X.device, dtype=X.dtype)
@@ -45,21 +46,23 @@
  
      # Perform Newton-Schulz iterations
      for a, b, c in coeff_sequence:
-@@ -181,6 +187,7 @@     return X
+@@ -181,6 +188,8 @@     return X
  
  
-+# 类型标注 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def get_lr_scale(
          param_shape: torch.Size,
          adjust_lr_fn: str = "match_rms_adamw",
-@@ -210,6 +217,7 @@         assert False, f'Invalid scaling function "{adjust_lr_fn}" for Muon'
+@@ -210,6 +219,8 @@         assert False, f'Invalid scaling function "{adjust_lr_fn}" for Muon'
  
  
-+# 类型标注 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def get_adamuon_lr_scale(
          param_shape: torch.Size,
          adjust_lr_fn: str = "match_rms_adamw",
-@@ -238,7 +246,7 @@ 
+@@ -238,7 +249,7 @@ 
  
  def _is_suitable_for_muon(
 -        param: torch.Tensor,
@@ -67,22 +70,84 @@
          min_dim_size: int = 4,
          max_aspect_ratio: float = 128.,
          return_reason: bool = False,
-@@ -310,7 +318,7 @@ 
+@@ -309,10 +320,12 @@     return (True, "ok") if return_reason else True
  
+ 
++# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def reshape_for_muon(
 -        tensor: torch.Tensor,
 +        tensor: ms.Tensor,
          mode: str = "flatten",
- ) -> Tuple[torch.Tensor, torch.Size]:
+-) -> Tuple[torch.Tensor, torch.Size]:
++) -> Tuple[ms.Tensor, torch.Size]:
      """Reshape high-dimensional tensor for Muon processing.
-@@ -618,6 +626,7 @@         param.add_(update_adaptive, alpha=-lr * scale)
+ 
+     Args:
+@@ -345,9 +358,9 @@ 
+ 
+ def muon(
+-        params: List[torch.Tensor],
+-        grads: List[torch.Tensor],
+-        momentum_bufs: List[torch.Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        momentum_bufs: List[ms.Tensor],
+         *,
+         lr: float,
+         weight_decay: float,
+@@ -383,11 +396,11 @@ 
+ 
+ def adamuon(
+-        params: List[torch.Tensor],
+-        grads: List[torch.Tensor],
+-        momentum_bufs: List[torch.Tensor],
+-        exp_avg_sqs: List[torch.Tensor],
+-        state_steps: List[torch.Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        momentum_bufs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         *,
+         lr: float,
+         weight_decay: float,
+@@ -434,9 +447,9 @@ 
+ 
+ def _single_tensor_muon(
+-        params: List[torch.Tensor],
+-        grads: List[torch.Tensor],
+-        momentum_bufs: List[torch.Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        momentum_bufs: List[ms.Tensor],
+         *,
+         lr: float,
+         weight_decay: float,
+@@ -503,11 +516,11 @@ 
+ 
+ def _single_tensor_adamuon(
+-        params: List[torch.Tensor],
+-        grads: List[torch.Tensor],
+-        momentum_bufs: List[torch.Tensor],
+-        exp_avg_sqs: List[torch.Tensor],
+-        state_steps: List[torch.Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        momentum_bufs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         *,
+         lr: float,
+         weight_decay: float,
+@@ -618,6 +631,7 @@         param.add_(update_adaptive, alpha=-lr * scale)
  
  
 +# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class Muon(torch.optim.Optimizer):
      """Muon - MomentUm Orthogonalized by Newton-schulz
  
-@@ -808,14 +817,14 @@ 
+@@ -808,14 +822,14 @@ 
                      # State initialization for Muon/AdaMuon
                      if "momentum_buffer" not in state:
 -                        state["momentum_buffer"] = torch.zeros_like(p, memory_format=torch.preserve_format)
@@ -99,7 +164,7 @@
                          muon_exp_avg_sqs.append(state["exp_avg_sq"])
                          muon_state_steps.append(state["step"])
                  else:
-@@ -826,9 +835,9 @@ 
+@@ -826,9 +840,9 @@ 
                      # State initialization for AdamW
                      if "step" not in state:
 -                        state["step"] = torch.tensor(0.)

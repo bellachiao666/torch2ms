@@ -48,6 +48,20 @@
      # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
      # with slight modifications to add CA and LayerScale
      def __init__(
+@@ -90,10 +95,10 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+-            attn_block: Type[nn.Module] = ClassAttn,
+-            mlp_block: Type[nn.Module] = Mlp,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
++            attn_block: Type[msnn.Cell] = ClassAttn,
++            mlp_block: Type[msnn.Cell] = Mlp,
+             init_values: float = 1e-4,
+             device=None,
+             dtype=None,
 @@ -109,7 +114,7 @@             proj_drop=proj_drop,
              **dd,
          )
@@ -95,6 +109,20 @@
      # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
      # with slight modifications to add layerScale
      def __init__(
+@@ -193,10 +198,10 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+-            attn_block: Type[nn.Module] = TalkingHeadAttn,
+-            mlp_block: Type[nn.Module] = Mlp,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
++            attn_block: Type[msnn.Cell] = TalkingHeadAttn,
++            mlp_block: Type[msnn.Cell] = Mlp,
+             init_values: float = 1e-4,
+             device=None,
+             dtype=None,
 @@ -212,7 +217,7 @@             proj_drop=proj_drop,
              **dd,
          )
@@ -124,6 +152,31 @@
      # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
      # with slight modifications to adapt to our cait models
      def __init__(
+@@ -251,16 +256,16 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            block_layers: Type[nn.Module] = LayerScaleBlock,
+-            block_layers_token: Type[nn.Module] = LayerScaleBlockClassAttn,
+-            patch_layer: Type[nn.Module] = PatchEmbed,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            attn_block: Type[nn.Module] = TalkingHeadAttn,
+-            mlp_block: Type[nn.Module] = Mlp,
++            block_layers: Type[msnn.Cell] = LayerScaleBlock,
++            block_layers_token: Type[msnn.Cell] = LayerScaleBlockClassAttn,
++            patch_layer: Type[msnn.Cell] = PatchEmbed,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            attn_block: Type[msnn.Cell] = TalkingHeadAttn,
++            mlp_block: Type[msnn.Cell] = Mlp,
+             init_values: float = 1e-4,
+-            attn_block_token_only: Type[nn.Module] = ClassAttn,
+-            mlp_block_token_only: Type[nn.Module] = Mlp,
++            attn_block_token_only: Type[msnn.Cell] = ClassAttn,
++            mlp_block_token_only: Type[msnn.Cell] = Mlp,
+             depth_token_only: int = 2,
+             mlp_ratio_token_only: float = 4.0,
+             device=None,
 @@ -285,12 +290,13 @@         num_patches = self.patch_embed.num_patches
          r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
  
@@ -175,14 +228,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -363,6 +370,7 @@                 return float('inf')
-         return _matcher
+@@ -364,7 +371,7 @@         return _matcher
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -372,11 +380,11 @@         if global_pool is not None:
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -372,17 +379,17 @@         if global_pool is not None:
              assert global_pool in ('', 'token', 'avg')
              self.global_pool = global_pool
 -        self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
@@ -195,7 +249,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -430,7 +438,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -430,7 +437,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
          for i, blk in enumerate(self.blocks_token_only):
              cls_tokens = blk(x, cls_tokens)
 -        x = torch.cat((cls_tokens, x), dim=1)
@@ -203,7 +264,7 @@
          x = self.norm(x)
  
          return x, intermediates
-@@ -446,9 +454,9 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -446,9 +453,9 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -214,7 +275,7 @@
              self.reset_classifier(0, '')
          return take_indices
  
-@@ -463,7 +471,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
+@@ -463,7 +470,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
          for i, blk in enumerate(self.blocks_token_only):
              cls_tokens = blk(x, cls_tokens)
 -        x = torch.cat((cls_tokens, x), dim=1)
@@ -222,7 +283,7 @@
          x = self.norm(x)
          return x
  
-@@ -473,7 +481,7 @@         x = self.head_drop(x)
+@@ -473,7 +480,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

@@ -18,7 +18,7 @@
  @torch.fx.wrap
  @register_notrace_function
 -def maybe_add_mask(scores: torch.Tensor, attn_mask: Optional[torch.Tensor] = None):
-+def maybe_add_mask(scores: ms.Tensor, attn_mask: Optional[torch.Tensor] = None):
++def maybe_add_mask(scores: ms.Tensor, attn_mask: Optional[ms.Tensor] = None):
      return scores if attn_mask is None else scores + attn_mask
  
  
@@ -27,6 +27,14 @@
      """Standard Multi-head Self Attention module with QKV projection.
  
      This module implements the standard multi-head attention mechanism used in transformers.
+@@ -37,7 +42,7 @@             proj_bias: bool = True,
+             attn_drop: float = 0.,
+             proj_drop: float = 0.,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ) -> None:
 @@ -73,18 +78,18 @@         self.fused_attn = use_fused_attn()
  
          self.qkv = nn.Linear(dim, self.attn_dim * 3, bias=qkv_bias, **dd)
@@ -43,11 +51,12 @@
 -    def forward(
 -            self,
 -            x: torch.Tensor,
+-            attn_mask: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
 +    def construct(
 +            self,
 +            x: ms.Tensor,
-             attn_mask: Optional[torch.Tensor] = None,
--    ) -> torch.Tensor:
++            attn_mask: Optional[ms.Tensor] = None,
 +    ) -> ms.Tensor:
          B, N, C = x.shape
          qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
@@ -68,7 +77,15 @@
      """ A Self Attention module with ROPE support.
  
      Includes options for:
-@@ -186,14 +191,14 @@             self.k_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
+@@ -132,7 +137,7 @@             attn_drop: float = 0.,
+             proj_drop: float = 0.,
+             attn_head_dim: Optional[int] = None,
+-            norm_layer: Type[nn.Module] = None,
++            norm_layer: Type[msnn.Cell] = None,
+             qk_norm: bool = False,
+             scale_norm: bool = False,
+             proj_bias: bool = True,
+@@ -186,18 +191,18 @@             self.k_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
              self.v_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
  
 -        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else nn.Identity()
@@ -85,7 +102,13 @@
 +    def construct(
              self,
              x,
-             rope: Optional[torch.Tensor] = None,
+-            rope: Optional[torch.Tensor] = None,
+-            attn_mask: Optional[torch.Tensor] = None,
++            rope: Optional[ms.Tensor] = None,
++            attn_mask: Optional[ms.Tensor] = None,
+     ):
+         """Forward pass for the attention module.
+ 
 @@ -225,15 +230,15 @@         if rope is not None:
              npt = self.num_prefix_tokens
              half = getattr(self, 'rotate_half', False)

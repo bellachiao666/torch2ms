@@ -57,7 +57,7 @@
  
 -class FastAdaptiveAvgPool(nn.Module):
 +class FastAdaptiveAvgPool(msnn.Cell):
-+    # 类型标注 'torch.nn.functional' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.nn.functional' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(self, flatten: bool = False, input_fmt: F = 'NCHW'):
          super().__init__()
          self.flatten = flatten

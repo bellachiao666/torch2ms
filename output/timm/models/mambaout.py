@@ -34,8 +34,8 @@ class Stem(msnn.Cell):
             in_chs: int = 3,
             out_chs: int = 96,
             mid_norm: bool = True,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -80,7 +80,7 @@ class DownsampleNormFirst(msnn.Cell):
             self,
             in_chs: int = 96,
             out_chs: int = 198,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -110,7 +110,7 @@ class Downsample(msnn.Cell):
             self,
             in_chs: int = 96,
             out_chs: int = 198,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -143,9 +143,9 @@ class MlpHead(msnn.Cell):
             in_features: int,
             num_classes: int = 1000,
             pool_type: str = 'avg',
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             mlp_ratio: Optional[int] = 4,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             drop_rate: float = 0.,
             bias: bool = True,
             device=None,
@@ -215,8 +215,8 @@ class GatedConvBlock(msnn.Cell):
             kernel_size: int = 7,
             conv_ratio: float = 1.0,
             ls_init_value: Optional[float] = None,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop_path: float = 0.,
             device=None,
             dtype=None,
@@ -268,8 +268,8 @@ class MambaOutStage(msnn.Cell):
             conv_ratio: float = 1.0,
             downsample: str = '',
             ls_init_value: Optional[float] = None,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop_path: float = 0.,
             device=None,
             dtype=None,
@@ -337,8 +337,8 @@ class MambaOut(msnn.Cell):
             global_pool: str = 'avg',
             depths: Tuple[int, ...] = (3, 3, 9, 3),
             dims: Tuple[int, ...] = (96, 192, 384, 576),
-            norm_layer: Type[nn.Module] = LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             conv_ratio: float = 1.0,
             expansion_ratio: float = 8/3,
             kernel_size: int = 7,
@@ -450,9 +450,8 @@ class MambaOut(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -467,7 +466,7 @@ class MambaOut(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

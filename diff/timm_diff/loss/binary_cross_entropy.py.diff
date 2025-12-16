@@ -21,7 +21,18 @@
      """ BCE with optional one-hot from dense targets, label smoothing, thresholding
      NOTE for experiments comparing CE to BCE /w label smoothing, may remove
      """
-@@ -26,7 +30,7 @@         assert 0. <= smoothing < 1.0
+@@ -17,16 +21,16 @@             self,
+             smoothing=0.1,
+             target_threshold: Optional[float] = None,
+-            weight: Optional[torch.Tensor] = None,
++            weight: Optional[ms.Tensor] = None,
+             reduction: str = 'mean',
+             sum_classes: bool = False,
+-            pos_weight: Optional[Union[torch.Tensor, float]] = None,
++            pos_weight: Optional[Union[ms.Tensor, float]] = None,
+     ):
+         super(BinaryCrossEntropy, self).__init__()
+         assert 0. <= smoothing < 1.0
          if pos_weight is not None:
              if not isinstance(pos_weight, torch.Tensor):
 -                pos_weight = torch.tensor(pos_weight)

@@ -296,7 +296,7 @@ def create_stem(
         preact_feature: bool = True,
         device=None,
         dtype=None,
-) -> Tuple[nn.Sequential, int, Dict[str, Any]]:
+) -> Tuple[msnn.SequentialCell, int, Dict[str, Any]]:
     """Create stem module for NFNet models.
 
     Args:
@@ -546,9 +546,8 @@ class NormFreeNet(msnn.Cell):
         """Enable or disable gradient checkpointing."""
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.head.fc
 

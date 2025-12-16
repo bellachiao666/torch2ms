@@ -157,7 +157,7 @@
          self.permutation = _zigzag_permutation(kernel_size, kernel_size)
  
 -    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-+    def construct(self, x: ms.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
++    def construct(self, x: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
          b, c, h, w = x.shape
          # Extract non-overlapping k x k patches
          x = x.reshape(b, c, h // self.k, self.k, w // self.k, self.k)  # (B, C, H//k, k, W//k, k)
@@ -305,7 +305,7 @@
          dp_rates = []
          for depth, t_depth in zip(depths, transformer_depths):
              dp_rates += [next(dp_iter) for _ in range(depth - t_depth)]
-@@ -577,19 +581,25 @@                 # Trailing LayerNorm (except last stage)
+@@ -577,21 +581,25 @@                 # Trailing LayerNorm (except last stage)
                  ([LayerNorm2d(dim, eps=1e-6, **dd)] if i < len(depths) - 1 else [])
              )
 -            stages.append(nn.Sequential(*layers))
@@ -321,20 +321,21 @@
  
          self.apply(self._init_weights)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def _init_weights(self, m: nn.Module) -> None:
+-    def _init_weights(self, m: nn.Module) -> None:
++    def _init_weights(self, m: msnn.Cell) -> None:
          if isinstance(m, (nn.Conv2d, nn.Linear)):
              trunc_normal_(m.weight, std=0.02)
              if m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
--
 +                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -604,7 +614,7 @@     def set_grad_checkpointing(self, enable: bool = True) -> None:
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
+@@ -604,7 +612,7 @@     def set_grad_checkpointing(self, enable: bool = True) -> None:
          self.grad_checkpointing = enable
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -342,7 +343,7 @@
          x = self.stem_dct(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.stages, x)
-@@ -614,7 +624,7 @@ 
+@@ -614,13 +622,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -350,7 +351,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -681,19 +691,19 @@         # 5 feature levels: stem_dct (0) + stages 0-3 (1-4)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward pass returning intermediate features.
+ 
+         Args:
+@@ -681,19 +689,19 @@         # 5 feature levels: stem_dct (0) + stages 0-3 (1-4)
          take_indices, max_index = feature_take_indices(len(self.stages) + 1, indices)
          # max_index is 0-4, stages are 1-4, so we keep max_index stages
 -        self.stages = self.stages[:max_index] if max_index > 0 else nn.Sequential()
@@ -373,10 +381,11 @@
          x = self.forward_features(x)
          return self.forward_head(x)
  
-@@ -717,6 +727,7 @@ })
+@@ -717,7 +725,7 @@ })
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> dict:
+-def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> dict:
++def checkpoint_filter_fn(state_dict: dict, model: msnn.Cell) -> dict:
      """Remap original CSATv2 checkpoint to timm format.
  
+     Handles two key structural changes:

@@ -125,7 +125,7 @@
              self._make_pair_wise_relative_positions(device=device, dtype=dtype)
  
 -    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+    def construct(self, x: ms.Tensor, mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          """Forward pass of window attention.
  
          Args:
@@ -167,6 +167,14 @@
      """Swin Transformer V2 Block.
  
      A standard transformer block with window attention and shifted window attention
+@@ -261,7 +266,7 @@             attn_drop: float = 0.,
+             drop_path: float = 0.,
+             act_layer: LayerType = "gelu",
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             pretrained_window_size: _int_or_tuple_2_t = 0,
+             device=None,
+             dtype=None,
 @@ -307,7 +312,7 @@             **dd,
          )
          self.norm1 = norm_layer(dim, **dd)
@@ -183,7 +191,24 @@
  
          self.register_buffer(
              "attn_mask",
-@@ -342,9 +347,9 @@         if any(self.shift_size):
+@@ -325,12 +330,15 @@             persistent=False,
+         )
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def get_attn_mask(
+             self,
+-            x: Optional[torch.Tensor] = None,
++            x: Optional[ms.Tensor] = None,
+             device: Optional[torch.device] = None,
+             dtype: Optional[torch.dtype] = None,
+-    ) -> Optional[torch.Tensor]:
++    ) -> Optional[ms.Tensor]:
+         """Generate attention mask for shifted window attention.
+ 
+         Args:
+@@ -342,9 +350,9 @@         if any(self.shift_size):
              # calculate attention mask for SW-MSA
              if x is None:
 -                img_mask = torch.zeros((1, *self.input_resolution, 1), device=device, dtype=dtype)  # 1 H W 1
@@ -194,7 +219,7 @@
              cnt = 0
              for h in (
                      (0, -self.window_size[0]),
-@@ -427,7 +432,7 @@             persistent=False,
+@@ -427,7 +435,7 @@             persistent=False,
          )
  
 -    def _attn(self, x: torch.Tensor) -> torch.Tensor:
@@ -202,7 +227,7 @@
          """Apply windowed attention with optional shift.
  
          Args:
-@@ -441,13 +446,13 @@         # cyclic shift
+@@ -441,13 +449,13 @@         # cyclic shift
          has_shift = any(self.shift_size)
          if has_shift:
 -            shifted_x = torch.roll(x, shifts=(-self.shift_size[0], -self.shift_size[1]), dims=(1, 2))
@@ -217,7 +242,7 @@
          _, Hp, Wp, _ = shifted_x.shape
  
          # partition windows
-@@ -468,12 +473,12 @@ 
+@@ -468,12 +476,12 @@ 
          # reverse cyclic shift
          if has_shift:
 -            x = torch.roll(shifted_x, shifts=self.shift_size, dims=(1, 2))
@@ -231,7 +256,7 @@
          B, H, W, C = x.shape
          x = x + self.drop_path1(self.norm1(self._attn(x)))
          x = x.reshape(B, -1, C)
-@@ -482,7 +487,7 @@         return x
+@@ -482,7 +490,7 @@         return x
  
  
 -class PatchMerging(nn.Module):
@@ -239,7 +264,15 @@
      """Patch Merging Layer.
  
      Merges 2x2 neighboring patches and projects to higher dimension,
-@@ -510,7 +515,7 @@         self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)
+@@ -493,7 +501,7 @@             self,
+             dim: int,
+             out_dim: Optional[int] = None,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
+@@ -510,7 +518,7 @@         self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)
          self.norm = norm_layer(self.out_dim, **dd)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -247,7 +280,7 @@
          B, H, W, C = x.shape
  
          pad_values = (0, 0, 0, W % 2, 0, H % 2)
-@@ -523,7 +528,7 @@         return x
+@@ -523,7 +531,7 @@         return x
  
  
 -class SwinTransformerV2Stage(nn.Module):
@@ -255,7 +288,17 @@
      """A Swin Transformer V2 Stage.
  
      A single stage consisting of multiple Swin Transformer blocks with
-@@ -590,10 +595,10 @@             self.downsample = PatchMerging(dim=dim, out_dim=out_dim, norm_layer=norm_layer, **dd)
+@@ -546,8 +554,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Union[str, Type[nn.Module]] = 'gelu',
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Union[str, Type[msnn.Cell]] = 'gelu',
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             pretrained_window_size: _int_or_tuple_2_t = 0,
+             output_nchw: bool = False,
+             device=None,
+@@ -590,10 +598,10 @@             self.downsample = PatchMerging(dim=dim, out_dim=out_dim, norm_layer=norm_layer, **dd)
          else:
              assert dim == out_dim
 -            self.downsample = nn.Identity()
@@ -267,7 +310,7 @@
              SwinTransformerV2Block(
                  dim=out_dim,
                  input_resolution=self.output_resolution,
-@@ -640,7 +645,7 @@                 always_partition=always_partition,
+@@ -640,7 +648,7 @@                 always_partition=always_partition,
              )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -275,7 +318,7 @@
          """Forward pass through the stage.
  
          Args:
-@@ -661,13 +666,13 @@     def _init_respostnorm(self) -> None:
+@@ -661,13 +669,13 @@     def _init_respostnorm(self) -> None:
          """Initialize residual post-normalization weights."""
          for blk in self.blocks:
 -            nn.init.constant_(blk.norm1.bias, 0)
@@ -295,7 +338,15 @@
      """Swin Transformer V2.
  
      A hierarchical vision transformer using shifted windows for efficient
-@@ -784,7 +789,9 @@                 scale *= 2
+@@ -697,7 +705,7 @@             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.1,
+             act_layer: Union[str, Callable] = 'gelu',
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             pretrained_window_sizes: Tuple[int, ...] = (0, 0, 0, 0),
+             device=None,
+             dtype=None,
+@@ -784,7 +792,9 @@                 scale *= 2
              self.feature_info += [dict(num_chs=out_dim, reduction=4 * scale, module=f'layers.{i}')]
  
 -        self.layers = nn.Sequential(*layers)
@@ -305,14 +356,15 @@
          self.norm = norm_layer(self.num_features, **dd)
          self.head = ClassifierHead(
              self.num_features,
-@@ -799,6 +806,7 @@         for bly in self.layers:
+@@ -799,7 +809,7 @@         for bly in self.layers:
              bly._init_respostnorm()
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def _init_weights(self, m: nn.Module) -> None:
+-    def _init_weights(self, m: nn.Module) -> None:
++    def _init_weights(self, m: msnn.Cell) -> None:
          """Initialize model weights.
  
-@@ -808,7 +816,7 @@         if isinstance(m, nn.Linear):
+         Args:
+@@ -808,7 +818,7 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -320,14 +372,15 @@
  
      def set_input_size(
              self,
-@@ -884,6 +892,7 @@         for l in self.layers:
-             l.grad_checkpointing = enable
+@@ -885,7 +895,7 @@             l.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head.
-@@ -905,7 +914,7 @@ 
+ 
+         Returns:
+@@ -905,13 +915,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -335,7 +388,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -964,12 +973,12 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -964,12 +974,12 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
          self.layers = self.layers[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -349,7 +409,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -983,7 +992,7 @@         x = self.norm(x)
+@@ -983,7 +993,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -357,7 +417,7 @@
          """Forward pass through classification head.
  
          Args:
-@@ -995,7 +1004,7 @@         """
+@@ -995,7 +1005,7 @@         """
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -365,10 +425,11 @@
          """Forward pass through the model.
  
          Args:
-@@ -1009,6 +1018,7 @@         return x
+@@ -1009,7 +1019,7 @@         return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
++def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
      """Filter and process checkpoint state dict for loading.
  
+     Handles resizing of patch embeddings and relative position tables

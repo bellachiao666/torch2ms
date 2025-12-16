@@ -18,8 +18,6 @@ import math
 import random
 import warnings
 from typing import Dict, List, Optional, Sequence, Tuple, Union
-
-# import torch
 from PIL import Image
 # from torchvision import transforms
 # from torchvision.transforms import functional as F
@@ -134,6 +132,7 @@ class ResizeToSequence(msnn.Cell):
     This maintains aspect ratio while ensuring the resulting image, when divided into patches,
     will not exceed the specified maximum sequence length.
     """
+    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             patch_size: int,
@@ -541,6 +540,7 @@ class RandomResizedCropToSequence(msnn.Cell):
             to a center crop strategy. Defaults to 10.
     """
 
+    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
         self,
         patch_size: Union[int, Tuple[int, int]] = 16,
@@ -588,6 +588,7 @@ class RandomResizedCropToSequence(msnn.Cell):
             if not (0.0 <= self.final_scale_range[0] <= self.final_scale_range[1] <= 1.0):
                 warnings.warn("final_scale_range values should ideally be between 0.0 and 1.0.")
 
+    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @staticmethod
     def get_params(
             img: ms.Tensor,
@@ -759,7 +760,7 @@ def patchify_image(
         pad: bool = True,
         include_info: bool = True,
         flatten_patches: bool = True,
-) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+) -> Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor, ms.Tensor]]:
     c, h, w = img.shape
     ph, pw = patch_size
 

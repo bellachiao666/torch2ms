@@ -66,7 +66,7 @@ class MbConvBlock(msnn.Cell):
             expand_ratio: float = 1.0,
             attn_layer: str = 'se',
             bias: bool = False,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -101,8 +101,8 @@ class Downsample2d(msnn.Cell):
             dim: int,
             dim_out: Optional[int] = None,
             reduction: str = 'conv',
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,  # NOTE in NCHW
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,  # NOTE in NCHW
             device=None,
             dtype=None,
     ):
@@ -137,7 +137,7 @@ class FeatureBlock(msnn.Cell):
             dim: int,
             levels: int = 0,
             reduction: str = 'max',
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -165,8 +165,8 @@ class Stem(msnn.Cell):
             self,
             in_chs: int = 3,
             out_chs: int = 96,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,  # NOTE stem in NCHW
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,  # NOTE stem in NCHW
             device=None,
             dtype=None,
     ):
@@ -213,7 +213,7 @@ class WindowAttentionGlobal(msnn.Cell):
         self.proj = nn.Linear(dim, dim, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def construct(self, x, q_global: Optional[torch.Tensor] = None):
+    def construct(self, x, q_global: Optional[ms.Tensor] = None):
         B, N, C = x.shape
         if self.use_global and q_global is not None:
             _assert(x.shape[-1] == q_global.shape[-1], 'x and q_global seq lengths should be equal')
@@ -271,8 +271,8 @@ class GlobalContextVitBlock(msnn.Cell):
             attn_drop: float = 0.,
             drop_path: float = 0.,
             attn_layer: Callable = WindowAttentionGlobal,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -302,7 +302,7 @@ class GlobalContextVitBlock(msnn.Cell):
         self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-    def _window_attn(self, x, q_global: Optional[torch.Tensor] = None):
+    def _window_attn(self, x, q_global: Optional[ms.Tensor] = None):
         B, H, W, C = x.shape
         x_win = window_partition(x, self.window_size)
         x_win = x_win.view(-1, self.window_size[0] * self.window_size[1], C)
@@ -310,7 +310,7 @@ class GlobalContextVitBlock(msnn.Cell):
         x = window_reverse(attn_win, self.window_size, (H, W))
         return x
 
-    def construct(self, x, q_global: Optional[torch.Tensor] = None):
+    def construct(self, x, q_global: Optional[ms.Tensor] = None):
         x = x + self.drop_path1(self.ls1(self._window_attn(self.norm1(x), q_global)))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
@@ -333,9 +333,9 @@ class GlobalContextVitStage(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: Union[List[float], float] = 0.0,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            norm_layer_cl: Type[nn.Module] = LayerNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+            norm_layer_cl: Type[msnn.Cell] = LayerNorm2d,
             device=None,
             dtype=None,
     ):
@@ -525,9 +525,8 @@ class GlobalContextVit(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
@@ -545,7 +544,7 @@ class GlobalContextVit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

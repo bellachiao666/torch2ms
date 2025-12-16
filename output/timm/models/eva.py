@@ -186,8 +186,8 @@ class EvaAttention(msnn.Cell):
     def construct(
             self,
             x,
-            rope: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
+            rope: Optional[ms.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
     ):
         """Forward pass for the attention module.
 
@@ -357,8 +357,8 @@ class EvaBlock(msnn.Cell):
     def construct(
             self,
             x: ms.Tensor,
-            rope: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
+            rope: Optional[ms.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         if self.gamma_1 is None:
             x = x + self.drop_path1(self.attn(self.norm1(x), rope=rope, attn_mask=attn_mask))
@@ -476,8 +476,8 @@ class EvaBlockPostNorm(msnn.Cell):
     def construct(
             self,
             x: ms.Tensor,
-            rope: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
+            rope: Optional[ms.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         x = x + self.drop_path1(self.norm1(self.attn(x, rope=rope, attn_mask=attn_mask)))
         x = x + self.drop_path2(self.norm2(self.mlp(x)))
@@ -737,8 +737,7 @@ class Eva(msnn.Cell):
             rescale(layer.attn.proj.weight.data, layer_id + 1)
             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module) -> None:
+    def _init_weights(self, m: msnn.Cell) -> None:
         """Initialize weights for Linear layers.
 
         Args:
@@ -771,9 +770,8 @@ class Eva(msnn.Cell):
         )
         return matcher
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
@@ -817,7 +815,7 @@ class Eva(msnn.Cell):
         if self.rope is not None:
             self.rope.update_feat_shape(self.patch_embed.grid_size)
 
-    def _pos_embed(self, x) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def _pos_embed(self, x) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
         if self.dynamic_img_size:
             B, H, W, C = x.shape
             if self.pos_embed is not None:
@@ -881,7 +879,7 @@ class Eva(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
         Args:
             x: Input image tensor
@@ -1032,12 +1030,11 @@ class Eva(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _convert_pe(
-    state_dict: Dict[str, torch.Tensor],
-    model: nn.Module,
+    state_dict: Dict[str, ms.Tensor],
+    model: msnn.Cell,
     prefix: str = 'visual.',
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     """Convert Perception Encoder weights.
 
     Args:
@@ -1103,13 +1100,12 @@ def _convert_pe(
     return out_dict
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def checkpoint_filter_fn(
-        state_dict: Dict[str, torch.Tensor],
-        model: nn.Module,
+        state_dict: Dict[str, ms.Tensor],
+        model: msnn.Cell,
         interpolation: str = 'bicubic',
         antialias: bool = True,
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     """Convert patch embedding weight from manual patchify + linear proj to conv.
 
     Args:

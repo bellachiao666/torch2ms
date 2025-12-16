@@ -71,7 +71,7 @@ class Stem(msnn.Cell):
             self,
             in_channels: int,
             out_channels: int,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -105,7 +105,7 @@ class Downsampling(msnn.Cell):
             kernel_size: int,
             stride: int = 1,
             padding: int = 0,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -283,8 +283,8 @@ class SepConv(msnn.Cell):
             self,
             dim: int,
             expansion_ratio: float = 2,
-            act1_layer: Type[nn.Module] = StarReLU,
-            act2_layer: Type[nn.Module] = nn.Identity,
+            act1_layer: Type[msnn.Cell] = StarReLU,
+            act2_layer: Type[msnn.Cell] = nn.Identity,
             bias: bool = False,
             kernel_size: int = 7,
             padding: int = 3,
@@ -341,8 +341,8 @@ class MlpHead(msnn.Cell):
             dim: int,
             num_classes: int = 1000,
             mlp_ratio: float = 4,
-            act_layer: Type[nn.Module] = SquaredReLU,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            act_layer: Type[msnn.Cell] = SquaredReLU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             drop_rate: float = 0.,
             bias: bool = True,
             device=None,
@@ -374,10 +374,10 @@ class MetaFormerBlock(msnn.Cell):
     def __init__(
             self,
             dim: int,
-            token_mixer: Type[nn.Module] = Pooling,
-            mlp_act: Type[nn.Module] = StarReLU,
+            token_mixer: Type[msnn.Cell] = Pooling,
+            mlp_act: Type[msnn.Cell] = StarReLU,
             mlp_bias: bool = False,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             proj_drop: float = 0.,
             drop_path: float = 0.,
             use_nchw: bool = True,
@@ -435,11 +435,11 @@ class MetaFormerStage(msnn.Cell):
             in_chs: int,
             out_chs: int,
             depth: int = 2,
-            token_mixer: Type[nn.Module] = nn.Identity,
-            mlp_act: Type[nn.Module] = StarReLU,
+            token_mixer: Type[msnn.Cell] = nn.Identity,
+            mlp_act: Type[msnn.Cell] = StarReLU,
             mlp_bias: bool = False,
-            downsample_norm: Optional[Type[nn.Module]] = LayerNorm2d,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
+            downsample_norm: Optional[Type[msnn.Cell]] = LayerNorm2d,
+            norm_layer: Type[msnn.Cell] = LayerNorm2d,
             proj_drop: float = 0.,
             dp_rates: List[float] = [0.] * 2,
             layer_scale_init_value: Optional[float] = None,
@@ -536,17 +536,17 @@ class MetaFormer(msnn.Cell):
             global_pool: str = 'avg',
             depths: Tuple[int, ...] = (2, 2, 6, 2),
             dims: Tuple[int, ...] = (64, 128, 320, 512),
-            token_mixers: Union[Type[nn.Module], List[Type[nn.Module]]] = Pooling,
-            mlp_act: Type[nn.Module] = StarReLU,
+            token_mixers: Union[Type[msnn.Cell], List[Type[msnn.Cell]]] = Pooling,
+            mlp_act: Type[msnn.Cell] = StarReLU,
             mlp_bias: bool = False,
             drop_path_rate: float = 0.,
             proj_drop_rate: float = 0.,
             drop_rate: float = 0.0,
             layer_scale_init_values: Optional[Union[float, List[float]]] = None,
             res_scale_init_values: Union[Tuple[Optional[float], ...], List[Optional[float]]] = (None, None, 1.0, 1.0),
-            downsample_norm: Optional[Type[nn.Module]] = LayerNorm2dNoBias,
-            norm_layers: Union[Type[nn.Module], List[Type[nn.Module]]] = LayerNorm2dNoBias,
-            output_norm: Type[nn.Module] = LayerNorm2d,
+            downsample_norm: Optional[Type[msnn.Cell]] = LayerNorm2dNoBias,
+            norm_layers: Union[Type[msnn.Cell], List[Type[msnn.Cell]]] = LayerNorm2dNoBias,
+            output_norm: Type[msnn.Cell] = LayerNorm2d,
             use_mlp_head: bool = True,
             device=None,
             dtype=None,
@@ -651,9 +651,8 @@ class MetaFormer(msnn.Cell):
         for stage in self.stages:
             stage.set_grad_checkpointing(enable=enable)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
@@ -679,7 +678,7 @@ class MetaFormer(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

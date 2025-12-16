@@ -26,6 +26,18 @@
      fused_attn: Final[bool]
  
      def __init__(
+@@ -50,10 +55,10 @@             num_heads: int = 8,
+             qkv_bias: bool = False,
+             qk_norm: bool = False,
+-            rel_pos_cls: Optional[Type[nn.Module]] = None,
++            rel_pos_cls: Optional[Type[msnn.Cell]] = None,
+             attn_drop: float = 0.,
+             proj_drop: float = 0.,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -66,14 +71,14 @@         self.fused_attn = use_fused_attn()
  
          self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
@@ -39,7 +51,7 @@
          self.proj_drop = nn.Dropout(proj_drop)
  
 -    def forward(self, x, shared_rel_pos: Optional[torch.Tensor] = None):
-+    def construct(self, x, shared_rel_pos: Optional[torch.Tensor] = None):
++    def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
          B, N, C = x.shape
          qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
          q, k, v = qkv.unbind(0)
@@ -59,6 +71,22 @@
  
      def __init__(
              self,
+@@ -119,13 +124,13 @@             mlp_ratio: float = 4.,
+             qkv_bias: bool = False,
+             qk_norm: bool = False,
+-            rel_pos_cls: Optional[Type[nn.Module]] = None,
++            rel_pos_cls: Optional[Type[msnn.Cell]] = None,
+             init_values: Optional[float] = None,
+             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -143,9 +148,9 @@             norm_layer=norm_layer,
              **dd,
          )
@@ -80,7 +108,7 @@
 +        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
 +        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
-+    def construct(self, x, shared_rel_pos: Optional[torch.Tensor] = None):
++    def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
          x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x), shared_rel_pos=shared_rel_pos)))
          x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
          return x
@@ -91,6 +119,22 @@
  
      def __init__(
              self,
+@@ -173,13 +178,13 @@             mlp_ratio: float = 4.,
+             qkv_bias: bool = False,
+             qk_norm: bool = False,
+-            rel_pos_cls: Optional[Type[nn.Module]] = None,
++            rel_pos_cls: Optional[Type[msnn.Cell]] = None,
+             init_values: Optional[float] = None,
+             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -199,7 +204,7 @@             **dd,
          )
          self.norm1 = norm_layer(dim, **dd)
@@ -117,7 +161,7 @@
 +            nn.init.constant_(self.norm1.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +            nn.init.constant_(self.norm2.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +
-+    def construct(self, x, shared_rel_pos: Optional[torch.Tensor] = None):
++    def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
          x = x + self.drop_path1(self.norm1(self.attn(x, shared_rel_pos=shared_rel_pos)))
          x = x + self.drop_path2(self.norm2(self.mlp(x)))
          return x
@@ -128,6 +172,18 @@
      """ Vision Transformer w/ Relative Position Bias
  
      Differing from classic vit, this impl
+@@ -260,10 +265,10 @@             drop_path_rate: float = 0.,
+             weight_init: Literal['skip', 'jax', 'moco', ''] = 'skip',
+             fix_init: bool = False,
+-            embed_layer: Type[nn.Module] = PatchEmbed,
++            embed_layer: Type[msnn.Cell] = PatchEmbed,
+             norm_layer: Optional[LayerType] = None,
+             act_layer: Optional[LayerType] = None,
+-            block_fn: Type[nn.Module] = RelPosBlock,
++            block_fn: Type[msnn.Cell] = RelPosBlock,
+             device=None,
+             dtype=None,
+     ):
 @@ -333,10 +338,10 @@             # NOTE shared rel pos currently mutually exclusive w/ per-block, but could support both...
              rel_pos_cls = None
  
@@ -163,14 +219,15 @@
          named_apply(get_init_weights_vit(mode), self)
  
      def fix_init_weight(self):
-@@ -396,6 +401,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -397,7 +402,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -406,11 +412,11 @@         if global_pool is not None:
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
+@@ -406,18 +411,18 @@         if global_pool is not None:
              assert global_pool in ('', 'avg', 'token')
              self.global_pool = global_pool
 -        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
@@ -183,7 +240,15 @@
              indices: Optional[Union[int, List[int]]] = None,
              return_prefix_tokens: bool = False,
              norm: bool = False,
-@@ -440,7 +446,7 @@         B, _, height, width = x.shape
+             stop_early: bool = False,
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -440,7 +445,7 @@         B, _, height, width = x.shape
          x = self.patch_embed(x)
          if self.cls_token is not None:
 -            x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
@@ -191,7 +256,7 @@
  
          shared_rel_pos = self.shared_rel_pos.get_bias() if self.shared_rel_pos is not None else None
          if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
-@@ -487,16 +493,16 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -487,16 +492,16 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -210,7 +275,7 @@
  
          shared_rel_pos = self.shared_rel_pos.get_bias() if self.shared_rel_pos is not None else None
          for blk in self.blocks:
-@@ -514,7 +520,7 @@         x = self.head_drop(x)
+@@ -514,7 +519,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

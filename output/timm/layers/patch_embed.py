@@ -170,7 +170,7 @@ class PatchEmbedWithSize(PatchEmbed):
             dtype=dtype,
         )
 
-    def forward(self, x) -> Tuple[torch.Tensor, List[int]]:
+    def forward(self, x) -> Tuple[ms.Tensor, List[int]]:
         B, C, H, W = x.shape
         if self.img_size is not None:
             _assert(H % self.patch_size[0] == 0, f"Input image height ({H}) must be divisible by patch size ({self.patch_size[0]}).")
@@ -260,8 +260,9 @@ def resample_patch_embed_old(
 DTYPE_INTERMEDIATE = ms.float32
 
 
-# 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _compute_resize_matrix(
         old_size: Tuple[int, int],
         new_size: Tuple[int, int],
@@ -284,7 +285,8 @@ def _compute_resize_matrix(
     return resize_matrix # Shape: (new_total, old_total)
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _apply_resampling(
         patch_embed: ms.Tensor,
         pinv_matrix: ms.Tensor,
@@ -359,8 +361,9 @@ class PatchEmbedResamplerFixedOrigSize(msnn.Cell):
         # Cache map key is the target new_size tuple
         self._pinv_cache_map: Dict[Tuple[int, int], str] = {}
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _get_or_create_pinv_matrix(
             self,
             new_size: Tuple[int, int],
@@ -532,7 +535,7 @@ class PatchEmbedInterpolator(msnn.Cell):
             self,
             patches: ms.Tensor,
             proj_weight: ms.Tensor,
-            proj_bias: Optional[torch.Tensor] = None,
+            proj_bias: Optional[ms.Tensor] = None,
             patch_size: Optional[Tuple[int, int]] = None,
             is_linear: bool = True,
     ) -> ms.Tensor:

@@ -24,7 +24,7 @@
      def __init__(
              self,
              num_features: int,
-@@ -34,28 +37,28 @@         self.apply_act = apply_act  # apply activation (non-linearity)
+@@ -34,33 +37,33 @@         self.apply_act = apply_act  # apply activation (non-linearity)
          self.rms = rms
          self.eps = eps
 -        self.weight = nn.Parameter(torch.empty(num_features, **dd))
@@ -61,6 +61,12 @@
      def __init__(
              self,
              num_features: int,
+             apply_act: bool = True,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             inplace: Optional[bool] = None,
+             rms: bool = True,
+             eps: float = 1e-5,
 @@ -73,19 +76,19 @@         if act_layer is not None and apply_act:
              self.act = create_act_layer(act_layer, inplace=inplace)
          else:

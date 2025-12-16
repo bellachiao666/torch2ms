@@ -158,11 +158,11 @@ class NAdamW(torch.optim.Optimizer):
 
 
 def nadamw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         foreach: Optional[bool] = None,
         capturable: bool = False,
         *,
@@ -215,11 +215,11 @@ def nadamw(
 
 
 def _single_tensor_nadamw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         *,
         beta1: float,
         beta2: float,
@@ -298,11 +298,11 @@ def _single_tensor_nadamw(
 
 
 def _multi_tensor_nadamw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        state_steps: List[ms.Tensor],
         *,
         beta1: float,
         beta2: float,

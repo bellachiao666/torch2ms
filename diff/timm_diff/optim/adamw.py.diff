@@ -53,6 +53,24 @@
  
                  exp_avgs.append(state['exp_avg'])
                  exp_avg_sqs.append(state['exp_avg_sq'])
+@@ -173,12 +179,12 @@ 
+ 
+ def adamw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        max_exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        max_exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         foreach: Optional[bool] = None,
+         capturable: bool = False,
+         *,
 @@ -204,7 +210,7 @@     if foreach is None:
          try:
              # cannot do foreach if this overload doesn't exist when caution enabled
@@ -61,6 +79,24 @@
          except:
              foreach = False
  
+@@ -234,12 +240,12 @@ 
+ 
+ def _single_tensor_adamw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        max_exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        max_exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         *,
+         amsgrad: bool,
+         beta1: float,
 @@ -273,7 +279,7 @@         if amsgrad:
              max_exp_avg_sq = max_exp_avg_sqs[i]
              # Maintains the maximum of all 2nd moment running avg. till now
@@ -79,6 +115,24 @@
  
              step_size = lr / bias_correction1
              step_size_neg = step_size.neg()
+@@ -320,12 +326,12 @@ 
+ 
+ def _multi_tensor_adamw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        max_exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        max_exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         *,
+         amsgrad: bool,
+         beta1: float,
 @@ -347,72 +353,72 @@         ), "If capturable=True, params and state_steps must be CUDA tensors."
  
      if maximize:

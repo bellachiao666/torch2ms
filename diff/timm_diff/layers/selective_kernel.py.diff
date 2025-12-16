@@ -16,7 +16,7 @@
  
  from .conv_bn_act import ConvNormAct
  from .helpers import make_divisible
-@@ -21,7 +24,7 @@     assert k >= 3 and k % 2
+@@ -21,14 +24,14 @@     assert k >= 3 and k % 2
  
  
 -class SelectiveKernelAttn(nn.Module):
@@ -24,6 +24,15 @@
      def __init__(
              self,
              channels: int,
+             num_paths: int = 2,
+             attn_channels: int = 32,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+             device=None,
+             dtype=None,
+     ):
 @@ -45,7 +48,7 @@         self.act = act_layer(inplace=True)
          self.fc_select = nn.Conv2d(attn_channels, channels * num_paths, kernel_size=1, bias=False, **dd)
  
@@ -45,6 +54,20 @@
  
      def __init__(
              self,
+@@ -73,10 +76,10 @@             rd_divisor: int = 8,
+             keep_3x3: bool = True,
+             split_input: bool = True,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module]= nn.BatchNorm2d,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell]= nn.BatchNorm2d,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -129,21 +132,21 @@         conv_kwargs = dict(
              stride=stride, groups=groups, act_layer=act_layer, norm_layer=norm_layer,
              aa_layer=aa_layer, drop_layer=drop_layer, **dd)

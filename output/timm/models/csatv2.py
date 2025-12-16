@@ -282,7 +282,7 @@ class Dct2dStats(msnn.Cell):
         self.transform = Dct2d(kernel_size, kernel_type, orthonormal, **dd)
         self.permutation = _zigzag_permutation(kernel_size, kernel_size)
 
-    def construct(self, x: ms.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def construct(self, x: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
         b, c, h, w = x.shape
         # Extract non-overlapping k x k patches
         x = x.reshape(b, c, h // self.k, self.k, w // self.k, self.k)  # (B, C, H//k, k, W//k, k)
@@ -592,16 +592,14 @@ class CSATv2(msnn.Cell):
 
         self.apply(self._init_weights)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module) -> None:
+    def _init_weights(self, m: msnn.Cell) -> None:
         if isinstance(m, (nn.Conv2d, nn.Linear)):
             trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
@@ -630,7 +628,7 @@ class CSATv2(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """Forward pass returning intermediate features.
 
         Args:
@@ -727,8 +725,7 @@ default_cfgs = generate_default_cfgs({
 })
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> dict:
+def checkpoint_filter_fn(state_dict: dict, model: msnn.Cell) -> dict:
     """Remap original CSATv2 checkpoint to timm format.
 
     Handles two key structural changes:

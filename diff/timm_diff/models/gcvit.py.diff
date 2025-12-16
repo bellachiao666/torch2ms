@@ -24,6 +24,14 @@
      """ A depthwise separable / fused mbconv style residual block with SE, `no norm.
      """
      def __init__(
+@@ -61,7 +66,7 @@             expand_ratio: float = 1.0,
+             attn_layer: str = 'se',
+             bias: bool = False,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+     ):
 @@ -80,7 +85,7 @@         self.se = attn_layer(mid_chs, **attn_kwargs)
          self.conv_pw = nn.Conv2d(mid_chs, out_chs, 1, 1, 0, bias=bias, **dd)
  
@@ -32,7 +40,7 @@
          shortcut = x
          x = self.conv_dw(x)
          x = self.act(x)
-@@ -90,7 +95,7 @@         return x
+@@ -90,14 +95,14 @@         return x
  
  
 -class Downsample2d(nn.Module):
@@ -40,6 +48,15 @@
      def __init__(
              self,
              dim: int,
+             dim_out: Optional[int] = None,
+             reduction: str = 'conv',
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,  # NOTE in NCHW
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,  # NOTE in NCHW
+             device=None,
+             dtype=None,
+     ):
 @@ -105,20 +110,20 @@         super().__init__()
          dim_out = dim_out or dim
  
@@ -66,7 +83,7 @@
          x = self.norm1(x)
          x = self.conv_block(x)
          x = self.reduction(x)
-@@ -126,7 +131,7 @@         return x
+@@ -126,13 +131,13 @@         return x
  
  
 -class FeatureBlock(nn.Module):
@@ -74,7 +91,14 @@
      def __init__(
              self,
              dim: int,
-@@ -144,18 +149,18 @@             pool_fn = partial(nn.AvgPool2d, kernel_size=2)
+             levels: int = 0,
+             reduction: str = 'max',
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+     ):
+@@ -144,24 +149,24 @@             pool_fn = partial(nn.AvgPool2d, kernel_size=2)
          else:
              pool_fn = partial(nn.MaxPool2d, kernel_size=3, stride=2, padding=1)
 -        self.blocks = nn.Sequential()
@@ -95,6 +119,14 @@
      def __init__(
              self,
              in_chs: int = 3,
+             out_chs: int = 96,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,  # NOTE stem in NCHW
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,  # NOTE stem in NCHW
+             device=None,
+             dtype=None,
+     ):
 @@ -170,13 +175,13 @@         self.conv1 = nn.Conv2d(in_chs, out_chs, kernel_size=3, stride=2, padding=1, **dd)
          self.down = Downsample2d(out_chs, act_layer=act_layer, norm_layer=norm_layer, **dd)
  
@@ -114,7 +146,7 @@
          self.proj_drop = nn.Dropout(proj_drop)
  
 -    def forward(self, x, q_global: Optional[torch.Tensor] = None):
-+    def construct(self, x, q_global: Optional[torch.Tensor] = None):
++    def construct(self, x, q_global: Optional[ms.Tensor] = None):
          B, N, C = x.shape
          if self.use_global and q_global is not None:
              _assert(x.shape[-1] == q_global.shape[-1], 'x and q_global seq lengths should be equal')
@@ -126,7 +158,17 @@
      def __init__(
              self,
              dim: int,
-@@ -289,13 +294,13 @@             proj_drop=proj_drop,
+@@ -266,8 +271,8 @@             attn_drop: float = 0.,
+             drop_path: float = 0.,
+             attn_layer: Callable = WindowAttentionGlobal,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
+@@ -289,15 +294,15 @@             proj_drop=proj_drop,
              **dd,
          )
 -        self.ls1 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else nn.Identity()
@@ -138,16 +180,20 @@
          self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, drop=proj_drop, **dd)
 -        self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else nn.Identity()
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-    def _window_attn(self, x, q_global: Optional[torch.Tensor] = None):
 +        self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()
 +        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
- 
-     def _window_attn(self, x, q_global: Optional[torch.Tensor] = None):
++
++    def _window_attn(self, x, q_global: Optional[ms.Tensor] = None):
          B, H, W, C = x.shape
+         x_win = window_partition(x, self.window_size)
+         x_win = x_win.view(-1, self.window_size[0] * self.window_size[1], C)
 @@ -305,13 +310,13 @@         x = window_reverse(attn_win, self.window_size, (H, W))
          return x
  
 -    def forward(self, x, q_global: Optional[torch.Tensor] = None):
-+    def construct(self, x, q_global: Optional[torch.Tensor] = None):
++    def construct(self, x, q_global: Optional[ms.Tensor] = None):
          x = x + self.drop_path1(self.ls1(self._window_attn(self.norm1(x), q_global)))
          x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
          return x
@@ -158,6 +204,18 @@
      def __init__(
              self,
              dim: int,
+@@ -328,9 +333,9 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: Union[List[float], float] = 0.0,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+-            norm_layer_cl: Type[nn.Module] = LayerNorm2d,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
++            norm_layer_cl: Type[msnn.Cell] = LayerNorm2d,
+             device=None,
+             dtype=None,
+     ):
 @@ -346,15 +351,15 @@             dim = dim * 2
              feat_size = (feat_size[0] // 2, feat_size[1] // 2)
          else:
@@ -231,14 +289,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -518,6 +525,7 @@         for s in self.stages:
-             s.grad_checkpointing = enable
+@@ -519,7 +526,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -531,7 +539,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
+@@ -531,13 +538,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -246,7 +305,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -585,7 +593,7 @@             self.reset_classifier(0, '')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -585,7 +592,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -254,7 +320,7 @@
          x = self.stem(x)
          x = self.stages(x)
          return x
-@@ -593,7 +601,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -593,7 +600,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:

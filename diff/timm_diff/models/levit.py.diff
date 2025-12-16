@@ -82,7 +82,7 @@
  
      @torch.no_grad()
      def fuse(self):
-@@ -146,11 +150,11 @@         m.bias.data.copy_(b)
+@@ -146,16 +150,16 @@         m.bias.data.copy_(b)
          return m
  
 -    def forward(self, x):
@@ -95,7 +95,13 @@
      def __init__(
              self,
              in_chs: int,
-@@ -170,7 +174,7 @@         self.add_module('conv3', ConvNorm(out_chs // 2, out_chs, 3, stride=2, padding=1, **dd))
+             out_chs: int,
+-            act_layer: Type[nn.Module],
++            act_layer: Type[msnn.Cell],
+             device=None,
+             dtype=None,
+     ):
+@@ -170,12 +174,12 @@         self.add_module('conv3', ConvNorm(out_chs // 2, out_chs, 3, stride=2, padding=1, **dd))
  
  
 -class Stem16(nn.Sequential):
@@ -103,6 +109,12 @@
      def __init__(
              self,
              in_chs: int,
+             out_chs: int,
+-            act_layer: Type[nn.Module],
++            act_layer: Type[msnn.Cell],
+             device=None,
+             dtype=None,
+     ):
 @@ -192,7 +196,7 @@         self.add_module('conv4', ConvNorm(out_chs // 2, out_chs, 3, stride=2, padding=1, **dd))
  
  
@@ -123,14 +135,24 @@
          B, N, C = x.shape
          x = x.view(B, self.resolution[0], self.resolution[1], C)
          if self.pool is not None:
-@@ -216,7 +220,7 @@         return x.reshape(B, -1, C)
+@@ -216,8 +220,8 @@         return x.reshape(B, -1, C)
  
  
 -class Attention(nn.Module):
+-    attention_bias_cache: Dict[str, torch.Tensor]
 +class Attention(msnn.Cell):
-     attention_bias_cache: Dict[str, torch.Tensor]
++    attention_bias_cache: Dict[str, ms.Tensor]
  
      def __init__(
+             self,
+@@ -227,7 +231,7 @@             attn_ratio: float = 4.,
+             resolution: Union[int, Tuple[int, int]] = 14,
+             use_conv: bool = False,
+-            act_layer: Type[nn.Module] = nn.SiLU,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -245,16 +249,18 @@         self.val_attn_dim = int(attn_ratio * key_dim) * num_heads
  
          self.qkv = ln_layer(dim, self.val_attn_dim + self.key_attn_dim * 2, **dd)
@@ -157,16 +179,17 @@
          rel_pos = (pos[..., :, None] - pos[..., None, :]).abs()
          rel_pos = (rel_pos[0] * resolution[1]) + rel_pos[1]
          self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
-@@ -266,7 +272,8 @@         if mode and self.attention_bias_cache:
+@@ -266,7 +272,9 @@         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
-+    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -275,7 +282,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -275,7 +283,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):  # x (B,C,H,W)
@@ -174,15 +197,25 @@
          if self.use_conv:
              B, C, H, W = x.shape
              q, k, v = self.qkv(x).view(
-@@ -301,7 +308,7 @@         return x
+@@ -301,8 +309,8 @@         return x
  
  
 -class AttentionDownsample(nn.Module):
+-    attention_bias_cache: Dict[str, torch.Tensor]
 +class AttentionDownsample(msnn.Cell):
-     attention_bias_cache: Dict[str, torch.Tensor]
++    attention_bias_cache: Dict[str, ms.Tensor]
  
      def __init__(
-@@ -343,24 +350,28 @@             sub_layer = partial(Downsample, resolution=resolution, use_pool=use_pool, **dd)
+             self,
+@@ -315,7 +323,7 @@             resolution: Union[int, Tuple[int, int]] = 14,
+             use_conv: bool = False,
+             use_pool: bool = False,
+-            act_layer: Type[nn.Module] = nn.SiLU,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
+             device=None,
+             dtype=None,
+     ):
+@@ -343,24 +351,28 @@             sub_layer = partial(Downsample, resolution=resolution, use_pool=use_pool, **dd)
  
          self.kv = ln_layer(in_dim, self.val_attn_dim + self.key_attn_dim, **dd)
 -        self.q = nn.Sequential(OrderedDict([
@@ -224,16 +257,17 @@
          rel_pos = (q_pos[..., :, None] - k_pos[..., None, :]).abs()
          rel_pos = (rel_pos[0] * resolution[1]) + rel_pos[1]
          self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
-@@ -373,7 +384,8 @@         if mode and self.attention_bias_cache:
+@@ -373,7 +385,9 @@         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
-+    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -382,7 +394,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -382,7 +396,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -241,7 +275,7 @@
          if self.use_conv:
              B, C, H, W = x.shape
              HH, WW = (H - 1) // self.stride + 1, (W - 1) // self.stride + 1
-@@ -408,7 +420,7 @@         return x
+@@ -408,7 +422,7 @@         return x
  
  
 -class LevitMlp(nn.Module):
@@ -249,7 +283,15 @@
      """ MLP for Levit w/ normalization + ability to switch btw conv and linear
      """
      def __init__(
-@@ -433,7 +445,7 @@         self.drop = nn.Dropout(drop)
+@@ -417,7 +431,7 @@             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+             use_conv: bool = False,
+-            act_layer: Type[nn.Module] = nn.SiLU,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
+             drop: float = 0.,
+             device=None,
+             dtype=None,
+@@ -433,7 +447,7 @@         self.drop = nn.Dropout(drop)
          self.ln2 = ln_layer(hidden_features, out_features, bn_weight_init=0, **dd)
  
 -    def forward(self, x):
@@ -257,7 +299,7 @@
          x = self.ln1(x)
          x = self.act(x)
          x = self.drop(x)
-@@ -441,7 +453,7 @@         return x
+@@ -441,7 +455,7 @@         return x
  
  
 -class LevitDownsample(nn.Module):
@@ -265,7 +307,17 @@
      def __init__(
              self,
              in_dim: int,
-@@ -483,15 +495,15 @@             act_layer=act_layer,
+@@ -450,8 +464,8 @@             num_heads: int = 8,
+             attn_ratio: float = 4.,
+             mlp_ratio: float = 2.,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            attn_act_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            attn_act_layer: Optional[Type[msnn.Cell]] = None,
+             resolution: Union[int, Tuple[int, int]] = 14,
+             use_conv: bool = False,
+             use_pool: bool = False,
+@@ -483,15 +497,15 @@             act_layer=act_layer,
              **dd,
          )
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -284,7 +336,17 @@
      def __init__(
              self,
              dim: int,
-@@ -521,7 +533,7 @@             act_layer=attn_act_layer,
+@@ -501,8 +515,8 @@             mlp_ratio: float = 2.,
+             resolution: Union[int, Tuple[int, int]] = 14,
+             use_conv: bool = False,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            attn_act_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            attn_act_layer: Optional[Type[msnn.Cell]] = None,
+             drop_path: float = 0.,
+             device=None,
+             dtype=None,
+@@ -521,7 +535,7 @@             act_layer=attn_act_layer,
              **dd,
              )
 -        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -292,7 +354,7 @@
  
          self.mlp = LevitMlp(
              dim,
-@@ -530,15 +542,15 @@             act_layer=act_layer,
+@@ -530,15 +544,15 @@             act_layer=act_layer,
              **dd,
          )
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -311,7 +373,17 @@
      def __init__(
              self,
              in_dim: int,
-@@ -579,7 +591,7 @@             resolution = [(r - 1) // 2 + 1 for r in resolution]
+@@ -548,8 +562,8 @@             num_heads: int = 8,
+             attn_ratio: float = 4.0,
+             mlp_ratio: float = 4.0,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            attn_act_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            attn_act_layer: Optional[Type[msnn.Cell]] = None,
+             resolution: Union[int, Tuple[int, int]] = 14,
+             downsample: str = '',
+             use_conv: bool = False,
+@@ -579,7 +593,7 @@             resolution = [(r - 1) // 2 + 1 for r in resolution]
          else:
              assert in_dim == out_dim
 -            self.downsample = nn.Identity()
@@ -319,7 +391,7 @@
  
          blocks = []
          for _ in range(depth):
-@@ -596,15 +608,17 @@                 drop_path=drop_path,
+@@ -596,15 +610,17 @@                 drop_path=drop_path,
                  **dd,
              )]
 -        self.blocks = nn.Sequential(*blocks)
@@ -340,7 +412,15 @@
      """ Vision Transformer with support for patch or hybrid CNN input stage
  
      NOTE: distillation is defaulted to True since pretrained weights use it, will cause problems
-@@ -691,10 +705,12 @@             resolution = tuple([(r - 1) // stage_stride + 1 for r in resolution])
+@@ -622,7 +638,7 @@             num_heads: Union[int, Tuple[int, ...]] = (3,),
+             attn_ratio: Union[float, Tuple[float, ...]] = 2.,
+             mlp_ratio: Union[float, Tuple[float, ...]] = 2.,
+-            stem_backbone: Optional[nn.Module] = None,
++            stem_backbone: Optional[msnn.Cell] = None,
+             stem_stride: Optional[int] = None,
+             stem_type: str = 's16',
+             down_op: str = 'subsample',
+@@ -691,10 +707,12 @@             resolution = tuple([(r - 1) // stage_stride + 1 for r in resolution])
              self.feature_info += [dict(num_chs=embed_dim[i], reduction=stride, module=f'stages.{i}')]
              in_dim = embed_dim[i]
 -        self.stages = nn.Sequential(*stages)
@@ -354,14 +434,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -712,6 +728,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -713,7 +731,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -721,11 +738,11 @@         if global_pool is not None:
+ 
+     def reset_classifier(self, num_classes: int , global_pool: Optional[str] = None):
+@@ -721,17 +739,17 @@         if global_pool is not None:
              self.global_pool = global_pool
          self.head = NormLinear(
 -            self.num_features, num_classes, drop=self.drop_rate) if num_classes > 0 else nn.Identity()
@@ -374,7 +455,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -805,7 +822,7 @@             x = x.mean(dim=(-2, -1)) if self.use_conv else x.mean(dim=1)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -805,7 +823,7 @@             x = x.mean(dim=(-2, -1)) if self.use_conv else x.mean(dim=1)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -382,17 +470,19 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -815,9 +832,10 @@     def __init__(self, *args, **kwargs):
+@@ -815,11 +833,11 @@     def __init__(self, *args, **kwargs):
          super().__init__(*args, **kwargs)
          dd = {'device': kwargs.get('device', None), 'dtype': kwargs.get('dtype', None)}
 -        self.head_dist = NormLinear(self.num_features, self.num_classes, **dd) if self.num_classes > 0 else nn.Identity()
 +        self.head_dist = NormLinear(self.num_features, self.num_classes, **dd) if self.num_classes > 0 else msnn.Identity()
          self.distilled_training = False  # must set this True to train w/ distillation token
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head, self.head_dist
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
 @@ -827,8 +845,8 @@         if global_pool is not None:
              self.global_pool = global_pool
          self.head = NormLinear(

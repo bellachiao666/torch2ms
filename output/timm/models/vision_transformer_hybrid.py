@@ -20,8 +20,6 @@ Hacked together by / Copyright 2020, Ross Wightman
 """
 from functools import partial
 from typing import Dict, Tuple, Type, Union
-
-# import torch
 # import torch.nn as nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
@@ -43,8 +41,8 @@ class ConvStem(msnn.SequentialCell):
             kernel_size: Union[int, Tuple[int, ...]] = 3,
             stride: Union[int, Tuple[int, ...]] = (2, 2, 2),
             padding: Union[str, int, Tuple[int, ...]] = "",
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -139,11 +137,11 @@ def _convert_mobileclip(state_dict, model, prefix='image_encoder.model.'):
 
 
 def checkpoint_filter_fn(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model: VisionTransformer,
         interpolation: str = 'bicubic',
         antialias: bool = True,
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     from .vision_transformer import checkpoint_filter_fn as _filter_fn
 
     if 'image_encoder.model.patch_emb.0.block.conv.weight' in state_dict:

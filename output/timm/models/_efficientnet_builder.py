@@ -577,8 +577,7 @@ def _init_weight_goog(m, n='', fix_group_fanout=True):
         nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def efficientnet_init_weights(model: nn.Module, init_fn=None):
+def efficientnet_init_weights(model: msnn.Cell, init_fn=None):
     init_fn = init_fn or _init_weight_goog
     for n, m in model.named_modules():
         init_fn(m, n)

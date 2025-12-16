@@ -30,7 +30,7 @@ class CatBnAct(msnn.Cell):
     def __init__(
             self,
             in_chs: int,
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
+            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
             device=None,
             dtype=None,
     ):
@@ -62,7 +62,7 @@ class BnActConv2d(msnn.Cell):
             kernel_size: int,
             stride: int,
             groups: int = 1,
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
+            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
             device=None,
             dtype=None,
     ):
@@ -138,7 +138,7 @@ class DualPathBlock(msnn.Cell):
         # type: (torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
         pass
 
-    def construct(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
+    def construct(self, x) -> Tuple[ms.Tensor, ms.Tensor]:
         if isinstance(x, tuple):
             x_in = mint.cat(x, dim = 1)
         else:
@@ -293,9 +293,8 @@ class DPN(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):

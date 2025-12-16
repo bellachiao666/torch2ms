@@ -29,10 +29,9 @@ class HybridEmbed(msnn.Cell):
     output_fmt: Format
     dynamic_img_pad: torch.jit.Final[bool]
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            backbone: nn.Module,
+            backbone: msnn.Cell,
             img_size: Union[int, Tuple[int, int]] = 224,
             patch_size: Union[int, Tuple[int, int]] = 1,
             feature_size: Optional[Union[int, Tuple[int, int]]] = None,
@@ -223,10 +222,9 @@ class HybridEmbedWithSize(HybridEmbed):
     """ CNN Feature Map Embedding
     Extract feature map from CNN, flatten, project to embedding dim.
     """
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            backbone: nn.Module,
+            backbone: msnn.Cell,
             img_size: Union[int, Tuple[int, int]] = 224,
             patch_size: Union[int, Tuple[int, int]] = 1,
             feature_size: Optional[Union[int, Tuple[int, int]]] = None,
@@ -259,7 +257,7 @@ class HybridEmbedWithSize(HybridEmbed):
         elif hasattr(self.backbone, 'grad_checkpointing'):
             self.backbone.grad_checkpointing = enable
 
-    def forward(self, x) -> Tuple[torch.Tensor, List[int]]:
+    def forward(self, x) -> Tuple[ms.Tensor, List[int]]:
         x = self.backbone(x)
         if isinstance(x, (list, tuple)):
             x = x[-1]  # last feature if backbone outputs list/tuple of features

@@ -24,6 +24,25 @@
      """ Res2Net/Res2NeXT Bottleneck
      Adapted from https://github.com/gasvn/Res2Net/blob/master/res2net.py
      """
+@@ -27,15 +30,15 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             cardinality: int = 1,
+             base_width: int = 26,
+             scale: int = 4,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
+-            attn_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+             **_,
 @@ -68,11 +71,11 @@                 **dd,
              ))
              bns.append(norm_layer(width, **dd))

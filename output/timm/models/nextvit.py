@@ -83,8 +83,8 @@ class ConvNormAct(msnn.Cell):
             kernel_size: int = 3,
             stride: int = 1,
             groups: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -126,7 +126,7 @@ class PatchEmbed(msnn.Cell):
             in_chs: int,
             out_chs: int,
             stride: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -158,8 +158,8 @@ class ConvAttention(msnn.Cell):
             self,
             out_chs: int,
             head_dim: int,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -200,8 +200,8 @@ class NextConvBlock(msnn.Cell):
             drop: float = 0.,
             head_dim: int = 32,
             mlp_ratio: float = 3.,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -264,7 +264,7 @@ class EfficientAttention(msnn.Cell):
             attn_drop: float = 0.,
             proj_drop: float = 0.,
             sr_ratio: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm1d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm1d,
             device=None,
             dtype=None,
     ):
@@ -339,8 +339,8 @@ class NextTransformerBlock(msnn.Cell):
             mix_block_ratio: float = 0.75,
             attn_drop: float = 0.,
             drop: float = 0.,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -433,7 +433,7 @@ class NextStage(msnn.Cell):
             self,
             in_chs: int,
             block_chs: List[int],
-            block_types: List[Type[nn.Module]],
+            block_types: List[Type[msnn.Cell]],
             stride: int = 2,
             sr_ratio: int = 1,
             mix_block_ratio: float = 1.0,
@@ -441,8 +441,8 @@ class NextStage(msnn.Cell):
             attn_drop: float = 0.,
             drop_path: Union[float, List[float], Tuple[float, ...]] = 0.,
             head_dim: int = 32,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -518,8 +518,8 @@ class NextViT(msnn.Cell):
             drop_rate: float = 0.,
             head_dim: int = 32,
             mix_block_ratio: float = 0.75,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            act_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -623,9 +623,8 @@ class NextViT(msnn.Cell):
         for stage in self.stages:
             stage.set_grad_checkpointing(enable=enable)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -640,7 +639,7 @@ class NextViT(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

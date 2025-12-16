@@ -71,9 +71,9 @@ class MixerBlock(msnn.Cell):
             dim: int,
             seq_len: int,
             mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            mlp_layer: Type[msnn.Cell] = Mlp,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop: float = 0.,
             drop_path: float = 0.,
             device=None,
@@ -136,9 +136,9 @@ class ResBlock(msnn.Cell):
             dim: int,
             seq_len: int,
             mlp_ratio: float = 4,
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = Affine,
-            act_layer: Type[nn.Module] = nn.GELU,
+            mlp_layer: Type[msnn.Cell] = Mlp,
+            norm_layer: Type[msnn.Cell] = Affine,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             init_values: float = 1e-4,
             drop: float = 0.,
             drop_path: float = 0.,
@@ -185,7 +185,7 @@ class SpatialGatingUnit(msnn.Cell):
             self,
             dim: int,
             seq_len: int,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ) -> None:
@@ -226,9 +226,9 @@ class SpatialGatingBlock(msnn.Cell):
             dim: int,
             seq_len: int,
             mlp_ratio: float = 4,
-            mlp_layer: Type[nn.Module] = GatedMlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            mlp_layer: Type[msnn.Cell] = GatedMlp,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop: float = 0.,
             drop_path: float = 0.,
             device=None,
@@ -282,10 +282,10 @@ class MlpMixer(msnn.Cell):
             num_blocks: int = 8,
             embed_dim: int = 512,
             mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
-            block_layer: Type[nn.Module] = MixerBlock,
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            block_layer: Type[msnn.Cell] = MixerBlock,
+            mlp_layer: Type[msnn.Cell] = Mlp,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop_rate: float = 0.,
             proj_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
@@ -390,9 +390,8 @@ class MlpMixer(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier module."""
         return self.head
 
@@ -418,7 +417,7 @@ class MlpMixer(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """Forward features that returns intermediates.
 
         Args:
@@ -523,8 +522,7 @@ class MlpMixer(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: bool = False) -> None:
+def _init_weights(module: msnn.Cell, name: str, head_bias: float = 0., flax: bool = False) -> None:
     """Mixer weight initialization (trying to match Flax defaults).
 
     Args:

@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,10 +1,14 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,10 +1,13 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -10,20 +10,21 @@
 -import torch
 -import torch.nn as nn
 -import torch.nn.functional as F
-+# import torch
 +# import torch.nn as nn
  from typing import Tuple, Optional, Union
  
  from ._fx import register_notrace_module
-@@ -17,7 +21,7 @@ 
+@@ -17,15 +20,15 @@ 
  def conv2d_same(
          x,
 -        weight: torch.Tensor,
+-        bias: Optional[torch.Tensor] = None,
 +        weight: ms.Tensor,
-         bias: Optional[torch.Tensor] = None,
++        bias: Optional[ms.Tensor] = None,
          stride: Tuple[int, int] = (1, 1),
          padding: Tuple[int, int] = (0, 0),
-@@ -25,7 +29,7 @@         groups: int = 1,
+         dilation: Tuple[int, int] = (1, 1),
+         groups: int = 1,
  ):
      x = pad_same(x, weight.shape[-2:], stride, dilation)
 -    return F.conv2d(x, weight, bias, stride, (0, 0), dilation, groups)
@@ -31,7 +32,7 @@
  
  
  @register_notrace_module
-@@ -114,15 +118,8 @@             self.pad_input_size = input_size
+@@ -114,15 +117,8 @@             self.pad_input_size = input_size
  
          x = self.pad(x)
 -        return F.conv2d(

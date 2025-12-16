@@ -22,6 +22,16 @@
      """Constructs an ECA module.
  
      Args:
+@@ -64,8 +68,8 @@             kernel_size: int = 3,
+             gamma: float = 2,
+             beta: float = 1,
+-            act_layer: Optional[Type[nn.Module]] = None,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Optional[Type[msnn.Cell]] = None,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             rd_ratio: float = 1/8,
+             rd_channels: Optional[int] = None,
+             rd_divisor: int = 8,
 @@ -95,7 +99,7 @@             self.conv2 = None
          self.gate = create_act_layer(gate_layer)
  
@@ -38,6 +48,16 @@
      """Constructs a circular ECA module.
  
      ECA module where the conv uses circular padding rather than zero padding.
+@@ -138,8 +142,8 @@             kernel_size: int = 3,
+             gamma: float = 2,
+             beta: float = 1,
+-            act_layer: Optional[nn.Module] = None,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Optional[msnn.Cell] = None,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             device=None,
+             dtype=None,
+     ):
 @@ -158,10 +162,10 @@         self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=0, bias=has_act, **dd)
          self.gate = create_act_layer(gate_layer)
  

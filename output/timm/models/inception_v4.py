@@ -25,7 +25,7 @@ __all__ = ['InceptionV4']
 class Mixed3a(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -44,7 +44,7 @@ class Mixed3a(msnn.Cell):
 class Mixed4a(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -75,7 +75,7 @@ class Mixed4a(msnn.Cell):
 class Mixed5a(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -94,7 +94,7 @@ class Mixed5a(msnn.Cell):
 class InceptionA(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -133,7 +133,7 @@ class InceptionA(msnn.Cell):
 class ReductionA(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -161,7 +161,7 @@ class ReductionA(msnn.Cell):
 class InceptionB(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -203,7 +203,7 @@ class InceptionB(msnn.Cell):
 class ReductionB(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -237,7 +237,7 @@ class ReductionB(msnn.Cell):
 class InceptionC(msnn.Cell):
     def __init__(
             self,
-            conv_block: Type[nn.Module] = ConvNormAct,
+            conv_block: Type[msnn.Cell] = ConvNormAct,
             device=None,
             dtype=None,
     ):
@@ -353,9 +353,8 @@ class InceptionV4(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.last_linear
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
@@ -371,7 +370,7 @@ class InceptionV4(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

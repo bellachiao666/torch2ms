@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,10 +1,15 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,10 +1,14 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -11,11 +11,10 @@
 -import torch
 -from torch import nn
 +# import torch
-+# from torch import nn
  
  from timm.layers import (
      create_feature_extractor,
-@@ -35,11 +40,12 @@ ]
+@@ -35,14 +39,14 @@ ]
  
  
 -class FeatureGraphNet(nn.Module):
@@ -24,11 +23,14 @@
      """
      return_dict: torch.jit.Final[bool]
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(
              self,
-             model: nn.Module,
-@@ -57,14 +63,14 @@         self.graph_module = create_feature_extractor(model, return_nodes)
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: Tuple[int, ...],
+             out_map: Optional[Dict] = None,
+             output_fmt: str = 'NCHW',
+@@ -57,14 +61,14 @@         self.graph_module = create_feature_extractor(model, return_nodes)
          self.return_dict = return_dict
  
 -    def forward(self, x):
@@ -44,18 +46,19 @@
      """ A standalone feature extraction wrapper that maps dict -> list or single tensor
      NOTE:
        * one can use feature_extractor directly if dictionary output is desired
-@@ -80,6 +86,7 @@     """
-     return_dict: torch.jit.Final[bool]
- 
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+@@ -82,7 +86,7 @@ 
      def __init__(
              self,
-             model: nn.Module,
-@@ -92,7 +99,7 @@         self.graph_module = create_feature_extractor(model, return_nodes)
+-            model: nn.Module,
++            model: msnn.Cell,
+             return_nodes: Union[Dict[str, str], List[str]],
+             squeeze_out: bool = True,
+             return_dict: bool = False,
+@@ -92,7 +96,7 @@         self.graph_module = create_feature_extractor(model, return_nodes)
          self.return_dict = return_dict
  
 -    def forward(self, x) -> Union[List[torch.Tensor], torch.Tensor]:
-+    def construct(self, x) -> Union[List[torch.Tensor], torch.Tensor]:
++    def construct(self, x) -> Union[List[ms.Tensor], ms.Tensor]:
          out = self.graph_module(x)
          if self.return_dict:
              return out

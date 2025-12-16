@@ -16,7 +16,9 @@ class MultiStepLRScheduler(Scheduler):
     """
     """
 
-    # 类型标注 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             optimizer: torch.optim.Optimizer,

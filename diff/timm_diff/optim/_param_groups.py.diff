@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,9 +1,14 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,9 +1,12 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -7,23 +7,24 @@
  import logging
  from itertools import islice
  from typing import Collection, Optional
- 
+-
 -from torch import nn as nn
-+# from torch import nn as nn
  
  from timm.models import group_parameters
  
-@@ -16,6 +21,7 @@     return any(fnmatch.fnmatch(name, pattern) for pattern in patterns)
+@@ -17,7 +20,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def param_groups_weight_decay(
-         model: nn.Module,
+-        model: nn.Module,
++        model: msnn.Cell,
          weight_decay: float = 1e-5,
-@@ -99,6 +105,7 @@ _layer_map = auto_group_layers  # backward compat
+         no_weight_decay_list: Collection[str] = (),
+         fallback_list: Collection[str] = (),
+@@ -100,7 +103,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def param_groups_layer_decay(
-         model: nn.Module,
+-        model: nn.Module,
++        model: msnn.Cell,
          weight_decay: float = 0.05,
+         no_weight_decay_list: Collection[str] = (),
+         fallback_list: Collection[str] = (),

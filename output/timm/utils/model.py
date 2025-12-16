@@ -235,8 +235,7 @@ def unfreeze(root_module, submodules=[], include_bn_running_stats=True):
     _freeze_unfreeze(root_module, submodules, include_bn_running_stats=include_bn_running_stats, mode="unfreeze")
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def reparameterize_model(model: torch.nn.Module, inplace=False) -> torch.nn.Module:
+def reparameterize_model(model: msnn.Cell, inplace=False) -> msnn.Cell:
     if not inplace:
         model = deepcopy(model)
 

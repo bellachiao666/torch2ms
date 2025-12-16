@@ -92,7 +92,6 @@ ATTN_LAYERS = {
 }
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _create_attn(
         attn_layer: LayerType,
         dim: int,
@@ -103,10 +102,10 @@ def _create_attn(
         proj_bias: bool = True,
         attn_drop: float = 0.,
         proj_drop: float = 0.,
-        norm_layer: Optional[Type[nn.Module]] = None,
+        norm_layer: Optional[Type[msnn.Cell]] = None,
         depth: int = 0,
         **kwargs,
-) -> nn.Module:
+) -> msnn.Cell:
     if isinstance(attn_layer, str):
         attn_layer = ATTN_LAYERS.get(attn_layer, None)
         assert attn_layer is not None, f'Unknown attn_layer: {attn_layer}'
@@ -146,9 +145,9 @@ class Block(msnn.Cell):
             attn_drop: float = 0.,
             init_values: Optional[float] = None,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            mlp_layer: Type[nn.Module] = Mlp,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            mlp_layer: Type[msnn.Cell] = Mlp,
             attn_layer: LayerType = Attention,
             depth: int = 0,
             device=None,
@@ -207,7 +206,7 @@ class Block(msnn.Cell):
         self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x), attn_mask=attn_mask)))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
@@ -228,9 +227,9 @@ class ResPostBlock(msnn.Cell):
             attn_drop: float = 0.,
             init_values: Optional[float] = None,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            mlp_layer: Type[nn.Module] = Mlp,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            mlp_layer: Type[msnn.Cell] = Mlp,
             attn_layer: LayerType = Attention,
             depth: int = 0,
             device=None,
@@ -277,7 +276,7 @@ class ResPostBlock(msnn.Cell):
             nn.init.constant_(self.norm1.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(self.norm2.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         x = x + self.drop_path1(self.norm1(self.attn(x, attn_mask=attn_mask)))
         x = x + self.drop_path2(self.norm2(self.mlp(x)))
         return x
@@ -304,9 +303,9 @@ class ParallelScalingBlock(msnn.Cell):
             attn_drop: float = 0.,
             init_values: Optional[float] = None,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            mlp_layer: Optional[Type[nn.Module]] = None,  # not used
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            mlp_layer: Optional[Type[msnn.Cell]] = None,  # not used
             attn_layer: Optional[LayerType] = None,  # not used
             depth: int = 0,  # not used
             fuse_out_proj: bool = False,
@@ -355,7 +354,7 @@ class ParallelScalingBlock(msnn.Cell):
         self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         B, N, C = x.shape
 
         # Combined MLP fc1 & qkv projections
@@ -426,9 +425,9 @@ class DiffParallelScalingBlock(msnn.Cell):
             attn_drop: float = 0.,
             init_values: Optional[float] = None,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            mlp_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            mlp_layer: Optional[Type[msnn.Cell]] = None,
             attn_layer: Optional[LayerType] = None,
             depth: int = 0,
             dual_lambda: bool = False,
@@ -510,7 +509,7 @@ class DiffParallelScalingBlock(msnn.Cell):
             lambda_2 = mint.exp(mint.sum(self.lambda_q2 * self.lambda_k2).float())
         return lambda_1 - lambda_2 + self.lambda_init
 
-    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         B, N, C = x.shape
 
         # Combined MLP fc1 & qkv projections
@@ -588,9 +587,9 @@ class ParallelThingsBlock(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            mlp_layer: Type[nn.Module] = Mlp,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
+            mlp_layer: Type[msnn.Cell] = Mlp,
             attn_layer: LayerType = Attention,
             depth: int = 0,
             device=None,
@@ -640,7 +639,7 @@ class ParallelThingsBlock(msnn.Cell):
             ])
             ]))
 
-    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         if attn_mask is not None:
             attn_out = []
             for attn in self.attns:
@@ -728,8 +727,8 @@ class VisionTransformer(msnn.Cell):
             embed_norm_layer: Optional[LayerType] = None,
             norm_layer: Optional[LayerType] = None,
             act_layer: Optional[LayerType] = None,
-            block_fn: Type[nn.Module] = Block,
-            mlp_layer: Type[nn.Module] = Mlp,
+            block_fn: Type[msnn.Cell] = Block,
+            mlp_layer: Type[msnn.Cell] = Mlp,
             attn_layer: LayerType = Attention,
             device=None,
             dtype=None,
@@ -899,8 +898,7 @@ class VisionTransformer(msnn.Cell):
 
         named_apply(get_init_weights_vit(mode, head_bias), self)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module) -> None:
+    def _init_weights(self, m: msnn.Cell) -> None:
         """Initialize weights for a single module (compatibility method)."""
         # this fn left here for compat with downstream users
         init_weights_vit_timm(m)
@@ -946,9 +944,8 @@ class VisionTransformer(msnn.Cell):
         if hasattr(self.patch_embed, 'set_grad_checkpointing'):
             self.patch_embed.set_grad_checkpointing(enable)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.head
 
@@ -1043,8 +1040,8 @@ class VisionTransformer(msnn.Cell):
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             output_dict: bool = False,
-            attn_mask: Optional[torch.Tensor] = None,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]], Dict[str, Any]]:
+            attn_mask: Optional[ms.Tensor] = None,
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]], Dict[str, Any]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -1160,8 +1157,8 @@ class VisionTransformer(msnn.Cell):
             reshape: bool = False,
             return_prefix_tokens: bool = False,
             norm: bool = False,
-            attn_mask: Optional[torch.Tensor] = None,
-    ) -> List[torch.Tensor]:
+            attn_mask: Optional[ms.Tensor] = None,
+    ) -> List[ms.Tensor]:
         """Get intermediate layer outputs (DINO interface compatibility).
 
         NOTE: This API is for backwards compat, favour using forward_intermediates() directly.
@@ -1185,7 +1182,7 @@ class VisionTransformer(msnn.Cell):
             attn_mask=attn_mask,
         )
 
-    def forward_features(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def forward_features(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         """Forward pass through feature layers (embeddings, transformer blocks, post-transformer norm)."""
         x = self.patch_embed(x)
         x = self._pos_embed(x)
@@ -1243,14 +1240,13 @@ class VisionTransformer(msnn.Cell):
         x = self.head_drop(x)
         return x if pre_logits else self.head(x)
 
-    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         x = self.forward_features(x, attn_mask=attn_mask)
         x = self.forward_head(x)
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def init_weights_vit_timm(module: nn.Module, name: str = '') -> None:
+def init_weights_vit_timm(module: msnn.Cell, name: str = '') -> None:
     """ViT weight initialization, original timm impl (for reproducibility).
 
     Args:
@@ -1265,8 +1261,7 @@ def init_weights_vit_timm(module: nn.Module, name: str = '') -> None:
         module.init_weights()
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def init_weights_vit_jax(module: nn.Module, name: str = '', head_bias: float = 0.0) -> None:
+def init_weights_vit_jax(module: msnn.Cell, name: str = '', head_bias: float = 0.0) -> None:
     """ViT weight initialization, matching JAX (Flax) impl.
 
     Args:
@@ -1290,8 +1285,7 @@ def init_weights_vit_jax(module: nn.Module, name: str = '', head_bias: float = 0
         module.init_weights()
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def init_weights_vit_moco(module: nn.Module, name: str = '') -> None:
+def init_weights_vit_moco(module: msnn.Cell, name: str = '') -> None:
     """ViT weight initialization, matching moco-v3 impl minus fixed PatchEmbed.
 
     Args:
@@ -1501,10 +1495,10 @@ def _load_weights(model: VisionTransformer, checkpoint_path: str, prefix: str = 
 
 
 def _convert_openai_clip(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model: VisionTransformer,
         prefix: str = 'visual.',
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     out_dict = {}
     swaps = [
         ('conv1', 'patch_embed.proj'),
@@ -1539,9 +1533,9 @@ def _convert_openai_clip(
 
 
 def _convert_dinov2(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model: VisionTransformer,
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     import re
     out_dict = {}
     state_dict.pop("mask_token", None)
@@ -1562,9 +1556,9 @@ def _convert_dinov2(
 
 
 def _convert_aimv2(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model: VisionTransformer,
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     out_dict = {}
     for k, v in state_dict.items():
         k = k.replace('norm_1', 'norm1')
@@ -1639,12 +1633,12 @@ def _convert_beit3(state_dict: dict, model):
 
 
 def checkpoint_filter_fn(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model: VisionTransformer,
         adapt_layer_scale: bool = False,
         interpolation: str = 'bicubic',
         antialias: bool = True,
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     """ convert patch embedding weight from manual patchify + linear proj to conv"""
     import re
     out_dict = {}

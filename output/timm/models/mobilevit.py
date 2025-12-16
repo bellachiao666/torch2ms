@@ -190,7 +190,7 @@ class MobileVitBlock(msnn.Cell):
             no_fusion: bool = False,
             drop_path_rate: float = 0.,
             layers: LayerFn = None,
-            transformer_norm_layer: Type[nn.Module] = nn.LayerNorm,
+            transformer_norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
             **kwargs,  # eat unused args
@@ -360,7 +360,7 @@ class LinearSelfAttention(msnn.Cell):
         return out
 
     @torch.jit.ignore()
-    def _forward_cross_attn(self, x: ms.Tensor, x_prev: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def _forward_cross_attn(self, x: ms.Tensor, x_prev: Optional[ms.Tensor] = None) -> ms.Tensor:
         # x --> [B, C, P, N]
         # x_prev = [B, C, P, M]
         batch_size, in_dim, kv_patch_area, kv_num_patches = x.shape
@@ -396,7 +396,7 @@ class LinearSelfAttention(msnn.Cell):
         out = self.out_drop(out)
         return out
 
-    def construct(self, x: ms.Tensor, x_prev: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, x_prev: Optional[ms.Tensor] = None) -> ms.Tensor:
         if x_prev is None:
             return self._forward_self_attn(x)
         else:
@@ -426,8 +426,8 @@ class LinearTransformerBlock(msnn.Cell):
             drop: float = 0.0,
             attn_drop: float = 0.0,
             drop_path: float = 0.0,
-            act_layer: Optional[Type[nn.Module]] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Optional[Type[msnn.Cell]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ) -> None:
@@ -449,7 +449,7 @@ class LinearTransformerBlock(msnn.Cell):
             **dd)
         self.drop_path2 = DropPath(drop_path)
 
-    def construct(self, x: ms.Tensor, x_prev: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, x_prev: Optional[ms.Tensor] = None) -> ms.Tensor:
         if x_prev is None:
             # self-attention
             x = x + self.drop_path1(self.attn(self.norm1(x)))
@@ -487,7 +487,7 @@ class MobileVitV2Block(msnn.Cell):
             drop: int = 0.,
             drop_path_rate: float = 0.,
             layers: LayerFn = None,
-            transformer_norm_layer: Type[nn.Module] = GroupNorm1,
+            transformer_norm_layer: Type[msnn.Cell] = GroupNorm1,
             device=None,
             dtype=None,
             **kwargs,  # eat unused args

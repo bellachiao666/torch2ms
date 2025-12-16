@@ -217,7 +217,7 @@ class Attention2d(msnn.Cell):
         self.proj = nn.Conv2d(dim_attn, dim_out, 1, bias=bias, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def construct(self, x: ms.Tensor, shared_rel_pos: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, shared_rel_pos: Optional[ms.Tensor] = None) -> ms.Tensor:
         B, C, H, W = x.shape
 
         if self.head_first:
@@ -296,7 +296,7 @@ class AttentionCl(msnn.Cell):
         self.proj = nn.Linear(dim_attn, dim_out, bias=bias, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def construct(self, x: ms.Tensor, shared_rel_pos: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, shared_rel_pos: Optional[ms.Tensor] = None) -> ms.Tensor:
         B = x.shape[0]
         restore_shape = x.shape[:-1]
 
@@ -384,8 +384,7 @@ class Downsample2d(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_transformer(module: nn.Module, name: str, scheme: str = '') -> None:
+def _init_transformer(module: msnn.Cell, name: str, scheme: str = '') -> None:
     """Initialize transformer module weights."""
     if isinstance(module, (nn.Conv2d, nn.Linear)):
         if scheme == 'normal':
@@ -487,14 +486,13 @@ class TransformerBlock2d(msnn.Cell):
     def init_weights(self, scheme: str = '') -> None:
         named_apply(partial(_init_transformer, scheme=scheme), self)
 
-    def construct(self, x: ms.Tensor, shared_rel_pos: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, shared_rel_pos: Optional[ms.Tensor] = None) -> ms.Tensor:
         x = self.shortcut(x) + self.drop_path1(self.ls1(self.attn(self.norm1(x), shared_rel_pos=shared_rel_pos)))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_conv(module: nn.Module, name: str, scheme: str = '') -> None:
+def _init_conv(module: msnn.Cell, name: str, scheme: str = '') -> None:
     """Initialize convolution module weights."""
     if isinstance(module, nn.Conv2d):
         if scheme == 'normal':
@@ -1467,8 +1465,7 @@ class MaxxVit(msnn.Cell):
         if cfg.weight_init:
             named_apply(partial(self._init_weights, scheme=cfg.weight_init), self)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, module: nn.Module, name: str, scheme: str = '') -> None:
+    def _init_weights(self, module: msnn.Cell, name: str, scheme: str = '') -> None:
         if hasattr(module, 'init_weights'):
             try:
                 module.init_weights(scheme=scheme)
@@ -1494,9 +1491,8 @@ class MaxxVit(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
@@ -1511,7 +1507,7 @@ class MaxxVit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -2117,8 +2113,7 @@ model_cfgs = dict(
 )
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
     """Filter checkpoint state dict for compatibility."""
     model_state_dict = model.state_dict()
     out_dict = {}

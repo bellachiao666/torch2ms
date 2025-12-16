@@ -15,13 +15,13 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import SelectAdaptivePool2d
-@@ -15,16 +20,17 @@ __all__ = ['ConvMixer']
+@@ -15,16 +20,16 @@ __all__ = ['ConvMixer']
  
  
 -class Residual(nn.Module):
+-    def __init__(self, fn: nn.Module):
 +class Residual(msnn.Cell):
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def __init__(self, fn: nn.Module):
++    def __init__(self, fn: msnn.Cell):
          super().__init__()
          self.fn = fn
  
@@ -35,7 +35,15 @@
      def __init__(
              self,
              dim: int,
-@@ -46,26 +52,30 @@         self.num_features = self.head_hidden_size = dim
+@@ -35,7 +40,7 @@             num_classes: int = 1000,
+             global_pool: str = 'avg',
+             drop_rate: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+             **kwargs,
+@@ -46,26 +51,30 @@         self.num_features = self.head_hidden_size = dim
          self.grad_checkpointing = False
  
 -        self.stem = nn.Sequential(
@@ -80,14 +88,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -76,6 +86,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -77,14 +86,14 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -84,7 +95,7 @@         self.num_classes = num_classes
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+         self.num_classes = num_classes
          if global_pool is not None:
              self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
 -        self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
@@ -95,7 +104,7 @@
  
      def forward_features(self, x):
          x = self.stem(x)
-@@ -99,7 +110,7 @@         x = self.head_drop(x)
+@@ -99,7 +108,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

@@ -65,9 +65,8 @@ class VisionTransformerDistilled(VisionTransformer):
                 (r'^norm', (99999,))]  # final norm w/ last block
         )
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head, self.head_dist
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):

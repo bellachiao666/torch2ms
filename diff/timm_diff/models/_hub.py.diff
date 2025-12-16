@@ -81,7 +81,7 @@
      return state_dict
  
  
-@@ -290,12 +295,13 @@         raise RuntimeError(f"No suitable checkpoints found in {path}.")
+@@ -290,16 +295,16 @@         raise RuntimeError(f"No suitable checkpoints found in {path}.")
  
      try:
 -        state_dict = torch.load(found_file, map_location='cpu', weights_only=weights_only)
@@ -92,25 +92,31 @@
      return state_dict
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def load_custom_from_hf(
          model_id: str,
          filename: str,
-@@ -313,6 +319,7 @@     return model.load_pretrained(cached_file)
+-        model: torch.nn.Module,
++        model: msnn.Cell,
+         cache_dir: Optional[Union[str, Path]] = None,
+ ):
+     assert has_hf_hub(True)
+@@ -314,7 +319,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def save_config_for_hf(
-         model: torch.nn.Module,
+-        model: torch.nn.Module,
++        model: msnn.Cell,
          config_path: str,
-@@ -362,6 +369,7 @@         json.dump(hf_config, f, indent=2)
+         model_config: Optional[dict] = None,
+         model_args: Optional[dict] = None
+@@ -363,7 +368,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def save_for_hf(
-         model: torch.nn.Module,
+-        model: torch.nn.Module,
++        model: msnn.Cell,
          save_directory: str,
-@@ -379,7 +387,7 @@         assert _has_safetensors, "`pip install safetensors` to use .safetensors"
+         model_config: Optional[dict] = None,
+         model_args: Optional[dict] = None,
+@@ -379,7 +384,7 @@         assert _has_safetensors, "`pip install safetensors` to use .safetensors"
          safetensors.torch.save_file(tensors, save_directory / HF_SAFE_WEIGHTS_NAME)
      if safe_serialization is False or safe_serialization == "both":
 -        torch.save(tensors, save_directory / HF_WEIGHTS_NAME)
@@ -118,10 +124,11 @@
  
      config_path = save_directory / 'config.json'
      save_config_for_hf(
-@@ -390,6 +398,7 @@     )
+@@ -391,7 +396,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def push_to_hf_hub(
-         model: torch.nn.Module,
+-        model: torch.nn.Module,
++        model: msnn.Cell,
          repo_id: str,
+         commit_message: str = 'Add model',
+         token: Optional[str] = None,

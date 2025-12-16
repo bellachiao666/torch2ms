@@ -21,10 +21,10 @@ class BinaryCrossEntropy(msnn.Cell):
             self,
             smoothing=0.1,
             target_threshold: Optional[float] = None,
-            weight: Optional[torch.Tensor] = None,
+            weight: Optional[ms.Tensor] = None,
             reduction: str = 'mean',
             sum_classes: bool = False,
-            pos_weight: Optional[Union[torch.Tensor, float]] = None,
+            pos_weight: Optional[Union[ms.Tensor, float]] = None,
     ):
         super(BinaryCrossEntropy, self).__init__()
         assert 0. <= smoothing < 1.0

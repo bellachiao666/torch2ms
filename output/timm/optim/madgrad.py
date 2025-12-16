@@ -57,7 +57,7 @@ class MADGRAD(torch.optim.Optimizer):
             Term added to the denominator outside of the root operation to improve numerical stability. (default: 1e-6).
     """
 
-    # 类型标注 'torch.optim.optimizer._params_t' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.optim.optimizer._params_t' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             params: _params_t,

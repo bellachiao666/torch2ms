@@ -21,6 +21,16 @@
      """ MLP as used in Vision Transformer, MLP-Mixer and related networks
  
      NOTE: When use_conv=True, expects 2D NCHW tensors, otherwise N*C expected.
+@@ -21,8 +26,8 @@             in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             bias: Union[bool, Tuple[bool, bool]] = True,
+             drop: Union[float, Tuple[float, float]] = 0.,
+             use_conv: bool = False,
 @@ -40,21 +45,21 @@         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
          self.act = act_layer()
          self.drop1 = nn.Dropout(drop_probs[0])
@@ -54,6 +64,16 @@
      """ MLP w/ GLU style gating
      See: https://arxiv.org/abs/1612.08083, https://arxiv.org/abs/2002.05202
  
+@@ -65,8 +70,8 @@             in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.Sigmoid,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.Sigmoid,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             bias: Union[bool, Tuple[bool, bool]] = True,
+             drop: Union[float, Tuple[float, float]] = 0.,
+             use_conv: bool = False,
 @@ -88,17 +93,17 @@         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
          self.act = act_layer()
          self.drop1 = nn.Dropout(drop_probs[0])
@@ -84,6 +104,16 @@
      """ SwiGLU
      NOTE: GluMLP above can implement SwiGLU, but this impl has split fc1 and
      better matches some other common impl which makes mapping checkpoints simpler.
+@@ -122,8 +127,8 @@             in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             bias: Union[bool, Tuple[bool, bool]] = True,
+             drop: Union[float, Tuple[float, float]] = 0.,
+             align_to: int = 0,
 @@ -144,17 +149,17 @@         self.fc1_x = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
          self.act = act_layer()
          self.drop1 = nn.Dropout(drop_probs[0])
@@ -114,6 +144,18 @@
      """ MLP as used in gMLP
      """
      def __init__(
+@@ -173,9 +178,9 @@             in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
+-            gate_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
++            gate_layer: Optional[Type[msnn.Cell]] = None,
+             bias: Union[bool, Tuple[bool, bool]] = True,
+             drop: Union[float, Tuple[float, float]] = 0.,
+             device=None,
 @@ -196,12 +201,12 @@             self.gate = gate_layer(hidden_features, **dd)
              hidden_features = hidden_features // 2  # FIXME base reduction on gate property?
          else:
@@ -137,6 +179,16 @@
      """ MLP using 1x1 convs that keeps spatial dims (for 2D NCHW tensors)
      """
      def __init__(
+@@ -220,8 +225,8 @@             in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             bias: Union[bool, Tuple[bool, bool]] = True,
+             drop: float = 0.,
+             device=None,
 @@ -234,12 +239,12 @@         bias = to_2tuple(bias)
  
          self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)
@@ -159,6 +211,14 @@
      """ MLP w/ Global Response Norm (see grn.py), nn.Linear or 1x1 Conv2d
  
      NOTE: Intended for '2D' NCHW (use_conv=True) or NHWC (use_conv=False, channels-last) tensor layouts
+@@ -258,7 +263,7 @@             in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             bias: Union[bool, Tuple[bool, bool]] = True,
+             drop: Union[float, Tuple[float, float]] = 0.,
+             use_conv: bool = False,
 @@ -280,7 +285,7 @@         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)
          self.drop2 = nn.Dropout(drop_probs[1])
  

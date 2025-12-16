@@ -6,7 +6,7 @@
  """Variable‑size Mixup / CutMix utilities for NaFlex data loaders.
  
  This module provides:
-@@ -17,7 +22,7 @@ import random
+@@ -17,17 +22,17 @@ import random
  from typing import Dict, List, Tuple, Union
  
 -import torch
@@ -14,6 +14,18 @@
  
  
  def mix_batch_variable_size(
+-        imgs: List[torch.Tensor],
++        imgs: List[ms.Tensor],
+         *,
+         mixup_alpha: float = 0.8,
+         cutmix_alpha: float = 1.0,
+         switch_prob: float = 0.5,
+         local_shuffle: int = 4,
+-) -> Tuple[List[torch.Tensor], List[float], Dict[int, int]]:
++) -> Tuple[List[ms.Tensor], List[float], Dict[int, int]]:
+     """Apply Mixup or CutMix on a batch of variable-sized images.
+ 
+     Sorts images by aspect ratio and pairs neighboring samples. Only the mutual
 @@ -51,7 +56,7 @@ 
      # Decide augmentation mode and raw λ
      if mixup_alpha > 0.0 and cutmix_alpha > 0.0:
@@ -30,6 +42,14 @@
      lam_raw = max(0.0, min(1.0, lam_raw))  # numerical safety
  
      # Pair images by nearest aspect ratio
+@@ -78,7 +83,7 @@ 
+     odd_one = order[-1] if len(imgs) % 2 else None
+ 
+-    mixed_imgs: List[torch.Tensor] = [None] * len(imgs)
++    mixed_imgs: List[ms.Tensor] = [None] * len(imgs)
+     lam_list: List[float] = [1.0] * len(imgs)
+ 
+     for i in range(len(imgs)):
 @@ -130,32 +135,28 @@ 
  
  def smoothed_sparse_target(
@@ -68,14 +88,18 @@
      """Create soft targets that match the pixel‑level mixing performed.
  
      Args:
-@@ -213,7 +214,7 @@     def __call__(
+@@ -212,9 +213,9 @@ 
+     def __call__(
              self,
-             imgs: List[torch.Tensor],
+-            imgs: List[torch.Tensor],
 -            targets: torch.Tensor,
+-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
++            imgs: List[ms.Tensor],
 +            targets: ms.Tensor,
-     ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
++    ) -> Tuple[List[ms.Tensor], List[ms.Tensor]]:
          """Apply the augmentation and generate matching targets.
  
+         Args:
 @@ -226,7 +227,7 @@             targets: Soft‑label tensor shaped (B, num_classes) suitable for cross‑entropy with soft targets.
          """
          if not isinstance(targets, torch.Tensor):

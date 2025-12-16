@@ -25,18 +25,23 @@
      """
      Window unpartition into original sequences and removing padding.
      Args:
-@@ -69,9 +74,10 @@     return Hp, Wp, pad_h, pad_w
+@@ -69,7 +74,7 @@     return Hp, Wp, pad_h, pad_w
  
  
 -class MultiScaleAttention(nn.Module):
 +class MultiScaleAttention(msnn.Cell):
      fused_attn: torch.jit.Final[bool]
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(
-             self,
-             dim: int,
-@@ -94,14 +100,14 @@         self.qkv = nn.Linear(dim, dim_out * 3, **dd)
+@@ -77,7 +82,7 @@             dim: int,
+             dim_out: int,
+             num_heads: int,
+-            q_pool: nn.Module = None,
++            q_pool: msnn.Cell = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -94,14 +99,14 @@         self.qkv = nn.Linear(dim, dim_out * 3, **dd)
          self.proj = nn.Linear(dim_out, dim_out, **dd)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -52,7 +57,7 @@
  
          # Q pooling (for downsample at stage changes)
          if self.q_pool is not None:
-@@ -115,7 +121,7 @@         k = k.transpose(1, 2)
+@@ -115,7 +120,7 @@         k = k.transpose(1, 2)
          v = v.transpose(1, 2)
          if self.fused_attn:
 -            x = F.scaled_dot_product_attention(q, k, v)
@@ -60,7 +65,7 @@
          else:
              q = q * self.scale
              attn = q @ k.transpose(-1, -2)
-@@ -129,7 +135,7 @@         return x
+@@ -129,7 +134,7 @@         return x
  
  
 -class MultiScaleBlock(nn.Module):
@@ -68,7 +73,17 @@
      def __init__(
              self,
              dim: int,
-@@ -158,15 +164,12 @@         if dim != dim_out:
+@@ -137,8 +142,8 @@             num_heads: int,
+             mlp_ratio: float = 4.0,
+             q_stride: Optional[Tuple[int, int]] = None,
+-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
+-            act_layer: Union[Type[nn.Module], str] = "GELU",
++            norm_layer: Union[Type[msnn.Cell], str] = "LayerNorm",
++            act_layer: Union[Type[msnn.Cell], str] = "GELU",
+             window_size: int = 0,
+             init_values: Optional[float] = None,
+             drop_path: float = 0.0,
+@@ -158,15 +163,12 @@         if dim != dim_out:
              self.proj = nn.Linear(dim, dim_out, **dd)
          else:
 -            self.proj = nn.Identity()
@@ -85,7 +100,7 @@
  
          self.norm1 = norm_layer(dim, **dd)
          self.attn = MultiScaleAttention(
-@@ -176,8 +179,8 @@             q_pool=deepcopy(self.pool),
+@@ -176,8 +178,8 @@             q_pool=deepcopy(self.pool),
              **dd,
          )
 -        self.ls1 = LayerScale(dim_out, init_values, **dd) if init_values is not None else nn.Identity()
@@ -95,7 +110,7 @@
  
          self.norm2 = norm_layer(dim_out, **dd)
          self.mlp = Mlp(
-@@ -186,10 +189,10 @@             act_layer=act_layer,
+@@ -186,10 +188,10 @@             act_layer=act_layer,
              **dd,
          )
 -        self.ls2 = LayerScale(dim_out, init_values, **dd) if init_values is not None else nn.Identity()
@@ -109,7 +124,7 @@
          shortcut = x  # B, H, W, C
          x = self.norm1(x)
  
-@@ -206,7 +209,7 @@         Hp, Wp = H, W  # keep torchscript happy
+@@ -206,7 +208,7 @@         Hp, Wp = H, W  # keep torchscript happy
          if self.is_windowed:
              Hp, Wp, pad_h, pad_w = _calc_pad(H, W, window_size)
 -            x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
@@ -117,7 +132,7 @@
              x = window_partition(x, window_size)
  
          # Window Attention + Q Pooling (if stage change)
-@@ -227,7 +230,7 @@         return x
+@@ -227,7 +229,7 @@         return x
  
  
 -class HieraPatchEmbed(nn.Module):
@@ -125,7 +140,7 @@
      """
      Image to Patch Embedding.
      """
-@@ -261,14 +264,14 @@             **dd,
+@@ -261,14 +263,14 @@             **dd,
          )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -141,7 +156,17 @@
      """
      Reference: https://arxiv.org/abs/2306.00989
      """
-@@ -355,12 +358,12 @@ 
+@@ -309,8 +311,8 @@             head_init_scale: float = 0.001,
+             drop_rate: float = 0.0,
+             drop_path_rate: float = 0.0,  # stochastic depth
+-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
+-            act_layer: Union[Type[nn.Module], str] = "GELU",
++            norm_layer: Union[Type[msnn.Cell], str] = "LayerNorm",
++            act_layer: Union[Type[msnn.Cell], str] = "GELU",
+             device=None,
+             dtype=None,
+     ):
+@@ -355,12 +357,12 @@ 
          # Windowed positional embedding (https://arxiv.org/abs/2311.05613)
          self.global_pos_size = global_pos_size
 -        self.pos_embed = nn.Parameter(torch.zeros(1, embed_dim, *self.global_pos_size, **dd))
@@ -156,7 +181,7 @@
          self.feature_info = []
          for i in range(depth):
              dim_out = embed_dim
-@@ -408,10 +411,10 @@ 
+@@ -408,10 +410,10 @@ 
          # Initialize everything
          if self.pos_embed is not None:
 -            nn.init.trunc_normal_(self.pos_embed, std=0.02)
@@ -168,7 +193,7 @@
  
          if weight_init != 'skip':
              init_fn = init_weight_jax if weight_init == 'jax' else init_weight_vit
-@@ -425,10 +428,10 @@             self.head.fc.weight.data.mul_(head_init_scale)
+@@ -425,10 +427,10 @@             self.head.fc.weight.data.mul_(head_init_scale)
              self.head.fc.bias.data.mul_(head_init_scale)
  
 -    def _pos_embed(self, x: torch.Tensor) -> torch.Tensor:
@@ -180,7 +205,7 @@
          tile_h = pos_embed.shape[-2] // window_embed.shape[-2]
          tile_w = pos_embed.shape[-1] // window_embed.shape[-1]
          pos_embed = pos_embed + window_embed.tile((tile_h, tile_w))
-@@ -468,7 +471,7 @@ 
+@@ -468,14 +470,14 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -188,7 +213,15 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = True,
-@@ -539,7 +542,7 @@             self.head.reset(0, reset_other=prune_norm)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+             coarse: bool = True,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -539,7 +541,7 @@             self.head.reset(0, reset_other=prune_norm)
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -196,7 +229,7 @@
          x = self.patch_embed(x)  # BHWC
          x = self._pos_embed(x)
          for blk in self.blocks:
-@@ -549,11 +552,11 @@                 x = blk(x)
+@@ -549,11 +551,11 @@                 x = blk(x)
          return x
  
 -    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:

@@ -17,7 +17,7 @@
  
  from timm.data import IMAGENET_DEFAULT_STD, IMAGENET_DEFAULT_MEAN, IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
  from timm.layers import trunc_normal_, create_classifier, Linear, ConvNormAct
-@@ -20,7 +24,7 @@ __all__ = ['InceptionV3']  # model_registry will add each entrypoint fn to this
+@@ -20,13 +24,13 @@ __all__ = ['InceptionV3']  # model_registry will add each entrypoint fn to this
  
  
 -class InceptionA(nn.Module):
@@ -25,7 +25,14 @@
  
      def __init__(
              self,
-@@ -54,18 +58,18 @@         branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
+             in_channels: int,
+             pool_features: int,
+-            conv_block: Optional[Type[nn.Module]] = None,
++            conv_block: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -54,23 +58,23 @@         branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
          branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
  
 -        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
@@ -49,7 +56,13 @@
  
      def __init__(
              self,
-@@ -90,17 +94,17 @@         branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
+             in_channels: int,
+-            conv_block: Optional[Type[nn.Module]] = None,
++            conv_block: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -90,23 +94,23 @@         branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
          branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
  
 -        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
@@ -72,7 +85,14 @@
  
      def __init__(
              self,
-@@ -141,18 +145,18 @@         branch7x7dbl = self.branch7x7dbl_4(branch7x7dbl)
+             in_channels: int,
+             channels_7x7: int,
+-            conv_block: Optional[Type[nn.Module]] = None,
++            conv_block: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -141,23 +145,23 @@         branch7x7dbl = self.branch7x7dbl_4(branch7x7dbl)
          branch7x7dbl = self.branch7x7dbl_5(branch7x7dbl)
  
 -        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
@@ -96,7 +116,13 @@
  
      def __init__(
              self,
-@@ -181,16 +185,16 @@         branch7x7x3 = self.branch7x7x3_3(branch7x7x3)
+             in_channels: int,
+-            conv_block: Optional[Type[nn.Module]] = None,
++            conv_block: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -181,21 +185,21 @@         branch7x7x3 = self.branch7x7x3_3(branch7x7x3)
          branch7x7x3 = self.branch7x7x3_4(branch7x7x3)
  
 -        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
@@ -118,6 +144,12 @@
  
      def __init__(
              self,
+             in_channels: int,
+-            conv_block: Optional[Type[nn.Module]] = None,
++            conv_block: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -223,7 +227,7 @@             self.branch3x3_2a(branch3x3),
              self.branch3x3_2b(branch3x3),
          ]
@@ -126,7 +158,7 @@
  
          branch3x3dbl = self.branch3x3dbl_1(x)
          branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
-@@ -231,20 +235,20 @@             self.branch3x3dbl_3a(branch3x3dbl),
+@@ -231,26 +235,26 @@             self.branch3x3dbl_3a(branch3x3dbl),
              self.branch3x3dbl_3b(branch3x3dbl),
          ]
 -        branch3x3dbl = torch.cat(branch3x3dbl, 1)
@@ -154,6 +186,13 @@
  
      def __init__(
              self,
+             in_channels: int,
+             num_classes: int,
+-            conv_block: Optional[Type[nn.Module]] = None,
++            conv_block: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -263,25 +267,25 @@         self.fc = Linear(768, num_classes, **dd)
          self.fc.stddev = 0.001
  
@@ -206,14 +245,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -380,6 +384,7 @@     def set_grad_checkpointing(self, enable=True):
-         assert not enable, 'gradient checkpointing not supported'
+@@ -381,7 +385,7 @@         assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.fc
-@@ -429,7 +434,7 @@         x = self.fc(x)
+ 
+     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+@@ -429,7 +433,7 @@         x = self.fc(x)
          return x
  
 -    def forward(self, x):

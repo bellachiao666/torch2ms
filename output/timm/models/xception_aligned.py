@@ -35,8 +35,8 @@ class SeparableConv2d(msnn.Cell):
             stride: int = 1,
             dilation: int = 1,
             padding: PadType = '',
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -83,8 +83,8 @@ class PreSeparableConv2d(msnn.Cell):
             stride: int = 1,
             dilation: int = 1,
             padding: PadType = '',
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             first_act: bool = True,
             device=None,
             dtype=None,
@@ -128,9 +128,9 @@ class XceptionModule(msnn.Cell):
             pad_type: PadType = '',
             start_with_relu: bool = True,
             no_skip: bool = False,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            drop_path: Optional[nn.Module] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
+            drop_path: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ):
@@ -194,9 +194,9 @@ class PreXceptionModule(msnn.Cell):
             dilation: int = 1,
             pad_type: PadType = '',
             no_skip: bool = False,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            drop_path: Optional[nn.Module] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
+            drop_path: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ):
@@ -252,8 +252,8 @@ class XceptionAligned(msnn.Cell):
             in_chans: int = 3,
             output_stride: int = 32,
             preact: bool = False,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             drop_rate: float = 0.,
             drop_path_rate: float = 0.,
             global_pool: str = 'avg',
@@ -321,9 +321,8 @@ class XceptionAligned(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):

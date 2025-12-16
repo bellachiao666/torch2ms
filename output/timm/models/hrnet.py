@@ -363,7 +363,7 @@ class HighResolutionModule(msnn.Cell):
     def __init__(
             self,
             num_branches: int,
-            block_types: Type[nn.Module],
+            block_types: Type[msnn.Cell],
             num_blocks: Tuple[int, ...],
             num_in_chs: List[int],
             num_channels: Tuple[int, ...],
@@ -492,7 +492,7 @@ class HighResolutionModule(msnn.Cell):
     def get_num_in_chs(self):
         return self.num_in_chs
 
-    def construct(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+    def construct(self, x: List[ms.Tensor]) -> List[ms.Tensor]:
         if self.num_branches == 1:
             return [self.branches[0](x[0])]
 
@@ -526,7 +526,7 @@ class SequentialList(msnn.SequentialCell):
         # type: (torch.Tensor) -> (List[torch.Tensor])
         pass
 
-    def forward(self, x) -> List[torch.Tensor]:
+    def forward(self, x) -> List[ms.Tensor]:
         for module in self:
             x = module(x)
         return x
@@ -799,9 +799,8 @@ class HighResolutionNet(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, "gradient checkpointing not supported"
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
@@ -809,7 +808,7 @@ class HighResolutionNet(msnn.Cell):
         self.global_pool, self.classifier = create_classifier(
             self.num_features, self.num_classes, pool_type=global_pool)
 
-    def stages(self, x) -> List[torch.Tensor]:
+    def stages(self, x) -> List[ms.Tensor]:
         x = self.layer1(x)
 
         xl = [t(x) for i, t in enumerate(self.transition1)]
@@ -899,7 +898,7 @@ class HighResolutionNetFeatures(HighResolutionNet):
     def forward_features(self, x):
         assert False, 'Not supported'
 
-    def forward(self, x) -> List[torch.Tensor]:
+    def forward(self, x) -> List[ms.Tensor]:
         out = []
         x = self.conv1(x)
         x = self.bn1(x)

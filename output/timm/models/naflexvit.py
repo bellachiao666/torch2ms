@@ -164,7 +164,7 @@ def batch_patchify(
         x: ms.Tensor,
         patch_size: Tuple[int, int],
         pad: bool = True,
-) -> Tuple[torch.Tensor, Tuple[int, int]]:
+) -> Tuple[ms.Tensor, Tuple[int, int]]:
     """Patchify a batch of images.
 
     Args:
@@ -202,8 +202,9 @@ def calculate_naflex_grid_sizes(_coord: ms.Tensor):
 class NaFlexRopeIterator:
     """Iterator for generating batched ROPE embeddings for mixed mode with multiple grid sizes."""
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
         self,
         rope_module,
@@ -365,9 +366,9 @@ class NaFlexEmbeds(msnn.Cell):
             pos_embed_interp_mode: str = 'bicubic',
             pos_embed_ar_preserving: bool = False,
             pos_embed_use_grid_sample: bool = False,
-            input_norm_layer: Optional[Type[nn.Module]] = None,
-            proj_norm_layer: Union[bool, Optional[Type[nn.Module]]] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            input_norm_layer: Optional[Type[msnn.Cell]] = None,
+            proj_norm_layer: Union[bool, Optional[Type[msnn.Cell]]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             pos_drop_rate: float = 0.,
             enable_patch_interpolator: bool = False,
             device=None,
@@ -477,9 +478,9 @@ class NaFlexEmbeds(msnn.Cell):
             raise ValueError(
                 "Cannot initialize position embeddings without grid_size."
                 "Please provide img_size or pos_embed_grid_size.")
-        self.pos_embed: Optional[torch.Tensor] = None
-        self.pos_embed_y: Optional[torch.Tensor] = None
-        self.pos_embed_x: Optional[torch.Tensor] = None
+        self.pos_embed: Optional[ms.Tensor] = None
+        self.pos_embed_y: Optional[ms.Tensor] = None
+        self.pos_embed_x: Optional[ms.Tensor] = None
         if not pos_embed or pos_embed == 'none':
             self.pos_embed_type = 'none'
         elif pos_embed == 'factorized':
@@ -805,9 +806,9 @@ class NaFlexEmbeds(msnn.Cell):
     def construct(
             self,
             x: ms.Tensor,
-            patch_coord: Optional[torch.Tensor] = None,
-            patch_valid: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Optional[Tuple[int, int]]]:
+            patch_coord: Optional[ms.Tensor] = None,
+            patch_valid: Optional[ms.Tensor] = None,
+    ) -> Tuple[ms.Tensor, Optional[Tuple[int, int]]]:
         """Forward pass for patch embedding with position encoding.
 
         Args:
@@ -908,7 +909,8 @@ class NaFlexEmbeds(msnn.Cell):
         return x, grid_size
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @register_notrace_function
 def create_attention_mask(
         patch_valid: ms.Tensor,
@@ -916,7 +918,7 @@ def create_attention_mask(
         symmetric: bool = True,
         q_len: Optional[int] = None,
         dtype: torch.dtype = ms.float32,
-) -> Optional[torch.Tensor]:
+) -> Optional[ms.Tensor]:
     """Creates an attention mask from patch validity information.
 
     Supports two modes controlled by `symmetric`:
@@ -981,7 +983,7 @@ def create_attention_mask(
 @register_notrace_function
 def global_pool_naflex(
         x: ms.Tensor,
-        patch_valid: Optional[torch.Tensor] = None,
+        patch_valid: Optional[ms.Tensor] = None,
         pool_type: str = 'token',
         num_prefix_tokens: int = 1,
         reduce_include_prefix: bool = False,
@@ -1139,7 +1141,7 @@ class NaFlexVit(msnn.Cell):
         self.norm_pre = norm_layer(cfg.embed_dim, **dd) if cfg.pre_norm else msnn.Identity()
 
         # ROPE position embeddings at model level
-        self.rope: Optional[nn.Module] = None
+        self.rope: Optional[msnn.Cell] = None
         self.rope_is_mixed = False
         if cfg.rope_type and cfg.rope_type != 'none':
             from timm.layers.pos_embed_sincos import RotaryEmbeddingCat, RotaryEmbeddingMixed
@@ -1330,9 +1332,8 @@ class NaFlexVit(msnn.Cell):
         if hasattr(self.embeds, 'patch_embed') and hasattr(self.embeds.patch_embed, 'set_grad_checkpointing'):
             self.embeds.patch_embed.set_grad_checkpointing(enable)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classification head module.
 
         Returns:
@@ -1345,7 +1346,7 @@ class NaFlexVit(msnn.Cell):
             self,
             x: ms.Tensor,
             patch_coord: ms.Tensor,
-    ) -> Union[torch.Tensor, List[torch.Tensor], Any]:
+    ) -> Union[ms.Tensor, List[ms.Tensor], Any]:
         """Generate ROPE position embeddings for NaFlex batch with variable grid sizes.
 
         Args:
@@ -1432,7 +1433,7 @@ class NaFlexVit(msnn.Cell):
             patch_coord,
             patch_valid,
             attn_mask,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> Dict[str, ms.Tensor]:
         """ Forward pass through patch / abs pos / rope pos embeds and patch dropout
         """
         naflex_mode = patch_coord is not None
@@ -1457,7 +1458,7 @@ class NaFlexVit(msnn.Cell):
                 assert False, 'Expected one of patch_coord or grid_size to be valid'
 
         # Apply patch dropout with coordinated updates
-        keep_indices: Optional[torch.Tensor] = None
+        keep_indices: Optional[ms.Tensor] = None
         if self.training and self.patch_drop is not None:
             x, keep_indices = self.patch_drop(x)
             # keep_indices excludes prefix tokens, can use directly on patch_valid & rope embeds
@@ -1490,7 +1491,7 @@ class NaFlexVit(msnn.Cell):
 
     def forward_intermediates(
             self,
-            x: Union[torch.Tensor, Dict[str, torch.Tensor]],
+            x: Union[ms.Tensor, Dict[str, ms.Tensor]],
             indices: Optional[Union[int, List[int]]] = None,
             return_prefix_tokens: bool = False,
             norm: bool = False,
@@ -1498,10 +1499,10 @@ class NaFlexVit(msnn.Cell):
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             output_dict: bool = False,
-            patch_coord: Optional[torch.Tensor] = None,
-            patch_valid: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]], Dict[str, Any]]:
+            patch_coord: Optional[ms.Tensor] = None,
+            patch_valid: Optional[ms.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]], Dict[str, Any]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -1640,10 +1641,10 @@ class NaFlexVit(msnn.Cell):
     def forward_features(
             self,
             patches: ms.Tensor,
-            patch_coord: Optional[torch.Tensor] = None,
-            patch_valid: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
-    ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
+            patch_coord: Optional[ms.Tensor] = None,
+            patch_valid: Optional[ms.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
+    ) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
         """
         """
         naflex_mode = patch_coord is not None
@@ -1705,7 +1706,7 @@ class NaFlexVit(msnn.Cell):
             self,
             x: ms.Tensor,
             pool_type: Optional[str] = None,
-            patch_valid: Optional[torch.Tensor] = None,
+            patch_valid: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         if self.attn_pool is not None:
             attn_mask = create_attention_mask(
@@ -1735,7 +1736,7 @@ class NaFlexVit(msnn.Cell):
             self,
             patches: ms.Tensor,
             pre_logits: bool = False,
-            patch_valid: Optional[torch.Tensor] = None,
+            patch_valid: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         x = self._pool(patches, patch_valid=patch_valid)
         x = self.fc_norm(x)
@@ -1744,10 +1745,10 @@ class NaFlexVit(msnn.Cell):
 
     def construct(
             self,
-            x: Union[torch.Tensor, Dict[str, torch.Tensor]],
-            patch_coord: Optional[torch.Tensor] = None,
-            patch_valid: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
+            x: Union[ms.Tensor, Dict[str, ms.Tensor]],
+            patch_coord: Optional[ms.Tensor] = None,
+            patch_valid: Optional[ms.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         """Forward pass with optional NaFlex support.
 

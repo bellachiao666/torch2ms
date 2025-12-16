@@ -42,6 +42,9 @@ class TrainingTask(msnn.Cell):
         >>> result['loss'].backward()
     """
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             device: Optional[torch.device] = None,
@@ -91,7 +94,7 @@ class TrainingTask(msnn.Cell):
             self,
             input: ms.Tensor,
             target: ms.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> Dict[str, ms.Tensor]:
         """Perform forward pass and compute loss.
 
         Args:

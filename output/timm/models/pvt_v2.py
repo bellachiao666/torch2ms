@@ -43,7 +43,7 @@ class MlpWithDepthwiseConv(msnn.Cell):
             in_features: int,
             hidden_features: Optional[int] = None,
             out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             drop: float = 0.,
             extra_relu: bool = False,
             device=None,
@@ -169,8 +169,8 @@ class Block(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -322,7 +322,7 @@ class PyramidVisionTransformerV2(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -414,8 +414,7 @@ class PyramidVisionTransformerV2(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -435,7 +434,7 @@ class PyramidVisionTransformerV2(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

@@ -32,8 +32,8 @@ class Block(msnn.Cell):
             in_chs: int,
             inter_chs: int,
             out_chs: int,
-            norm_layer: Type[nn.Module],
-            act_layer: Type[nn.Module],
+            norm_layer: Type[msnn.Cell],
+            act_layer: Type[msnn.Cell],
             device=None,
             dtype=None,
     ):
@@ -58,8 +58,8 @@ class BlockESE(msnn.Cell):
             in_chs: int,
             inter_chs: int,
             out_chs: int,
-            norm_layer: Type[nn.Module],
-            act_layer: Type[nn.Module],
+            norm_layer: Type[msnn.Cell],
+            act_layer: Type[msnn.Cell],
             device=None,
             dtype=None,
     ):
@@ -101,8 +101,8 @@ class DenseBlock(msnn.Cell):
             block_idx: int = 0,
             block_type: str = "Block",
             ls_init_value: float = 1e-6,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
     ):
@@ -129,7 +129,7 @@ class DenseBlock(msnn.Cell):
             **dd,
         )
 
-    def construct(self, x: List[torch.Tensor]) -> ms.Tensor:
+    def construct(self, x: List[ms.Tensor]) -> ms.Tensor:
         x = mint.cat(x, 1)
         x = self.layers(x)
 
@@ -353,9 +353,8 @@ class RDNet(msnn.Cell):
         for s in self.dense_stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -370,7 +369,7 @@ class RDNet(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

@@ -171,14 +171,15 @@
              self.head = NormMlpClassifierHead(
                  self.num_features,
                  num_classes,
-@@ -513,6 +526,7 @@         for s in self.stages:
-             s.grad_checkpointing = enable
+@@ -514,7 +527,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier module."""
-@@ -530,7 +544,7 @@ 
+         return self.head.fc
+ 
+@@ -530,13 +543,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -186,7 +187,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -597,19 +611,19 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward features that returns intermediates.
+ 
+         Args:
+@@ -597,19 +610,19 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm_pre = nn.Identity()
@@ -208,7 +216,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -621,13 +635,14 @@         """
+@@ -621,14 +634,14 @@         """
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -219,11 +227,12 @@
          return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def _init_weights(module: nn.Module, name: Optional[str] = None, head_init_scale: float = 1.0) -> None:
+-def _init_weights(module: nn.Module, name: Optional[str] = None, head_init_scale: float = 1.0) -> None:
++def _init_weights(module: msnn.Cell, name: Optional[str] = None, head_init_scale: float = 1.0) -> None:
      """Initialize model weights.
  
-@@ -639,10 +654,10 @@     if isinstance(module, nn.Conv2d):
+     Args:
+@@ -639,10 +652,10 @@     if isinstance(module, nn.Conv2d):
          trunc_normal_(module.weight, std=.02)
          if module.bias is not None:
 -            nn.init.zeros_(module.bias)
@@ -235,7 +244,7 @@
          if name and 'head.' in name:
              module.weight.data.mul_(head_init_scale)
              module.bias.data.mul_(head_init_scale)
-@@ -660,12 +675,12 @@         out_dict = {k.replace('visual.trunk.', ''): v for k, v in state_dict.items() if k.startswith('visual.trunk.')}
+@@ -660,12 +673,12 @@         out_dict = {k.replace('visual.trunk.', ''): v for k, v in state_dict.items() if k.startswith('visual.trunk.')}
          if 'visual.head.proj.weight' in state_dict:
              out_dict['head.fc.weight'] = state_dict['visual.head.proj.weight']
 -            out_dict['head.fc.bias'] = torch.zeros(state_dict['visual.head.proj.weight'].shape[0])

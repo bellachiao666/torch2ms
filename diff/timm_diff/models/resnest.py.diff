@@ -22,6 +22,32 @@
      """ResNet Bottleneck
      """
      # pylint: disable=unused-argument
+@@ -28,7 +33,7 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             radix: int = 1,
+             cardinality: int = 1,
+             base_width: int = 64,
+@@ -38,12 +43,12 @@             reduce_first: int = 1,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
+-            drop_path: Optional[nn.Module] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -65,7 +70,7 @@         self.conv1 = nn.Conv2d(inplanes, group_width, kernel_size=1, bias=False, **dd)
          self.bn1 = norm_layer(group_width, **dd)
          self.act1 = act_layer(inplace=True)

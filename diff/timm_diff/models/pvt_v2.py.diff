@@ -18,7 +18,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import DropPath, calculate_drop_path_rates, to_2tuple, to_ntuple, trunc_normal_, LayerNorm, use_fused_attn
-@@ -32,7 +37,7 @@ __all__ = ['PyramidVisionTransformerV2']
+@@ -32,13 +37,13 @@ __all__ = ['PyramidVisionTransformerV2']
  
  
 -class MlpWithDepthwiseConv(nn.Module):
@@ -26,6 +26,13 @@
      def __init__(
              self,
              in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop: float = 0.,
+             extra_relu: bool = False,
+             device=None,
 @@ -49,13 +54,13 @@         out_features = out_features or in_features
          hidden_features = hidden_features or in_features
          self.fc1 = nn.Linear(in_features, hidden_features, **dd)
@@ -73,6 +80,16 @@
  
      def __init__(
              self,
+@@ -164,8 +169,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -182,7 +187,7 @@             proj_drop=proj_drop,
              **dd,
          )
@@ -141,6 +158,14 @@
      def __init__(
              self,
              in_chans: int = 3,
+@@ -317,7 +322,7 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            norm_layer: Type[nn.Module] = LayerNorm,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -366,12 +371,14 @@             prev_dim = embed_dims[i]
              cur += depths[i]
              self.feature_info += [dict(num_chs=prev_dim, reduction=4 * 2**i, module=f'stages.{i}')]
@@ -165,14 +190,15 @@
          elif isinstance(m, nn.Conv2d):
              fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
              fan_out //= m.groups
-@@ -407,6 +414,7 @@         for s in self.stages:
+@@ -407,7 +414,7 @@         for s in self.stages:
              s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
  
-@@ -417,11 +425,11 @@             self.global_pool = global_pool
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -417,17 +424,17 @@             self.global_pool = global_pool
          device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
 -        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -185,7 +211,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -486,7 +494,7 @@         x = self.head_drop(x)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -486,7 +493,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

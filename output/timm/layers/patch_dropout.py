@@ -5,8 +5,6 @@ import mindspore.mint as mint
 from mindspore.mint import nn, ops
 from typing import Optional, Tuple, Union
 
-# import torch
-
 
 def patch_dropout_forward(
         x: ms.Tensor,
@@ -14,7 +12,7 @@ def patch_dropout_forward(
         num_prefix_tokens: int,
         ordered: bool,
         training: bool,
-) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
     """
     Common forward logic for patch dropout.
 
@@ -101,7 +99,7 @@ class PatchDropoutWithIndices(msnn.Cell):
         self.num_prefix_tokens = num_prefix_tokens  # exclude CLS token (or other prefix tokens)
         self.ordered = ordered
 
-    def construct(self, x: ms.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def construct(self, x: ms.Tensor) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
         return patch_dropout_forward(
             x,
             self.prob,

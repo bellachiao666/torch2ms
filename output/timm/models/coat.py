@@ -199,8 +199,8 @@ class SerialBlock(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             shared_cpe: Optional[Any] = None,
             shared_crpe: Optional[Any] = None,
             device=None,
@@ -261,8 +261,8 @@ class ParallelBlock(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             shared_crpes: Optional[List[Any]] = None,
             device=None,
             dtype=None,
@@ -400,7 +400,7 @@ class CoaT(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             return_interm_layers: bool = False,
             out_features: Optional[List[str]] = None,
             crpe_window: Optional[dict] = None,
@@ -593,9 +593,8 @@ class CoaT(msnn.Cell):
         )
         return matcher
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -686,7 +685,7 @@ class CoaT(msnn.Cell):
             x4 = self.norm4(x4)
             return [x2, x3, x4]
 
-    def forward_head(self, x_feat: Union[torch.Tensor, List[torch.Tensor]], pre_logits: bool = False):
+    def forward_head(self, x_feat: Union[ms.Tensor, List[ms.Tensor]], pre_logits: bool = False):
         if isinstance(x_feat, list):
             assert self.aggregate is not None
             if self.global_pool == 'avg':

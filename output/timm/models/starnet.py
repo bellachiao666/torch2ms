@@ -58,7 +58,7 @@ class Block(msnn.Cell):
             dim: int,
             mlp_ratio: int = 3,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.ReLU6,
+            act_layer: Type[msnn.Cell] = nn.ReLU6,
             device=None,
             dtype=None,
     ):
@@ -90,7 +90,7 @@ class StarNet(msnn.Cell):
             mlp_ratio: int = 4,
             drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            act_layer: Type[nn.Module] = nn.ReLU6,
+            act_layer: Type[msnn.Cell] = nn.ReLU6,
             num_classes: int = 1000,
             in_chans: int = 3,
             global_pool: str = 'avg',
@@ -171,9 +171,8 @@ class StarNet(msnn.Cell):
     def set_grad_checkpointing(self, enable: bool = True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -196,7 +195,7 @@ class StarNet(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -279,8 +278,7 @@ class StarNet(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
     return state_dict.get('state_dict', state_dict)
 
 

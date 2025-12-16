@@ -95,10 +95,10 @@ class LayerScaleBlockClassAttn(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            attn_block: Type[nn.Module] = ClassAttn,
-            mlp_block: Type[nn.Module] = Mlp,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+            attn_block: Type[msnn.Cell] = ClassAttn,
+            mlp_block: Type[msnn.Cell] = Mlp,
             init_values: float = 1e-4,
             device=None,
             dtype=None,
@@ -198,10 +198,10 @@ class LayerScaleBlock(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            attn_block: Type[nn.Module] = TalkingHeadAttn,
-            mlp_block: Type[nn.Module] = Mlp,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+            attn_block: Type[msnn.Cell] = TalkingHeadAttn,
+            mlp_block: Type[msnn.Cell] = Mlp,
             init_values: float = 1e-4,
             device=None,
             dtype=None,
@@ -256,16 +256,16 @@ class Cait(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            block_layers: Type[nn.Module] = LayerScaleBlock,
-            block_layers_token: Type[nn.Module] = LayerScaleBlockClassAttn,
-            patch_layer: Type[nn.Module] = PatchEmbed,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
-            attn_block: Type[nn.Module] = TalkingHeadAttn,
-            mlp_block: Type[nn.Module] = Mlp,
+            block_layers: Type[msnn.Cell] = LayerScaleBlock,
+            block_layers_token: Type[msnn.Cell] = LayerScaleBlockClassAttn,
+            patch_layer: Type[msnn.Cell] = PatchEmbed,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            attn_block: Type[msnn.Cell] = TalkingHeadAttn,
+            mlp_block: Type[msnn.Cell] = Mlp,
             init_values: float = 1e-4,
-            attn_block_token_only: Type[nn.Module] = ClassAttn,
-            mlp_block_token_only: Type[nn.Module] = Mlp,
+            attn_block_token_only: Type[msnn.Cell] = ClassAttn,
+            mlp_block_token_only: Type[msnn.Cell] = Mlp,
             depth_token_only: int = 2,
             mlp_ratio_token_only: float = 4.0,
             device=None,
@@ -370,9 +370,8 @@ class Cait(msnn.Cell):
                 return float('inf')
         return _matcher
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -390,7 +389,7 @@ class Cait(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

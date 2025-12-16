@@ -46,7 +46,7 @@ class GhostModule(msnn.Cell):
             ratio: int = 2,
             dw_size: int = 3,
             stride: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -86,7 +86,7 @@ class GhostModuleV2(msnn.Cell):
             ratio: int = 2,
             dw_size: int = 3,
             stride: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -136,7 +136,7 @@ class GhostModuleV3(msnn.Cell):
             ratio: int = 2,
             dw_size: int = 3,
             stride: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             mode: str = 'original',
             device=None,
             dtype=None,
@@ -357,7 +357,7 @@ class GhostBottleneck(msnn.Cell):
             out_chs: int,
             dw_kernel_size: int = 3,
             stride: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             se_ratio: float = 0.,
             mode: str = 'original',
             device=None,
@@ -450,7 +450,7 @@ class GhostBottleneckV3(msnn.Cell):
             out_chs: int,
             dw_kernel_size: int = 3,
             stride: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             se_ratio: float = 0.,
             mode: str = 'original',
             device=None,
@@ -723,9 +723,8 @@ class GhostNet(msnn.Cell):
     def set_grad_checkpointing(self, enable: bool = True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
@@ -746,7 +745,7 @@ class GhostNet(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -835,8 +834,7 @@ class GhostNet(msnn.Cell):
         reparameterize_model(self, inplace=False)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
     if 'state_dict' in state_dict:
         state_dict = state_dict['state_dict']
 

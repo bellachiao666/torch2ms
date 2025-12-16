@@ -212,8 +212,8 @@ class Block(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             use_gpsa: bool = True,
             locality_strength: float = 1.,
             device=None,
@@ -281,7 +281,7 @@ class ConVit(msnn.Cell):
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
             hybrid_backbone: Optional[Any] = None,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             local_up_to_layer: int = 3,
             locality_strength: float = 1.,
             use_pos_embed: bool = True,
@@ -377,9 +377,8 @@ class ConVit(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):

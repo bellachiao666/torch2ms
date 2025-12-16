@@ -118,7 +118,7 @@ class PatchEmbed(msnn.Cell):
             **dd,
         )
 
-    def construct(self, x) -> Tuple[torch.Tensor, List[int]]:
+    def construct(self, x) -> Tuple[ms.Tensor, List[int]]:
         x = self.proj(x)
         # B C H W -> B HW C
         return x.flatten(2).transpose(1, 2), x.shape[-2:]
@@ -129,7 +129,7 @@ def reshape_pre_pool(
         x,
         feat_size: List[int],
         has_cls_token: bool = True
-) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
     H, W = feat_size
     if has_cls_token:
         cls_tok, x = x[:, :, :1, :], x[:, :, 1:, :]
@@ -143,8 +143,8 @@ def reshape_pre_pool(
 def reshape_post_pool(
         x,
         num_heads: int,
-        cls_tok: Optional[torch.Tensor] = None
-) -> Tuple[torch.Tensor, List[int]]:
+        cls_tok: Optional[ms.Tensor] = None
+) -> Tuple[ms.Tensor, List[int]]:
     feat_size = [x.shape[2], x.shape[3]]
     L_pooled = x.shape[2] * x.shape[3]
     x = x.reshape(-1, num_heads, x.shape[1], L_pooled).transpose(2, 3)
@@ -220,7 +220,7 @@ class MultiScaleAttentionPoolFirst(msnn.Cell):
             has_cls_token: bool = True,
             rel_pos_type: str = 'spatial',
             residual_pooling: bool = True,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -396,7 +396,7 @@ class MultiScaleAttention(msnn.Cell):
             has_cls_token: bool = True,
             rel_pos_type: str = 'spatial',
             residual_pooling: bool = True,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -549,7 +549,7 @@ class MultiScaleBlock(msnn.Cell):
             mlp_ratio: float = 4.0,
             qkv_bias: bool = True,
             drop_path: float = 0.0,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             kernel_q: Tuple[int, int] = (1, 1),
             kernel_kv: Tuple[int, int] = (1, 1),
             stride_q: Tuple[int, int] = (1, 1),
@@ -664,7 +664,7 @@ class MultiScaleVitStage(msnn.Cell):
             pool_first: bool = False,
             rel_pos_type: str = 'spatial',
             residual_pooling: bool = True,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             drop_path: Union[float, List[float]] = 0.0,
             device=None,
             dtype=None,
@@ -858,9 +858,8 @@ class MultiScaleVit(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -884,7 +883,7 @@ class MultiScaleVit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

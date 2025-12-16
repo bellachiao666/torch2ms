@@ -24,6 +24,17 @@
      expansion = 1
  
      def __init__(
+@@ -29,9 +34,9 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             use_se: bool = True,
+-            aa_layer: Optional[Type[nn.Module]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
+             drop_path_rate: float = 0.,
+             device=None,
+             dtype=None,
 @@ -52,13 +57,13 @@             **dd,
          )
          self.conv2 = ConvNormAct(planes, planes, kernel_size=3, stride=1, apply_act=False, **dd)
@@ -49,6 +60,19 @@
      expansion = 4
  
      def __init__(
+@@ -80,10 +85,10 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             use_se: bool = True,
+-            act_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
+             drop_path_rate: float = 0.,
+             device=None,
+             dtype=None,
 @@ -110,10 +115,10 @@ 
          self.conv3 = ConvNormAct(planes, planes * self.expansion, kernel_size=1, stride=1, apply_act=False, **dd)
  
@@ -132,14 +156,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -257,6 +268,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -258,7 +269,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -267,7 +279,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -267,13 +278,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -147,7 +172,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -344,7 +356,7 @@     def forward_head(self, x, pre_logits: bool = False):
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -344,7 +355,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):

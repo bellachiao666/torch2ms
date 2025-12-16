@@ -190,9 +190,8 @@ class MobileNetV3(msnn.Cell):
         """Enable or disable gradient checkpointing."""
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.classifier
 
@@ -218,7 +217,7 @@ class MobileNetV3(msnn.Cell):
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             extra_blocks: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -451,7 +450,7 @@ class MobileNetV3Features(msnn.Cell):
         """Enable or disable gradient checkpointing."""
         self.grad_checkpointing = enable
 
-    def construct(self, x: ms.Tensor) -> List[torch.Tensor]:
+    def construct(self, x: ms.Tensor) -> List[ms.Tensor]:
         """Forward pass through feature extraction.
 
         Args:

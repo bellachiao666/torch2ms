@@ -21,8 +21,7 @@ __all__ = ['ConvMixer']
 
 
 class Residual(msnn.Cell):
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def __init__(self, fn: nn.Module):
+    def __init__(self, fn: msnn.Cell):
         super().__init__()
         self.fn = fn
 
@@ -41,7 +40,7 @@ class ConvMixer(msnn.Cell):
             num_classes: int = 1000,
             global_pool: str = 'avg',
             drop_rate: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             device=None,
             dtype=None,
             **kwargs,
@@ -86,9 +85,8 @@ class ConvMixer(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):

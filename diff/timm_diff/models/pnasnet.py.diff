@@ -141,14 +141,15 @@
      def __init__(
              self,
              num_classes: int = 1000,
-@@ -386,6 +397,7 @@     def set_grad_checkpointing(self, enable=True):
-         assert not enable, 'gradient checkpointing not supported'
+@@ -387,7 +398,7 @@         assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.last_linear
-@@ -420,7 +432,7 @@         x = self.head_drop(x)
+ 
+     def reset_classifier(self, num_classes: int, global_pool: str = 'avg', device=None, dtype=None):
+@@ -420,7 +431,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.last_linear(x)
  
 -    def forward(self, x):

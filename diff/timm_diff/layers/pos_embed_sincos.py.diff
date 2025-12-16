@@ -6,17 +6,24 @@
  """ Sin-cos, fourier, rotary position embedding modules and functions
  
  Hacked together by / Copyright 2022 Ross Wightman
-@@ -5,8 +10,8 @@ import math
+@@ -5,14 +10,15 @@ import math
  from typing import List, Tuple, Optional, Union
  
 -import torch
 -from torch import nn as nn
 +# import torch
-+# from torch import nn as nn
  
  from ._fx import register_notrace_function
  from .grid import ndgrid
-@@ -20,9 +25,9 @@         device: Optional[torch.device] = None,
+ from .trace_utils import _assert
+ 
+ 
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def pixel_freq_bands(
+         num_bands: int,
+         max_freq: float = 224.,
+@@ -20,23 +26,28 @@         device: Optional[torch.device] = None,
  ):
      if linear_bands:
 -        bands = torch.linspace(1.0, max_freq / 2, num_bands, dtype=torch.float32, device=device)
@@ -27,7 +34,11 @@
      return bands * torch.pi
  
  
-@@ -31,12 +36,13 @@         temperature: float = 10000.,
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def freq_bands(
+         num_bands: int,
+         temperature: float = 10000.,
          step: int = 2,
          device: Optional[torch.device] = None,
 -) -> torch.Tensor:
@@ -38,11 +49,13 @@
      return bands
  
  
-+# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def build_sincos2d_pos_embed(
          feat_shape: List[int],
          dim: int = 64,
-@@ -44,8 +50,8 @@         reverse_coord: bool = False,
+@@ -44,8 +55,8 @@         reverse_coord: bool = False,
          interleave_sin_cos: bool = False,
          device: Optional[torch.device] = None,
 -        dtype: torch.dtype = torch.float32,
@@ -52,7 +65,7 @@
      """
  
      Args:
-@@ -66,15 +72,15 @@ 
+@@ -66,15 +77,15 @@ 
      if reverse_coord:
          feat_shape = feat_shape[::-1]  # stack W, H instead of H, W
 -    grid = torch.stack(ndgrid([
@@ -71,22 +84,30 @@
      return pos_emb.to(dtype=dtype)
  
  
-@@ -84,6 +90,7 @@     return [seq[1], seq[0]] + list(seq[2:])
+@@ -84,9 +95,12 @@     return [seq[1], seq[0]] + list(seq[2:])
  
  
-+# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def build_fourier_pos_embed(
          feat_shape: List[int],
-         bands: Optional[torch.Tensor] = None,
-@@ -97,7 +104,7 @@         grid_offset: float = 0.,
+-        bands: Optional[torch.Tensor] = None,
++        bands: Optional[ms.Tensor] = None,
+         num_bands: int = 64,
+         max_res: int = 224,
+         temperature: float = 10000.,
+@@ -97,8 +111,8 @@         grid_offset: float = 0.,
          grid_indexing: str = 'ij',
          device: Optional[torch.device] = None,
 -        dtype: torch.dtype = torch.float32,
+-) -> List[torch.Tensor]:
 +        dtype: torch.dtype = ms.float32,
- ) -> List[torch.Tensor]:
++) -> List[ms.Tensor]:
      """
  
-@@ -147,20 +154,20 @@ 
+     Args:
+@@ -147,20 +161,20 @@ 
      if in_pixels:
          t = [
 -            torch.linspace(-1., 1., steps=s, device=device, dtype=torch.float32)
@@ -111,7 +132,7 @@
      grid = grid.unsqueeze(-1)
      pos = grid * bands
  
-@@ -169,7 +176,7 @@     return out
+@@ -169,7 +183,7 @@     return out
  
  
 -class FourierEmbed(nn.Module):
@@ -119,7 +140,7 @@
  
      def __init__(
              self,
-@@ -191,7 +198,7 @@             persistent=False,
+@@ -191,7 +205,7 @@             persistent=False,
          )
  
 -    def forward(self, x):
@@ -127,7 +148,7 @@
          B, C = x.shape[:2]
          feat_shape = x.shape[2:]
          emb = build_fourier_pos_embed(
-@@ -201,15 +208,15 @@             dtype=x.dtype,
+@@ -201,15 +215,15 @@             dtype=x.dtype,
              device=x.device,
          )
 -        emb = torch.cat(emb, dim=-1)
@@ -146,7 +167,7 @@
              x = x.reshape(B, feat_shape.numel(), -1)
  
          return x
-@@ -218,22 +225,22 @@ def rot(x):
+@@ -218,22 +232,22 @@ def rot(x):
      # x:   [ x0  x1  x2  x3  x4  x5]
      # out: [-x1  x0 -x3  x2 -x5  x4]
 -    return torch.stack([-x[..., 1::2], x[..., ::2]], -1).reshape(x.shape)
@@ -177,17 +198,22 @@
      # x: [..., D], eg [x0, x1, x2, x3, x4, x5]
      if half:
          # sin: [..., D], eg [sin0, sin1, sin2, sin0, sin1, sin2]
-@@ -249,8 +256,8 @@ 
+@@ -248,11 +262,11 @@ 
+ 
  def apply_rot_embed_list(
-         x: List[torch.Tensor],
+-        x: List[torch.Tensor],
 -        sin_emb: torch.Tensor,
 -        cos_emb: torch.Tensor,
++        x: List[ms.Tensor],
 +        sin_emb: ms.Tensor,
 +        cos_emb: ms.Tensor,
          half: bool = False
- ) -> List[torch.Tensor]:
+-) -> List[torch.Tensor]:
++) -> List[ms.Tensor]:
      if isinstance(x, torch.Tensor):
-@@ -269,10 +276,10 @@ 
+         x = [x]
+     # x: [..., D], eg [x0, x1, x2, x3, x4, x5]
+@@ -269,10 +283,10 @@ 
  
  def apply_rot_embed_cat(
 -        x: torch.Tensor,
@@ -200,7 +226,7 @@
      sin_emb, cos_emb = emb.chunk(2, -1)
      # x: [..., D], eg [x0, x1, x2, x3, x4, x5]
      if half:
-@@ -288,11 +295,11 @@ 
+@@ -288,11 +302,11 @@ 
  
  def apply_keep_indices_nlc(
 -        x: torch.Tensor,
@@ -215,14 +241,20 @@
      """ Apply keep indices to different ROPE shapes
  
      Expected pos_embed shapes:
-@@ -324,6 +331,7 @@     return pos_embed.gather(-2, keep_indices)
+@@ -324,9 +338,12 @@     return pos_embed.gather(-2, keep_indices)
  
  
-+# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def build_rotary_pos_embed(
          feat_shape: List[int],
-         bands: Optional[torch.Tensor] = None,
-@@ -336,7 +344,7 @@         grid_offset: float = 0.,
+-        bands: Optional[torch.Tensor] = None,
++        bands: Optional[ms.Tensor] = None,
+         dim: int = 64,
+         max_res: int = 224,
+         temperature: float = 10000.,
+@@ -336,7 +353,7 @@         grid_offset: float = 0.,
          grid_indexing: str = 'ij',
          device: Optional[torch.device] = None,
 -        dtype: torch.dtype = torch.float32,
@@ -230,7 +262,7 @@
  ):
      """
  
-@@ -380,7 +388,7 @@     return sin_emb, cos_emb
+@@ -380,7 +397,7 @@     return sin_emb, cos_emb
  
  
 -class RotaryEmbedding(nn.Module):
@@ -238,7 +270,7 @@
      """ Rotary position embedding
  
      NOTE: This is my initial attempt at impl rotary embedding for spatial use, it has not
-@@ -452,7 +460,7 @@                 persistent=False,
+@@ -452,7 +469,7 @@                 persistent=False,
              )
  
 -    def _get_pos_embed_values(self, feat_shape: List[int], device=None, dtype=torch.float32):
@@ -246,7 +278,7 @@
          emb_sin, emb_cos = build_rotary_pos_embed(
              feat_shape=feat_shape,
              dim=self.dim,
-@@ -496,13 +504,13 @@         else:
+@@ -496,13 +513,13 @@         else:
              assert False, "get_embed() requires pre-computed pos embeds or valid shape w/ pre-computed bands"
  
 -    def forward(self, x):
@@ -261,7 +293,7 @@
      """ Rotary position embedding w/ concatenatd sin & cos
  
      The following impl/resources were referenced for this impl:
-@@ -564,7 +572,7 @@                 persistent=False,
+@@ -564,7 +581,7 @@                 persistent=False,
              )
  
 -    def _get_pos_embed_values(self, feat_shape: List[int], device=None, dtype=torch.float32):
@@ -269,7 +301,7 @@
          embeds = build_rotary_pos_embed(
              feat_shape=feat_shape,
              dim=self.dim,
-@@ -578,7 +586,7 @@             device=device,
+@@ -578,7 +595,7 @@             device=device,
              dtype=dtype,
          )
 -        return torch.cat(embeds, -1)
@@ -277,7 +309,7 @@
  
      def update_feat_shape(self, feat_shape: List[int]):
          if self.feat_shape is not None and feat_shape != self.feat_shape:
-@@ -602,7 +610,7 @@                 grid_offset=self.grid_offset,
+@@ -602,7 +619,7 @@                 grid_offset=self.grid_offset,
                  grid_indexing=self.grid_indexing,
              )
 -            return torch.cat(embeds, -1)
@@ -285,7 +317,15 @@
          elif self.pos_embed is not None:
              return self.pos_embed
          else:
-@@ -649,10 +657,10 @@ 
+@@ -612,7 +629,7 @@             self,
+             shapes: List[Tuple[int, int]],
+             seq_len: Optional[int] = None,
+-    ) -> Union[torch.Tensor, List[torch.Tensor]]:
++    ) -> Union[ms.Tensor, List[ms.Tensor]]:
+         """Generate ROPE embeddings for multiple grid shapes efficiently.
+ 
+         Computes embeddings for the maximum grid size once, then extracts
+@@ -649,10 +666,10 @@ 
          # sin_emb and cos_emb are (max_h * max_w, dim//2)
          # concat and reshape to 2D for slicing
 -        rope_embed_2d = torch.cat([sin_emb, cos_emb], dim=-1).view(max_h, max_w, -1)
@@ -297,7 +337,7 @@
              for i, (h, w) in enumerate(shapes):
                  src_len = h * w
                  flat_embeds[i, :src_len] = rope_embed_2d[:h, :w].reshape(src_len, -1)
-@@ -661,7 +669,7 @@             flat_embeds_list = [rope_embed_2d[:h, :w].reshape(h * w, -1) for h, w in shapes]
+@@ -661,7 +678,7 @@             flat_embeds_list = [rope_embed_2d[:h, :w].reshape(h * w, -1) for h, w in shapes]
              return flat_embeds_list
  
 -    def forward(self, x):
@@ -305,7 +345,7 @@
          # assuming channel-first tensor where spatial dim are >= 2
          pos_embed = self.get_embed(x.shape[2:])
          return apply_rot_embed_cat(x, pos_embed)
-@@ -675,57 +683,55 @@         rotate: bool = True,
+@@ -675,57 +692,57 @@         rotate: bool = True,
          *,
          device=None,
 -        dtype=torch.float32,
@@ -344,7 +384,9 @@
 +    return mint.stack([fx, fy], dim = 0)
 +
 +
-+# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  @torch.fx.wrap
  @register_notrace_function
  def get_mixed_grid(
@@ -352,8 +394,9 @@
          grid_indexing: str = 'ij',
          device: Optional[torch.device] = None,
 -        dtype: torch.dtype = torch.float32,
+-) -> Tuple[torch.Tensor, torch.Tensor]:
 +        dtype: torch.dtype = ms.float32,
- ) -> Tuple[torch.Tensor, torch.Tensor]:
++) -> Tuple[ms.Tensor, ms.Tensor]:
      if grid_indexing == 'xy':
          shape = swap_shape_xy(shape)
 -    x_pos, y_pos = torch.meshgrid(
@@ -380,7 +423,7 @@
      """Compute mixed (learnable) frequencies."""
      # Create position indices
      dtype = freqs.dtype
-@@ -733,13 +739,13 @@     freqs_x = (t_x.unsqueeze(-1) @ freqs[0].unsqueeze(-2))
+@@ -733,13 +750,13 @@     freqs_x = (t_x.unsqueeze(-1) @ freqs[0].unsqueeze(-2))
      freqs_y = (t_y.unsqueeze(-1) @ freqs[1].unsqueeze(-2))
      combined = freqs_x + freqs_y  # shape: (num_heads, N, dim//4)
 -    sin_emb = torch.sin(combined).repeat_interleave(2, -1)  # (N, dim//2)
@@ -397,7 +440,7 @@
      """Rotary position embedding with depth-dependent learnable frequencies.
  
      This implementation supports mixed (learnable) ROPE. In mixed mode,
-@@ -789,7 +795,7 @@             device=device,
+@@ -789,7 +806,7 @@             device=device,
              dtype=dtype,
          )  # (2, depth, num_heads, head_dim//2)
 -        self.freqs = nn.Parameter(freqs)
@@ -405,7 +448,7 @@
  
          if feat_shape is not None:
              # cache pre-computed grid
-@@ -816,7 +822,7 @@             self.t_y = t_y.to(self.t_y.device, self.t_y.dtype)
+@@ -816,7 +833,7 @@             self.t_y = t_y.to(self.t_y.device, self.t_y.dtype)
              self.feat_shape = feat_shape
  
 -    def get_embed(self, shape: Optional[List[int]] = None) -> torch.Tensor:
@@ -413,7 +456,15 @@
          """Generate rotary embeddings for the given spatial shape.
  
          Args:
-@@ -878,7 +884,7 @@         if seq_len is not None:
+@@ -842,7 +859,7 @@             self,
+             shapes: List[Tuple[int, int]],
+             seq_len: Optional[int] = None,
+-    ) -> Union[torch.Tensor, List[torch.Tensor]]:
++    ) -> Union[ms.Tensor, List[ms.Tensor]]:
+         """Generate ROPE embeddings for multiple grid shapes efficiently.
+ 
+         Computes embeddings for the maximum grid size once, then extracts
+@@ -878,7 +895,7 @@         if seq_len is not None:
              # Return padded tensor
              B = len(shapes)
 -            padded = torch.zeros(B, depth, num_heads, seq_len, dim, device=self.freqs.device, dtype=self.freqs.dtype)
@@ -421,7 +472,7 @@
              for i, (h, w) in enumerate(shapes):
                  # Slice and flatten
                  embed_slice = max_embed_2d[:, :, :h, :w].reshape(depth, num_heads, h * w, dim)
-@@ -894,7 +900,7 @@                 results.append(embed_slice)
+@@ -894,7 +911,7 @@                 results.append(embed_slice)
              return results
  
 -    def forward(self, x):
@@ -429,15 +480,16 @@
          # assuming channel-first tensor where spatial dim are >= 2
          pos_embed = self.get_embed(x.shape[2:])
          return apply_rot_embed_cat(x, pos_embed)
-@@ -904,6 +910,8 @@         return {'freqs'}
+@@ -904,6 +921,9 @@         return {'freqs'}
  
  
-+# 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  @torch.fx.wrap
  @register_notrace_function
  def make_coords_dinov3(
-@@ -913,14 +921,14 @@         grid_indexing: str = 'ij',
+@@ -913,14 +933,14 @@         grid_indexing: str = 'ij',
          grid_offset: float = 0.,
          device: torch.device = 'cpu',
 -        dtype: torch.dtype = torch.float32,
@@ -455,7 +507,7 @@
  
      # Normalization denominators
      if normalize_coords == "max":
-@@ -945,16 +953,16 @@ 
+@@ -945,16 +965,16 @@ 
      # Create grid then map to [-1, 1]
      if grid_indexing == "xy":
 -        grid_w, grid_h = torch.meshgrid(coords_w, coords_h, indexing="xy")
@@ -475,12 +527,13 @@
      """RoPE for timm DinoV3 port, numerically matching original.
  
      Math is aligned to original DinoV3 RopePositionEmbedding at https://github.com/facebookresearch/dinov3:
-@@ -1013,24 +1021,26 @@             self.register_buffer("pos_embed_cached", None, persistent=False)
+@@ -1013,24 +1033,27 @@             self.register_buffer("pos_embed_cached", None, persistent=False)
              self.feat_shape = None
  
 -    def _compute_periods(self, device: torch.device = 'cpu', dtype: torch.dtype = torch.float32) -> torch.Tensor:
-+    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def _compute_periods(self, device: torch.device = 'cpu', dtype: torch.dtype = ms.float32) -> ms.Tensor:
          """Construct periods from either min/max or temperature."""
          dim = self.dim // 4
@@ -505,7 +558,7 @@
          """Apply shift/jitter/rescale train time augmentations."""
          if not self.training or not self.aug_active:
              return coords
-@@ -1041,7 +1051,7 @@         # Shift per-axis in [-s, +s]
+@@ -1041,7 +1064,7 @@         # Shift per-axis in [-s, +s]
          if self.shift_coords is not None:
              shift = float(self.shift_coords)
 -            shift_hw = torch.empty(2, device=device, dtype=dtype).uniform_(-shift, shift)
@@ -513,7 +566,7 @@
              coords = coords + shift_hw[None, :]
  
          # Jitter: per-axis log-uniform factor in [1/J, J]
-@@ -1050,7 +1060,7 @@             if jitter_factor <= 0:
+@@ -1050,7 +1073,7 @@             if jitter_factor <= 0:
                  raise ValueError("jitter_coords must be > 0 (interpreted as multiplicative factor).")
              jitter_max = math.log(jitter_factor)
 -            jitter_hw = torch.empty(2, device=device, dtype=dtype).uniform_(-jitter_max, jitter_max).exp()
@@ -521,7 +574,7 @@
              coords = coords * jitter_hw[None, :]
  
          # Rescale: shared scalar log-uniform factor in [1/R, R]
-@@ -1059,12 +1069,12 @@             if rescale_factor <= 0:
+@@ -1059,12 +1082,12 @@             if rescale_factor <= 0:
                  raise ValueError("rescale_coords must be > 0 (interpreted as multiplicative factor).")
              rescale_max = math.log(rescale_factor)
 -            rescale = torch.empty(1, device=device, dtype=dtype).uniform_(-rescale_max, rescale_max).exp()
@@ -531,11 +584,11 @@
          return coords
  
 -    def _get_pos_embed_from_coords(self, coords: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-+    def _get_pos_embed_from_coords(self, coords: ms.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
++    def _get_pos_embed_from_coords(self, coords: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
          """Return sin/cos embeddings with either 'half' or 'interleaved' layout."""
          # coords: (HW, 2); periods: (dim)
          dim = self.dim // 4
-@@ -1084,15 +1094,15 @@             # Interleaved layout (HW, dim // 2) -> (HW, dim)
+@@ -1084,15 +1107,15 @@             # Interleaved layout (HW, dim // 2) -> (HW, dim)
              angles = angles.repeat_interleave(2, dim=-1)
  
 -        sin = torch.sin(angles)
@@ -553,7 +606,7 @@
          H, W = feat_shape
          coords = make_coords_dinov3(
              H, W,
-@@ -1103,7 +1113,7 @@         if not no_aug:
+@@ -1103,7 +1126,7 @@         if not no_aug:
              coords = self._apply_coord_augs(coords)
          sin, cos = self._get_pos_embed_from_coords(coords)  # 2 * (HW, dim)
 -        rope_embed = torch.cat([sin, cos], dim=-1)  # (HW, 2*dim)
@@ -561,7 +614,7 @@
          return rope_embed
  
      def _cache_embed(self, feat_shape: List[int]):
-@@ -1117,7 +1127,7 @@             # only update if feat_shape was set (valid cache) and different from previous value
+@@ -1117,7 +1140,7 @@             # only update if feat_shape was set (valid cache) and different from previous value
              self._cache_embed(feat_shape)
  
 -    def get_embed(self, shape: Optional[List[int]] = None) -> torch.Tensor:
@@ -569,7 +622,7 @@
          """Generate rope_embed matching DINOv3 RopePositionEmbedding numerics.
  
          Returns: (HW, num_heads, 2 * head_dim) with last dim = [sin, cos] cat.
-@@ -1135,13 +1145,14 @@ 
+@@ -1135,7 +1158,7 @@ 
          return rope_embed
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -577,10 +630,11 @@
          """Get and apply rotary embeddings to x"""
          # assuming channel-first tensor where spatial dim are >= 2
          pos_embed = self.get_embed(x.shape[2:])
-         return apply_rot_embed_cat(x, pos_embed, half=self.rotate_half)
+@@ -1147,7 +1170,7 @@         dim: int = 768,
+         num_heads: int = 12,
+         **kwargs
+-) -> nn.Module:
++) -> msnn.Cell:
+     """Factory function for creating rotary position embeddings.
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def create_rope_embed(
-         rope_type: str = 'cat',
-         dim: int = 768,
+     Args:

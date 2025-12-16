@@ -11,13 +11,14 @@ import math
 from typing import List, Tuple, Optional, Union
 
 # import torch
-# from torch import nn as nn
 
 from ._fx import register_notrace_function
 from .grid import ndgrid
 from .trace_utils import _assert
 
 
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def pixel_freq_bands(
         num_bands: int,
         max_freq: float = 224.,
@@ -31,6 +32,8 @@ def pixel_freq_bands(
     return bands * torch.pi
 
 
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def freq_bands(
         num_bands: int,
         temperature: float = 10000.,
@@ -42,7 +45,9 @@ def freq_bands(
     return bands
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def build_sincos2d_pos_embed(
         feat_shape: List[int],
         dim: int = 64,
@@ -90,10 +95,12 @@ def swap_shape_xy(seq: List[int]) -> List[int]:
     return [seq[1], seq[0]] + list(seq[2:])
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def build_fourier_pos_embed(
         feat_shape: List[int],
-        bands: Optional[torch.Tensor] = None,
+        bands: Optional[ms.Tensor] = None,
         num_bands: int = 64,
         max_res: int = 224,
         temperature: float = 10000.,
@@ -105,7 +112,7 @@ def build_fourier_pos_embed(
         grid_indexing: str = 'ij',
         device: Optional[torch.device] = None,
         dtype: torch.dtype = ms.float32,
-) -> List[torch.Tensor]:
+) -> List[ms.Tensor]:
     """
 
     Args:
@@ -255,11 +262,11 @@ def apply_rot_embed(
 
 
 def apply_rot_embed_list(
-        x: List[torch.Tensor],
+        x: List[ms.Tensor],
         sin_emb: ms.Tensor,
         cos_emb: ms.Tensor,
         half: bool = False
-) -> List[torch.Tensor]:
+) -> List[ms.Tensor]:
     if isinstance(x, torch.Tensor):
         x = [x]
     # x: [..., D], eg [x0, x1, x2, x3, x4, x5]
@@ -331,10 +338,12 @@ def apply_keep_indices_nlc(
     return pos_embed.gather(-2, keep_indices)
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def build_rotary_pos_embed(
         feat_shape: List[int],
-        bands: Optional[torch.Tensor] = None,
+        bands: Optional[ms.Tensor] = None,
         dim: int = 64,
         max_res: int = 224,
         temperature: float = 10000.,
@@ -620,7 +629,7 @@ class RotaryEmbeddingCat(msnn.Cell):
             self,
             shapes: List[Tuple[int, int]],
             seq_len: Optional[int] = None,
-    ) -> Union[torch.Tensor, List[torch.Tensor]]:
+    ) -> Union[ms.Tensor, List[ms.Tensor]]:
         """Generate ROPE embeddings for multiple grid shapes efficiently.
 
         Computes embeddings for the maximum grid size once, then extracts
@@ -709,7 +718,9 @@ def init_random_2d_freqs(
     return mint.stack([fx, fy], dim = 0)
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.fx.wrap
 @register_notrace_function
 def get_mixed_grid(
@@ -717,7 +728,7 @@ def get_mixed_grid(
         grid_indexing: str = 'ij',
         device: Optional[torch.device] = None,
         dtype: torch.dtype = ms.float32,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[ms.Tensor, ms.Tensor]:
     if grid_indexing == 'xy':
         shape = swap_shape_xy(shape)
     x_pos, y_pos = mint.meshgrid(
@@ -848,7 +859,7 @@ class RotaryEmbeddingMixed(msnn.Cell):
             self,
             shapes: List[Tuple[int, int]],
             seq_len: Optional[int] = None,
-    ) -> Union[torch.Tensor, List[torch.Tensor]]:
+    ) -> Union[ms.Tensor, List[ms.Tensor]]:
         """Generate ROPE embeddings for multiple grid shapes efficiently.
 
         Computes embeddings for the maximum grid size once, then extracts
@@ -910,8 +921,9 @@ class RotaryEmbeddingMixed(msnn.Cell):
         return {'freqs'}
 
 
-# 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.fx.wrap
 @register_notrace_function
 def make_coords_dinov3(
@@ -1021,8 +1033,9 @@ class RotaryEmbeddingDinoV3(msnn.Cell):
             self.register_buffer("pos_embed_cached", None, persistent=False)
             self.feat_shape = None
 
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _compute_periods(self, device: torch.device = 'cpu', dtype: torch.dtype = ms.float32) -> ms.Tensor:
         """Construct periods from either min/max or temperature."""
         dim = self.dim // 4
@@ -1074,7 +1087,7 @@ class RotaryEmbeddingDinoV3(msnn.Cell):
 
         return coords
 
-    def _get_pos_embed_from_coords(self, coords: ms.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_pos_embed_from_coords(self, coords: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
         """Return sin/cos embeddings with either 'half' or 'interleaved' layout."""
         # coords: (HW, 2); periods: (dim)
         dim = self.dim // 4
@@ -1152,13 +1165,12 @@ class RotaryEmbeddingDinoV3(msnn.Cell):
         return apply_rot_embed_cat(x, pos_embed, half=self.rotate_half)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_rope_embed(
         rope_type: str = 'cat',
         dim: int = 768,
         num_heads: int = 12,
         **kwargs
-) -> nn.Module:
+) -> msnn.Cell:
     """Factory function for creating rotary position embeddings.
 
     Args:

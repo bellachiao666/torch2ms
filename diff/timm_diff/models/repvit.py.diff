@@ -105,7 +105,7 @@
  
          final_conv_w = conv_w + conv1_w + identity
          final_conv_b = conv_b + conv1_b
-@@ -166,7 +162,7 @@         return conv
+@@ -166,12 +162,12 @@         return conv
  
  
 -class RepVitMlp(nn.Module):
@@ -113,7 +113,13 @@
      def __init__(
              self,
              in_dim: int,
-@@ -181,11 +177,11 @@         self.act = act_layer()
+             hidden_dim: int,
+-            act_layer: Type[nn.Module],
++            act_layer: Type[msnn.Cell],
+             device=None,
+             dtype=None,
+     ):
+@@ -181,18 +177,18 @@         self.act = act_layer()
          self.conv2 = ConvNorm(hidden_dim, in_dim, 1, 1, 0, bn_weight_init=0, **dd)
  
 -    def forward(self, x):
@@ -126,6 +132,14 @@
      def __init__(
              self,
              in_dim: int,
+             mlp_ratio: float,
+             kernel_size: int,
+             use_se: bool,
+-            act_layer: Type[nn.Module],
++            act_layer: Type[msnn.Cell],
+             legacy: bool = False,
+             device=None,
+             dtype=None,
 @@ -200,10 +196,10 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.token_mixer = RepVggDw(in_dim, kernel_size, legacy, **dd)
@@ -138,7 +152,7 @@
          x = self.token_mixer(x)
          x = self.se(x)
          identity = x
-@@ -211,7 +207,7 @@         return identity + x
+@@ -211,12 +207,12 @@         return identity + x
  
  
 -class RepVitStem(nn.Module):
@@ -146,7 +160,13 @@
      def __init__(
              self,
              in_chs: int,
-@@ -227,11 +223,11 @@         self.conv2 = ConvNorm(out_chs // 2, out_chs, 3, 2, 1, **dd)
+             out_chs: int,
+-            act_layer: Type[nn.Module],
++            act_layer: Type[msnn.Cell],
+             device=None,
+             dtype=None,
+     ):
+@@ -227,18 +223,18 @@         self.conv2 = ConvNorm(out_chs // 2, out_chs, 3, 2, 1, **dd)
          self.stride = 4
  
 -    def forward(self, x):
@@ -159,6 +179,14 @@
      def __init__(
              self,
              in_dim: int,
+             mlp_ratio: float,
+             out_dim: int,
+             kernel_size: int,
+-            act_layer: Type[nn.Module],
++            act_layer: Type[msnn.Cell],
+             legacy: bool = False,
+             device=None,
+             dtype=None,
 @@ -266,7 +262,7 @@         self.channel_downsample = ConvNorm(in_dim, out_dim, 1, 1, **dd)
          self.ffn = RepVitMlp(out_dim, out_dim * mlp_ratio, act_layer, **dd)
  
@@ -201,7 +229,7 @@
          head = self.head.fuse()
          if self.distillation:
              head_dist = self.head_dist.fuse()
-@@ -323,7 +319,7 @@             return head
+@@ -323,14 +319,14 @@             return head
  
  
 -class RepVitStage(nn.Module):
@@ -209,6 +237,14 @@
      def __init__(
              self,
              in_dim: int,
+             out_dim: int,
+             depth: int,
+             mlp_ratio: float,
+-            act_layer: Type[nn.Module],
++            act_layer: Type[msnn.Cell],
+             kernel_size: int = 3,
+             downsample: bool = True,
+             legacy: bool = False,
 @@ -351,7 +347,7 @@             )
          else:
              assert in_dim == out_dim
@@ -238,6 +274,14 @@
      def __init__(
          self,
          in_chans: int = 3,
+@@ -378,7 +376,7 @@         global_pool: str = 'avg',
+         kernel_size: int = 3,
+         num_classes: int = 1000,
+-        act_layer: Type[nn.Module] = nn.GELU,
++        act_layer: Type[msnn.Cell] = nn.GELU,
+         distillation: bool = True,
+         drop_rate: float = 0.0,
+         legacy: bool = False,
 @@ -422,7 +420,9 @@             resolution = tuple([(r - 1) // stage_stride + 1 for r in resolution])
              self.feature_info += [dict(num_chs=embed_dim[i], reduction=stride, module=f'stages.{i}')]
              in_dim = embed_dim[i]
@@ -248,14 +292,15 @@
  
          self.num_features = self.head_hidden_size = embed_dim[-1]
          self.head_drop = nn.Dropout(drop_rate)
-@@ -437,6 +437,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -438,7 +438,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -454,7 +455,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, distillation: bool = False, device=None, dtype=None):
+@@ -454,13 +454,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -263,7 +308,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -527,7 +528,7 @@             return x
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -527,7 +527,7 @@             return x
          return self.head(x)
  
 -    def forward(self, x):

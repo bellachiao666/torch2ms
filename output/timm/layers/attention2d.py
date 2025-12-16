@@ -74,7 +74,7 @@ class MultiQueryAttentionV2(msnn.Cell):
         #return t.reshape(s[0], num, s[-1])
         return t.reshape(s[0], s[1], -1).transpose(1, 2)
 
-    def construct(self, x, m: Optional[torch.Tensor] = None):
+    def construct(self, x, m: Optional[ms.Tensor] = None):
         """Run layer computation."""
         b, _, h, w = x.shape
         m = m if m is not None else x
@@ -123,7 +123,7 @@ class MultiQueryAttention2d(msnn.Cell):
             padding: Union[str, int, List[int]] = '',
             attn_drop: float = 0.,
             proj_drop: float = 0.,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             use_bias: bool = False,
             device=None,
             dtype=None,
@@ -269,7 +269,7 @@ class MultiQueryAttention2d(msnn.Cell):
             t = t.transpose(1, 2)
         return t.reshape(s[0], h_px, w_px, feat_dim).permute(0, 3, 1, 2).contiguous()
 
-    def construct(self, x, attn_mask: Optional[torch.Tensor] = None):
+    def construct(self, x, attn_mask: Optional[ms.Tensor] = None):
         """Run layer computation."""
         B, C, H, W = s = x.shape
 
@@ -350,7 +350,7 @@ class Attention2d(msnn.Cell):
         self.proj = nn.Conv2d(dim_attn, dim_out, 1, bias=bias, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def construct(self, x, attn_mask: Optional[torch.Tensor] = None):
+    def construct(self, x, attn_mask: Optional[ms.Tensor] = None):
         B, C, H, W = x.shape
 
         if self.head_first:

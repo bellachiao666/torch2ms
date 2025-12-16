@@ -82,6 +82,14 @@
      """SimPool: Simple Attention-Based Pooling for 2D (NCHW) inputs.
  
      From 'Keep It SimPool: Who Said Supervised Transformers Suffer from Attention Deficit?'
+@@ -117,7 +122,7 @@             qkv_bias: bool = False,
+             qk_norm: bool = False,
+             gamma: Optional[float] = None,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -148,10 +153,10 @@             self.q_norm = norm_layer(self.head_dim, **dd)
              self.k_norm = norm_layer(self.head_dim, **dd)
          else:
@@ -120,6 +128,14 @@
      """SimPool: Simple Attention-Based Pooling for sequence (NLC) inputs.
  
      From 'Keep It SimPool: Who Said Supervised Transformers Suffer from Attention Deficit?'
+@@ -213,7 +218,7 @@             qkv_bias: bool = False,
+             qk_norm: bool = False,
+             gamma: Optional[float] = None,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -243,10 +248,10 @@             self.q_norm = norm_layer(self.head_dim, **dd)
              self.k_norm = norm_layer(self.head_dim, **dd)
          else:

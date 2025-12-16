@@ -195,7 +195,7 @@ class Attention(msnn.Cell):
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
         return relative_position_bias.unsqueeze(0)
 
-    def construct(self, x: ms.Tensor, shared_rel_pos_bias: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, shared_rel_pos_bias: Optional[ms.Tensor] = None) -> ms.Tensor:
         """Forward pass of attention module.
 
         Args:
@@ -272,8 +272,8 @@ class Block(msnn.Cell):
             attn_drop: float = 0.,
             drop_path: float = 0.,
             init_values: Optional[float] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             window_size: Optional[Tuple[int, int]] = None,
             attn_head_dim: Optional[int] = None,
             device=None,
@@ -339,7 +339,7 @@ class Block(msnn.Cell):
         else:
             self.gamma_1, self.gamma_2 = None, None
 
-    def construct(self, x: ms.Tensor, shared_rel_pos_bias: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, shared_rel_pos_bias: Optional[ms.Tensor] = None) -> ms.Tensor:
         """Forward pass of transformer block.
 
         Args:
@@ -419,7 +419,7 @@ class Beit(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm,
+            norm_layer: Type[msnn.Cell] = LayerNorm,
             init_values: Optional[float] = None,
             use_abs_pos_emb: bool = True,
             use_rel_pos_bias: bool = False,
@@ -538,8 +538,7 @@ class Beit(msnn.Cell):
             rescale(layer.attn.proj.weight.data, layer_id + 1)
             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module):
+    def _init_weights(self, m: msnn.Cell):
         """Initialize model weights.
 
         Args:
@@ -591,9 +590,8 @@ class Beit(msnn.Cell):
         )
         return matcher
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head.
 
         Returns:
@@ -622,7 +620,7 @@ class Beit(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """Forward pass that returns intermediate feature maps.
 
         Args:
@@ -851,8 +849,7 @@ default_cfgs = generate_default_cfgs({
 })
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module, interpolation: str = 'bicubic', antialias: bool = True) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell, interpolation: str = 'bicubic', antialias: bool = True) -> Dict[str, ms.Tensor]:
     """Filter and process checkpoint state dict for loading.
 
     Handles resizing of patch embeddings, position embeddings, and relative position

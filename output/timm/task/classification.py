@@ -8,7 +8,6 @@ import logging
 from typing import Callable, Dict, Optional, Union
 
 # import torch
-# import torch.nn as nn
 
 from .task import TrainingTask
 
@@ -34,11 +33,13 @@ class ClassificationTask(TrainingTask):
         >>> result['loss'].backward()
     """
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            model: nn.Module,
-            criterion: Union[nn.Module, Callable],
+            model: msnn.Cell,
+            criterion: Union[msnn.Cell, Callable],
             device: Optional[torch.device] = None,
             dtype: Optional[torch.dtype] = None,
             verbose: bool = True,
@@ -75,7 +76,7 @@ class ClassificationTask(TrainingTask):
             self,
             input: ms.Tensor,
             target: ms.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> Dict[str, ms.Tensor]:
         """Forward pass through model and compute classification loss.
 
         Args:

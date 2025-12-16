@@ -28,8 +28,7 @@ from ._registry import register_model, generate_default_cfgs
 __all__ = ['Sequencer2d']  # model_registry will add each entrypoint fn to this
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax=False):
+def _init_weights(module: msnn.Cell, name: str, head_bias: float = 0., flax=False):
     if isinstance(module, nn.Linear):
         if name.startswith('head'):
             nn.init.zeros_(module.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -66,7 +65,7 @@ class RNNIdentity(msnn.Cell):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-    def construct(self, x: ms.Tensor) -> Tuple[torch.Tensor, None]:
+    def construct(self, x: ms.Tensor) -> Tuple[ms.Tensor, None]:
         return x, None
 
 
@@ -211,10 +210,10 @@ class Sequencer2dBlock(msnn.Cell):
             dim: int,
             hidden_size: int,
             mlp_ratio: float = 3.0,
-            rnn_layer: Type[nn.Module] = LSTM2d,
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            rnn_layer: Type[msnn.Cell] = LSTM2d,
+            mlp_layer: Type[msnn.Cell] = Mlp,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             num_layers: int = 1,
             bidirectional: bool = True,
             union: str = "cat",
@@ -290,11 +289,11 @@ class Sequencer2dStage(msnn.Cell):
             hidden_size: int,
             mlp_ratio: float,
             downsample: bool = False,
-            block_layer: Type[nn.Module] = Sequencer2dBlock,
-            rnn_layer: Type[nn.Module] = LSTM2d,
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            block_layer: Type[msnn.Cell] = Sequencer2dBlock,
+            rnn_layer: Type[msnn.Cell] = LSTM2d,
+            mlp_layer: Type[msnn.Cell] = Mlp,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             num_layers: int = 1,
             bidirectional: bool = True,
             union: str = "cat",
@@ -352,11 +351,11 @@ class Sequencer2d(msnn.Cell):
             embed_dims: Tuple[int, ...] = (192, 384, 384, 384),
             hidden_sizes: Tuple[int, ...] = (48, 96, 96, 96),
             mlp_ratios: Tuple[float, ...] = (3.0, 3.0, 3.0, 3.0),
-            block_layer: Type[nn.Module] = Sequencer2dBlock,
-            rnn_layer: Type[nn.Module] = LSTM2d,
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
+            block_layer: Type[msnn.Cell] = Sequencer2dBlock,
+            rnn_layer: Type[msnn.Cell] = LSTM2d,
+            mlp_layer: Type[msnn.Cell] = Mlp,
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
+            act_layer: Type[msnn.Cell] = nn.GELU,
             num_rnn_layers: int = 1,
             bidirectional: bool = True,
             union: str = "cat",
@@ -455,9 +454,8 @@ class Sequencer2d(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):

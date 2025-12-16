@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import to_2tuple, trunc_normal_, DropPath, calculate_drop_path_rates, PatchEmbed, LayerNorm2d, create_classifier, use_fused_attn
-@@ -21,7 +26,7 @@ __all__ = ['Visformer']
+@@ -21,13 +26,13 @@ __all__ = ['Visformer']
  
  
 -class SpatialMlp(nn.Module):
@@ -24,6 +24,13 @@
      def __init__(
              self,
              in_features: int,
+             hidden_features: Optional[int] = None,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop: float = 0.,
+             group: int = 8,
+             spatial_conv: bool = False,
 @@ -63,7 +68,7 @@         self.conv3 = nn.Conv2d(hidden_features, out_features, 1, stride=1, padding=0, bias=False, **dd)
          self.drop3 = nn.Dropout(drop_probs[1])
  
@@ -64,6 +71,16 @@
      def __init__(
              self,
              dim: int,
+@@ -134,8 +139,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+             group: int = 8,
+             attn_disabled: bool = False,
+             spatial_conv: bool = False,
 @@ -145,7 +150,7 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.spatial_conv = spatial_conv
@@ -88,6 +105,22 @@
      def __init__(
              self,
              img_size: int = 224,
+@@ -195,7 +200,7 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            norm_layer: Type[nn.Module] = LayerNorm2d,
++            norm_layer: Type[msnn.Cell] = LayerNorm2d,
+             attn_stage: str = '111',
+             use_pos_embed: bool = True,
+             spatial_conv: str = '111',
+@@ -203,7 +208,7 @@             group: int = 8,
+             global_pool: str = 'avg',
+             conv_init: bool = False,
+-            embed_norm: Optional[Type[nn.Module]] = None,
++            embed_norm: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -253,11 +258,12 @@                 )
                  img_size = [x // (patch_size // 2) for x in img_size]
              else:
@@ -190,14 +223,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -420,6 +432,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -421,7 +433,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -472,7 +485,7 @@         x = self.head_drop(x)
+ 
+     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+@@ -472,7 +484,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

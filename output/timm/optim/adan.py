@@ -210,12 +210,12 @@ class Adan(Optimizer):
 
 
 def _single_tensor_adan(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        exp_avg_diffs: List[Tensor],
-        neg_pre_grads: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        exp_avg_diffs: List[ms.Tensor],
+        neg_pre_grads: List[ms.Tensor],
         *,
         beta1: float,
         beta2: float,
@@ -268,12 +268,12 @@ def _single_tensor_adan(
 
 
 def _multi_tensor_adan(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        exp_avg_diffs: List[Tensor],
-        neg_pre_grads: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
+        exp_avg_sqs: List[ms.Tensor],
+        exp_avg_diffs: List[ms.Tensor],
+        neg_pre_grads: List[ms.Tensor],
         *,
         beta1: float,
         beta2: float,

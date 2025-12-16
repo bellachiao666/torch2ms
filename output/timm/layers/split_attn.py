@@ -51,9 +51,9 @@ class SplitAttn(msnn.Cell):
             rd_ratio: float = 0.25,
             rd_channels: Optional[int] = None,
             rd_divisor: int = 8,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
         dd = {'device': kwargs.pop('device', None), 'dtype': kwargs.pop('dtype', None)}

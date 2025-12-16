@@ -36,6 +36,16 @@
      def __init__(
              self,
              in_chs: int,
+@@ -78,8 +83,8 @@             kernel_size: int = 3,
+             stride: int = 1,
+             groups: int = 1,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -98,7 +103,7 @@         self.norm = norm_layer(out_chs, **dd)
          self.act = act_layer()
  
@@ -44,7 +54,7 @@
          x = self.conv(x)
          x = self.norm(x)
          x = self.act(x)
-@@ -115,7 +120,7 @@     return new_v
+@@ -115,36 +120,36 @@     return new_v
  
  
 -class PatchEmbed(nn.Module):
@@ -52,7 +62,14 @@
      def __init__(
              self,
              in_chs: int,
-@@ -128,23 +133,23 @@         dd = {'device': device, 'dtype': dtype}
+             out_chs: int,
+             stride: int = 1,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+             device=None,
+             dtype=None,
+     ):
+         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          if stride == 2:
 -            self.pool = nn.AvgPool2d((2, 2), stride=2, ceil_mode=True, count_include_pad=False)
@@ -83,6 +100,16 @@
      """
      Multi-Head Convolutional Attention
      """
+@@ -153,8 +158,8 @@             self,
+             out_chs: int,
+             head_dim: int,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -174,14 +179,14 @@         self.act = act_layer()
          self.projection = nn.Conv2d(out_chs, out_chs, kernel_size=1, bias=False, **dd)
  
@@ -99,6 +126,16 @@
      """
      Next Convolution Block
      """
+@@ -195,8 +200,8 @@             drop: float = 0.,
+             head_dim: int = 32,
+             mlp_ratio: float = 3.,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -232,10 +237,10 @@     def reparameterize(self):
          if not self.is_fused:
              merge_pre_bn(self.mlp.fc1, self.norm)
@@ -119,6 +156,14 @@
      """
      Efficient Multi-Head Self Attention
      """
+@@ -259,7 +264,7 @@             attn_drop: float = 0.,
+             proj_drop: float = 0.,
+             sr_ratio: int = 1,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm1d,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm1d,
+             device=None,
+             dtype=None,
+     ):
 @@ -282,13 +287,13 @@         self.sr_ratio = sr_ratio
          self.N_ratio = sr_ratio ** 2
          if sr_ratio > 1:
@@ -150,6 +195,16 @@
      """
      Next Transformer Block
      """
+@@ -334,8 +339,8 @@             mix_block_ratio: float = 0.75,
+             attn_drop: float = 0.,
+             drop: float = 0.,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -394,17 +399,17 @@             if self.e_mhsa.norm is not None:
                  merge_pre_bn(self.e_mhsa.k, self.norm1, self.e_mhsa.norm)
                  merge_pre_bn(self.e_mhsa.v, self.norm1, self.e_mhsa.norm)
@@ -171,7 +226,7 @@
          x = self.patch_embed(x)
          B, C, H, W = x.shape
  
-@@ -415,14 +420,14 @@ 
+@@ -415,20 +420,20 @@ 
          out = self.projection(x)
          out = out + self.mhca_drop_path(self.mhca(out))
 -        x = torch.cat([x, out], dim=1)
@@ -187,6 +242,23 @@
  
      def __init__(
              self,
+             in_chs: int,
+             block_chs: List[int],
+-            block_types: List[Type[nn.Module]],
++            block_types: List[Type[msnn.Cell]],
+             stride: int = 2,
+             sr_ratio: int = 1,
+             mix_block_ratio: float = 1.0,
+@@ -436,8 +441,8 @@             attn_drop: float = 0.,
+             drop_path: Union[float, List[float], Tuple[float, ...]] = 0.,
+             head_dim: int = 32,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
 @@ -482,13 +487,15 @@                 blocks.append(layer)
              in_chs = out_chs
  
@@ -212,6 +284,16 @@
      def __init__(
              self,
              in_chans: int,
+@@ -511,8 +518,8 @@             drop_rate: float = 0.,
+             head_dim: int = 32,
+             mix_block_ratio: float = 0.75,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -545,7 +552,8 @@             [NextConvBlock, NextConvBlock, NextConvBlock, NextConvBlock, NextTransformerBlock] * (depths[2] // 5),
              [NextConvBlock] * (depths[3] - 1) + [NextTransformerBlock]]
  
@@ -254,14 +336,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse=False):
-@@ -613,6 +623,7 @@         for stage in self.stages:
-             stage.set_grad_checkpointing(enable=enable)
+@@ -614,7 +624,7 @@             stage.set_grad_checkpointing(enable=enable)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
-@@ -623,7 +634,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -623,13 +633,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -269,7 +352,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -685,7 +696,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -685,7 +695,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -277,7 +367,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -702,7 +713,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -702,7 +712,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):

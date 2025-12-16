@@ -130,10 +130,10 @@ class Attention(msnn.Cell):
             qk_norm: bool = False,
             attn_drop: float = 0.,
             proj_drop: float = 0.,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             use_rel_pos: bool = False,
             input_size: Optional[Tuple[int, int]] = None,
-            rope: Optional[nn.Module] = None,
+            rope: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ):
@@ -216,9 +216,9 @@ class Block(msnn.Cell):
             attn_drop: float = 0.,
             init_values: Optional[float] = None,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            mlp_layer: Type[nn.Module] = Mlp,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+            mlp_layer: Type[msnn.Cell] = Mlp,
             use_rel_pos: bool = False,
             window_size: int = 0,
             input_size=None,
@@ -282,7 +282,7 @@ class Block(msnn.Cell):
         return x
 
 
-def window_partition(x: ms.Tensor, window_size: int) -> Tuple[torch.Tensor, Tuple[int, int]]:
+def window_partition(x: ms.Tensor, window_size: int) -> Tuple[ms.Tensor, Tuple[int, int]]:
     """
     Partition into non-overlapping windows with padding if needed.
     Args:
@@ -356,11 +356,11 @@ class VisionTransformerSAM(msnn.Cell):
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
             weight_init: str = '',
-            embed_layer: Type[nn.Module] = partial(PatchEmbed, output_fmt=Format.NHWC, strict_img_size=False),
-            norm_layer: Optional[Type[nn.Module]] = nn.LayerNorm,
-            act_layer: Optional[Type[nn.Module]] = nn.GELU,
-            block_fn: Type[nn.Module] = Block,
-            mlp_layer: Type[nn.Module] = Mlp,
+            embed_layer: Type[msnn.Cell] = partial(PatchEmbed, output_fmt=Format.NHWC, strict_img_size=False),
+            norm_layer: Optional[Type[msnn.Cell]] = nn.LayerNorm,
+            act_layer: Optional[Type[msnn.Cell]] = nn.GELU,
+            block_fn: Type[msnn.Cell] = Block,
+            mlp_layer: Type[msnn.Cell] = Mlp,
             use_abs_pos: bool = True,
             use_rel_pos: bool = False,
             use_rope: bool = False,
@@ -556,9 +556,8 @@ class VisionTransformerSAM(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -573,7 +572,7 @@ class VisionTransformerSAM(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

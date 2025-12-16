@@ -6,17 +6,17 @@
  """ Hybrid Vision Transformer (ViT) in PyTorch
  
  A PyTorch implement of the Hybrid Vision Transformers as described in:
-@@ -16,8 +21,8 @@ from functools import partial
+@@ -15,9 +20,7 @@ """
+ from functools import partial
  from typing import Dict, Tuple, Type, Union
- 
+-
 -import torch
 -import torch.nn as nn
-+# import torch
 +# import torch.nn as nn
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import StdConv2dSame, StdConv2d, ConvNormAct, to_ntuple, HybridEmbed
-@@ -29,7 +34,7 @@ from .vision_transformer import VisionTransformer
+@@ -29,7 +32,7 @@ from .vision_transformer import VisionTransformer
  
  
 -class ConvStem(nn.Sequential):
@@ -24,7 +24,17 @@
      def __init__(
              self,
              in_chans: int = 3,
-@@ -128,7 +133,7 @@             bias_k = k.replace('classifier.proj', 'head.bias')
+@@ -38,8 +41,8 @@             kernel_size: Union[int, Tuple[int, ...]] = 3,
+             stride: Union[int, Tuple[int, ...]] = (2, 2, 2),
+             padding: Union[str, int, Tuple[int, ...]] = "",
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
+@@ -128,17 +131,17 @@             bias_k = k.replace('classifier.proj', 'head.bias')
              k = k.replace('classifier.proj', 'head.weight')
              v = v.T
 -            out[bias_k] = torch.zeros(v.shape[0])
@@ -32,3 +42,15 @@
          out[k] = v
      return out
  
+ 
+ def checkpoint_filter_fn(
+-        state_dict: Dict[str, torch.Tensor],
++        state_dict: Dict[str, ms.Tensor],
+         model: VisionTransformer,
+         interpolation: str = 'bicubic',
+         antialias: bool = True,
+-) -> Dict[str, torch.Tensor]:
++) -> Dict[str, ms.Tensor]:
+     from .vision_transformer import checkpoint_filter_fn as _filter_fn
+ 
+     if 'image_encoder.model.patch_emb.0.block.conv.weight' in state_dict:

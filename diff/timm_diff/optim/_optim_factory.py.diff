@@ -32,24 +32,41 @@
                  try:
                      opt_class = _import_class(opt_info.opt_class)
                  except ImportError as e:
-@@ -225,6 +229,7 @@ 
+@@ -225,9 +229,12 @@ 
          return opt_class
  
-+    # 类型标注 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def create_optimizer(
              self,
-             model_or_params: Union[nn.Module, ParamsT],
-@@ -1181,6 +1186,7 @@     return default_registry.get_optimizer_class(name, bind_defaults=bind_defaults)
+-            model_or_params: Union[nn.Module, ParamsT],
++            model_or_params: Union[msnn.Cell, ParamsT],
+             opt: str,
+             lr: Optional[float] = None,
+             weight_decay: float = 0.,
+@@ -1181,8 +1188,11 @@     return default_registry.get_optimizer_class(name, bind_defaults=bind_defaults)
  
  
-+# 类型标注 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def create_optimizer_v2(
-         model_or_params: Union[nn.Module, ParamsT],
+-        model_or_params: Union[nn.Module, ParamsT],
++        model_or_params: Union[msnn.Cell, ParamsT],
          opt: str = 'sgd',
-@@ -1308,6 +1314,7 @@     return kwargs
+         lr: Optional[float] = None,
+         weight_decay: float = 0.,
+@@ -1308,9 +1318,12 @@     return kwargs
  
  
-+# 类型标注 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def create_optimizer(
          args,
-         model: Union[nn.Module, ParamsT],
+-        model: Union[nn.Module, ParamsT],
++        model: Union[msnn.Cell, ParamsT],
+         filter_bias_and_bn: bool = True,
+ ) -> torch.optim.Optimizer:
+     """ Legacy optimizer factory for backwards compatibility.

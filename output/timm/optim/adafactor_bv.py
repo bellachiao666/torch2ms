@@ -63,6 +63,8 @@ class AdafactorBigVision(Optimizer):
     Adapted from https://github.com/google-research/big_vision by Ross Wightman
     """
 
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             params: ParamsT,
@@ -216,14 +218,16 @@ class AdafactorBigVision(Optimizer):
         return loss
 
 
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _single_tensor_adafactor(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avg_sq_rs: List[Optional[Tensor]],
-        exp_avg_sq_cs: List[Optional[Tensor]],
-        exp_avg_sqs: List[Optional[Tensor]],
-        exp_avgs: List[Optional[Tensor]],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avg_sq_rs: List[Optional[ms.Tensor]],
+        exp_avg_sq_cs: List[Optional[ms.Tensor]],
+        exp_avg_sqs: List[Optional[ms.Tensor]],
+        exp_avgs: List[Optional[ms.Tensor]],
+        state_steps: List[ms.Tensor],
         *,
         beta2_decay: float,
         beta2_cap: float,
@@ -318,14 +322,16 @@ def _single_tensor_adafactor(
         param.add_(update, alpha=-1.0)
 
 
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _multi_tensor_adafactor(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avg_sq_rs: List[Optional[Tensor]],
-        exp_avg_sq_cs: List[Optional[Tensor]],
-        exp_avg_sqs: List[Optional[Tensor]],
-        exp_avgs: List[Optional[Tensor]],
-        state_steps: List[Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avg_sq_rs: List[Optional[ms.Tensor]],
+        exp_avg_sq_cs: List[Optional[ms.Tensor]],
+        exp_avg_sqs: List[Optional[ms.Tensor]],
+        exp_avgs: List[Optional[ms.Tensor]],
+        state_steps: List[ms.Tensor],
         *,
         beta2_decay: float,
         beta2_cap: float,

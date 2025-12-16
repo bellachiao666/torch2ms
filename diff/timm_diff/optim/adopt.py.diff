@@ -53,6 +53,14 @@
  class Adopt(Optimizer):
      """
      ADOPT: Modified Adam Can Converge with Any β2 with the Optimal Rate: https://arxiv.org/abs/2411.02853
+@@ -64,7 +70,7 @@     def __init__(
+             self,
+             params: ParamsT,
+-            lr: Union[float, Tensor] = 1e-3,
++            lr: Union[float, ms.Tensor] = 1e-3,
+             betas: Tuple[float, float] = (0.9, 0.9999),
+             eps: float = 1e-6,
+             clip_exp: Optional[float] = 0.333,
 @@ -127,14 +133,11 @@                 if len(p_state) != 0 and not torch.is_tensor(p_state["step"]):
                      step_val = float(p_state["step"])
                      p_state["step"] = (
@@ -98,6 +106,48 @@
  
              exp_avgs.append(state["exp_avg"])
              exp_avg_sqs.append(state["exp_avg_sq"])
+@@ -201,11 +204,11 @@                 loss = closure()
+ 
+         for group in self.param_groups:
+-            params_with_grad: List[Tensor] = []
+-            grads: List[Tensor] = []
+-            exp_avgs: List[Tensor] = []
+-            exp_avg_sqs: List[Tensor] = []
+-            state_steps: List[Tensor] = []
++            params_with_grad: List[ms.Tensor] = []
++            grads: List[ms.Tensor] = []
++            exp_avgs: List[ms.Tensor] = []
++            exp_avg_sqs: List[ms.Tensor] = []
++            state_steps: List[ms.Tensor] = []
+             beta1, beta2 = group["betas"]
+ 
+             has_complex = self._init_group(
+@@ -245,18 +248,18 @@ 
+ 
+ def _single_tensor_adopt(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
+-        grad_scale: Optional[Tensor],
+-        found_inf: Optional[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
++        grad_scale: Optional[ms.Tensor],
++        found_inf: Optional[ms.Tensor],
+         *,
+         has_complex: bool,
+         beta1: float,
+         beta2: float,
+-        lr: Union[float, Tensor],
++        lr: Union[float, ms.Tensor],
+         weight_decay: float,
+         clip_exp: Optional[float],
+         max_lr: Optional[float],
 @@ -283,8 +286,8 @@ 
          # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
          if capturable and not _is_compiling():
@@ -132,6 +182,32 @@
          normed_grad = grad.div(denom)
  
          if clip_exp is not None:
+@@ -332,18 +335,18 @@ 
+ 
+ def _multi_tensor_adopt(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
+-        grad_scale: Optional[Tensor],
+-        found_inf: Optional[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
++        grad_scale: Optional[ms.Tensor],
++        found_inf: Optional[ms.Tensor],
+         *,
+         has_complex: bool,
+         beta1: float,
+         beta2: float,
+-        lr: Union[float, Tensor],
++        lr: Union[float, ms.Tensor],
+         weight_decay: float,
+         clip_exp: Optional[float],
+         max_lr: Optional[float],
 @@ -364,10 +367,10 @@ 
      # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
      if capturable and not _is_compiling():
@@ -152,7 +228,7 @@
      for (
              device_params_,
              device_grads_,
-@@ -398,57 +401,57 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
+@@ -398,78 +401,78 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
  
          if maximize:
 -            device_grads = torch._foreach_neg(device_grads)  # type: ignore[assignment]
@@ -234,3 +310,32 @@
  
  
  #@_disable_dynamo_if_unsupported(single_tensor_fn=_single_tensor_adopt)  # FIXME internal context mgr, can't use
+ def adopt(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        state_steps: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        state_steps: List[ms.Tensor],
+         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+         foreach: Optional[bool] = None,
+         capturable: bool = False,
+         differentiable: bool = False,
+-        grad_scale: Optional[Tensor] = None,
+-        found_inf: Optional[Tensor] = None,
++        grad_scale: Optional[ms.Tensor] = None,
++        found_inf: Optional[ms.Tensor] = None,
+         has_complex: bool = False,
+         *,
+         beta1: float,
+         beta2: float,
+-        lr: Union[float, Tensor],
++        lr: Union[float, ms.Tensor],
+         weight_decay: float,
+         clip_exp: Optional[float],
+         max_lr: Optional[float],

@@ -73,7 +73,7 @@ class BlurPool2d(msnn.Cell):
         return nn.functional.conv2d(x, weight, stride = self.stride, groups = channels)
 
 
-def _normalize_aa_layer(aa_layer: LayerType) -> Callable[..., nn.Module]:
+def _normalize_aa_layer(aa_layer: LayerType) -> Callable[..., msnn.Cell]:
     """Map string shorthands to callables (class or partial)."""
     if isinstance(aa_layer, str):
         key = aa_layer.lower().replace('_', '').replace('-', '')
@@ -88,14 +88,14 @@ def _normalize_aa_layer(aa_layer: LayerType) -> Callable[..., nn.Module]:
     return aa_layer
 
 
-def _underlying_cls(layer_callable: Callable[..., nn.Module]):
+def _underlying_cls(layer_callable: Callable[..., msnn.Cell]):
     """Return the class behind a callable (unwrap partial), else None."""
     if isinstance(layer_callable, partial):
         return layer_callable.func
     return layer_callable if isinstance(layer_callable, type) else None
 
 
-def _is_blurpool(layer_callable: Callable[..., nn.Module]) -> bool:
+def _is_blurpool(layer_callable: Callable[..., msnn.Cell]) -> bool:
     """True if callable is BlurPool2d or a partial of it."""
     cls = _underlying_cls(layer_callable)
     try:
@@ -111,10 +111,10 @@ def create_aa(
         channels: Optional[int] = None,
         stride: int = 2,
         enable: bool = True,
-        noop: Optional[Type[nn.Module]] = nn.Identity,
+        noop: Optional[Type[msnn.Cell]] = nn.Identity,
         device=None,
         dtype=None,
-) -> Optional[nn.Module]:
+) -> Optional[msnn.Cell]:
     """ Anti-aliasing factory that supports strings, classes, and partials. """
     if not aa_layer or not enable:
         return noop() if noop is not None else None

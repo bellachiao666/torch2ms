@@ -192,7 +192,7 @@ class WindowAttention(msnn.Cell):
             self.window_size = window_size
             self._make_pair_wise_relative_positions(device=device, dtype=dtype)
 
-    def construct(self, x: ms.Tensor, mask: Optional[torch.Tensor] = None) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         """Forward pass of window attention.
 
         Args:
@@ -266,7 +266,7 @@ class SwinTransformerV2Block(msnn.Cell):
             attn_drop: float = 0.,
             drop_path: float = 0.,
             act_layer: LayerType = "gelu",
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             pretrained_window_size: _int_or_tuple_2_t = 0,
             device=None,
             dtype=None,
@@ -330,12 +330,15 @@ class SwinTransformerV2Block(msnn.Cell):
             persistent=False,
         )
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
-            x: Optional[torch.Tensor] = None,
+            x: Optional[ms.Tensor] = None,
             device: Optional[torch.device] = None,
             dtype: Optional[torch.dtype] = None,
-    ) -> Optional[torch.Tensor]:
+    ) -> Optional[ms.Tensor]:
         """Generate attention mask for shifted window attention.
 
         Args:
@@ -498,7 +501,7 @@ class PatchMerging(msnn.Cell):
             self,
             dim: int,
             out_dim: Optional[int] = None,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -551,8 +554,8 @@ class SwinTransformerV2Stage(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Union[str, Type[nn.Module]] = 'gelu',
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Union[str, Type[msnn.Cell]] = 'gelu',
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             pretrained_window_size: _int_or_tuple_2_t = 0,
             output_nchw: bool = False,
             device=None,
@@ -702,7 +705,7 @@ class SwinTransformerV2(msnn.Cell):
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.1,
             act_layer: Union[str, Callable] = 'gelu',
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             pretrained_window_sizes: Tuple[int, ...] = (0, 0, 0, 0),
             device=None,
             dtype=None,
@@ -806,8 +809,7 @@ class SwinTransformerV2(msnn.Cell):
         for bly in self.layers:
             bly._init_respostnorm()
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def _init_weights(self, m: nn.Module) -> None:
+    def _init_weights(self, m: msnn.Cell) -> None:
         """Initialize model weights.
 
         Args:
@@ -892,9 +894,8 @@ class SwinTransformerV2(msnn.Cell):
         for l in self.layers:
             l.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head.
 
         Returns:
@@ -920,7 +921,7 @@ class SwinTransformerV2(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -1018,8 +1019,7 @@ class SwinTransformerV2(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
     """Filter and process checkpoint state dict for loading.
 
     Handles resizing of patch embeddings and relative position tables

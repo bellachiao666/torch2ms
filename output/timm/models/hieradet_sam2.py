@@ -77,13 +77,12 @@ def _calc_pad(H: int, W: int, window_size: Tuple[int, int]) -> Tuple[int, int, i
 class MultiScaleAttention(msnn.Cell):
     fused_attn: torch.jit.Final[bool]
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             dim: int,
             dim_out: int,
             num_heads: int,
-            q_pool: nn.Module = None,
+            q_pool: msnn.Cell = None,
             device=None,
             dtype=None,
     ):
@@ -143,8 +142,8 @@ class MultiScaleBlock(msnn.Cell):
             num_heads: int,
             mlp_ratio: float = 4.0,
             q_stride: Optional[Tuple[int, int]] = None,
-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
-            act_layer: Union[Type[nn.Module], str] = "GELU",
+            norm_layer: Union[Type[msnn.Cell], str] = "LayerNorm",
+            act_layer: Union[Type[msnn.Cell], str] = "GELU",
             window_size: int = 0,
             init_values: Optional[float] = None,
             drop_path: float = 0.0,
@@ -312,8 +311,8 @@ class HieraDet(msnn.Cell):
             head_init_scale: float = 0.001,
             drop_rate: float = 0.0,
             drop_path_rate: float = 0.0,  # stochastic depth
-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
-            act_layer: Union[Type[nn.Module], str] = "GELU",
+            norm_layer: Union[Type[msnn.Cell], str] = "LayerNorm",
+            act_layer: Union[Type[msnn.Cell], str] = "GELU",
             device=None,
             dtype=None,
     ):
@@ -478,7 +477,7 @@ class HieraDet(msnn.Cell):
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             coarse: bool = True,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

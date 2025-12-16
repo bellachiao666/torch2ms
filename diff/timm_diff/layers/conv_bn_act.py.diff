@@ -22,6 +22,14 @@
      def __init__(
              self,
              in_channels: int,
+@@ -28,7 +33,7 @@             norm_layer: LayerType = nn.BatchNorm2d,
+             act_layer: Optional[LayerType] = nn.ReLU,
+             aa_layer: Optional[LayerType] = None,
+-            drop_layer: Optional[Type[nn.Module]] = None,
++            drop_layer: Optional[Type[msnn.Cell]] = None,
+             conv_kwargs: Optional[Dict[str, Any]] = None,
+             norm_kwargs: Optional[Dict[str, Any]] = None,
+             act_kwargs: Optional[Dict[str, Any]] = None,
 @@ -67,7 +72,7 @@                 **norm_kwargs,
              )
          else:

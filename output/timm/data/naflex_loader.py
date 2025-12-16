@@ -32,8 +32,12 @@ from .transforms_factory import create_transform
 class NaFlexPrefetchLoader:
     """Data prefetcher for NaFlex format which normalizes patches."""
 
-    # 类型标注 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.utils.data' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.utils' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             loader: torch.utils.data.DataLoader,
@@ -90,7 +94,7 @@ class NaFlexPrefetchLoader:
         self.is_cuda = device.type == 'cuda' and torch.cuda.is_available()  # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         self.is_npu = device.type == 'npu' and torch.npu.is_available()  # 'torch.npu.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
+    def __iter__(self) -> Iterator[Tuple[Dict[str, ms.Tensor], ms.Tensor]]:
         """Iterate through the loader with prefetching and normalization.
 
         Yields:
@@ -195,7 +199,12 @@ class NaFlexPrefetchLoader:
         return self.loader.dataset
 
 
-# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.utils.data' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.utils' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_naflex_loader(
         dataset,
         patch_size: Optional[Union[Tuple[int, int], int]] = None,

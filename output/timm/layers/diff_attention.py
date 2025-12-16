@@ -49,7 +49,7 @@ class DiffAttention(msnn.Cell):
             proj_bias: bool = True,
             attn_drop: float = 0.,
             proj_drop: float = 0.,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             depth: int = 0,
             dual_lambda: bool = False,
             device=None,
@@ -134,7 +134,7 @@ class DiffAttention(msnn.Cell):
     def construct(
             self,
             x: ms.Tensor,
-            attn_mask: Optional[torch.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         B, N, C = x.shape
 

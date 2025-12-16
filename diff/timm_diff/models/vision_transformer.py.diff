@@ -20,14 +20,19 @@
  
  from timm.data import (
      IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD,
-@@ -87,6 +92,7 @@ }
- 
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def _create_attn(
-         attn_layer: LayerType,
-         dim: int,
-@@ -123,7 +129,7 @@     )
+@@ -97,10 +102,10 @@         proj_bias: bool = True,
+         attn_drop: float = 0.,
+         proj_drop: float = 0.,
+-        norm_layer: Optional[Type[nn.Module]] = None,
++        norm_layer: Optional[Type[msnn.Cell]] = None,
+         depth: int = 0,
+         **kwargs,
+-) -> nn.Module:
++) -> msnn.Cell:
+     if isinstance(attn_layer, str):
+         attn_layer = ATTN_LAYERS.get(attn_layer, None)
+         assert attn_layer is not None, f'Unknown attn_layer: {attn_layer}'
+@@ -123,7 +128,7 @@     )
  
  
 -class Block(nn.Module):
@@ -35,7 +40,19 @@
      """Transformer block with pre-normalization."""
  
      def __init__(
-@@ -185,8 +191,8 @@             depth=depth,
+@@ -140,9 +145,9 @@             attn_drop: float = 0.,
+             init_values: Optional[float] = None,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
+-            mlp_layer: Type[nn.Module] = Mlp,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
++            mlp_layer: Type[msnn.Cell] = Mlp,
+             attn_layer: LayerType = Attention,
+             depth: int = 0,
+             device=None,
+@@ -185,8 +190,8 @@             depth=depth,
              **dd,
          )
 -        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
@@ -45,7 +62,7 @@
  
          self.norm2 = norm_layer(dim, **dd)
          self.mlp = mlp_layer(
-@@ -198,16 +204,16 @@             drop=proj_drop,
+@@ -198,16 +203,16 @@             drop=proj_drop,
              **dd,
          )
 -        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
@@ -55,7 +72,7 @@
 +        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
 +        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
-+    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x), attn_mask=attn_mask)))
          x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
          return x
@@ -66,7 +83,19 @@
      def __init__(
              self,
              dim: int,
-@@ -249,7 +255,7 @@             **dd,
+@@ -222,9 +227,9 @@             attn_drop: float = 0.,
+             init_values: Optional[float] = None,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
+-            mlp_layer: Type[nn.Module] = Mlp,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
++            mlp_layer: Type[msnn.Cell] = Mlp,
+             attn_layer: LayerType = Attention,
+             depth: int = 0,
+             device=None,
+@@ -249,7 +254,7 @@             **dd,
          )
          self.norm1 = norm_layer(dim, **dd)
 -        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -74,7 +103,7 @@
  
          self.mlp = mlp_layer(
              in_features=dim,
-@@ -261,23 +267,23 @@             **dd,
+@@ -261,23 +266,23 @@             **dd,
          )
          self.norm2 = norm_layer(dim, **dd)
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -92,7 +121,7 @@
 +            nn.init.constant_(self.norm1.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +            nn.init.constant_(self.norm2.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +
-+    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          x = x + self.drop_path1(self.norm1(self.attn(x, attn_mask=attn_mask)))
          x = x + self.drop_path2(self.norm2(self.mlp(x)))
          return x
@@ -103,7 +132,19 @@
      """ Parallel ViT block (MLP & Attention in parallel)
      Based on:
        'Scaling Vision Transformers to 22 Billion Parameters` - https://arxiv.org/abs/2302.05442
-@@ -325,11 +331,11 @@             self.register_buffer('qkv_bias', None)
+@@ -298,9 +303,9 @@             attn_drop: float = 0.,
+             init_values: Optional[float] = None,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
+-            mlp_layer: Optional[Type[nn.Module]] = None,  # not used
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
++            mlp_layer: Optional[Type[msnn.Cell]] = None,  # not used
+             attn_layer: Optional[LayerType] = None,  # not used
+             depth: int = 0,  # not used
+             fuse_out_proj: bool = False,
+@@ -325,11 +330,11 @@             self.register_buffer('qkv_bias', None)
              self.register_parameter('mlp_bias', None)
          else:
 -            self.register_buffer('qkv_bias', torch.zeros(3 * dim, **dd), persistent=False)
@@ -119,7 +160,7 @@
          self.attn_drop = nn.Dropout(attn_drop)
  
          self.mlp_drop = nn.Dropout(proj_drop)
-@@ -346,10 +352,10 @@             self.attn_out_proj = nn.Linear(dim, dim, bias=proj_bias, **dd)
+@@ -346,10 +351,10 @@             self.attn_out_proj = nn.Linear(dim, dim, bias=proj_bias, **dd)
              self.mlp_out_proj = nn.Linear(mlp_hidden_dim, dim, bias=proj_bias, **dd)
  
 -        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else nn.Identity()
@@ -129,11 +170,11 @@
 +        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
-+    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          B, N, C = x.shape
  
          # Combined MLP fc1 & qkv projections
-@@ -357,10 +363,10 @@         if self.mlp_bias is not None:
+@@ -357,10 +362,10 @@         if self.mlp_bias is not None:
              # Concat constant zero-bias for qkv w/ trainable mlp_bias.
              # Appears faster than adding to x_mlp separately
 -            y = F.linear(y, self.in_proj.weight, torch.cat((self.qkv_bias, self.mlp_bias)))
@@ -145,7 +186,7 @@
  
          # Dot product attention w/ qk norm
          q = self.q_norm(q.view(B, N, self.num_heads, self.head_dim)).transpose(1, 2)
-@@ -371,7 +377,7 @@                 q, k, v,
+@@ -371,7 +376,7 @@                 q, k, v,
                  attn_mask=attn_mask,
                  dropout_p=self.attn_drop.p if self.training else 0.,
 -            )
@@ -153,7 +194,7 @@
          else:
              q = q * self.scale
              attn = q @ k.transpose(-2, -1)
-@@ -388,7 +394,7 @@ 
+@@ -388,7 +393,7 @@ 
          # Output projection (fused or separate)
          if self.out_proj is not None:
 -            y = self.out_proj(torch.cat((x_attn, x_mlp), dim=-1))
@@ -161,7 +202,7 @@
          else:
              y = self.attn_out_proj(x_attn) + self.mlp_out_proj(x_mlp)
  
-@@ -397,7 +403,7 @@         return x
+@@ -397,7 +402,7 @@         return x
  
  
 -class DiffParallelScalingBlock(nn.Module):
@@ -169,7 +210,19 @@
      """ Parallel ViT block with Differential Attention (MLP & Attention in parallel).
  
      Combines the parallel MLP+Attention structure from 'Scaling Vision Transformers to
-@@ -447,11 +453,11 @@             self.register_buffer('qkv_bias', None)
+@@ -420,9 +425,9 @@             attn_drop: float = 0.,
+             init_values: Optional[float] = None,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
+-            mlp_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
++            mlp_layer: Optional[Type[msnn.Cell]] = None,
+             attn_layer: Optional[LayerType] = None,
+             depth: int = 0,
+             dual_lambda: bool = False,
+@@ -447,11 +452,11 @@             self.register_buffer('qkv_bias', None)
              self.register_parameter('mlp_bias', None)
          else:
 -            self.register_buffer('qkv_bias', torch.zeros(3 * dim, **dd), persistent=False)
@@ -185,7 +238,7 @@
          self.attn_drop = nn.Dropout(attn_drop)
          self.attn_drop_p = attn_drop
  
-@@ -459,15 +465,15 @@         self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)
+@@ -459,15 +464,15 @@         self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)
          self.dual_lambda = dual_lambda
          if dual_lambda:
 -            self.lambda_a = nn.Parameter(torch.empty((), dtype=torch.float32, device=device))
@@ -206,7 +259,7 @@
  
          self.mlp_drop = nn.Dropout(proj_drop)
          self.mlp_act = act_layer()
-@@ -475,8 +481,8 @@         # Fused output projection for both attention and MLP
+@@ -475,8 +480,8 @@         # Fused output projection for both attention and MLP
          self.out_proj = nn.Linear(dim + mlp_hidden_dim, dim, bias=proj_bias, **dd)
  
 -        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else nn.Identity()
@@ -216,7 +269,7 @@
  
          self.lambda_init = 0.8
          self.set_lambda_init(depth)
-@@ -487,33 +493,33 @@ 
+@@ -487,33 +492,33 @@ 
      def reset_parameters(self):
          if self.dual_lambda:
 -            nn.init.zeros_(self.lambda_a)
@@ -249,7 +302,7 @@
          return lambda_1 - lambda_2 + self.lambda_init
  
 -    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          B, N, C = x.shape
  
          # Combined MLP fc1 & qkv projections
@@ -264,7 +317,7 @@
  
          # Reshape for differential attention (2x heads with half head_dim for q/k)
          q = q.reshape(B, N, 2 * self.num_heads, self.head_dim).transpose(1, 2)
-@@ -531,8 +537,8 @@             k1, k2 = k.unbind(2)
+@@ -531,8 +536,8 @@             k1, k2 = k.unbind(2)
  
              dropout_p = self.attn_drop_p if self.training else 0.0
 -            attn1 = F.scaled_dot_product_attention(q1, k1, v, attn_mask=attn_mask, dropout_p=dropout_p)
@@ -274,7 +327,7 @@
  
              x_attn = attn1 - lambda_full * attn2
          else:
-@@ -555,14 +561,14 @@         x_mlp = self.mlp_drop(x_mlp)
+@@ -555,14 +560,14 @@         x_mlp = self.mlp_drop(x_mlp)
  
          # Fused output projection
 -        y = self.out_proj(torch.cat((x_attn, x_mlp), dim=-1))
@@ -290,7 +343,19 @@
      """ Parallel ViT block (N parallel attention followed by N parallel MLP)
      Based on:
        `Three things everyone should know about Vision Transformers` - https://arxiv.org/abs/2203.09795
-@@ -593,10 +599,11 @@         dd = {'device': device, 'dtype': dtype}
+@@ -582,9 +587,9 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
+-            mlp_layer: Type[nn.Module] = Mlp,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
++            mlp_layer: Type[msnn.Cell] = Mlp,
+             attn_layer: LayerType = Attention,
+             depth: int = 0,
+             device=None,
+@@ -593,10 +598,11 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.num_parallel = num_parallel
 -        self.attns = nn.ModuleList()
@@ -304,7 +369,7 @@
                  ('norm', norm_layer(dim, **dd)),
                  ('attn', _create_attn(
                      attn_layer,
-@@ -612,10 +619,12 @@                     depth=depth,
+@@ -612,10 +618,12 @@                     depth=depth,
                      **dd,
                  )),
 -                ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()),
@@ -320,7 +385,7 @@
                  ('norm', norm_layer(dim, **dd)),
                  ('mlp', mlp_layer(
                      dim,
-@@ -626,11 +635,12 @@                     drop=proj_drop,
+@@ -626,11 +634,12 @@                     drop=proj_drop,
                      **dd,
                  )),
 -                ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()),
@@ -333,11 +398,11 @@
 +            ])
 +            ]))
 +
-+    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          if attn_mask is not None:
              attn_out = []
              for attn in self.attns:
-@@ -639,15 +649,15 @@                 x_attn = attn.ls(x_attn)
+@@ -639,15 +648,15 @@                 x_attn = attn.ls(x_attn)
                  x_attn = attn.drop_path(x_attn)
                  attn_out.append(x_attn)
 -            x = x + torch.stack(attn_out).sum(dim=0)
@@ -356,7 +421,7 @@
          pool_type: str = 'token',
          num_prefix_tokens: int = 1,
          reduce_include_prefix: bool = False,
-@@ -671,7 +681,7 @@     return x
+@@ -671,7 +680,7 @@     return x
  
  
 -class VisionTransformer(nn.Module):
@@ -364,7 +429,17 @@
      """ Vision Transformer
  
      A PyTorch impl of : `An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale`
-@@ -796,25 +806,26 @@         num_patches = self.patch_embed.num_patches
+@@ -718,8 +727,8 @@             embed_norm_layer: Optional[LayerType] = None,
+             norm_layer: Optional[LayerType] = None,
+             act_layer: Optional[LayerType] = None,
+-            block_fn: Type[nn.Module] = Block,
+-            mlp_layer: Type[nn.Module] = Mlp,
++            block_fn: Type[msnn.Cell] = Block,
++            mlp_layer: Type[msnn.Cell] = Mlp,
+             attn_layer: LayerType = Attention,
+             device=None,
+             dtype=None,
+@@ -796,25 +805,26 @@         num_patches = self.patch_embed.num_patches
          reduction = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
  
 -        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd)) if class_token else None
@@ -397,7 +472,7 @@
              block_fn(
                  dim=embed_dim,
                  num_heads=num_heads,
-@@ -835,10 +846,11 @@                 depth=i,
+@@ -835,10 +845,11 @@                 depth=i,
                  **dd,
              )
 -            for i in range(depth)])
@@ -410,7 +485,7 @@
  
          # Classifier Head
          if global_pool == 'map':
-@@ -852,9 +864,9 @@             )
+@@ -852,9 +863,9 @@             )
          else:
              self.attn_pool = None
 -        self.fc_norm = norm_layer(embed_dim, **dd) if final_norm and use_fc_norm else nn.Identity()
@@ -421,7 +496,7 @@
  
          if weight_init != 'skip':
              self.init_weights(weight_init)
-@@ -881,12 +893,13 @@         if self.pos_embed is not None:
+@@ -881,13 +892,13 @@         if self.pos_embed is not None:
              trunc_normal_(self.pos_embed, std=.02)
          if self.cls_token is not None:
 -            nn.init.normal_(self.cls_token, std=1e-6)
@@ -432,18 +507,20 @@
  
          named_apply(get_init_weights_vit(mode, head_bias), self)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def _init_weights(self, m: nn.Module) -> None:
+-    def _init_weights(self, m: nn.Module) -> None:
++    def _init_weights(self, m: msnn.Cell) -> None:
          """Initialize weights for a single module (compatibility method)."""
          # this fn left here for compat with downstream users
-@@ -933,6 +946,7 @@         if hasattr(self.patch_embed, 'set_grad_checkpointing'):
-             self.patch_embed.set_grad_checkpointing(enable)
+         init_weights_vit_timm(m)
+@@ -934,7 +945,7 @@             self.patch_embed.set_grad_checkpointing(enable)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
-@@ -953,7 +967,7 @@             elif global_pool != 'map' and self.attn_pool is not None:
+         return self.head
+ 
+@@ -953,7 +964,7 @@             elif global_pool != 'map' and self.attn_pool is not None:
                  self.attn_pool = None  # remove attention pooling
              self.global_pool = global_pool
 -        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
@@ -451,7 +528,7 @@
  
      def set_input_size(
              self,
-@@ -972,7 +986,7 @@             num_prefix_tokens = 0 if self.no_embed_class else self.num_prefix_tokens
+@@ -972,7 +983,7 @@             num_prefix_tokens = 0 if self.no_embed_class else self.num_prefix_tokens
              num_new_tokens = self.patch_embed.num_patches + num_prefix_tokens
              if num_new_tokens != self.pos_embed.shape[1]:
 -                self.pos_embed = nn.Parameter(resample_abs_pos_embed(
@@ -459,7 +536,7 @@
                      self.pos_embed,
                      new_size=self.patch_embed.grid_size,
                      old_size=prev_grid_size,
-@@ -980,7 +994,7 @@                     verbose=True,
+@@ -980,7 +991,7 @@                     verbose=True,
                  ))
  
 -    def _pos_embed(self, x: torch.Tensor) -> torch.Tensor:
@@ -467,7 +544,7 @@
          """Apply positional embedding to input."""
          if self.pos_embed is None:
              return x.view(x.shape[0], -1, x.shape[-1])
-@@ -1009,19 +1023,19 @@             # position embedding does not overlap with class token, add then concat
+@@ -1009,19 +1020,19 @@             # position embedding does not overlap with class token, add then concat
              x = x + pos_embed
              if to_cat:
 -                x = torch.cat(to_cat + [x], dim=1)
@@ -489,7 +566,17 @@
              indices: Optional[Union[int, List[int]]] = None,
              return_prefix_tokens: bool = False,
              norm: bool = False,
-@@ -1133,15 +1147,15 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -1029,8 +1040,8 @@             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+             output_dict: bool = False,
+-            attn_mask: Optional[torch.Tensor] = None,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]], Dict[str, Any]]:
++            attn_mask: Optional[ms.Tensor] = None,
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]], Dict[str, Any]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -1133,21 +1144,21 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -507,15 +594,23 @@
              n: Union[int, List[int], Tuple[int]] = 1,
              reshape: bool = False,
              return_prefix_tokens: bool = False,
-@@ -1171,7 +1185,7 @@             attn_mask=attn_mask,
+             norm: bool = False,
+-            attn_mask: Optional[torch.Tensor] = None,
+-    ) -> List[torch.Tensor]:
++            attn_mask: Optional[ms.Tensor] = None,
++    ) -> List[ms.Tensor]:
+         """Get intermediate layer outputs (DINO interface compatibility).
+ 
+         NOTE: This API is for backwards compat, favour using forward_intermediates() directly.
+@@ -1171,7 +1182,7 @@             attn_mask=attn_mask,
          )
  
 -    def forward_features(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+    def forward_features(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def forward_features(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          """Forward pass through feature layers (embeddings, transformer blocks, post-transformer norm)."""
          x = self.patch_embed(x)
          x = self._pos_embed(x)
-@@ -1190,7 +1204,7 @@         x = self.norm(x)
+@@ -1190,7 +1201,7 @@         x = self.norm(x)
          return x
  
 -    def pool(self, x: torch.Tensor, pool_type: Optional[str] = None) -> torch.Tensor:
@@ -523,7 +618,7 @@
          """Apply pooling to feature tokens.
  
          Args:
-@@ -1214,7 +1228,7 @@         )
+@@ -1214,7 +1225,7 @@         )
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -531,21 +626,22 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -1229,12 +1243,13 @@         x = self.head_drop(x)
+@@ -1229,13 +1240,13 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+    def construct(self, x: ms.Tensor, attn_mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          x = self.forward_features(x, attn_mask=attn_mask)
          x = self.forward_head(x)
          return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def init_weights_vit_timm(module: nn.Module, name: str = '') -> None:
+-def init_weights_vit_timm(module: nn.Module, name: str = '') -> None:
++def init_weights_vit_timm(module: msnn.Cell, name: str = '') -> None:
      """ViT weight initialization, original timm impl (for reproducibility).
  
-@@ -1245,11 +1260,12 @@     if isinstance(module, nn.Linear):
+     Args:
+@@ -1245,12 +1256,12 @@     if isinstance(module, nn.Linear):
          trunc_normal_(module.weight, std=.02)
          if module.bias is not None:
 -            nn.init.zeros_(module.bias)
@@ -554,11 +650,12 @@
          module.init_weights()
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def init_weights_vit_jax(module: nn.Module, name: str = '', head_bias: float = 0.0) -> None:
+-def init_weights_vit_jax(module: nn.Module, name: str = '', head_bias: float = 0.0) -> None:
++def init_weights_vit_jax(module: msnn.Cell, name: str = '', head_bias: float = 0.0) -> None:
      """ViT weight initialization, matching JAX (Flax) impl.
  
-@@ -1260,20 +1276,21 @@     """
+     Args:
+@@ -1260,21 +1271,21 @@     """
      if isinstance(module, nn.Linear):
          if name.startswith('head'):
 -            nn.init.zeros_(module.weight)
@@ -580,11 +677,12 @@
          module.init_weights()
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def init_weights_vit_moco(module: nn.Module, name: str = '') -> None:
+-def init_weights_vit_moco(module: nn.Module, name: str = '') -> None:
++def init_weights_vit_moco(module: msnn.Cell, name: str = '') -> None:
      """ViT weight initialization, matching moco-v3 impl minus fixed PatchEmbed.
  
-@@ -1285,11 +1302,11 @@         if 'qkv' in name:
+     Args:
+@@ -1285,11 +1296,11 @@         if 'qkv' in name:
              # treat the weights of Q, K, V separately
              val = math.sqrt(6. / float(module.weight.shape[0] // 3 + module.weight.shape[1]))
 -            nn.init.uniform_(module.weight, -val, val)
@@ -598,7 +696,7 @@
      elif hasattr(module, 'init_weights'):
          module.init_weights()
  
-@@ -1304,13 +1321,13 @@ 
+@@ -1304,13 +1315,13 @@ 
  
  def resize_pos_embed(
 -        posemb: torch.Tensor,
@@ -614,7 +712,7 @@
      """ Rescale the grid of position embeddings when loading from state_dict.
      *DEPRECATED* This function is being deprecated in favour of using resample_abs_pos_embed
      """
-@@ -1355,7 +1372,7 @@             elif _w.ndim == 2:
+@@ -1355,7 +1366,7 @@             elif _w.ndim == 2:
                  _w = _w.transpose([1, 0])
  
 -        _w = torch.from_numpy(_w)
@@ -622,7 +720,7 @@
          return _w
  
      if load_bfloat16:
-@@ -1443,9 +1460,9 @@         block_prefix = f'{prefix}MAPHead_0/'
+@@ -1443,9 +1454,9 @@         block_prefix = f'{prefix}MAPHead_0/'
          mha_prefix = block_prefix + f'MultiHeadDotProductAttention_0/'
          model.attn_pool.latent.copy_(_n2p(w[f'{block_prefix}probe'], t=False))
 -        model.attn_pool.kv.weight.copy_(torch.cat([
@@ -633,7 +731,7 @@
              _n2p(w[f'{mha_prefix}{n}/bias'], t=False).reshape(-1) for n in ('key', 'value')]))
          model.attn_pool.q.weight.copy_(_n2p(w[f'{mha_prefix}query/kernel'], t=False).flatten(1).T)
          model.attn_pool.q.bias.copy_(_n2p(w[f'{mha_prefix}query/bias'], t=False).reshape(-1))
-@@ -1468,9 +1485,9 @@         mha_prefix = block_prefix + f'MultiHeadDotProductAttention_{mha_sub}/'
+@@ -1468,9 +1479,9 @@         mha_prefix = block_prefix + f'MultiHeadDotProductAttention_{mha_sub}/'
          block.norm1.weight.copy_(_n2p(w[f'{block_prefix}LayerNorm_0/scale'], idx=idx))
          block.norm1.bias.copy_(_n2p(w[f'{block_prefix}LayerNorm_0/bias'], idx=idx))
 -        block.attn.qkv.weight.copy_(torch.cat([
@@ -644,7 +742,19 @@
              _n2p(w[f'{mha_prefix}{n}/bias'], t=False, idx=idx).reshape(-1) for n in ('query', 'key', 'value')]))
          block.attn.proj.weight.copy_(_n2p(w[f'{mha_prefix}out/kernel'], idx=idx).flatten(1))
          block.attn.proj.bias.copy_(_n2p(w[f'{mha_prefix}out/bias'], idx=idx))
-@@ -1511,7 +1528,7 @@         if k == 'proj':
+@@ -1484,10 +1495,10 @@ 
+ 
+ def _convert_openai_clip(
+-        state_dict: Dict[str, torch.Tensor],
++        state_dict: Dict[str, ms.Tensor],
+         model: VisionTransformer,
+         prefix: str = 'visual.',
+-) -> Dict[str, torch.Tensor]:
++) -> Dict[str, ms.Tensor]:
+     out_dict = {}
+     swaps = [
+         ('conv1', 'patch_embed.proj'),
+@@ -1511,7 +1522,7 @@         if k == 'proj':
              k = 'head.weight'
              v = v.transpose(0, 1)
 -            out_dict['head.bias'] = torch.zeros(v.shape[0])
@@ -652,7 +762,29 @@
          elif k == 'class_embedding':
              k = 'cls_token'
              v = v.unsqueeze(0).unsqueeze(1)
-@@ -1615,9 +1632,8 @@         stash = buf.setdefault((blk, kind), {})  # Gather by block & param type
+@@ -1522,9 +1533,9 @@ 
+ 
+ def _convert_dinov2(
+-        state_dict: Dict[str, torch.Tensor],
++        state_dict: Dict[str, ms.Tensor],
+         model: VisionTransformer,
+-) -> Dict[str, torch.Tensor]:
++) -> Dict[str, ms.Tensor]:
+     import re
+     out_dict = {}
+     state_dict.pop("mask_token", None)
+@@ -1545,9 +1556,9 @@ 
+ 
+ def _convert_aimv2(
+-        state_dict: Dict[str, torch.Tensor],
++        state_dict: Dict[str, ms.Tensor],
+         model: VisionTransformer,
+-) -> Dict[str, torch.Tensor]:
++) -> Dict[str, ms.Tensor]:
+     out_dict = {}
+     for k, v in state_dict.items():
+         k = k.replace('norm_1', 'norm1')
+@@ -1615,20 +1626,19 @@         stash = buf.setdefault((blk, kind), {})  # Gather by block & param type
          stash[which] = v
          if len(stash) == 3:  # Have q, k, v -> concatenate
 -            out[f"blocks.{blk}.attn.qkv.{kind}"] = torch.cat(
@@ -663,7 +795,20 @@
  
      return out
  
-@@ -1655,7 +1671,7 @@         if 'visual.head.proj.weight' in state_dict and isinstance(model.head, nn.Linear):
+ 
+ def checkpoint_filter_fn(
+-        state_dict: Dict[str, torch.Tensor],
++        state_dict: Dict[str, ms.Tensor],
+         model: VisionTransformer,
+         adapt_layer_scale: bool = False,
+         interpolation: str = 'bicubic',
+         antialias: bool = True,
+-) -> Dict[str, torch.Tensor]:
++) -> Dict[str, ms.Tensor]:
+     """ convert patch embedding weight from manual patchify + linear proj to conv"""
+     import re
+     out_dict = {}
+@@ -1655,7 +1665,7 @@         if 'visual.head.proj.weight' in state_dict and isinstance(model.head, nn.Linear):
              # remap final nn.Linear if it exists outside of the timm .trunk (ie in visual.head.proj)
              out_dict['head.weight'] = state_dict['visual.head.proj.weight']
 -            out_dict['head.bias'] = torch.zeros(state_dict['visual.head.proj.weight'].shape[0])

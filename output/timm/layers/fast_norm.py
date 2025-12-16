@@ -71,8 +71,8 @@ def set_fast_norm(enable=True):
 def fast_group_norm(
     x: ms.Tensor,
     num_groups: int,
-    weight: Optional[torch.Tensor] = None,
-    bias: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
+    bias: Optional[ms.Tensor] = None,
     eps: float = 1e-5
 ) -> ms.Tensor:
     if torch.jit.is_scripting():
@@ -92,8 +92,8 @@ def fast_group_norm(
 def fast_layer_norm(
     x: ms.Tensor,
     normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
-    bias: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
+    bias: Optional[ms.Tensor] = None,
     eps: float = 1e-5
 ) -> ms.Tensor:
     if torch.jit.is_scripting():
@@ -116,7 +116,7 @@ def fast_layer_norm(
 def rms_norm(
     x: ms.Tensor,
     normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ):
     norm_ndim = len(normalized_shape)
@@ -139,7 +139,7 @@ def rms_norm(
 def fast_rms_norm(
     x: ms.Tensor,
     normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ) -> ms.Tensor:
     if torch.jit.is_scripting():
@@ -170,7 +170,7 @@ def fast_rms_norm(
 def rms_norm2d(
     x: ms.Tensor,
     normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ):
     assert len(normalized_shape) == 1
@@ -185,7 +185,7 @@ def rms_norm2d(
 def fast_rms_norm2d(
     x: ms.Tensor,
     normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ) -> ms.Tensor:
     if torch.jit.is_scripting():
@@ -215,7 +215,7 @@ def fast_rms_norm2d(
 def simple_norm(
     x: ms.Tensor,
     normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ):
     norm_ndim = len(normalized_shape)
@@ -237,7 +237,7 @@ def simple_norm(
 def fast_simple_norm(
     x: ms.Tensor,
     normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ) -> ms.Tensor:
     if torch.jit.is_scripting():

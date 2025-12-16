@@ -74,6 +74,14 @@
          """Forward pass.
  
          Args:
+@@ -291,7 +296,7 @@         preact_feature: bool = True,
+         device=None,
+         dtype=None,
+-) -> Tuple[nn.Sequential, int, Dict[str, Any]]:
++) -> Tuple[msnn.SequentialCell, int, Dict[str, Any]]:
+     """Create stem module for NFNet models.
+ 
+     Args:
 @@ -339,10 +344,12 @@         stem['conv'] = conv_layer(in_chs, out_chs, kernel_size=7, stride=2, **dd)
  
      if 'pool' in stem_type:
@@ -138,14 +146,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
-@@ -535,6 +546,7 @@         """Enable or disable gradient checkpointing."""
-         self.grad_checkpointing = enable
+@@ -536,7 +547,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
-@@ -550,7 +562,7 @@         self.num_classes = num_classes
+         return self.head.fc
+ 
+@@ -550,7 +561,7 @@         self.num_classes = num_classes
          self.head.reset(num_classes, global_pool)
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -153,7 +162,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -568,7 +580,7 @@         x = self.final_act(x)
+@@ -568,7 +579,7 @@         x = self.final_act(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -161,7 +170,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -580,7 +592,7 @@         """
+@@ -580,7 +591,7 @@         """
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:

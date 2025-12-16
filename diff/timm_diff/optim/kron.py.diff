@@ -42,7 +42,15 @@
  class Kron(torch.optim.Optimizer):
      """Implements PSGD Kron from https://github.com/lixilinx/psgd_torch.
  
-@@ -162,16 +167,16 @@         super(Kron, self).__init__(params, defaults)
+@@ -106,6 +111,8 @@         deterministic: Deterministic behaviour across save / load (resume). FIXME slow, needs work
+     """
+ 
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+         self,
+         params: ParamsT,
+@@ -162,16 +169,16 @@         super(Kron, self).__init__(params, defaults)
  
          self._param_exprs = {}  # cache for einsum expr
 -        self._tiny = torch.finfo(torch.bfloat16).tiny
@@ -63,7 +71,7 @@
          else:
              self._calc_A_and_conjB = _calc_A_and_conjB
              self._q_terms = _q_terms
-@@ -228,7 +233,7 @@ 
+@@ -228,7 +235,7 @@ 
          for group in self.param_groups:
              mu_dtype = group.get("mu_dtype")
 -            precond_dtype = group.get("precond_dtype", torch.float32)
@@ -71,7 +79,7 @@
              momentum_into_precond_update = group.get("momentum_into_precond_update", True)
              update_prob = group.get("preconditioner_update_probability", None)
  
-@@ -247,7 +252,7 @@                 if len(state) == 0:
+@@ -247,7 +254,7 @@                 if len(state) == 0:
                      state["step"] = 0
                      state["update_counter"] = 0
 -                    state["momentum_buffer"] = torch.zeros_like(grad, dtype=mu_dtype or grad.dtype)
@@ -79,7 +87,7 @@
                      # init Q and einsum expressions on first step
                      state["Q"], exprs = _init_Q_exprs(
                          grad,
-@@ -318,16 +323,12 @@                     exprA, exprGs, _ = exprs
+@@ -318,16 +325,12 @@                     exprA, exprGs, _ = exprs
                      Q = state["Q"]
                      if self.deterministic:
 -                        torch_rng = torch.Generator(device=debiased_momentum.device)
@@ -99,7 +107,7 @@
                      G = debiased_momentum if momentum_into_precond_update else grad
  
                      A, conjB = self._calc_A_and_conjB(exprA, G, Q, V)
-@@ -341,7 +342,7 @@                             tmp *= q
+@@ -341,7 +344,7 @@                             tmp *= q
                              tmp /= (term1 + term2).norm(float("inf")) + self._tiny
                          else:
 -                            tmp = torch.triu(tmp)
@@ -107,7 +115,7 @@
                              tmp /= _norm_lower_bound(term1 + term2) + self._tiny
                              tmp @= q
                          q.sub_(tmp)
-@@ -354,7 +355,7 @@                 ).to(dtype=p.dtype)
+@@ -354,7 +357,7 @@                 ).to(dtype=p.dtype)
  
                  # RMS of pre_grad should be 1.0, so let's cap at 1.1
 -                pre_grad.mul_(torch.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max=1.0))
@@ -115,7 +123,7 @@
                  if flattened:
                      pre_grad = pre_grad.view(p.shape)
  
-@@ -416,7 +417,7 @@     Q = []
+@@ -416,7 +419,7 @@     Q = []
      if len(shape) == 0:  # scalar
          if init_q:
 -            Q.append(scale * torch.ones_like(t, dtype=dtype))
@@ -123,7 +131,7 @@
          exprA = ",->"
          exprGs = [",->"]
          exprP = ",,->"
-@@ -457,7 +458,7 @@             ):
+@@ -457,7 +460,7 @@             ):
                  # use diagonal matrix as preconditioner for this dim
                  if init_q:
 -                    Q.append(scale * torch.ones(size, dtype=dtype, device=t.device))
@@ -131,7 +139,7 @@
  
                  piece1A.append(letters[i])
                  piece2A = piece2A + letters[i]
-@@ -474,7 +475,7 @@             else:
+@@ -474,7 +477,7 @@             else:
                  # use triangular matrix as preconditioner for this dim
                  if init_q:
 -                    Q.append(scale * torch.eye(size, dtype=dtype, device=t.device))
@@ -139,7 +147,7 @@
  
                  piece1A.append(letters[i] + letters[i + 13])
                  piece2A = piece2A + letters[i + 13]
-@@ -503,34 +504,34 @@ 
+@@ -503,34 +506,34 @@ 
  def _lb(A, max_abs):
      A = A / max_abs
 -    aa = torch.real(A * A.conj())
@@ -183,7 +191,7 @@
      geometric_mean = norms.prod() ** (1 / len(Q_in))
      norms = geometric_mean / norms
      for i, q in enumerate(Q_in):
-@@ -539,25 +540,25 @@ 
+@@ -539,25 +542,25 @@ 
  def _precond_grad(Q, exprs, G):
      """Precondition gradient G with preconditioner Q."""
 -    return torch.einsum(exprs[-1], *[q.conj() for q in Q], *Q, G)

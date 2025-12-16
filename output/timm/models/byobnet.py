@@ -75,7 +75,7 @@ class ByoBlockCfg:
 
     Defines configuration for a single block or stage of blocks.
     """
-    type: Union[str, nn.Module]
+    type: Union[str, msnn.Cell]
     d: int  # block depth (number of block repeats in stage)
     c: int  # number of output channels for each block in stage
     s: int = 2  # stride of stage (first block)
@@ -251,11 +251,11 @@ def num_groups(group_size: Optional[int], channels: int) -> int:
 @dataclass
 class LayerFn:
     """Container for layer factory functions."""
-    conv_norm_act: Type[nn.Module] = ConvNormAct
-    norm_act: Type[nn.Module] = BatchNormAct2d
-    act: Type[nn.Module] = nn.ReLU
-    attn: Optional[Type[nn.Module]] = None
-    self_attn: Optional[Type[nn.Module]] = None
+    conv_norm_act: Type[msnn.Cell] = ConvNormAct
+    norm_act: Type[msnn.Cell] = BatchNormAct2d
+    act: Type[msnn.Cell] = nn.ReLU
+    attn: Optional[Type[msnn.Cell]] = None
+    self_attn: Optional[Type[msnn.Cell]] = None
 
 
 class DownsampleAvg(msnn.Cell):
@@ -316,7 +316,7 @@ def create_shortcut(
         dilation: Tuple[int, int],
         layers: LayerFn,
         **kwargs,
-) -> Optional[nn.Module]:
+) -> Optional[msnn.Cell]:
     """Create shortcut connection for residual blocks.
 
     Args:
@@ -784,7 +784,7 @@ class RepVggBlock(msnn.Cell):
         self.__delattr__('identity')
         self.__delattr__('drop_path')
 
-    def _get_kernel_bias(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_kernel_bias(self) -> Tuple[ms.Tensor, ms.Tensor]:
         """ Method to obtain re-parameterized kernel and bias.
         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L83
         """
@@ -810,7 +810,7 @@ class RepVggBlock(msnn.Cell):
         bias_final = bias_conv + bias_1x1 + bias_identity
         return kernel_final, bias_final
 
-    def _fuse_bn_tensor(self, branch) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _fuse_bn_tensor(self, branch) -> Tuple[ms.Tensor, ms.Tensor]:
         """ Method to fuse batchnorm layer with preceding conv layer.
         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L95
         """
@@ -978,7 +978,7 @@ class MobileOneBlock(msnn.Cell):
         self.__delattr__('identity')
         self.__delattr__('drop_path')
 
-    def _get_kernel_bias(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_kernel_bias(self) -> Tuple[ms.Tensor, ms.Tensor]:
         """ Method to obtain re-parameterized kernel and bias.
         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L83
         """
@@ -1009,7 +1009,7 @@ class MobileOneBlock(msnn.Cell):
         bias_final = bias_conv + bias_scale + bias_identity
         return kernel_final, bias_final
 
-    def _fuse_bn_tensor(self, branch) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _fuse_bn_tensor(self, branch) -> Tuple[ms.Tensor, ms.Tensor]:
         """ Method to fuse batchnorm layer with preceding conv layer.
         Reference: https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py#L95
         """
@@ -1136,12 +1136,11 @@ _block_registry = dict(
 )
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def register_block(block_type: str, block_fn: nn.Module):
+def register_block(block_type: str, block_fn: msnn.Cell):
     _block_registry[block_type] = block_fn
 
 
-def create_block(block: Union[str, nn.Module], **kwargs):
+def create_block(block: Union[str, msnn.Cell], **kwargs):
     if isinstance(block, (nn.Module, partial)):
         return block(**kwargs)
     assert block in _block_registry, f'Unknown block type ({block}'
@@ -1220,8 +1219,8 @@ class Stem(msnn.SequentialCell):
         self.feature_info.append(dict(num_chs=prev_chs, reduction=curr_stride, module=prev_feat, stage=0))
         assert curr_stride == stride
 
-    def forward_intermediates(self, x) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        intermediate: Optional[torch.Tensor] = None
+    def forward_intermediates(self, x) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
+        intermediate: Optional[ms.Tensor] = None
         for i, m in enumerate(self):
             x = m(x)
             if self.last_feat_idx is not None and i == self.last_feat_idx:
@@ -1634,9 +1633,8 @@ class ByobNet(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get classifier module.
 
         Returns:
@@ -1663,7 +1661,7 @@ class ByobNet(msnn.Cell):
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             exclude_final_conv: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -1784,8 +1782,7 @@ class ByobNet(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = False) -> None:
+def _init_weights(module: msnn.Cell, name: str = '', zero_init_last: bool = False) -> None:
     """Initialize weights.
 
     Args:
@@ -2384,10 +2381,10 @@ for k in ('resnet50_clip', 'resnet101_clip', 'resnet50x4_clip', 'resnet50x16_cli
 
 
 def _convert_openai_clip(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model: ByobNet,
         prefix: str = 'visual.',
-) -> Dict[str, torch.Tensor]:
+) -> Dict[str, ms.Tensor]:
     model_has_attn_pool = isinstance(model.head, (RotAttentionPool2d, AttentionPool2d))
     import re
 
@@ -2427,7 +2424,7 @@ def _convert_openai_clip(
 
 
 def checkpoint_filter_fn(
-        state_dict: Dict[str, torch.Tensor],
+        state_dict: Dict[str, ms.Tensor],
         model: ByobNet
 ):
     if 'visual.conv1.weight' in state_dict:

@@ -105,9 +105,8 @@ def set_pretrained_check_hash(enable: bool = True) -> None:
     _CHECK_HASH = enable
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def load_custom_pretrained(
-        model: nn.Module,
+        model: msnn.Cell,
         pretrained_cfg: Optional[Dict[str, Any]] = None,
         load_fn: Optional[Callable] = None,
         cache_dir: Optional[Union[str, Path]] = None,
@@ -155,9 +154,8 @@ def load_custom_pretrained(
         _logger.warning("Valid function to load pretrained weights is not available, using random initialization.")
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def load_pretrained(
-        model: nn.Module,
+        model: msnn.Cell,
         pretrained_cfg: Optional[Dict[str, Any]] = None,
         num_classes: int = 1000,
         in_chans: int = 3,

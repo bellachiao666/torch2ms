@@ -16,7 +16,7 @@ from .pos_embed_sincos import apply_rot_embed_cat
 
 @torch.fx.wrap
 @register_notrace_function
-def maybe_add_mask(scores: ms.Tensor, attn_mask: Optional[torch.Tensor] = None):
+def maybe_add_mask(scores: ms.Tensor, attn_mask: Optional[ms.Tensor] = None):
     return scores if attn_mask is None else scores + attn_mask
 
 
@@ -42,7 +42,7 @@ class Attention(msnn.Cell):
             proj_bias: bool = True,
             attn_drop: float = 0.,
             proj_drop: float = 0.,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ) -> None:
@@ -88,7 +88,7 @@ class Attention(msnn.Cell):
     def construct(
             self,
             x: ms.Tensor,
-            attn_mask: Optional[torch.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
@@ -137,7 +137,7 @@ class AttentionRope(msnn.Cell):
             attn_drop: float = 0.,
             proj_drop: float = 0.,
             attn_head_dim: Optional[int] = None,
-            norm_layer: Type[nn.Module] = None,
+            norm_layer: Type[msnn.Cell] = None,
             qk_norm: bool = False,
             scale_norm: bool = False,
             proj_bias: bool = True,
@@ -201,8 +201,8 @@ class AttentionRope(msnn.Cell):
     def construct(
             self,
             x,
-            rope: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
+            rope: Optional[ms.Tensor] = None,
+            attn_mask: Optional[ms.Tensor] = None,
     ):
         """Forward pass for the attention module.
 

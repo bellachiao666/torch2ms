@@ -28,6 +28,18 @@
  class SGDW(Optimizer):
      def __init__(
              self,
+@@ -136,9 +142,9 @@ 
+ 
+ def sgdw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        momentum_buffer_list: List[Optional[Tensor]],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        momentum_buffer_list: List[Optional[ms.Tensor]],
+         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+         has_sparse_grad: bool = None,
 @@ -162,7 +168,7 @@             # why must we be explicit about an if statement for torch.jit.is_scripting here?
              # because JIT can't handle Optionals nor fancy conditionals when scripting
              if not torch.jit.is_scripting():
@@ -36,6 +48,18 @@
              else:
                  foreach = False
  
+@@ -193,9 +199,9 @@ 
+ 
+ def _single_tensor_sgdw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        momentum_buffer_list: List[Optional[Tensor]],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        momentum_buffer_list: List[Optional[ms.Tensor]],
+         *,
+         weight_decay: float,
+         momentum: float,
 @@ -217,7 +223,7 @@             buf = momentum_buffer_list[i]
  
              if buf is None:
@@ -44,6 +68,18 @@
                  momentum_buffer_list[i] = buf
              else:
                  buf.mul_(momentum).add_(grad, alpha=1 - dampening)
+@@ -239,9 +245,9 @@ 
+ 
+ def _multi_tensor_sgdw(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        momentum_buffer_list: List[Optional[Tensor]],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        momentum_buffer_list: List[Optional[ms.Tensor]],
+         *,
+         weight_decay: float,
+         momentum: float,
 @@ -257,15 +263,15 @@         return
  
      grouped_tensors = Optimizer._group_tensors_by_device_and_dtype(

@@ -14,15 +14,19 @@
  
  from .constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from .loader import _worker_init, adapt_to_chs
-@@ -27,6 +32,8 @@ class NaFlexPrefetchLoader:
+@@ -27,6 +32,12 @@ class NaFlexPrefetchLoader:
      """Data prefetcher for NaFlex format which normalizes patches."""
  
-+    # 类型标注 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 类型标注 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.utils.data' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.utils' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(
              self,
              loader: torch.utils.data.DataLoader,
-@@ -56,17 +63,17 @@         """
+@@ -56,17 +67,17 @@         """
          self.loader = loader
          self.device = device
 -        self.img_dtype = img_dtype or torch.float32
@@ -44,17 +48,21 @@
  
          if re_prob > 0.:
              self.random_erasing = PatchRandomErasing(
-@@ -80,8 +87,8 @@             self.random_erasing = None
+@@ -80,10 +91,10 @@             self.random_erasing = None
  
          # Check for CUDA/NPU availability
 -        self.is_cuda = device.type == 'cuda' and torch.cuda.is_available()
 -        self.is_npu = device.type == 'npu' and torch.npu.is_available()
+-
+-    def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
 +        self.is_cuda = device.type == 'cuda' and torch.cuda.is_available()  # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        self.is_npu = device.type == 'npu' and torch.npu.is_available()  # 'torch.npu.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
++
++    def __iter__(self) -> Iterator[Tuple[Dict[str, ms.Tensor], ms.Tensor]]:
          """Iterate through the loader with prefetching and normalization.
-@@ -91,10 +98,10 @@         """
+ 
+         Yields:
+@@ -91,10 +102,10 @@         """
          first = True
          if self.is_cuda:
 -            stream = torch.cuda.Stream(device=self.device)
@@ -66,7 +74,7 @@
              stream_context = partial(torch.npu.stream, stream=stream)
          else:
              stream = None
-@@ -152,9 +159,9 @@ 
+@@ -152,9 +163,9 @@ 
              if stream is not None:
                  if self.is_cuda:
 -                    torch.cuda.current_stream(device=self.device).wait_stream(stream)
@@ -77,14 +85,19 @@
  
              input_dict = next_input_dict
              target = next_target
-@@ -188,6 +195,7 @@         return self.loader.dataset
+@@ -188,6 +199,12 @@         return self.loader.dataset
  
  
-+# 类型标注 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.utils.data' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.utils' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def create_naflex_loader(
          dataset,
          patch_size: Optional[Union[Tuple[int, int], int]] = None,
-@@ -231,7 +239,7 @@         epoch: int = 0,
+@@ -231,7 +248,7 @@         epoch: int = 0,
          use_prefetcher: bool = True,
          pin_memory: bool = True,
 -        img_dtype: torch.dtype = torch.float32,
@@ -92,7 +105,7 @@
          device: Union[str, torch.device] = torch.device('cuda'),
          persistent_workers: bool = True,
          worker_seeding: str = 'all',
-@@ -352,7 +360,7 @@             pin_memory=pin_memory,
+@@ -352,7 +369,7 @@             pin_memory=pin_memory,
              worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding),
              persistent_workers=persistent_workers
 -        )
@@ -100,7 +113,7 @@
  
          if use_prefetcher:
              loader = NaFlexPrefetchLoader(
-@@ -400,7 +408,7 @@             collate_fn=collate_fn,
+@@ -400,7 +417,7 @@             collate_fn=collate_fn,
              pin_memory=pin_memory,
              drop_last=False,
 -        )

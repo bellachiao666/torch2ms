@@ -16,21 +16,23 @@
  
  from timm.models._features import FeatureListNet, FeatureDictNet, FeatureHookNet, FeatureGetterNet
  from timm.models._features_fx import FeatureGraphNet
-@@ -100,6 +105,7 @@     _CHECK_HASH = enable
+@@ -101,7 +106,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def load_custom_pretrained(
-         model: nn.Module,
+-        model: nn.Module,
++        model: msnn.Cell,
          pretrained_cfg: Optional[Dict[str, Any]] = None,
-@@ -149,6 +155,7 @@         _logger.warning("Valid function to load pretrained weights is not available, using random initialization.")
+         load_fn: Optional[Callable] = None,
+         cache_dir: Optional[Union[str, Path]] = None,
+@@ -150,7 +155,7 @@ 
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def load_pretrained(
-         model: nn.Module,
+-        model: nn.Module,
++        model: msnn.Cell,
          pretrained_cfg: Optional[Dict[str, Any]] = None,
-@@ -204,7 +211,7 @@                     check_hash=_CHECK_HASH,
+         num_classes: int = 1000,
+         in_chans: int = 3,
+@@ -204,7 +209,7 @@                     check_hash=_CHECK_HASH,
                      weights_only=True,
                      model_dir=cache_dir,
 -                )
@@ -38,7 +40,7 @@
              except TypeError:
                  state_dict = load_state_dict_from_url(
                      pretrained_loc,
-@@ -212,7 +219,7 @@                     progress=_DOWNLOAD_PROGRESS,
+@@ -212,7 +217,7 @@                     progress=_DOWNLOAD_PROGRESS,
                      check_hash=_CHECK_HASH,
                      model_dir=cache_dir,
 -                )

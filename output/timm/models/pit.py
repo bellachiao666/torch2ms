@@ -37,7 +37,7 @@ __all__ = ['PoolingVisionTransformer']  # model_registry will add each entrypoin
 
 class SequentialTuple(msnn.SequentialCell):
     """ This module exists to work around torchscript typing issues list -> list"""
-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
         for module in self:
             x = module(x)
         return x
@@ -54,7 +54,7 @@ class Transformer(msnn.Cell):
             proj_drop: float = .0,
             attn_drop: float = .0,
             drop_path_prob: Optional[List[float]] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -80,7 +80,7 @@ class Transformer(msnn.Cell):
             for i in range(depth)]
         ])
 
-    def construct(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+    def construct(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
         x, cls_tokens = x
         token_length = cls_tokens.shape[1]
         if self.pool is not None:
@@ -125,7 +125,7 @@ class Pooling(msnn.Cell):
         )
         self.fc = nn.Linear(in_feature, out_feature, **dd)
 
-    def construct(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
+    def construct(self, x, cls_token) -> Tuple[ms.Tensor, ms.Tensor]:
         x = self.conv(x)
         cls_token = self.fc(cls_token)
         return x, cls_token
@@ -273,8 +273,7 @@ class PoolingVisionTransformer(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         if self.head_dist is not None:
             return self.head, self.head_dist
         else:
@@ -298,7 +297,7 @@ class PoolingVisionTransformer(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

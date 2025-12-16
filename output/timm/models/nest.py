@@ -125,8 +125,8 @@ class TransformerLayer(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -165,7 +165,7 @@ class ConvPool(msnn.Cell):
             self,
             in_channels: int,
             out_channels: int,
-            norm_layer: Type[nn.Module],
+            norm_layer: Type[msnn.Cell],
             pad_type: str = '',
             device=None,
             dtype=None,
@@ -237,8 +237,8 @@ class NestLevel(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: Optional[List[float]] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            act_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
+            act_layer: Optional[Type[msnn.Cell]] = None,
             pad_type: str = '',
             device=None,
             dtype=None,
@@ -315,8 +315,8 @@ class Nest(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.5,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            act_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Optional[Type[msnn.Cell]] = None,
+            act_layer: Optional[Type[msnn.Cell]] = None,
             pad_type: str = '',
             weight_init: str = '',
             global_pool: str = 'avg',
@@ -467,9 +467,8 @@ class Nest(msnn.Cell):
         for l in self.levels:
             l.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
@@ -485,7 +484,7 @@ class Nest(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -562,8 +561,7 @@ class Nest(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_nest_weights(module: nn.Module, name: str = '', head_bias: float = 0.):
+def _init_nest_weights(module: msnn.Cell, name: str = '', head_bias: float = 0.):
     """ NesT weight initialization
     Can replicate Jax implementation. Otherwise follows vision_transformer.py
     """

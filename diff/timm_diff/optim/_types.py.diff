@@ -19,11 +19,13 @@
  except (ImportError, TypeError):
      ParamsT: TypeAlias = Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]
  
-@@ -23,6 +27,8 @@ class OptimizerCallable(Protocol):
+@@ -23,6 +27,10 @@ class OptimizerCallable(Protocol):
      """Protocol for optimizer constructor signatures."""
  
-+    # 类型标注 'torch.optim.optimizer.ParamsT' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 类型标注 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.optim.optimizer.ParamsT' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __call__(self, params: ParamsT, **kwargs) -> torch.optim.Optimizer: ...
  
  

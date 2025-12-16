@@ -60,7 +60,7 @@ from ._manipulate import named_apply, checkpoint
 __all__ = ['Hiera']
 
 
-def conv_nd(n: int) -> Type[nn.Module]:
+def conv_nd(n: int) -> Type[msnn.Cell]:
     """
     Returns a conv with nd (e.g., Conv2d for n=2). Work up to n=3.
     If you wanted a 4d Hiera, you could probably just implement this for n=4. (no promises)
@@ -334,8 +334,8 @@ class HieraBlock(msnn.Cell):
             mlp_ratio: float = 4.0,
             drop_path: float = 0.0,
             init_values: Optional[float] = None,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             q_stride: int = 1,
             window_size: int = 0,
             use_expand_proj: bool = True,
@@ -426,7 +426,7 @@ class PatchEmbed(msnn.Cell):
     def construct(
             self,
             x: ms.Tensor,
-            mask: Optional[torch.Tensor] = None,
+            mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         if mask is not None:
             mask = get_resized_mask(target_size=x.shape[2:], mask=mask)
@@ -465,7 +465,7 @@ class Hiera(msnn.Cell):
             init_values: Optional[float] = None,
             fix_init: bool = True,
             weight_init: str = '',
-            norm_layer: Union[str, Type[nn.Module]] = "LayerNorm",
+            norm_layer: Union[str, Type[msnn.Cell]] = "LayerNorm",
             drop_rate: float = 0.0,
             patch_drop_rate: float = 0.0,
             head_init_scale: float = 0.001,
@@ -504,10 +504,10 @@ class Hiera(msnn.Cell):
             **dd,
         )
 
-        self.pos_embed: Optional[nn.Parameter] = None
-        self.pos_embed_win: Optional[nn.Parameter] = None
-        self.pos_embed_spatial: Optional[nn.Parameter] = None
-        self.pos_embed_temporal: Optional[nn.Parameter] = None
+        self.pos_embed: Optional[ms.Parameter] = None
+        self.pos_embed_win: Optional[ms.Parameter] = None
+        self.pos_embed_spatial: Optional[ms.Parameter] = None
+        self.pos_embed_temporal: Optional[ms.Parameter] = None
         if sep_pos_embed:
             self.pos_embed_spatial = ms.Parameter(
                 mint.zeros(1, self.tokens_spatial_shape[1] * self.tokens_spatial_shape[2], embed_dim, **dd)
@@ -694,14 +694,14 @@ class Hiera(msnn.Cell):
     def forward_intermediates(
             self,
             x: ms.Tensor,
-            mask: Optional[torch.Tensor] = None,
+            mask: Optional[ms.Tensor] = None,
             indices: Optional[Union[int, List[int]]] = None,
             norm: bool = False,
             stop_early: bool = True,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
             coarse: bool = True,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -776,7 +776,7 @@ class Hiera(msnn.Cell):
     def forward_features(
             self,
             x: ms.Tensor,
-            mask: Optional[torch.Tensor] = None,
+            mask: Optional[ms.Tensor] = None,
             return_intermediates: bool = False,
     ) -> ms.Tensor:
         """
@@ -825,7 +825,7 @@ class Hiera(msnn.Cell):
     def construct(
             self,
             x: ms.Tensor,
-            mask: Optional[torch.Tensor] = None,
+            mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         x = self.forward_features(x, mask=mask)
         if mask is None:

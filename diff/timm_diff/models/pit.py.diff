@@ -16,15 +16,17 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import trunc_normal_, to_2tuple, calculate_drop_path_rates
-@@ -30,7 +35,7 @@ __all__ = ['PoolingVisionTransformer']  # model_registry will add each entrypoint fn to this
+@@ -30,15 +35,15 @@ __all__ = ['PoolingVisionTransformer']  # model_registry will add each entrypoint fn to this
  
  
 -class SequentialTuple(nn.Sequential):
 +class SequentialTuple(msnn.SequentialCell):
      """ This module exists to work around torchscript typing issues list -> list"""
-     def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
++    def forward(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
          for module in self:
-@@ -38,7 +43,7 @@         return x
+             x = module(x)
+         return x
  
  
 -class Transformer(nn.Module):
@@ -32,6 +34,14 @@
      def __init__(
              self,
              base_dim: int,
+@@ -49,7 +54,7 @@             proj_drop: float = .0,
+             attn_drop: float = .0,
+             drop_path_prob: Optional[List[float]] = None,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -58,8 +63,9 @@         embed_dim = base_dim * heads
  
          self.pool = pool
@@ -52,7 +62,7 @@
 +            for i in range(depth)]
 +        ])
 +
-+    def construct(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
++    def construct(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
          x, cls_tokens = x
          token_length = cls_tokens.shape[1]
          if self.pool is not None:
@@ -76,7 +86,7 @@
          self.fc = nn.Linear(in_feature, out_feature, **dd)
  
 -    def forward(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
-+    def construct(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
++    def construct(self, x, cls_token) -> Tuple[ms.Tensor, ms.Tensor]:
          x = self.conv(x)
          cls_token = self.fc(cls_token)
          return x, cls_token
@@ -135,14 +145,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -266,6 +273,7 @@     def set_grad_checkpointing(self, enable=True):
+@@ -266,7 +273,7 @@     def set_grad_checkpointing(self, enable=True):
          assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          if self.head_dist is not None:
              return self.head, self.head_dist
-@@ -278,13 +286,13 @@             self.global_pool = global_pool
+         else:
+@@ -278,19 +285,19 @@             self.global_pool = global_pool
          device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
 -        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -158,7 +169,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -342,7 +350,7 @@         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -342,7 +349,7 @@         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
          self.transformers = self.transformers[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -166,7 +184,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -355,7 +363,7 @@         cls_tokens = self.norm(cls_tokens)
+@@ -355,7 +362,7 @@         cls_tokens = self.norm(cls_tokens)
          return cls_tokens
  
 -    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
@@ -174,7 +192,7 @@
          if self.head_dist is not None:
              assert self.global_pool == 'token'
              x, x_dist = x[:, 0], x[:, 1]
-@@ -378,7 +386,7 @@                 x = self.head(x)
+@@ -378,7 +385,7 @@                 x = self.head(x)
              return x
  
 -    def forward(self, x):

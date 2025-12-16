@@ -4,7 +4,6 @@ import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
 from typing import Callable, Dict, List, Optional, Union, Tuple, Type
-# from torch import nn
 
 try:
     # NOTE we wrap torchvision fns to use timm leaf / no trace definitions
@@ -30,7 +29,7 @@ __all__ = [
 _leaf_modules = set()
 
 
-def register_notrace_module(module: Type[nn.Module]):
+def register_notrace_module(module: Type[msnn.Cell]):
     """
     Any module not under timm.models.layers should get this decorator if we don't want to trace through it.
     """
@@ -38,7 +37,7 @@ def register_notrace_module(module: Type[nn.Module]):
     return module
 
 
-def is_notrace_module(module: Type[nn.Module]):
+def is_notrace_module(module: Type[msnn.Cell]):
     return module in _leaf_modules
 
 
@@ -63,8 +62,7 @@ def get_notrace_functions():
     return list(_autowrap_functions)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def get_graph_node_names(model: nn.Module) -> Tuple[List[str], List[str]]:
+def get_graph_node_names(model: msnn.Cell) -> Tuple[List[str], List[str]]:
     return _get_graph_node_names(
         model,
         tracer_kwargs={
@@ -74,8 +72,7 @@ def get_graph_node_names(model: nn.Module) -> Tuple[List[str], List[str]]:
     )  # 'torchvision.models.feature_extraction.get_graph_node_names' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def create_feature_extractor(model: nn.Module, return_nodes: Union[Dict[str, str], List[str]]):
+def create_feature_extractor(model: msnn.Cell, return_nodes: Union[Dict[str, str], List[str]]):
     assert has_fx_feature_extraction, 'Please update to PyTorch 1.10+, torchvision 0.11+ for FX feature extraction'
     return _create_feature_extractor(
         model, return_nodes,

@@ -90,7 +90,7 @@
          return relative_position_bias
  
 -    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+    def construct(self, x: ms.Tensor, mask: Optional[torch.Tensor] = None) -> ms.Tensor:
++    def construct(self, x: ms.Tensor, mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          """Forward pass of window multi-head self-attention.
  
          Args:
@@ -112,6 +112,14 @@
      r"""This class implements the Swin transformer block.
  
      Args:
+@@ -256,7 +260,7 @@             drop_path: float = 0.0,
+             extra_norm: bool = False,
+             sequential_attn: bool = False,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -282,7 +286,7 @@             **dd,
          )
          self.norm1 = norm_layer(dim, **dd)
@@ -133,7 +141,23 @@
  
          self.register_buffer(
              "attn_mask",
-@@ -334,9 +338,9 @@         if any(self.shift_size):
+@@ -323,20 +327,23 @@         shift_size = [0 if f <= w else s for f, w, s in zip(self.feat_size, window_size, target_shift_size)]
+         return tuple(window_size), tuple(shift_size)
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def get_attn_mask(
+             self,
+-            x: Optional[torch.Tensor] = None,
++            x: Optional[ms.Tensor] = None,
+             device: Optional[torch.device] = None,
+             dtype: Optional[torch.dtype] = None,
+-    ) -> Optional[torch.Tensor]:
++    ) -> Optional[ms.Tensor]:
+         """Method generates the attention mask used in shift case."""
+         # Make masks for shift case
+         if any(self.shift_size):
              # calculate attention mask for SW-MSA
              if x is None:
 -                img_mask = torch.zeros((1, *self.feat_size, 1), device=device, dtype=dtype)  # 1 H W 1
@@ -144,7 +168,7 @@
              cnt = 0
              for h in (
                      (0, -self.window_size[0]),
-@@ -361,8 +365,8 @@     def init_weights(self):
+@@ -361,8 +368,8 @@     def init_weights(self):
          # extra, module specific weight init
          if self.init_values is not None:
 -            nn.init.constant_(self.norm1.weight, self.init_values)
@@ -154,7 +178,7 @@
  
      def set_input_size(self, feat_size: Tuple[int, int], window_size: Tuple[int, int]) -> None:
          """Method updates the image resolution to be processed and window size and so the pair-wise relative positions.
-@@ -394,11 +398,11 @@             # FIXME PyTorch XLA needs cat impl, roll not lowered
+@@ -394,11 +401,11 @@             # FIXME PyTorch XLA needs cat impl, roll not lowered
              # x = torch.cat([x[:, sh:], x[:, :sh]], dim=1)
              # x = torch.cat([x[:, :, sw:], x[:, :, :sw]], dim=2)
 -            x = torch.roll(x, shifts=(-sh, -sw), dims=(1, 2))
@@ -167,7 +191,7 @@
          _, Hp, Wp, _ = x.shape
  
          # partition windows
-@@ -422,11 +426,11 @@             # FIXME PyTorch XLA needs cat impl, roll not lowered
+@@ -422,11 +429,11 @@             # FIXME PyTorch XLA needs cat impl, roll not lowered
              # x = torch.cat([x[:, -sh:], x[:, :-sh]], dim=1)
              # x = torch.cat([x[:, :, -sw:], x[:, :, :-sw]], dim=2)
 -            x = torch.roll(x, shifts=(sh, sw), dims=(1, 2))
@@ -180,7 +204,7 @@
          """Forward pass of Swin Transformer V2 block.
  
          Args:
-@@ -446,7 +450,7 @@         return x
+@@ -446,7 +453,7 @@         return x
  
  
 -class PatchMerging(nn.Module):
@@ -188,7 +212,15 @@
      """Patch merging layer.
  
      This class implements the patch merging as a strided convolution with a normalization before.
-@@ -470,7 +474,7 @@         self.norm = norm_layer(4 * dim, **dd)
+@@ -455,7 +462,7 @@     def __init__(
+             self,
+             dim: int,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ) -> None:
+@@ -470,7 +477,7 @@         self.norm = norm_layer(4 * dim, **dd)
          self.reduction = nn.Linear(in_features=4 * dim, out_features=2 * dim, bias=False, **dd)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -196,7 +228,7 @@
          """Forward pass of patch merging.
  
          Args:
-@@ -491,7 +495,7 @@         return x
+@@ -491,7 +498,7 @@         return x
  
  
 -class PatchEmbed(nn.Module):
@@ -204,7 +236,15 @@
      """2D Image to Patch Embedding."""
      def __init__(
              self,
-@@ -525,7 +529,7 @@         self.strict_img_size = strict_img_size
+@@ -499,7 +506,7 @@             patch_size: Union[int, Tuple[int, int]] = 16,
+             in_chans: int = 3,
+             embed_dim: int = 768,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             strict_img_size: bool = True,
+             device=None,
+             dtype=None,
+@@ -525,7 +532,7 @@         self.strict_img_size = strict_img_size
  
          self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
 -        self.norm = norm_layer(embed_dim, **dd) if norm_layer else nn.Identity()
@@ -212,7 +252,7 @@
  
      def set_input_size(self, img_size: Tuple[int, int]) -> None:
          """Update input image size.
-@@ -539,7 +543,7 @@             self.grid_size = (img_size[0] // self.patch_size[0], img_size[1] // self.patch_size[1])
+@@ -539,7 +546,7 @@             self.grid_size = (img_size[0] // self.patch_size[0], img_size[1] // self.patch_size[1])
              self.num_patches = self.grid_size[0] * self.grid_size[1]
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -220,7 +260,7 @@
          """Forward pass of patch embedding.
  
          Args:
-@@ -557,7 +561,7 @@         return x
+@@ -557,7 +564,7 @@         return x
  
  
 -class SwinTransformerV2CrStage(nn.Module):
@@ -228,7 +268,15 @@
      r"""This class implements a stage of the Swin transformer including multiple layers.
  
      Args:
-@@ -609,7 +613,7 @@             self.downsample = PatchMerging(embed_dim, norm_layer=norm_layer, **dd)
+@@ -592,7 +599,7 @@             proj_drop: float = 0.0,
+             drop_attn: float = 0.0,
+             drop_path: Union[List[float], float] = 0.0,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             extra_norm_period: int = 0,
+             extra_norm_stage: bool = False,
+             sequential_attn: bool = False,
+@@ -609,7 +616,7 @@             self.downsample = PatchMerging(embed_dim, norm_layer=norm_layer, **dd)
              embed_dim = embed_dim * 2
          else:
 -            self.downsample = nn.Identity()
@@ -236,7 +284,7 @@
  
          def _extra_norm(index):
              i = index + 1
-@@ -617,7 +621,8 @@                 return True
+@@ -617,7 +624,8 @@                 return True
              return i == depth if extra_norm_stage else False
  
 -        self.blocks = nn.Sequential(*[
@@ -245,7 +293,7 @@
              SwinTransformerV2CrBlock(
                  dim=embed_dim,
                  num_heads=num_heads,
-@@ -637,7 +642,7 @@                 **dd,
+@@ -637,7 +645,7 @@                 **dd,
              )
              for index in range(depth)]
 -        )
@@ -253,7 +301,7 @@
  
      def set_input_size(
              self,
-@@ -658,7 +663,7 @@                 window_size=window_size,
+@@ -658,7 +666,7 @@                 window_size=window_size,
              )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -261,7 +309,7 @@
          """Forward pass.
          Args:
              x (torch.Tensor): Input tensor of the shape [B, C, H, W] or [B, L, C]
-@@ -677,7 +682,7 @@         return x
+@@ -677,7 +685,7 @@         return x
  
  
 -class SwinTransformerV2Cr(nn.Module):
@@ -269,7 +317,15 @@
      r""" Swin Transformer V2
          A PyTorch impl of : `Swin Transformer V2: Scaling Up Capacity and Resolution`  -
            https://arxiv.org/pdf/2111.09883
-@@ -785,7 +790,9 @@                 in_dim *= 2
+@@ -722,7 +730,7 @@             proj_drop_rate: float = 0.0,
+             attn_drop_rate: float = 0.0,
+             drop_path_rate: float = 0.0,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             extra_norm_period: int = 0,
+             extra_norm_stage: bool = False,
+             sequential_attn: bool = False,
+@@ -785,7 +793,9 @@                 in_dim *= 2
                  in_scale *= 2
              self.feature_info += [dict(num_chs=in_dim, reduction=4 * in_scale, module=f'stages.{stage_idx}')]
 -        self.stages = nn.Sequential(*stages)
@@ -279,14 +335,15 @@
  
          self.head = ClassifierHead(
              self.num_features,
-@@ -845,6 +852,7 @@         for s in self.stages:
-             s.grad_checkpointing = enable
+@@ -846,7 +856,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore()
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Method returns the classification head of the model.
-@@ -865,7 +873,7 @@ 
+         Returns:
+             head (nn.Module): Current classification head
+@@ -865,13 +875,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -294,7 +351,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -919,7 +927,7 @@             self.reset_classifier(0, '')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -919,7 +929,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -302,7 +366,7 @@
          x = self.patch_embed(x)
          x = self.stages(x)
          return x
-@@ -927,25 +935,26 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -927,25 +937,25 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -312,8 +376,8 @@
          return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def init_weights(module: nn.Module, name: str = ''):
+-def init_weights(module: nn.Module, name: str = ''):
++def init_weights(module: msnn.Cell, name: str = ''):
      # FIXME WIP determining if there's a better weight init
      if isinstance(module, nn.Linear):
          if 'qkv' in name:
@@ -333,7 +397,7 @@
      elif hasattr(module, 'init_weights'):
          module.init_weights()
  
-@@ -960,7 +969,7 @@     for k, v in state_dict.items():
+@@ -960,7 +970,7 @@     for k, v in state_dict.items():
          if 'tau' in k:
              # convert old tau based checkpoints -> logit_scale (inverse)
 -            v = torch.log(1 / v)

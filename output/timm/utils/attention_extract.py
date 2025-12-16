@@ -8,8 +8,6 @@ import re
 from collections import OrderedDict
 from typing import Union, Optional, List
 
-# import torch
-
 
 class AttentionExtract(msnn.Cell):
     # defaults should cover a significant number of timm models with attention maps.
@@ -18,7 +16,7 @@ class AttentionExtract(msnn.Cell):
 
     def __init__(
             self,
-            model: Union[torch.nn.Module],
+            model: Union[msnn.Cell],
             names: Optional[List[str]] = None,
             mode: str = 'eval',
             method: str = 'fx',

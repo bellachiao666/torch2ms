@@ -63,10 +63,10 @@ class TransformerDecoderLayerOptimal(msnn.Cell):
             state['activation'] = torch.nn.functional.relu
         super(TransformerDecoderLayerOptimal, self).__setstate__(state)
 
-    def construct(self, tgt: ms.Tensor, memory: ms.Tensor, tgt_mask: Optional[Tensor] = None,
-                memory_mask: Optional[Tensor] = None,
-                tgt_key_padding_mask: Optional[Tensor] = None,
-                memory_key_padding_mask: Optional[Tensor] = None) -> ms.Tensor:
+    def construct(self, tgt: ms.Tensor, memory: ms.Tensor, tgt_mask: Optional[ms.Tensor] = None,
+                memory_mask: Optional[ms.Tensor] = None,
+                tgt_key_padding_mask: Optional[ms.Tensor] = None,
+                memory_key_padding_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         tgt = tgt + self.dropout1(tgt)
         tgt = self.norm1(tgt)
         tgt2 = self.multihead_attn(tgt, memory, memory)[0]

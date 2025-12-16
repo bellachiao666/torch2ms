@@ -194,7 +194,7 @@ class FeatureHooks:
             x = x[0]  # unwrap input tuple
         self._feature_outputs[x.device][hook_id] = x
 
-    def get_output(self, device) -> Dict[str, torch.tensor]:
+    def get_output(self, device) -> Dict[str, ms.Tensor]:
         output = self._feature_outputs[device]
         self._feature_outputs[device] = OrderedDict()  # clear after reading
         return output
@@ -248,10 +248,9 @@ class FeatureDictNet(nn.ModuleDict):
     All Sequential containers that are directly assigned to the original model will have their
     modules assigned to this module with the name `model.features.1` being changed to `model.features_1`
     """
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            model: nn.Module,
+            model: msnn.Cell,
             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
             out_map: Sequence[Union[int, str]] = None,
             output_fmt: str = 'NCHW',
@@ -293,7 +292,7 @@ class FeatureDictNet(nn.ModuleDict):
     def set_grad_checkpointing(self, enable: bool = True):
         self.grad_checkpointing = enable
 
-    def _collect(self, x) -> (Dict[str, torch.Tensor]):
+    def _collect(self, x) -> (Dict[str, ms.Tensor]):
         out = OrderedDict()
         for i, (name, module) in enumerate(self.items()):
             if self.grad_checkpointing and not torch.jit.is_scripting():
@@ -315,7 +314,7 @@ class FeatureDictNet(nn.ModuleDict):
                     out[out_id] = x
         return out
 
-    def forward(self, x) -> Dict[str, torch.Tensor]:
+    def forward(self, x) -> Dict[str, ms.Tensor]:
         return self._collect(x)
 
 
@@ -324,10 +323,9 @@ class FeatureListNet(FeatureDictNet):
 
     A specialization of FeatureDictNet that always returns features as a list (values() of dict).
     """
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            model: nn.Module,
+            model: msnn.Cell,
             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
             output_fmt: str = 'NCHW',
             feature_concat: bool = False,
@@ -349,7 +347,7 @@ class FeatureListNet(FeatureDictNet):
             flatten_sequential=flatten_sequential,
         )
 
-    def forward(self, x) -> (List[torch.Tensor]):
+    def forward(self, x) -> (List[ms.Tensor]):
         return list(self._collect(x).values())
 
 
@@ -367,10 +365,9 @@ class FeatureHookNet(nn.ModuleDict):
 
     FIXME this does not currently work with Torchscript, see FeatureHooks class
     """
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            model: nn.Module,
+            model: msnn.Cell,
             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
             out_map: Optional[Sequence[Union[int, str]]] = None,
             return_dict: bool = False,
@@ -449,10 +446,9 @@ class FeatureGetterNet(nn.ModuleDict):
     Wrap models with a feature getter method, like 'get_intermediate_layers'
 
     """
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
-            model: nn.Module,
+            model: msnn.Cell,
             out_indices: OutIndicesT = 4,
             out_map: Optional[Sequence[Union[int, str]]] = None,
             return_dict: bool = False,

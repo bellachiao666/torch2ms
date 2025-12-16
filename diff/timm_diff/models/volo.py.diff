@@ -56,6 +56,16 @@
      """Outlooker block that combines outlook attention with MLP."""
  
      def __init__(
+@@ -131,8 +136,8 @@             mlp_ratio: float = 3.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             qkv_bias: bool = False,
+             device=None,
+             dtype=None,
 @@ -165,7 +170,7 @@             attn_drop=attn_drop,
              **dd,
          )
@@ -108,6 +118,16 @@
      """Transformer block with multi-head self-attention and MLP."""
  
      def __init__(
+@@ -269,8 +274,8 @@             qkv_bias: bool = False,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -290,13 +295,13 @@         super().__init__()
          self.norm1 = norm_layer(dim, **dd)
          self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, **dd)
@@ -149,6 +169,16 @@
      """Class block that combines class attention with MLP."""
  
      def __init__(
+@@ -388,8 +393,8 @@             drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ):
 @@ -419,7 +424,7 @@             proj_drop=drop,
              **dd,
          )
@@ -169,20 +199,21 @@
          """Forward pass.
  
          Args:
-@@ -443,9 +448,10 @@         cls_embed = x[:, :1]
+@@ -443,10 +448,10 @@         cls_embed = x[:, :1]
          cls_embed = cls_embed + self.drop_path1(self.attn(self.norm1(x)))
          cls_embed = cls_embed + self.drop_path2(self.mlp(self.norm2(cls_embed)))
 -        return torch.cat([cls_embed, x[:, 1:]], dim=1)
 -
 -
+-def get_block(block_type: str, **kwargs: Any) -> nn.Module:
 +        return mint.cat([cls_embed, x[:, 1:]], dim = 1)
 +
 +
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def get_block(block_type: str, **kwargs: Any) -> nn.Module:
++def get_block(block_type: str, **kwargs: Any) -> msnn.Cell:
      """Get block based on type.
  
-@@ -477,25 +483,25 @@     """
+     Args:
+@@ -477,25 +482,25 @@     """
      W = size[1] // scale
      H = size[2] // scale
 -    W_t = torch.tensor(W, dtype=torch.float32)
@@ -218,7 +249,7 @@
      """Image to patch embedding with multi-layer convolution."""
  
      def __init__(
-@@ -527,17 +533,18 @@         super().__init__()
+@@ -527,17 +532,18 @@         super().__init__()
          assert patch_size in [4, 8, 16]
          if stem_conv:
 -            self.conv = nn.Sequential(
@@ -241,7 +272,7 @@
          else:
              self.conv = None
  
-@@ -550,7 +557,7 @@         )
+@@ -550,7 +556,7 @@         )
          self.num_patches = (img_size // patch_size) * (img_size // patch_size)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -249,7 +280,7 @@
          """Forward pass.
  
          Args:
-@@ -565,7 +572,7 @@         return x
+@@ -565,7 +571,7 @@         return x
  
  
 -class Downsample(nn.Module):
@@ -257,7 +288,7 @@
      """Downsampling module between stages."""
  
      def __init__(
-@@ -587,7 +594,7 @@         dd = {'device': device, 'dtype': dtype}
+@@ -587,7 +593,7 @@         dd = {'device': device, 'dtype': dtype}
          self.proj = nn.Conv2d(in_embed_dim, out_embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -265,7 +296,7 @@
          """Forward pass.
  
          Args:
-@@ -618,7 +625,7 @@         device=None,
+@@ -618,7 +624,7 @@         device=None,
          dtype=None,
          **kwargs: Any,
 -) -> nn.Sequential:
@@ -273,7 +304,7 @@
      """Generate outlooker layers for stage 1.
  
      Args:
-@@ -656,7 +663,9 @@             dtype=dtype,
+@@ -656,7 +662,9 @@             dtype=dtype,
              **kwargs,
          ))
 -    blocks = nn.Sequential(*blocks)
@@ -283,7 +314,7 @@
      return blocks
  
  
-@@ -671,7 +680,7 @@         attn_drop: float = 0,
+@@ -671,7 +679,7 @@         attn_drop: float = 0,
          drop_path_rate: float = 0.,
          **kwargs: Any,
 -) -> nn.Sequential:
@@ -291,7 +322,7 @@
      """Generate transformer layers for stage 2.
  
      Args:
-@@ -701,11 +710,13 @@             drop_path=block_dpr,
+@@ -701,11 +709,13 @@             drop_path=block_dpr,
              **kwargs,
          ))
 -    blocks = nn.Sequential(*blocks)
@@ -306,7 +337,15 @@
      """Vision Outlooker (VOLO) model."""
  
      def __init__(
-@@ -790,8 +801,8 @@ 
+@@ -727,7 +737,7 @@             pos_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             post_layers: Optional[Tuple[str, ...]] = ('ca', 'ca'),
+             use_aux_head: bool = True,
+             use_mix_token: bool = False,
+@@ -790,8 +800,8 @@ 
          # initial positional encoding, we add positional encoding after outlooker blocks
          patch_grid = (img_size[0] // patch_size // pooling_scale, img_size[1] // patch_size // pooling_scale)
 -        self.pos_embed = nn.Parameter(torch.zeros(1, patch_grid[0], patch_grid[1], embed_dims[-1], **dd))
@@ -316,7 +355,7 @@
  
          # set the main block in network
          self.stage_ends = []
-@@ -838,12 +849,12 @@                 r *= 2
+@@ -838,12 +848,12 @@                 r *= 2
                  block_idx += 1
  
 -        self.network = nn.ModuleList(network)
@@ -330,7 +369,7 @@
                  get_block(
                      post_layers[i],
                      dim=embed_dims[-1],
-@@ -857,23 +868,24 @@                 )
+@@ -857,24 +867,24 @@                 )
                  for i in range(len(post_layers))
              ])
 -            self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dims[-1], **dd))
@@ -353,11 +392,12 @@
          trunc_normal_(self.pos_embed, std=.02)
          self.apply(self._init_weights)
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def _init_weights(self, m: nn.Module) -> None:
+-    def _init_weights(self, m: nn.Module) -> None:
++    def _init_weights(self, m: msnn.Cell) -> None:
          """Initialize weights for modules.
  
-@@ -883,7 +895,7 @@         if isinstance(m, nn.Linear):
+         Args:
+@@ -883,7 +893,7 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -365,14 +405,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self) -> set:
-@@ -926,6 +938,7 @@         """
-         self.grad_checkpointing = enable
+@@ -927,7 +937,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get classifier module.
-@@ -948,12 +961,12 @@         device = self.head.weight.device if hasattr(self.head, 'weight') else None
+ 
+         Returns:
+@@ -948,12 +958,12 @@         device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
          self.head = nn.Linear(
 -            self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -388,7 +429,7 @@
          """Forward pass through token processing stages.
  
          Args:
-@@ -976,7 +989,7 @@         x = x.reshape(B, -1, C)
+@@ -976,7 +986,7 @@         x = x.reshape(B, -1, C)
          return x
  
 -    def forward_cls(self, x: torch.Tensor) -> torch.Tensor:
@@ -396,7 +437,7 @@
          """Forward pass through class attention blocks.
  
          Args:
-@@ -987,7 +1000,7 @@         """
+@@ -987,7 +997,7 @@         """
          B, N, C = x.shape
          cls_tokens = self.cls_token.expand(B, -1, -1)
 -        x = torch.cat([cls_tokens, x], dim=1)
@@ -404,15 +445,15 @@
          for block in self.post_network:
              if self.grad_checkpointing and not torch.jit.is_scripting():
                  x = checkpoint(block, x)
-@@ -995,7 +1008,7 @@                 x = block(x)
+@@ -995,7 +1005,7 @@                 x = block(x)
          return x
  
 -    def forward_train(self, x: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, Tuple[int, int, int, int]]]:
-+    def forward_train(self, x: ms.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, Tuple[int, int, int, int]]]:
++    def forward_train(self, x: ms.Tensor) -> Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor, Tuple[int, int, int, int]]]:
          """Forward pass for training with mix token support.
  
          Args:
-@@ -1013,7 +1026,7 @@ 
+@@ -1013,7 +1023,7 @@ 
          # mix token, see token labeling for details.
          if self.mix_token and self.training:
 -            lam = torch.distributions.Beta(self.beta, self.beta).sample()
@@ -420,7 +461,7 @@
              patch_h, patch_w = x.shape[1] // self.pooling_scale, x.shape[2] // self.pooling_scale
              bbx1, bby1, bbx2, bby2 = rand_bbox(x.size(), lam, scale=self.pooling_scale)
              temp_x = x.clone()
-@@ -1058,7 +1071,7 @@ 
+@@ -1058,13 +1068,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -428,7 +469,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -1143,13 +1156,13 @@         max_index = self.stage_ends[max_index]
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -1143,13 +1153,13 @@         max_index = self.stage_ends[max_index]
          self.network = self.network[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -444,7 +492,7 @@
          """Forward pass through feature extraction.
  
          Args:
-@@ -1169,7 +1182,7 @@         x = self.norm(x)
+@@ -1169,7 +1179,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -452,7 +500,7 @@
          """Forward pass through classification head.
  
          Args:
-@@ -1195,7 +1208,7 @@             out = out + 0.5 * aux.max(1)[0]
+@@ -1195,7 +1205,7 @@             out = out + 0.5 * aux.max(1)[0]
          return out
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:

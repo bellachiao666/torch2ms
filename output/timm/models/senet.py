@@ -100,7 +100,7 @@ class SEBottleneck(Bottleneck):
             groups: int,
             reduction: int,
             stride: int = 1,
-            downsample: Optional[nn.Module] = None,
+            downsample: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ):
@@ -142,7 +142,7 @@ class SEResNetBottleneck(Bottleneck):
             groups: int,
             reduction: int,
             stride: int = 1,
-            downsample: Optional[nn.Module] = None,
+            downsample: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ):
@@ -173,7 +173,7 @@ class SEResNeXtBottleneck(Bottleneck):
             groups: int,
             reduction: int,
             stride: int = 1,
-            downsample: Optional[nn.Module] = None,
+            downsample: Optional[msnn.Cell] = None,
             base_width: int = 4,
             device=None,
             dtype=None,
@@ -203,7 +203,7 @@ class SEResNetBlock(msnn.Cell):
             groups: int,
             reduction: int,
             stride: int = 1,
-            downsample: Optional[nn.Module] = None,
+            downsample: Optional[msnn.Cell] = None,
             device=None,
             dtype=None,
     ):
@@ -242,7 +242,7 @@ class SENet(msnn.Cell):
 
     def __init__(
             self,
-            block: Type[nn.Module],
+            block: Type[msnn.Cell],
             layers: Tuple[int, ...],
             groups: int,
             reduction: int,
@@ -418,9 +418,8 @@ class SENet(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.last_linear
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):

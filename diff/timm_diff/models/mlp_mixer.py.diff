@@ -24,6 +24,18 @@
      """Residual Block w/ token mixing and channel MLPs.
  
      Based on: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+@@ -66,9 +71,9 @@             dim: int,
+             seq_len: int,
+             mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
+-            mlp_layer: Type[nn.Module] = Mlp,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            mlp_layer: Type[msnn.Cell] = Mlp,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop: float = 0.,
+             drop_path: float = 0.,
+             device=None,
 @@ -91,18 +96,18 @@         tokens_dim, channels_dim = [int(x * dim) for x in to_2tuple(mlp_ratio)]
          self.norm1 = norm_layer(dim, **dd)
          self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop, **dd)
@@ -68,6 +80,18 @@
      """Residual MLP block w/ LayerScale and Affine 'norm'.
  
      Based on: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+@@ -131,9 +136,9 @@             dim: int,
+             seq_len: int,
+             mlp_ratio: float = 4,
+-            mlp_layer: Type[nn.Module] = Mlp,
+-            norm_layer: Type[nn.Module] = Affine,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            mlp_layer: Type[msnn.Cell] = Mlp,
++            norm_layer: Type[msnn.Cell] = Affine,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             init_values: float = 1e-4,
+             drop: float = 0.,
+             drop_path: float = 0.,
 @@ -158,20 +163,20 @@         channel_dim = int(dim * mlp_ratio)
          self.norm1 = norm_layer(dim, **dd)
          self.linear_tokens = nn.Linear(seq_len, seq_len, **dd)
@@ -94,6 +118,14 @@
      """Spatial Gating Unit.
  
      Based on: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
+@@ -180,7 +185,7 @@             self,
+             dim: int,
+             seq_len: int,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ) -> None:
 @@ -200,10 +205,10 @@     def init_weights(self) -> None:
          """Initialize weights for projection gate."""
          # special init for the projection gate, called as override by base model init
@@ -116,6 +148,18 @@
      """Residual Block w/ Spatial Gating.
  
      Based on: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
+@@ -221,9 +226,9 @@             dim: int,
+             seq_len: int,
+             mlp_ratio: float = 4,
+-            mlp_layer: Type[nn.Module] = GatedMlp,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            mlp_layer: Type[msnn.Cell] = GatedMlp,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop: float = 0.,
+             drop_path: float = 0.,
+             device=None,
 @@ -254,15 +259,15 @@             drop=drop,
              **dd,
          )
@@ -135,6 +179,20 @@
      """MLP-Mixer model architecture.
  
      Based on: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+@@ -277,10 +282,10 @@             num_blocks: int = 8,
+             embed_dim: int = 512,
+             mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
+-            block_layer: Type[nn.Module] = MixerBlock,
+-            mlp_layer: Type[nn.Module] = Mlp,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            block_layer: Type[msnn.Cell] = MixerBlock,
++            mlp_layer: Type[msnn.Cell] = Mlp,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop_rate: float = 0.,
+             proj_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
 @@ -328,7 +333,8 @@         )
          reduction = self.stem.feat_ratio() if hasattr(self.stem, 'feat_ratio') else patch_size
          # FIXME drop_path (stochastic depth scaling rule or all the same?)
@@ -159,14 +217,15 @@
  
          self.init_weights(nlhb=nlhb)
  
-@@ -383,6 +390,7 @@         """
-         self.grad_checkpointing = enable
+@@ -384,7 +391,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier module."""
-@@ -400,11 +408,11 @@             assert global_pool in ('', 'avg')
+         return self.head
+ 
+@@ -400,17 +407,17 @@             assert global_pool in ('', 'avg')
              self.global_pool = global_pool
          device, dtype = self.head.weight.device, self.head.weight.dtype if hasattr(self.head, 'weight') else (None, None)
 -        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -179,7 +238,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -478,12 +486,12 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward features that returns intermediates.
+ 
+         Args:
+@@ -478,12 +485,12 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -193,7 +259,7 @@
          """Forward pass through feature extraction layers."""
          x = self.stem(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -493,7 +501,7 @@         x = self.norm(x)
+@@ -493,7 +500,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -201,7 +267,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -508,13 +516,14 @@         x = self.head_drop(x)
+@@ -508,14 +515,14 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -212,11 +278,12 @@
          return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: bool = False) -> None:
+-def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: bool = False) -> None:
++def _init_weights(module: msnn.Cell, name: str, head_bias: float = 0., flax: bool = False) -> None:
      """Mixer weight initialization (trying to match Flax defaults).
  
-@@ -526,29 +535,29 @@     """
+     Args:
+@@ -526,29 +533,29 @@     """
      if isinstance(module, nn.Linear):
          if name.startswith('head'):
 -            nn.init.zeros_(module.weight)

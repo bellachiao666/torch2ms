@@ -21,6 +21,18 @@
      """ SE Module as defined in original SE-Nets with a few additions
      Additions include:
          * divisor can be specified to keep channels % div == 0 (default: 8)
+@@ -35,9 +40,9 @@             rd_divisor: int = 8,
+             add_maxpool: bool = False,
+             bias: bool = True,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Optional[Type[nn.Module]] = None,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             device=None,
+             dtype=None,
+     ):
 @@ -47,12 +52,12 @@         if not rd_channels:
              rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
          self.fc1 = nn.Conv2d(channels, rd_channels, kernel_size=1, bias=bias, **dd)
@@ -43,6 +55,14 @@
      """ 'Effective Squeeze-Excitation
      From `CenterMask : Real-Time Anchor-Free Instance Segmentation` - https://arxiv.org/abs/1911.06667
      """
+@@ -74,7 +79,7 @@             self,
+             channels: int,
+             add_maxpool: bool = False,
+-            gate_layer: Union[str, Type[nn.Module]] = 'hard_sigmoid',
++            gate_layer: Union[str, Type[msnn.Cell]] = 'hard_sigmoid',
+             device=None,
+             dtype=None,
+             **_,
 @@ -82,10 +87,10 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.add_maxpool = add_maxpool
@@ -63,6 +83,16 @@
      """ SE Module as defined in original SE-Nets with a few additions
      Additions include:
          * divisor can be specified to keep channels % div == 0 (default: 8)
+@@ -113,8 +118,8 @@             rd_channels: Optional[int] = None,
+             rd_divisor: int = 8,
+             bias: bool = True,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             device=None,
+             dtype=None,
+     ):
 @@ -127,7 +132,7 @@         self.fc2 = nn.Linear(rd_channels, channels, bias=bias, **dd)
          self.gate = create_act_layer(gate_layer)
  

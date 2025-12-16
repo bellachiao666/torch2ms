@@ -26,6 +26,14 @@
      """Differential Attention module.
  
      Computes attention as the difference between two softmax attention maps, which helps
+@@ -44,7 +49,7 @@             proj_bias: bool = True,
+             attn_drop: float = 0.,
+             proj_drop: float = 0.,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             depth: int = 0,
+             dual_lambda: bool = False,
+             device=None,
 @@ -78,25 +83,25 @@         self.fused_attn = use_fused_attn()
  
          self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
@@ -95,9 +103,10 @@
 +    def construct(
              self,
 -            x: torch.Tensor,
-+            x: ms.Tensor,
-             attn_mask: Optional[torch.Tensor] = None,
+-            attn_mask: Optional[torch.Tensor] = None,
 -    ) -> torch.Tensor:
++            x: ms.Tensor,
++            attn_mask: Optional[ms.Tensor] = None,
 +    ) -> ms.Tensor:
          B, N, C = x.shape
  

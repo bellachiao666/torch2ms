@@ -119,6 +119,16 @@
  
      def __init__(
              self,
+@@ -207,8 +212,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
+             use_gpsa: bool = True,
+             locality_strength: float = 1.,
+             device=None,
 @@ -237,7 +242,7 @@                 proj_drop=proj_drop,
                  **dd,
              )
@@ -142,6 +152,14 @@
      """ Vision Transformer with support for patch or hybrid CNN input stage
      """
  
+@@ -276,7 +281,7 @@             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+             hybrid_backbone: Optional[Any] = None,
+-            norm_layer: Type[nn.Module] = LayerNorm,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
+             local_up_to_layer: int = 3,
+             locality_strength: float = 1.,
+             use_pos_embed: bool = True,
 @@ -313,15 +318,15 @@         num_patches = self.patch_embed.num_patches
          self.num_patches = num_patches
  
@@ -182,14 +200,15 @@
  
      @torch.jit.ignore
      def no_weight_decay(self):
-@@ -372,6 +377,7 @@     def set_grad_checkpointing(self, enable=True):
-         assert not enable, 'gradient checkpointing not supported'
+@@ -373,7 +378,7 @@         assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -381,7 +387,7 @@         if global_pool is not None:
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -381,7 +386,7 @@         if global_pool is not None:
              assert global_pool in ('', 'token', 'avg')
              self.global_pool = global_pool
 -        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
@@ -197,7 +216,7 @@
  
      def forward_features(self, x):
          x = self.patch_embed(x)
-@@ -391,7 +397,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
+@@ -391,7 +396,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
          for u, blk in enumerate(self.blocks):
              if u == self.local_up_to_layer:
 -                x = torch.cat((cls_tokens, x), dim=1)
@@ -205,7 +224,7 @@
              x = blk(x)
          x = self.norm(x)
          return x
-@@ -402,7 +408,7 @@         x = self.head_drop(x)
+@@ -402,7 +407,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):

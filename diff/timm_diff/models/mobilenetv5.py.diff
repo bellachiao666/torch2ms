@@ -26,7 +26,7 @@
      self.norm = norm_layer(self.out_channels, **dd)
  
 -  def forward(self, inputs: List[torch.Tensor]) -> torch.Tensor:
-+  def construct(self, inputs: List[torch.Tensor]) -> ms.Tensor:
++  def construct(self, inputs: List[ms.Tensor]) -> ms.Tensor:
      # Inputs list of [B, C, H, W] tensors
      high_resolution = inputs[0].shape[-2:]  # Assuming the first input is the highest resolution.
      resized_inputs = []
@@ -100,14 +100,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse: bool = False):
-@@ -275,6 +280,7 @@     def set_grad_checkpointing(self, enable: bool = True):
-         self.grad_checkpointing = enable
+@@ -276,26 +281,26 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.classifier
-@@ -283,12 +289,12 @@         self.num_classes = num_classes
+ 
+     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+         self.num_classes = num_classes
          # NOTE: cannot meaningfully change pooling of efficient head after creation
          self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -        self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
@@ -122,7 +123,15 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -372,7 +378,7 @@             self.reset_classifier(0, '')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+             extra_blocks: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -372,7 +377,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -130,7 +139,7 @@
          if self.msfa is not None:
              # When MSFA aggregation layer is present, we gather intermediates as is forward_intermediates
              feat_idx = 0  # offset by one from blocks index due to stem feature
-@@ -395,7 +401,7 @@                 x = self.blocks(x)
+@@ -395,7 +400,7 @@                 x = self.blocks(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -138,7 +147,7 @@
          x = self.global_pool(x)
          if self.conv_head is not None:
              x = self.conv_head(x)
-@@ -403,18 +409,18 @@             x = self.norm_head(x)
+@@ -403,18 +408,18 @@             x = self.norm_head(x)
          x = self.flatten(x)
          if self.drop_rate > 0.:
 -            x = F.dropout(x, p=self.drop_rate, training=self.training)
@@ -159,7 +168,7 @@
      """MobileNetV5 Vision Encoder"""
  
      def __init__(
-@@ -476,7 +482,9 @@             layer_scale_init_value=layer_scale_init_value,
+@@ -476,7 +481,9 @@             layer_scale_init_value=layer_scale_init_value,
              **dd,
          )
 -        self.blocks = nn.Sequential(*builder(stem_size, block_args))
@@ -169,7 +178,7 @@
          self.feature_info = builder.features
          self.stage_ends = [f['stage'] for f in self.feature_info]
  
-@@ -499,7 +507,7 @@ 
+@@ -499,14 +506,14 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -177,7 +186,15 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -566,7 +574,7 @@ 
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+             extra_blocks: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -566,7 +573,7 @@ 
          return self.msfa(msfa_intermediates), intermediates
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -185,7 +202,7 @@
          feat_idx = 0    # offset by one from blocks index due to stem feature
          intermediates = []
  
-@@ -583,10 +591,10 @@ 
+@@ -583,17 +590,17 @@ 
          return self.msfa(intermediates)
  
 -    def forward_head(self, x: torch.Tensor) -> torch.Tensor:
@@ -197,3 +214,12 @@
          return self.forward_features(x)
  
  
+ def checkpoint_filter_fn(
+-        state_dict: Dict[str, torch.Tensor],
++        state_dict: Dict[str, ms.Tensor],
+         model,
+-) -> Dict[str, torch.Tensor]:
++) -> Dict[str, ms.Tensor]:
+     """ convert weights from gemma encoders """
+     state_dict = state_dict.get('model', state_dict)
+     state_dict = state_dict.get('state_dict', state_dict)

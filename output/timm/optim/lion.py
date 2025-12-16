@@ -139,9 +139,9 @@ class Lion(Optimizer):
 
 
 def lion(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        exp_avgs: List[torch.Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
         maximize: bool = False,
@@ -186,9 +186,9 @@ def lion(
 
 
 def _single_tensor_lion(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        exp_avgs: List[torch.Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
         *,
         beta1: float,
         beta2: float,
@@ -227,9 +227,9 @@ def _single_tensor_lion(
 
 
 def _multi_tensor_lion(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        exp_avgs: List[torch.Tensor],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        exp_avgs: List[ms.Tensor],
         *,
         beta1: float,
         beta2: float,

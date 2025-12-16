@@ -142,9 +142,9 @@ class SGDW(Optimizer):
 
 
 def sgdw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        momentum_buffer_list: List[Optional[Tensor]],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        momentum_buffer_list: List[Optional[ms.Tensor]],
         # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
         # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
         has_sparse_grad: bool = None,
@@ -199,9 +199,9 @@ def sgdw(
 
 
 def _single_tensor_sgdw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        momentum_buffer_list: List[Optional[Tensor]],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        momentum_buffer_list: List[Optional[ms.Tensor]],
         *,
         weight_decay: float,
         momentum: float,
@@ -245,9 +245,9 @@ def _single_tensor_sgdw(
 
 
 def _multi_tensor_sgdw(
-        params: List[Tensor],
-        grads: List[Tensor],
-        momentum_buffer_list: List[Optional[Tensor]],
+        params: List[ms.Tensor],
+        grads: List[ms.Tensor],
+        momentum_buffer_list: List[Optional[ms.Tensor]],
         *,
         weight_decay: float,
         momentum: float,

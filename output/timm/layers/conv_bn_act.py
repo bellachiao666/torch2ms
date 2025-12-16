@@ -33,7 +33,7 @@ class ConvNormAct(msnn.Cell):
             norm_layer: LayerType = nn.BatchNorm2d,
             act_layer: Optional[LayerType] = nn.ReLU,
             aa_layer: Optional[LayerType] = None,
-            drop_layer: Optional[Type[nn.Module]] = None,
+            drop_layer: Optional[Type[msnn.Cell]] = None,
             conv_kwargs: Optional[Dict[str, Any]] = None,
             norm_kwargs: Optional[Dict[str, Any]] = None,
             act_kwargs: Optional[Dict[str, Any]] = None,

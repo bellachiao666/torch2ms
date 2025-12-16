@@ -24,6 +24,18 @@
      def __init__(
              self,
              channels: int,
+@@ -29,9 +32,9 @@             rd_divisor: int = 8,
+             se_factor: float = 2/3,
+             bias: bool = False,
+-            act_layer: Type[nn.Module] = nn.Hardswish,
+-            norm_layer: Optional[Type[nn.Module]] = nn.BatchNorm2d,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Type[msnn.Cell] = nn.Hardswish,
++            norm_layer: Optional[Type[msnn.Cell]] = nn.BatchNorm2d,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
 @@ -64,14 +67,14 @@             rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
  
          self.conv1 = nn.Conv2d(channels, rd_channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
@@ -61,6 +73,16 @@
      """Simplified Coordinate Attention variant.
  
      Uses
+@@ -117,8 +120,8 @@             rd_divisor: int = 8,
+             se_factor: float = 2 / 3,
+             bias: bool = True,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
 @@ -151,7 +154,7 @@ 
          self.gate = create_act_layer(gate_layer)
  
@@ -77,6 +99,18 @@
      """Efficient Local Attention.
  
      Lightweight alternative to Coordinate Attention that preserves spatial
+@@ -188,9 +191,9 @@             channels: int,
+             kernel_size: int = 7,
+             bias: bool = False,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
+-            norm_layer: Optional[Type[nn.Module]] = GroupNorm1,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
++            norm_layer: Optional[Type[msnn.Cell]] = GroupNorm1,
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
 @@ -233,12 +236,12 @@             self.norm_h = norm_layer(channels, **dd)
              self.norm_w = norm_layer(channels, **dd)
          else:
@@ -100,6 +134,14 @@
      """Minimal Strip Attention.
  
      Lightweight spatial attention using strip pooling with optional learned refinement.
+@@ -272,7 +275,7 @@             use_conv: bool = True,
+             kernel_size: int = 3,
+             bias: bool = False,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
 @@ -314,12 +317,12 @@                 **dd
              )
          else:

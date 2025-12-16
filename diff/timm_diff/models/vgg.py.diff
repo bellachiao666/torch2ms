@@ -25,6 +25,16 @@
      """Convolutional MLP block for VGG head.
  
      Replaces traditional Linear layers with Conv2d layers in the classifier.
+@@ -42,8 +46,8 @@             kernel_size: int = 7,
+             mlp_ratio: float = 1.0,
+             drop_rate: float = 0.2,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            conv_layer: Type[nn.Module] = nn.Conv2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            conv_layer: Type[msnn.Cell] = nn.Conv2d,
+             device=None,
+             dtype=None,
+     ) -> None:
 @@ -68,7 +72,7 @@         self.fc2 = conv_layer(mid_features, out_features, 1, bias=True, **dd)
          self.act2 = act_layer(True)
  
@@ -49,7 +59,25 @@
      """VGG model architecture.
  
      Based on `Very Deep Convolutional Networks for Large-Scale Image Recognition`
-@@ -142,7 +146,7 @@             last_idx = len(layers) - 1
+@@ -103,9 +107,9 @@             in_chans: int = 3,
+             output_stride: int = 32,
+             mlp_ratio: float = 1.0,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            conv_layer: Type[nn.Module] = nn.Conv2d,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            conv_layer: Type[msnn.Cell] = nn.Conv2d,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             global_pool: str = 'avg',
+             drop_rate: float = 0.,
+             device=None,
+@@ -137,12 +141,12 @@         prev_chs = in_chans
+         net_stride = 1
+         pool_layer = nn.MaxPool2d
+-        layers: List[nn.Module] = []
++        layers: List[msnn.Cell] = []
+         for v in cfg:
+             last_idx = len(layers) - 1
              if v == 'M':
                  self.feature_info.append(dict(num_chs=prev_chs, reduction=net_stride, module=f'features.{last_idx}'))
 -                layers += [pool_layer(kernel_size=2, stride=2)]
@@ -67,14 +95,15 @@
          self.feature_info.append(dict(num_chs=prev_chs, reduction=net_stride, module=f'features.{len(layers) - 1}'))
  
          self.num_features = prev_chs
-@@ -199,6 +205,7 @@         """
-         assert not enable, 'gradient checkpointing not supported'
+@@ -200,7 +206,7 @@         assert not enable, 'gradient checkpointing not supported'
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier module.
-@@ -218,7 +225,7 @@         self.num_classes = num_classes
+ 
+         Returns:
+@@ -218,7 +224,7 @@         self.num_classes = num_classes
          self.head.reset(num_classes, global_pool)
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -82,7 +111,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -230,7 +237,7 @@         x = self.features(x)
+@@ -230,7 +236,7 @@         x = self.features(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -90,7 +119,7 @@
          """Forward pass through head.
  
          Args:
-@@ -243,7 +250,7 @@         x = self.pre_logits(x)
+@@ -243,7 +249,7 @@         x = self.pre_logits(x)
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -98,7 +127,7 @@
          """Forward pass.
  
          Args:
-@@ -260,15 +267,15 @@         """Initialize model weights."""
+@@ -260,18 +266,18 @@         """Initialize model weights."""
          for m in self.modules():
              if isinstance(m, nn.Conv2d):
 -                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -114,8 +143,14 @@
              elif isinstance(m, nn.Linear):
 -                nn.init.normal_(m.weight, 0, 0.01)
 -                nn.init.constant_(m.bias, 0)
+-
+-
+-def _filter_fn(state_dict: dict) -> Dict[str, torch.Tensor]:
 +                nn.init.normal_(m.weight, 0, 0.01)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++
++def _filter_fn(state_dict: dict) -> Dict[str, ms.Tensor]:
+     """Convert patch embedding weight from manual patchify + linear proj to conv.
  
- 
- def _filter_fn(state_dict: dict) -> Dict[str, torch.Tensor]:
+     Args:

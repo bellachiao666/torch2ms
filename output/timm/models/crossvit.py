@@ -151,8 +151,8 @@ class CrossAttentionBlock(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -188,8 +188,8 @@ class MultiScaleBlock(msnn.Cell):
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: Union[List[float], float] = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -277,7 +277,7 @@ class MultiScaleBlock(msnn.Cell):
                 tmp
             ]))
 
-    def construct(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+    def construct(self, x: List[ms.Tensor]) -> List[ms.Tensor]:
 
         outs_b = []
         for i, block in enumerate(self.blocks):
@@ -347,7 +347,7 @@ class CrossVit(msnn.Cell):
             proj_drop_rate: float = 0.,
             attn_drop_rate: float = 0.,
             drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
             global_pool: str = 'token',
             device=None,
             dtype=None,
@@ -451,9 +451,8 @@ class CrossVit(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -469,7 +468,7 @@ class CrossVit(msnn.Cell):
             for i in range(self.num_branches)
         ])
 
-    def forward_features(self, x) -> List[torch.Tensor]:
+    def forward_features(self, x) -> List[ms.Tensor]:
         B = x.shape[0]
         xs = []
         for i, patch_embed in enumerate(self.patch_embed):
@@ -492,7 +491,7 @@ class CrossVit(msnn.Cell):
         xs = [norm(xs[i]) for i, norm in enumerate(self.norm)]
         return xs
 
-    def forward_head(self, xs: List[torch.Tensor], pre_logits: bool = False) -> ms.Tensor:
+    def forward_head(self, xs: List[ms.Tensor], pre_logits: bool = False) -> ms.Tensor:
         xs = [x[:, 1:].mean(dim=1) for x in xs] if self.global_pool == 'avg' else [x[:, 0] for x in xs]
         xs = [self.head_drop(x) for x in xs]
         if pre_logits or isinstance(self.head[0], nn.Identity):

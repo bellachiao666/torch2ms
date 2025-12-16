@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import ClassifierHead, AvgPool2dSame, ConvNormAct, SEModule, DropPath, GroupNormAct, calculate_drop_path_rates
-@@ -128,14 +133,15 @@     # TODO dWr scaling?
+@@ -128,11 +133,11 @@     # TODO dWr scaling?
      # depth = int(depth * (scale ** 0.1))
      # width_scale = scale ** 0.4  # dWr scale, exp 0.8 / 2, applied to both group and layer widths
 -    widths_cont = torch.arange(depth, dtype=torch.float32) * width_slope + width_initial
@@ -32,11 +32,25 @@
      return widths.int().tolist(), num_stages, groups.tolist()
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def downsample_conv(
-         in_chs: int,
-         out_chs: int,
-@@ -197,7 +203,7 @@         preact: bool = False,
+@@ -142,11 +147,11 @@         kernel_size: int = 1,
+         stride: int = 1,
+         dilation: int = 1,
+-        norm_layer: Optional[Type[nn.Module]] = None,
++        norm_layer: Optional[Type[msnn.Cell]] = None,
+         preact: bool = False,
+         device=None,
+         dtype=None,
+-) -> nn.Module:
++) -> msnn.Cell:
+     """Create convolutional downsampling module.
+ 
+     Args:
+@@ -193,11 +198,11 @@         kernel_size: int = 1,
+         stride: int = 1,
+         dilation: int = 1,
+-        norm_layer: Optional[Type[nn.Module]] = None,
++        norm_layer: Optional[Type[msnn.Cell]] = None,
+         preact: bool = False,
          device=None,
          dtype=None,
 -) -> nn.Sequential:
@@ -44,7 +58,7 @@
      """Create average pool downsampling module.
  
      AvgPool Downsampling as in 'D' ResNet variants. This is not in RegNet space but I might experiment.
-@@ -217,7 +223,7 @@     dd = {'device': device, 'dtype': dtype}
+@@ -217,7 +222,7 @@     dd = {'device': device, 'dtype': dtype}
      norm_layer = norm_layer or nn.BatchNorm2d
      avg_stride = stride if dilation == 1 else 1
 -    pool = nn.Identity()
@@ -52,7 +66,7 @@
      if stride > 1 or dilation > 1:
          avg_pool_fn = AvgPool2dSame if avg_stride == 1 and dilation > 1 else nn.AvgPool2d
          pool = avg_pool_fn(2, avg_stride, ceil_mode=True, count_include_pad=False)
-@@ -225,7 +231,7 @@         conv = create_conv2d(in_chs, out_chs, 1, stride=1, **dd)
+@@ -225,7 +230,7 @@         conv = create_conv2d(in_chs, out_chs, 1, stride=1, **dd)
      else:
          conv = ConvNormAct(in_chs, out_chs, 1, stride=1, norm_layer=norm_layer, apply_act=False, **dd)
 -    return nn.Sequential(*[pool, conv])
@@ -60,7 +74,20 @@
  
  
  def create_shortcut(
-@@ -266,10 +272,10 @@         else:
+@@ -235,11 +240,11 @@         kernel_size: int,
+         stride: int,
+         dilation: Tuple[int, int] = (1, 1),
+-        norm_layer: Optional[Type[nn.Module]] = None,
++        norm_layer: Optional[Type[msnn.Cell]] = None,
+         preact: bool = False,
+         device=None,
+         dtype=None,
+-) -> Optional[nn.Module]:
++) -> Optional[msnn.Cell]:
+     """Create shortcut connection for residual blocks.
+ 
+     Args:
+@@ -266,10 +271,10 @@         else:
              return downsample_conv(in_chs, out_chs, kernel_size=kernel_size, **dargs)
      else:
 -        return nn.Identity()  # identity shortcut (no downsample)
@@ -74,7 +101,19 @@
      """RegNet Bottleneck block.
  
      This is almost exactly the same as a ResNet Bottleneck. The main difference is the SE block is moved from
-@@ -334,9 +340,9 @@             se_channels = int(round(in_chs * se_ratio))
+@@ -287,9 +292,9 @@             se_ratio: float = 0.25,
+             downsample: str = 'conv1x1',
+             linear_out: bool = False,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            drop_block: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            drop_block: Optional[Type[msnn.Cell]] = None,
+             drop_path_rate: float = 0.,
+             device=None,
+             dtype=None,
+@@ -334,9 +339,9 @@             se_channels = int(round(in_chs * se_ratio))
              self.se = SEModule(bottleneck_chs, rd_channels=se_channels, act_layer=act_layer, **dd)
          else:
 -            self.se = nn.Identity()
@@ -85,7 +124,7 @@
          self.downsample = create_shortcut(
              downsample,
              in_chs,
-@@ -347,13 +353,13 @@             norm_layer=norm_layer,
+@@ -347,13 +352,13 @@             norm_layer=norm_layer,
              **dd,
          )
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else nn.Identity()
@@ -102,7 +141,7 @@
          """Forward pass.
  
          Args:
-@@ -375,7 +381,7 @@         return x
+@@ -375,7 +380,7 @@         return x
  
  
 -class PreBottleneck(nn.Module):
@@ -110,7 +149,19 @@
      """Pre-activation RegNet Bottleneck block.
  
      Similar to Bottleneck but with pre-activation normalization.
-@@ -438,7 +444,7 @@             se_channels = int(round(in_chs * se_ratio))
+@@ -392,9 +397,9 @@             se_ratio: float = 0.25,
+             downsample: str = 'conv1x1',
+             linear_out: bool = False,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            drop_block: Optional[Type[nn.Module]] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            drop_block: Optional[Type[msnn.Cell]] = None,
+             drop_path_rate: float = 0.,
+             device=None,
+             dtype=None,
+@@ -438,7 +443,7 @@             se_channels = int(round(in_chs * se_ratio))
              self.se = SEModule(bottleneck_chs, rd_channels=se_channels, act_layer=act_layer, **dd)
          else:
 -            self.se = nn.Identity()
@@ -118,7 +169,7 @@
          self.norm3 = norm_act_layer(bottleneck_chs, **dd)
          self.conv3 = create_conv2d(bottleneck_chs, out_chs, kernel_size=1, **dd)
          self.downsample = create_shortcut(
-@@ -451,13 +457,13 @@             preact=True,
+@@ -451,13 +456,13 @@             preact=True,
              **dd,
          )
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else nn.Identity()
@@ -133,7 +184,7 @@
          """Forward pass.
  
          Args:
-@@ -481,7 +487,7 @@         return x
+@@ -481,7 +486,7 @@         return x
  
  
 -class RegStage(nn.Module):
@@ -141,7 +192,15 @@
      """RegNet stage (sequence of blocks with the same output shape).
  
      A stage consists of multiple bottleneck blocks with the same output dimensions.
-@@ -533,7 +539,7 @@             )
+@@ -495,7 +500,7 @@             stride: int,
+             dilation: int,
+             drop_path_rates: Optional[List[float]] = None,
+-            block_fn: Type[nn.Module] = Bottleneck,
++            block_fn: Type[msnn.Cell] = Bottleneck,
+             **block_kwargs,
+     ):
+         """Initialize RegNet stage.
+@@ -533,7 +538,7 @@             )
              first_dilation = dilation
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -149,7 +208,7 @@
          """Forward pass through all blocks in the stage.
  
          Args:
-@@ -550,7 +556,7 @@         return x
+@@ -550,7 +555,7 @@         return x
  
  
 -class RegNet(nn.Module):
@@ -157,7 +216,7 @@
      """RegNet-X, Y, and Z Models.
  
      Paper: https://arxiv.org/abs/2003.13678
-@@ -632,7 +638,7 @@             self.num_features = cfg.num_features
+@@ -632,7 +637,7 @@             self.num_features = cfg.num_features
          else:
              final_act = cfg.linear_out or cfg.preact
 -            self.final_conv = get_act_layer(cfg.act_layer)() if final_act else nn.Identity()
@@ -165,7 +224,7 @@
              self.num_features = prev_width
          self.head_hidden_size = self.num_features
          self.head = ClassifierHead(
-@@ -667,7 +673,7 @@         widths, num_stages, stage_gs = generate_regnet(cfg.wa, cfg.w0, cfg.wm, cfg.depth, cfg.group_size)
+@@ -667,7 +672,7 @@         widths, num_stages, stage_gs = generate_regnet(cfg.wa, cfg.w0, cfg.wm, cfg.depth, cfg.group_size)
  
          # Convert to per stage format
 -        stage_widths, stage_depths = torch.unique(torch.tensor(widths), return_counts=True)
@@ -173,14 +232,15 @@
          stage_widths, stage_depths = stage_widths.tolist(), stage_depths.tolist()
          stage_br = [cfg.bottle_ratio for _ in range(num_stages)]
          stage_strides = []
-@@ -715,6 +721,7 @@         for s in list(self.children())[1:-1]:
-             s.grad_checkpointing = enable
+@@ -716,7 +721,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
-@@ -732,7 +739,7 @@ 
+         return self.head.fc
+ 
+@@ -732,13 +737,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -188,7 +248,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -798,14 +805,14 @@         layer_names = ('s1', 's2', 's3', 's4')
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -798,14 +803,14 @@         layer_names = ('s1', 's2', 's3', 's4')
          layer_names = layer_names[max_index:]
          for n in layer_names:
 -            setattr(self, n, nn.Identity())
@@ -205,7 +272,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -822,7 +829,7 @@         x = self.final_conv(x)
+@@ -822,7 +827,7 @@         x = self.final_conv(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -213,7 +280,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -834,7 +841,7 @@         """
+@@ -834,7 +839,7 @@         """
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -221,14 +288,15 @@
          """Forward pass.
  
          Args:
-@@ -848,6 +855,7 @@         return x
+@@ -848,7 +853,7 @@         return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = False) -> None:
+-def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = False) -> None:
++def _init_weights(module: msnn.Cell, name: str = '', zero_init_last: bool = False) -> None:
      """Initialize module weights.
  
-@@ -863,9 +871,9 @@         if module.bias is not None:
+     Args:
+@@ -863,9 +868,9 @@         if module.bias is not None:
              module.bias.data.zero_()
      elif isinstance(module, nn.Linear):
 -        nn.init.normal_(module.weight, mean=0.0, std=0.01)

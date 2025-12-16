@@ -130,9 +130,8 @@ def lecun_normal_(tensor):
     variance_scaling_(tensor, mode='fan_in', distribution='truncated_normal')
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def init_weight_vit(
-        module: nn.Module,
+        module: msnn.Cell,
         name: str,
         init_bias: float = 0.02,
         head_bias: float = 0.,
@@ -150,9 +149,8 @@ def init_weight_vit(
         module.init_weights()
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def init_weight_jax(
-        module: nn.Module,
+        module: msnn.Cell,
         name: str,
         head_bias: float = 0.,
         classifier_name: str = 'head',

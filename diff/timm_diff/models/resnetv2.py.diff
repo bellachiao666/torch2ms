@@ -211,14 +211,15 @@
          self.head = ClassifierHead(
              self.num_features,
              num_classes,
-@@ -665,6 +672,7 @@         for s in self.stages:
-             s.grad_checkpointing = enable
+@@ -666,7 +673,7 @@             s.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
-@@ -682,7 +690,7 @@ 
+         return self.head.fc
+ 
+@@ -682,13 +689,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -226,7 +227,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -748,12 +756,12 @@         take_indices, max_index = feature_take_indices(5, indices)
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -748,12 +755,12 @@         take_indices, max_index = feature_take_indices(5, indices)
          self.stages = self.stages[:max_index]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -240,7 +248,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -767,7 +775,7 @@         x = self.norm(x)
+@@ -767,7 +774,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -248,7 +256,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -779,7 +787,7 @@         """
+@@ -779,7 +786,7 @@         """
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -256,14 +264,15 @@
          """Forward pass.
  
          Args:
-@@ -793,6 +801,7 @@         return x
+@@ -793,7 +800,7 @@         return x
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = True) -> None:
+-def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = True) -> None:
++def _init_weights(module: msnn.Cell, name: str = '', zero_init_last: bool = True) -> None:
      """Initialize module weights.
  
-@@ -802,19 +811,20 @@         zero_init_last: Zero-initialize last layer weights.
+     Args:
+@@ -802,28 +809,28 @@         zero_init_last: Zero-initialize last layer weights.
      """
      if isinstance(module, nn.Linear) or ('head.fc' in name and isinstance(module, nn.Conv2d)):
 -        nn.init.normal_(module.weight, mean=0.0, std=0.01)
@@ -285,11 +294,13 @@
          module.zero_init_last()
  
  
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  @torch.no_grad()
- def _load_weights(model: nn.Module, checkpoint_path: str, prefix: str = 'resnet/'):
+-def _load_weights(model: nn.Module, checkpoint_path: str, prefix: str = 'resnet/'):
++def _load_weights(model: msnn.Cell, checkpoint_path: str, prefix: str = 'resnet/'):
      import numpy as np
-@@ -823,7 +833,7 @@         """Possibly convert HWIO to OIHW."""
+ 
+     def t2p(conv_weights):
+         """Possibly convert HWIO to OIHW."""
          if conv_weights.ndim == 4:
              conv_weights = conv_weights.transpose([3, 2, 0, 1])
 -        return torch.from_numpy(conv_weights)

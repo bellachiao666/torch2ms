@@ -55,10 +55,10 @@ class RelPosAttention(msnn.Cell):
             num_heads: int = 8,
             qkv_bias: bool = False,
             qk_norm: bool = False,
-            rel_pos_cls: Optional[Type[nn.Module]] = None,
+            rel_pos_cls: Optional[Type[msnn.Cell]] = None,
             attn_drop: float = 0.,
             proj_drop: float = 0.,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -78,7 +78,7 @@ class RelPosAttention(msnn.Cell):
         self.proj = nn.Linear(dim, dim, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def construct(self, x, shared_rel_pos: Optional[torch.Tensor] = None):
+    def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)
@@ -124,13 +124,13 @@ class RelPosBlock(msnn.Cell):
             mlp_ratio: float = 4.,
             qkv_bias: bool = False,
             qk_norm: bool = False,
-            rel_pos_cls: Optional[Type[nn.Module]] = None,
+            rel_pos_cls: Optional[Type[msnn.Cell]] = None,
             init_values: Optional[float] = None,
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -163,7 +163,7 @@ class RelPosBlock(msnn.Cell):
         self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-    def construct(self, x, shared_rel_pos: Optional[torch.Tensor] = None):
+    def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x), shared_rel_pos=shared_rel_pos)))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
@@ -178,13 +178,13 @@ class ResPostRelPosBlock(msnn.Cell):
             mlp_ratio: float = 4.,
             qkv_bias: bool = False,
             qk_norm: bool = False,
-            rel_pos_cls: Optional[Type[nn.Module]] = None,
+            rel_pos_cls: Optional[Type[msnn.Cell]] = None,
             init_values: Optional[float] = None,
             proj_drop: float = 0.,
             attn_drop: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
             device=None,
             dtype=None,
     ):
@@ -224,7 +224,7 @@ class ResPostRelPosBlock(msnn.Cell):
             nn.init.constant_(self.norm1.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(self.norm2.weight, self.init_values)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    def construct(self, x, shared_rel_pos: Optional[torch.Tensor] = None):
+    def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
         x = x + self.drop_path1(self.norm1(self.attn(x, shared_rel_pos=shared_rel_pos)))
         x = x + self.drop_path2(self.norm2(self.mlp(x)))
         return x
@@ -265,10 +265,10 @@ class VisionTransformerRelPos(msnn.Cell):
             drop_path_rate: float = 0.,
             weight_init: Literal['skip', 'jax', 'moco', ''] = 'skip',
             fix_init: bool = False,
-            embed_layer: Type[nn.Module] = PatchEmbed,
+            embed_layer: Type[msnn.Cell] = PatchEmbed,
             norm_layer: Optional[LayerType] = None,
             act_layer: Optional[LayerType] = None,
-            block_fn: Type[nn.Module] = RelPosBlock,
+            block_fn: Type[msnn.Cell] = RelPosBlock,
             device=None,
             dtype=None,
     ):
@@ -401,9 +401,8 @@ class VisionTransformerRelPos(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
@@ -423,7 +422,7 @@ class VisionTransformerRelPos(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:

@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,9 +1,14 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,9 +1,12 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -7,16 +7,16 @@
  from pathlib import Path
  from typing import Any, Dict, Optional, Tuple, Union
  from urllib.parse import urlsplit
- 
+-
 -from torch import nn
-+# from torch import nn
  
  from timm.layers import set_layer_config
  from ._helpers import load_checkpoint
-@@ -41,6 +46,7 @@     return make_safe(model_name)
+@@ -52,7 +55,7 @@         exportable: Optional[bool] = None,
+         no_jit: Optional[bool] = None,
+         **kwargs: Any,
+-) -> nn.Module:
++) -> msnn.Cell:
+     """Create a model.
  
- 
-+# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def create_model(
-         model_name: str,
-         pretrained: bool = False,
+     Lookup model's entrypoint function and pass relevant args to create a new model.

@@ -64,7 +64,7 @@ class DlaBasic(msnn.Cell):
         self.bn2 = nn.BatchNorm2d(planes, **dd)
         self.stride = stride
 
-    def construct(self, x, shortcut: Optional[torch.Tensor] = None, children: Optional[List[torch.Tensor]] = None):
+    def construct(self, x, shortcut: Optional[ms.Tensor] = None, children: Optional[List[ms.Tensor]] = None):
         if shortcut is None:
             shortcut = x
 
@@ -120,7 +120,7 @@ class DlaBottleneck(msnn.Cell):
         self.bn3 = nn.BatchNorm2d(outplanes, **dd)
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
-    def construct(self, x, shortcut: Optional[torch.Tensor] = None, children: Optional[List[torch.Tensor]] = None):
+    def construct(self, x, shortcut: Optional[ms.Tensor] = None, children: Optional[List[ms.Tensor]] = None):
         if shortcut is None:
             shortcut = x
 
@@ -194,7 +194,7 @@ class DlaBottle2neck(msnn.Cell):
         self.bn3 = nn.BatchNorm2d(outplanes, **dd)
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
-    def construct(self, x, shortcut: Optional[torch.Tensor] = None, children: Optional[List[torch.Tensor]] = None):
+    def construct(self, x, shortcut: Optional[ms.Tensor] = None, children: Optional[List[ms.Tensor]] = None):
         if shortcut is None:
             shortcut = x
 
@@ -255,7 +255,7 @@ class DlaRoot(msnn.Cell):
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         self.shortcut = shortcut
 
-    def construct(self, x_children: List[torch.Tensor]):
+    def construct(self, x_children: List[ms.Tensor]):
         x = self.conv(mint.cat(x_children, 1))
         x = self.bn(x)
         if self.shortcut:
@@ -269,7 +269,7 @@ class DlaTree(msnn.Cell):
     def __init__(
             self,
             levels: int,
-            block: Type[nn.Module],
+            block: Type[msnn.Cell],
             in_channels: int,
             out_channels: int,
             stride: int = 1,
@@ -329,7 +329,7 @@ class DlaTree(msnn.Cell):
         self.root_dim = root_dim
         self.levels = levels
 
-    def construct(self, x, shortcut: Optional[torch.Tensor] = None, children: Optional[List[torch.Tensor]] = None):
+    def construct(self, x, shortcut: Optional[ms.Tensor] = None, children: Optional[List[ms.Tensor]] = None):
         if children is None:
             children = []
         bottom = self.downsample(x)
@@ -357,7 +357,7 @@ class DLA(msnn.Cell):
             global_pool: str = 'avg',
             cardinality: int = 1,
             base_width: int = 64,
-            block: Type[nn.Module] = DlaBottle2neck,
+            block: Type[msnn.Cell] = DlaBottle2neck,
             shortcut_root: bool = False,
             drop_rate: float = 0.0,
             device=None,
@@ -451,9 +451,8 @@ class DLA(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.fc
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):

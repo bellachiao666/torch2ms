@@ -301,11 +301,10 @@ def load_state_dict_from_path(
     return state_dict
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def load_custom_from_hf(
         model_id: str,
         filename: str,
-        model: torch.nn.Module,
+        model: msnn.Cell,
         cache_dir: Optional[Union[str, Path]] = None,
 ):
     assert has_hf_hub(True)
@@ -319,9 +318,8 @@ def load_custom_from_hf(
     return model.load_pretrained(cached_file)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def save_config_for_hf(
-        model: torch.nn.Module,
+        model: msnn.Cell,
         config_path: str,
         model_config: Optional[dict] = None,
         model_args: Optional[dict] = None
@@ -369,9 +367,8 @@ def save_config_for_hf(
         json.dump(hf_config, f, indent=2)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def save_for_hf(
-        model: torch.nn.Module,
+        model: msnn.Cell,
         save_directory: str,
         model_config: Optional[dict] = None,
         model_args: Optional[dict] = None,
@@ -398,9 +395,8 @@ def save_for_hf(
     )
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def push_to_hf_hub(
-        model: torch.nn.Module,
+        model: msnn.Cell,
         repo_id: str,
         commit_message: str = 'Add model',
         token: Optional[str] = None,

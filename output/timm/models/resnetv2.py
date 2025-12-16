@@ -672,9 +672,8 @@ class ResNetV2(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.head.fc
 
@@ -696,7 +695,7 @@ class ResNetV2(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -801,8 +800,7 @@ class ResNetV2(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = True) -> None:
+def _init_weights(module: msnn.Cell, name: str = '', zero_init_last: bool = True) -> None:
     """Initialize module weights.
 
     Args:
@@ -824,9 +822,8 @@ def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = True
         module.zero_init_last()
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.no_grad()
-def _load_weights(model: nn.Module, checkpoint_path: str, prefix: str = 'resnet/'):
+def _load_weights(model: msnn.Cell, checkpoint_path: str, prefix: str = 'resnet/'):
     import numpy as np
 
     def t2p(conv_weights):

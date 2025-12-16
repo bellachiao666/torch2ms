@@ -56,7 +56,7 @@ class Embedding(msnn.Cell):
             patch_size: int = 16,
             stride: int = 16,
             padding: int = 0,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -86,8 +86,8 @@ class ConvEncoder(msnn.Cell):
             hidden_dim: int = 64,
             kernel_size: int = 3,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             use_layer_scale: bool = True,
             device=None,
             dtype=None,
@@ -125,8 +125,8 @@ class Mlp(msnn.Cell):
             in_features: int,
             hidden_features: Optional[int] = None,
             out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             drop: float = 0.,
             device=None,
             dtype=None,
@@ -203,8 +203,8 @@ class LocalRepresentation(msnn.Cell):
             kernel_size: int = 3,
             drop_path: float = 0.,
             use_layer_scale: bool = True,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             device=None,
             dtype=None,
     ):
@@ -243,8 +243,8 @@ class Block(msnn.Cell):
             mlp_ratio: float = 4.,
             drop_rate: float = 0.,
             drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             use_layer_scale: bool = True,
             layer_scale_init_value: float = 1e-5,
             device=None,
@@ -293,13 +293,13 @@ class Stage(msnn.Cell):
             index: int,
             layers: List[int],
             mlp_ratio: float = 4.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.GELU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             drop_rate: float = 0.,
             drop_path_rate: float = 0.,
             use_layer_scale: bool = True,
             layer_scale_init_value: float = 1e-5,
-            downsample: Optional[Type[nn.Module]] = None,
+            downsample: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -354,7 +354,7 @@ class SwiftFormer(msnn.Cell):
             embed_dims: List[int] = [48, 56, 112, 220],
             mlp_ratios: int = 4,
             downsamples: List[bool] = [False, True, True, True],
-            act_layer: Type[nn.Module] = nn.GELU,
+            act_layer: Type[msnn.Cell] = nn.GELU,
             down_patch_size: int = 3,
             down_stride: int = 2,
             down_pad: int = 1,
@@ -461,7 +461,7 @@ class SwiftFormer(msnn.Cell):
             s.grad_checkpointing = enable
 
     @torch.jit.ignore
-    def get_classifier(self) -> Tuple[nn.Module, nn.Module]:
+    def get_classifier(self) -> Tuple[msnn.Cell, msnn.Cell]:
         return self.head, self.head_dist
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
@@ -484,7 +484,7 @@ class SwiftFormer(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -568,8 +568,7 @@ class SwiftFormer(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
     state_dict = state_dict.get('model', state_dict)
     if 'stem.0.weight' in state_dict:
         return state_dict

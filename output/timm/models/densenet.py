@@ -35,7 +35,7 @@ class DenseLayer(msnn.Cell):
             num_input_features: int,
             growth_rate: int,
             bn_size: int,
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
+            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
             drop_rate: float = 0.,
             grad_checkpointing: bool = False,
             device=None,
@@ -62,25 +62,25 @@ class DenseLayer(msnn.Cell):
         self.drop_rate = float(drop_rate)
         self.grad_checkpointing = grad_checkpointing
 
-    # 类型标注 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def bottleneck_fn(self, xs: List[torch.Tensor]) -> ms.Tensor:
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    def bottleneck_fn(self, xs: List[ms.Tensor]) -> ms.Tensor:
         """Bottleneck function for concatenated features."""
         concated_features = mint.cat(xs, 1)
         bottleneck_output = self.conv1(self.norm1(concated_features))  # noqa: T484
         return bottleneck_output
 
     # todo: rewrite when torchscript supports any
-    # 类型标注 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def any_requires_grad(self, x: List[torch.Tensor]) -> bool:
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    def any_requires_grad(self, x: List[ms.Tensor]) -> bool:
         """Check if any tensor in list requires gradient."""
         for tensor in x:
             if tensor.requires_grad:
                 return True
         return False
 
-    # 类型标注 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.unused  # noqa: T484
-    def call_checkpoint_bottleneck(self, x: List[torch.Tensor]) -> ms.Tensor:
+    def call_checkpoint_bottleneck(self, x: List[ms.Tensor]) -> ms.Tensor:
         """Call bottleneck function with gradient checkpointing."""
         def closure(*xs):
             return self.bottleneck_fn(xs)
@@ -99,7 +99,8 @@ class DenseLayer(msnn.Cell):
 
     # torchscript does not yet support *args, so we overload method
     # allowing it to take either a List[Tensor] or single Tensor
-    def construct(self, x: Union[torch.Tensor, List[torch.Tensor]]) -> ms.Tensor:  # noqa: F811
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    def construct(self, x: Union[ms.Tensor, List[ms.Tensor]]) -> ms.Tensor:  # noqa: F811
         """Forward pass.
 
         Args:
@@ -140,7 +141,7 @@ class DenseBlock(nn.ModuleDict):
             num_input_features: int,
             bn_size: int,
             growth_rate: int,
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
+            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
             drop_rate: float = 0.,
             grad_checkpointing: bool = False,
             device=None,
@@ -197,8 +198,8 @@ class DenseTransition(msnn.SequentialCell):
             self,
             num_input_features: int,
             num_output_features: int,
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
-            aa_layer: Optional[Type[nn.Module]] = None,
+            norm_layer: Type[msnn.Cell] = BatchNormAct2d,
+            aa_layer: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ) -> None:
@@ -249,7 +250,7 @@ class DenseNet(msnn.Cell):
             stem_type: str = '',
             act_layer: str = 'relu',
             norm_layer: str = 'batchnorm2d',
-            aa_layer: Optional[Type[nn.Module]] = None,
+            aa_layer: Optional[Type[msnn.Cell]] = None,
             drop_rate: float = 0.,
             proj_drop_rate: float = 0.,
             memory_efficient: bool = False,
@@ -394,9 +395,8 @@ class DenseNet(msnn.Cell):
             if isinstance(b, DenseLayer):
                 b.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.classifier
 
@@ -443,7 +443,7 @@ class DenseNet(msnn.Cell):
         return x
 
 
-def _filter_torchvision_pretrained(state_dict: dict) -> Dict[str, torch.Tensor]:
+def _filter_torchvision_pretrained(state_dict: dict) -> Dict[str, ms.Tensor]:
     """Filter torchvision pretrained state dict for compatibility.
 
     Args:

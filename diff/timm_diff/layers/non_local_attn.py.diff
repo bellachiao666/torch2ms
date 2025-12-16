@@ -46,7 +46,7 @@
  
          x = x.permute(0, 2, 1).reshape(B, C, H, W)
          x = self.z(x)
-@@ -72,19 +75,19 @@         for name, m in self.named_modules():
+@@ -72,27 +75,27 @@         for name, m in self.named_modules():
              if isinstance(m, nn.Conv2d):
                  nn.init.kaiming_normal_(
 -                    m.weight, mode='fan_out', nonlinearity='relu')
@@ -72,6 +72,16 @@
  
      def __init__(
              self,
+             in_channels: int,
+             block_size: int,
+             groups: int,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+             device=None,
+             dtype=None,
+     ):
 @@ -112,20 +115,20 @@         if t <= 1:
              return x
          x = x.view(B * C, -1, 1, 1)
@@ -106,6 +116,16 @@
      """ BAT
      Adapted from: https://github.com/BA-Transform/BAT-Image-Classification
      """
+@@ -159,8 +162,8 @@             rd_channels: Optional[int] = None,
+             rd_divisor: int = 8,
+             drop_rate: float = 0.2,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+             device=None,
+             dtype=None,
+             **_,
 @@ -179,9 +182,9 @@             **dd,
          )
          self.conv2 = ConvNormAct(rd_channels, in_channels, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)

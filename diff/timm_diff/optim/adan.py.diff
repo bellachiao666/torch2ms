@@ -59,6 +59,42 @@
  
                  if 'neg_pre_grad' not in state or group['step'] == 1:
                      state['neg_pre_grad'] = -p.grad.clone()
+@@ -204,12 +210,12 @@ 
+ 
+ def _single_tensor_adan(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        exp_avg_diffs: List[Tensor],
+-        neg_pre_grads: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        exp_avg_diffs: List[ms.Tensor],
++        neg_pre_grads: List[ms.Tensor],
+         *,
+         beta1: float,
+         beta2: float,
+@@ -262,12 +268,12 @@ 
+ 
+ def _multi_tensor_adan(
+-        params: List[Tensor],
+-        grads: List[Tensor],
+-        exp_avgs: List[Tensor],
+-        exp_avg_sqs: List[Tensor],
+-        exp_avg_diffs: List[Tensor],
+-        neg_pre_grads: List[Tensor],
++        params: List[ms.Tensor],
++        grads: List[ms.Tensor],
++        exp_avgs: List[ms.Tensor],
++        exp_avg_sqs: List[ms.Tensor],
++        exp_avg_diffs: List[ms.Tensor],
++        neg_pre_grads: List[ms.Tensor],
+         *,
+         beta1: float,
+         beta2: float,
 @@ -285,43 +291,43 @@         return
  
      # for memory saving, we use `neg_pre_grads` to get some temp variable in a inplace way

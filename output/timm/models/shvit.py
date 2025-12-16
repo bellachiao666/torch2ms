@@ -32,17 +32,15 @@ __all__ = ['SHViT']
 
 
 class Residual(msnn.Cell):
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def __init__(self, m: nn.Module):
+    def __init__(self, m: msnn.Cell):
         super().__init__()
         self.m = m
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return x + self.m(x)
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
-    def fuse(self) -> nn.Module:
+    def fuse(self) -> msnn.Cell:
         if isinstance(self.m, Conv2dNorm):
             m = self.m.fuse()
             assert(m.groups == m.in_channels)
@@ -127,7 +125,7 @@ class PatchMerging(msnn.Cell):
             self,
             dim: int,
             out_dim: int,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -156,7 +154,7 @@ class FFN(msnn.Cell):
             self,
             dim: int,
             embed_dim: int,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -180,8 +178,8 @@ class SHSA(msnn.Cell):
             dim: int,
             qk_dim: int,
             pdim: int,
-            norm_layer: Type[nn.Module] = GroupNorm1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = GroupNorm1,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -222,8 +220,8 @@ class BasicBlock(msnn.Cell):
             qk_dim: int,
             pdim: int,
             type: str,
-            norm_layer: Type[nn.Module] = GroupNorm1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = GroupNorm1,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -252,8 +250,8 @@ class StageBlock(msnn.Cell):
             pdim: int,
             type: str,
             depth: int,
-            norm_layer: Type[nn.Module] = GroupNorm1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = GroupNorm1,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -296,8 +294,8 @@ class SHViT(msnn.Cell):
             depth: Tuple[int, int, int] = (1, 2, 3),
             types: Tuple[str, str, str] = ("s", "s", "s"),
             drop_rate: float = 0.,
-            norm_layer: Type[nn.Module] = GroupNorm1,
-            act_layer: Type[nn.Module] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = GroupNorm1,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
             device=None,
             dtype=None,
     ):
@@ -367,9 +365,8 @@ class SHViT(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.l
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
@@ -387,7 +384,7 @@ class SHViT(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -466,8 +463,7 @@ class SHViT(msnn.Cell):
         fuse_children(self)
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
     state_dict = state_dict.get('model', state_dict)
 
     # out_dict = {}

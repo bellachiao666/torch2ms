@@ -88,6 +88,18 @@
      fused_attn: Final[bool]
  
      def __init__(
+@@ -129,10 +130,10 @@             qk_norm: bool = False,
+             attn_drop: float = 0.,
+             proj_drop: float = 0.,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             use_rel_pos: bool = False,
+             input_size: Optional[Tuple[int, int]] = None,
+-            rope: Optional[nn.Module] = None,
++            rope: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
 @@ -145,8 +146,8 @@         self.fused_attn = use_fused_attn()
  
          self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
@@ -128,6 +140,18 @@
  
      def __init__(
              self,
+@@ -215,9 +216,9 @@             attn_drop: float = 0.,
+             init_values: Optional[float] = None,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
+-            mlp_layer: Type[nn.Module] = Mlp,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
++            mlp_layer: Type[msnn.Cell] = Mlp,
+             use_rel_pos: bool = False,
+             window_size: int = 0,
+             input_size=None,
 @@ -242,8 +243,8 @@             rope=rope,
              **dd,
          )
@@ -156,7 +180,7 @@
  
  
 -def window_partition(x: torch.Tensor, window_size: int) -> Tuple[torch.Tensor, Tuple[int, int]]:
-+def window_partition(x: ms.Tensor, window_size: int) -> Tuple[torch.Tensor, Tuple[int, int]]:
++def window_partition(x: ms.Tensor, window_size: int) -> Tuple[ms.Tensor, Tuple[int, int]]:
      """
      Partition into non-overlapping windows with padding if needed.
      Args:
@@ -186,6 +210,22 @@
      """ Vision Transformer for Segment-Anything Model(SAM)
  
      A PyTorch impl of : `Exploring Plain Vision Transformer Backbones for Object Detection` or `Segment Anything Model (SAM)`
+@@ -355,11 +356,11 @@             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+             weight_init: str = '',
+-            embed_layer: Type[nn.Module] = partial(PatchEmbed, output_fmt=Format.NHWC, strict_img_size=False),
+-            norm_layer: Optional[Type[nn.Module]] = nn.LayerNorm,
+-            act_layer: Optional[Type[nn.Module]] = nn.GELU,
+-            block_fn: Type[nn.Module] = Block,
+-            mlp_layer: Type[nn.Module] = Mlp,
++            embed_layer: Type[msnn.Cell] = partial(PatchEmbed, output_fmt=Format.NHWC, strict_img_size=False),
++            norm_layer: Optional[Type[msnn.Cell]] = nn.LayerNorm,
++            act_layer: Optional[Type[msnn.Cell]] = nn.GELU,
++            block_fn: Type[msnn.Cell] = Block,
++            mlp_layer: Type[msnn.Cell] = Mlp,
+             use_abs_pos: bool = True,
+             use_rel_pos: bool = False,
+             use_rope: bool = False,
 @@ -426,18 +427,18 @@ 
          if use_abs_pos:
              # Initialize absolute positional embedding with pretrain image size.
@@ -248,14 +288,15 @@
              else:
                  # should have a final norm with standard ClassifierHead
                  self.neck = LayerNorm2d(embed_dim, **dd)
-@@ -552,6 +556,7 @@     def set_grad_checkpointing(self, enable=True):
-         self.grad_checkpointing = enable
+@@ -553,7 +557,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          return self.head
-@@ -562,7 +567,7 @@ 
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -562,13 +566,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -263,7 +304,14 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -631,7 +636,7 @@         self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -631,7 +635,7 @@         self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
              # neck is being treated as equivalent to final norm here
 -            self.neck = nn.Identity()
@@ -271,7 +319,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -654,7 +659,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -654,7 +658,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x):

@@ -5,10 +5,8 @@ import mindspore.mint as mint
 from mindspore.mint import nn, ops
 from typing import Tuple
 
-# import torch
 
-
-def ndgrid(*tensors) -> Tuple[torch.Tensor, ...]:
+def ndgrid(*tensors) -> Tuple[ms.Tensor, ...]:
     """generate N-D grid in dimension order.
 
     The ndgrid function is like meshgrid except that the order of the first two input arguments are switched.
@@ -32,7 +30,7 @@ def ndgrid(*tensors) -> Tuple[torch.Tensor, ...]:
         return mint.meshgrid(*tensors)
 
 
-def meshgrid(*tensors) -> Tuple[torch.Tensor, ...]:
+def meshgrid(*tensors) -> Tuple[ms.Tensor, ...]:
     """generate N-D grid in spatial dim order.
 
     The meshgrid function is similar to ndgrid except that the order of the

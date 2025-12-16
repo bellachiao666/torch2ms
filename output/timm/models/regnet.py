@@ -141,18 +141,17 @@ def generate_regnet(
     return widths.int().tolist(), num_stages, groups.tolist()
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def downsample_conv(
         in_chs: int,
         out_chs: int,
         kernel_size: int = 1,
         stride: int = 1,
         dilation: int = 1,
-        norm_layer: Optional[Type[nn.Module]] = None,
+        norm_layer: Optional[Type[msnn.Cell]] = None,
         preact: bool = False,
         device=None,
         dtype=None,
-) -> nn.Module:
+) -> msnn.Cell:
     """Create convolutional downsampling module.
 
     Args:
@@ -199,7 +198,7 @@ def downsample_avg(
         kernel_size: int = 1,
         stride: int = 1,
         dilation: int = 1,
-        norm_layer: Optional[Type[nn.Module]] = None,
+        norm_layer: Optional[Type[msnn.Cell]] = None,
         preact: bool = False,
         device=None,
         dtype=None,
@@ -241,11 +240,11 @@ def create_shortcut(
         kernel_size: int,
         stride: int,
         dilation: Tuple[int, int] = (1, 1),
-        norm_layer: Optional[Type[nn.Module]] = None,
+        norm_layer: Optional[Type[msnn.Cell]] = None,
         preact: bool = False,
         device=None,
         dtype=None,
-) -> Optional[nn.Module]:
+) -> Optional[msnn.Cell]:
     """Create shortcut connection for residual blocks.
 
     Args:
@@ -293,9 +292,9 @@ class Bottleneck(msnn.Cell):
             se_ratio: float = 0.25,
             downsample: str = 'conv1x1',
             linear_out: bool = False,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            drop_block: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            drop_block: Optional[Type[msnn.Cell]] = None,
             drop_path_rate: float = 0.,
             device=None,
             dtype=None,
@@ -398,9 +397,9 @@ class PreBottleneck(msnn.Cell):
             se_ratio: float = 0.25,
             downsample: str = 'conv1x1',
             linear_out: bool = False,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            drop_block: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            drop_block: Optional[Type[msnn.Cell]] = None,
             drop_path_rate: float = 0.,
             device=None,
             dtype=None,
@@ -501,7 +500,7 @@ class RegStage(msnn.Cell):
             stride: int,
             dilation: int,
             drop_path_rates: Optional[List[float]] = None,
-            block_fn: Type[nn.Module] = Bottleneck,
+            block_fn: Type[msnn.Cell] = Bottleneck,
             **block_kwargs,
     ):
         """Initialize RegNet stage.
@@ -721,9 +720,8 @@ class RegNet(msnn.Cell):
         for s in list(self.children())[1:-1]:
             s.grad_checkpointing = enable
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.head.fc
 
@@ -745,7 +743,7 @@ class RegNet(msnn.Cell):
             stop_early: bool = False,
             output_fmt: str = 'NCHW',
             intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
         """ Forward features that returns intermediates.
 
         Args:
@@ -855,8 +853,7 @@ class RegNet(msnn.Cell):
         return x
 
 
-# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = False) -> None:
+def _init_weights(module: msnn.Cell, name: str = '', zero_init_last: bool = False) -> None:
     """Initialize module weights.
 
     Args:

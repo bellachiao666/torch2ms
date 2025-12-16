@@ -30,7 +30,7 @@ class InceptionA(msnn.Cell):
             self,
             in_channels: int,
             pool_features: int,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -74,7 +74,7 @@ class InceptionB(msnn.Cell):
     def __init__(
             self,
             in_channels: int,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -110,7 +110,7 @@ class InceptionC(msnn.Cell):
             self,
             in_channels: int,
             channels_7x7: int,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -161,7 +161,7 @@ class InceptionD(msnn.Cell):
     def __init__(
             self,
             in_channels: int,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -199,7 +199,7 @@ class InceptionE(msnn.Cell):
     def __init__(
             self,
             in_channels: int,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -254,7 +254,7 @@ class InceptionAux(msnn.Cell):
             self,
             in_channels: int,
             num_classes: int,
-            conv_block: Optional[Type[nn.Module]] = None,
+            conv_block: Optional[Type[msnn.Cell]] = None,
             device=None,
             dtype=None,
     ):
@@ -384,9 +384,8 @@ class InceptionV3(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.fc
 
     def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):

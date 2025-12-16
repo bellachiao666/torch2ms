@@ -73,14 +73,15 @@
  
      @torch.jit.ignore
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
-@@ -182,6 +190,7 @@         """Enable or disable gradient checkpointing."""
-         self.grad_checkpointing = enable
+@@ -183,7 +191,7 @@         self.grad_checkpointing = enable
  
-+    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit.ignore
-     def get_classifier(self) -> nn.Module:
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
-@@ -197,12 +206,12 @@         self.num_classes = num_classes
+         return self.classifier
+ 
+@@ -197,19 +205,19 @@         self.num_classes = num_classes
          # NOTE: cannot meaningfully change pooling of efficient head after creation
          self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -        self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
@@ -95,7 +96,15 @@
              indices: Optional[Union[int, List[int]]] = None,
              norm: bool = False,
              stop_early: bool = False,
-@@ -283,15 +292,15 @@             max_index = self.stage_ends[max_index]
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+             extra_blocks: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -283,15 +291,15 @@             max_index = self.stage_ends[max_index]
          self.blocks = self.blocks[:max_index]  # truncate blocks w/ stem as idx 0
          if max_index < len(self.blocks):
 -            self.conv_head = nn.Identity()
@@ -115,7 +124,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -308,7 +317,7 @@             x = self.blocks(x)
+@@ -308,7 +316,7 @@             x = self.blocks(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -123,7 +132,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -324,12 +333,12 @@         x = self.act2(x)
+@@ -324,12 +332,12 @@         x = self.act2(x)
          x = self.flatten(x)
          if self.drop_rate > 0.:
 -            x = F.dropout(x, p=self.drop_rate, training=self.training)
@@ -137,7 +146,7 @@
          """Forward pass.
  
          Args:
-@@ -343,7 +352,7 @@         return x
+@@ -343,7 +351,7 @@         return x
  
  
 -class MobileNetV3Features(nn.Module):
@@ -145,7 +154,7 @@
      """MobileNetV3 Feature Extractor.
  
      A work-in-progress feature extraction module for MobileNet-V3 to use as a backbone for segmentation
-@@ -423,7 +432,9 @@             feature_location=feature_location,
+@@ -423,7 +431,9 @@             feature_location=feature_location,
              **dd,
          )
 -        self.blocks = nn.Sequential(*builder(stem_size, block_args))
@@ -155,11 +164,11 @@
          self.feature_info = FeatureInfo(builder.features, out_indices)
          self._stage_out_idx = {f['stage']: f['index'] for f in self.feature_info.get_dicts()}
  
-@@ -440,7 +451,7 @@         """Enable or disable gradient checkpointing."""
+@@ -440,7 +450,7 @@         """Enable or disable gradient checkpointing."""
          self.grad_checkpointing = enable
  
 -    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
-+    def construct(self, x: ms.Tensor) -> List[torch.Tensor]:
++    def construct(self, x: ms.Tensor) -> List[ms.Tensor]:
          """Forward pass through feature extraction.
  
          Args:

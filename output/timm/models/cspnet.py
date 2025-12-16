@@ -148,11 +148,11 @@ class BottleneckBlock(msnn.Cell):
             dilation: int = 1,
             bottle_ratio: float = 0.25,
             groups: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
             attn_last: bool = False,
-            attn_layer: Optional[Type[nn.Module]] = None,
-            drop_block: Optional[Type[nn.Module]] = None,
+            attn_layer: Optional[Type[msnn.Cell]] = None,
+            drop_block: Optional[Type[msnn.Cell]] = None,
             drop_path: float = 0.,
             device=None,
             dtype=None,
@@ -209,10 +209,10 @@ class DarkBlock(msnn.Cell):
             dilation: int = 1,
             bottle_ratio: float = 0.5,
             groups: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            attn_layer: Optional[Type[nn.Module]] = None,
-            drop_block: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            attn_layer: Optional[Type[msnn.Cell]] = None,
+            drop_block: Optional[Type[msnn.Cell]] = None,
             drop_path: float = 0.,
             device=None,
             dtype=None,
@@ -259,10 +259,10 @@ class EdgeBlock(msnn.Cell):
             dilation: int = 1,
             bottle_ratio: float = 0.5,
             groups: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            attn_layer: Optional[Type[nn.Module]] = None,
-            drop_block: Optional[Type[nn.Module]] = None,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+            attn_layer: Optional[Type[msnn.Cell]] = None,
+            drop_block: Optional[Type[msnn.Cell]] = None,
             drop_path: float = 0.,
             device=None,
             dtype=None,
@@ -316,7 +316,7 @@ class CrossStage(msnn.Cell):
             down_growth: bool = False,
             cross_linear: bool = False,
             block_dpr: Optional[List[float]] = None,
-            block_fn: Type[nn.Module] = BottleneckBlock,
+            block_fn: Type[msnn.Cell] = BottleneckBlock,
             device=None,
             dtype=None,
             **block_kwargs,
@@ -415,7 +415,7 @@ class CrossStage3(msnn.Cell):
             down_growth: bool = False,
             cross_linear: bool = False,
             block_dpr: Optional[List[float]] = None,
-            block_fn: Type[nn.Module] = BottleneckBlock,
+            block_fn: Type[msnn.Cell] = BottleneckBlock,
             device=None,
             dtype=None,
             **block_kwargs,
@@ -505,7 +505,7 @@ class DarkStage(msnn.Cell):
             groups: int = 1,
             first_dilation: Optional[int] = None,
             avg_down: bool = False,
-            block_fn: Type[nn.Module] = BottleneckBlock,
+            block_fn: Type[msnn.Cell] = BottleneckBlock,
             block_dpr: Optional[List[float]] = None,
             device=None,
             dtype=None,
@@ -565,9 +565,9 @@ def create_csp_stem(
         stride: int = 2,
         pool: str = '',
         padding: str = '',
-        act_layer: Type[nn.Module] = nn.ReLU,
-        norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-        aa_layer: Optional[Type[nn.Module]] = None,
+        act_layer: Type[msnn.Cell] = nn.ReLU,
+        norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
+        aa_layer: Optional[Type[msnn.Cell]] = None,
         device=None,
         dtype=None,
 ):
@@ -804,9 +804,8 @@ class CspNet(msnn.Cell):
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.ignore
-    def get_classifier(self) -> nn.Module:
+    def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
