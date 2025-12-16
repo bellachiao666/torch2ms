@@ -1,0 +1,27 @@
+--- pytorch+++ mindspore@@ -1,12 +1,17 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import fnmatch
+ import re
+ from collections import OrderedDict
+ from typing import Union, Optional, List
+ 
+-import torch
++# import torch
+ 
+ 
+-class AttentionExtract(torch.nn.Module):
++class AttentionExtract(msnn.Cell):
+     # defaults should cover a significant number of timm models with attention maps.
+     default_node_names = ['*attn.softmax']
+     default_module_names = ['*attn_drop']
+@@ -76,7 +81,7 @@         self.mode = mode
+         self.method = method
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         if self.hooks is not None:
+             self.model(x)
+             output = self.hooks.get_output(device=x.device)

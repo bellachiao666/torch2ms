@@ -1,0 +1,8 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Layer/Module Helpers
+ 
+ Hacked together by / Copyright 2020 Ross Wightman

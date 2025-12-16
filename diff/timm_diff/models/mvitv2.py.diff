@@ -1,0 +1,327 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Multi-Scale Vision Transformer v2
+ 
+ @inproceedings{li2021improved,
+@@ -19,8 +24,8 @@ from functools import partial, reduce
+ from typing import Union, List, Tuple, Optional, Any, Type
+ 
+-import torch
+-from torch import nn
++# import torch
++# from torch import nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import Mlp, DropPath, calculate_drop_path_rates, trunc_normal_tf_, get_norm_layer, to_2tuple
+@@ -86,7 +91,7 @@     return reduce(operator.mul, iterable, 1)
+ 
+ 
+-class PatchEmbed(nn.Module):
++class PatchEmbed(msnn.Cell):
+     """
+     PatchEmbed.
+     """
+@@ -113,7 +118,7 @@             **dd,
+         )
+ 
+-    def forward(self, x) -> Tuple[torch.Tensor, List[int]]:
++    def construct(self, x) -> Tuple[torch.Tensor, List[int]]:
+         x = self.proj(x)
+         # B C H W -> B HW C
+         return x.flatten(2).transpose(1, 2), x.shape[-2:]
+@@ -144,19 +149,19 @@     L_pooled = x.shape[2] * x.shape[3]
+     x = x.reshape(-1, num_heads, x.shape[1], L_pooled).transpose(2, 3)
+     if cls_tok is not None:
+-        x = torch.cat((cls_tok, x), dim=2)
++        x = mint.cat((cls_tok, x), dim = 2)
+     return x, feat_size
+ 
+ 
+ @register_notrace_function
+ def cal_rel_pos_type(
+-        attn: torch.Tensor,
+-        q: torch.Tensor,
++        attn: ms.Tensor,
++        q: ms.Tensor,
+         has_cls_token: bool,
+         q_size: List[int],
+         k_size: List[int],
+-        rel_pos_h: torch.Tensor,
+-        rel_pos_w: torch.Tensor,
++        rel_pos_h: ms.Tensor,
++        rel_pos_w: ms.Tensor,
+ ):
+     """
+     Spatial Relative Positional Embeddings.
+@@ -169,16 +174,16 @@     q_h_ratio = max(k_h / q_h, 1.0)
+     k_h_ratio = max(q_h / k_h, 1.0)
+     dist_h = (
+-        torch.arange(q_h, device=q.device, dtype=torch.long).unsqueeze(-1) * q_h_ratio -
+-        torch.arange(k_h, device=q.device, dtype=torch.long).unsqueeze(0) * k_h_ratio
+-    )
++        mint.arange(q_h, dtype = torch.long).unsqueeze(-1) * q_h_ratio -
++        mint.arange(k_h, dtype = torch.long).unsqueeze(0) * k_h_ratio
++    )  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     dist_h += (k_h - 1) * k_h_ratio
+     q_w_ratio = max(k_w / q_w, 1.0)
+     k_w_ratio = max(q_w / k_w, 1.0)
+     dist_w = (
+-        torch.arange(q_w, device=q.device, dtype=torch.long).unsqueeze(-1) * q_w_ratio -
+-        torch.arange(k_w, device=q.device, dtype=torch.long).unsqueeze(0) * k_w_ratio
+-    )
++        mint.arange(q_w, dtype = torch.long).unsqueeze(-1) * q_w_ratio -
++        mint.arange(k_w, dtype = torch.long).unsqueeze(0) * k_w_ratio
++    )  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     dist_w += (k_w - 1) * k_w_ratio
+ 
+     rel_h = rel_pos_h[dist_h.long()]
+@@ -187,8 +192,8 @@     B, n_head, q_N, dim = q.shape
+ 
+     r_q = q[:, :, sp_idx:].reshape(B, n_head, q_h, q_w, dim)
+-    rel_h = torch.einsum("byhwc,hkc->byhwk", r_q, rel_h)
+-    rel_w = torch.einsum("byhwc,wkc->byhwk", r_q, rel_w)
++    rel_h = mint.einsum("byhwc,hkc->byhwk", r_q, rel_h)
++    rel_w = mint.einsum("byhwc,wkc->byhwk", r_q, rel_w)
+ 
+     attn[:, :, sp_idx:, sp_idx:] = (
+         attn[:, :, sp_idx:, sp_idx:].view(B, -1, q_h, q_w, k_h, k_w)
+@@ -199,7 +204,7 @@     return attn
+ 
+ 
+-class MultiScaleAttentionPoolFirst(nn.Module):
++class MultiScaleAttentionPoolFirst(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -299,14 +304,14 @@             kv_size = size // stride_kv[1] if len(stride_kv) > 0 else size
+             rel_sp_dim = 2 * max(q_size, kv_size) - 1
+ 
+-            self.rel_pos_h = nn.Parameter(torch.zeros(rel_sp_dim, self.head_dim, **dd))
+-            self.rel_pos_w = nn.Parameter(torch.zeros(rel_sp_dim, self.head_dim, **dd))
++            self.rel_pos_h = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
++            self.rel_pos_w = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
+             trunc_normal_tf_(self.rel_pos_h, std=0.02)
+             trunc_normal_tf_(self.rel_pos_w, std=0.02)
+ 
+         self.residual_pooling = residual_pooling
+ 
+-    def forward(self, x, feat_size: List[int]):
++    def construct(self, x, feat_size: List[int]):
+         B, N, _ = x.shape
+ 
+         fold_dim = 1 if self.unshared else self.num_heads
+@@ -375,7 +380,7 @@         return x, q_size
+ 
+ 
+-class MultiScaleAttention(nn.Module):
++class MultiScaleAttention(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -473,14 +478,14 @@             kv_size = size // stride_kv[1] if len(stride_kv) > 0 else size
+             rel_sp_dim = 2 * max(q_size, kv_size) - 1
+ 
+-            self.rel_pos_h = nn.Parameter(torch.zeros(rel_sp_dim, self.head_dim, **dd))
+-            self.rel_pos_w = nn.Parameter(torch.zeros(rel_sp_dim, self.head_dim, **dd))
++            self.rel_pos_h = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
++            self.rel_pos_w = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
+             trunc_normal_tf_(self.rel_pos_h, std=0.02)
+             trunc_normal_tf_(self.rel_pos_w, std=0.02)
+ 
+         self.residual_pooling = residual_pooling
+ 
+-    def forward(self, x, feat_size: List[int]):
++    def construct(self, x, feat_size: List[int]):
+         B, N, _ = x.shape
+ 
+         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+@@ -534,7 +539,7 @@         return x, q_size
+ 
+ 
+-class MultiScaleBlock(nn.Module):
++class MultiScaleBlock(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -595,7 +600,7 @@             residual_pooling=residual_pooling,
+             **dd,
+         )
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
+ 
+         self.norm2 = norm_layer(att_dim, **dd)
+         mlp_dim_out = dim_out
+@@ -606,7 +611,7 @@             out_features=mlp_dim_out,
+             **dd,
+         )
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
+ 
+     def _shortcut_pool(self, x, feat_size: List[int]):
+         if self.shortcut_pool_attn is None:
+@@ -621,10 +626,10 @@         x = self.shortcut_pool_attn(x)
+         x = x.reshape(B, C, -1).transpose(1, 2)
+         if cls_tok is not None:
+-            x = torch.cat((cls_tok, x), dim=1)
++            x = mint.cat((cls_tok, x), dim = 1)
+         return x
+ 
+-    def forward(self, x, feat_size: List[int]):
++    def construct(self, x, feat_size: List[int]):
+         x_norm = self.norm1(x)
+         # NOTE as per the original impl, this seems odd, but shortcut uses un-normalized input if no proj
+         x_shortcut = x if self.shortcut_proj_attn is None else self.shortcut_proj_attn(x_norm)
+@@ -638,7 +643,7 @@         return x, feat_size_new
+ 
+ 
+-class MultiScaleVitStage(nn.Module):
++class MultiScaleVitStage(msnn.Cell):
+ 
+     def __init__(
+             self,
+@@ -668,7 +673,7 @@         super().__init__()
+         self.grad_checkpointing = False
+ 
+-        self.blocks = nn.ModuleList()
++        self.blocks = msnn.CellList()
+         if expand_attn:
+             out_dims = (dim_out,) * depth
+         else:
+@@ -703,7 +708,7 @@ 
+         self.feat_size = feat_size
+ 
+-    def forward(self, x, feat_size: List[int]):
++    def construct(self, x, feat_size: List[int]):
+         for blk in self.blocks:
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x, feat_size = checkpoint(blk, x, feat_size)
+@@ -712,7 +717,7 @@         return x, feat_size
+ 
+ 
+-class MultiScaleVit(nn.Module):
++class MultiScaleVit(msnn.Cell):
+     """
+     Improved Multiscale Vision Transformers for Classification and Detection
+     Yanghao Li*, Chao-Yuan Wu*, Haoqi Fan, Karttikeya Mangalam, Bo Xiong, Jitendra Malik,
+@@ -762,7 +767,7 @@         num_patches = prod(patch_dims)
+ 
+         if cfg.use_cls_token:
+-            self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd))
++            self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))
+             self.num_prefix_tokens = 1
+             pos_embed_dim = num_patches + 1
+         else:
+@@ -771,7 +776,7 @@             pos_embed_dim = num_patches
+ 
+         if cfg.use_abs_pos:
+-            self.pos_embed = nn.Parameter(torch.zeros(1, pos_embed_dim, embed_dim, **dd))
++            self.pos_embed = ms.Parameter(mint.zeros(1, pos_embed_dim, embed_dim, **dd))
+         else:
+             self.pos_embed = None
+ 
+@@ -779,7 +784,7 @@         feat_size = patch_dims
+         curr_stride = max(cfg.patch_stride)
+         dpr = calculate_drop_path_rates(drop_path_rate, cfg.depths, stagewise=True)
+-        self.stages = nn.ModuleList()
++        self.stages = msnn.CellList()
+         self.feature_info = []
+         for i in range(num_stages):
+             if cfg.expand_attn:
+@@ -816,10 +821,12 @@ 
+         self.num_features = self.head_hidden_size = embed_dim
+         self.norm = norm_layer(embed_dim, **dd)
+-        self.head = nn.Sequential(OrderedDict([
++        self.head = msnn.SequentialCell([
++            OrderedDict([
+             ('drop', nn.Dropout(self.drop_rate)),
+-            ('fc', nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else nn.Identity())
+-        ]))
++            ('fc', nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity())
++        ])
++        ])
+ 
+         if self.pos_embed is not None:
+             trunc_normal_tf_(self.pos_embed, std=0.02)
+@@ -831,7 +838,7 @@         if isinstance(m, nn.Linear):
+             trunc_normal_tf_(m.weight, std=0.02)
+             if isinstance(m, nn.Linear) and m.bias is not None:
+-                nn.init.constant_(m.bias, 0.0)
++                nn.init.constant_(m.bias, 0.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     @torch.jit.ignore
+     def no_weight_decay(self):
+@@ -851,6 +858,7 @@         for s in self.stages:
+             s.grad_checkpointing = enable
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         return self.head.fc
+@@ -861,14 +869,16 @@             self.global_pool = global_pool
+         device = self.head.fc.weight.device if hasattr(self.head.fc, 'weight') else None
+         dtype = self.head.fc.weight.dtype if hasattr(self.head.fc, 'weight') else None
+-        self.head = nn.Sequential(OrderedDict([
++        self.head = msnn.SequentialCell([
++            OrderedDict([
+             ('drop', nn.Dropout(self.drop_rate)),
+-            ('fc', nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity())
+-        ]))
++            ('fc', nn.Linear(self.num_features, num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity())
++        ])
++        ])  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+@@ -898,7 +908,7 @@         B = x.shape[0]
+         if self.cls_token is not None:
+             cls_tokens = self.cls_token.expand(B, -1, -1)
+-            x = torch.cat((cls_tokens, x), dim=1)
++            x = mint.cat((cls_tokens, x), dim = 1)
+         if self.pos_embed is not None:
+             x = x + self.pos_embed
+ 
+@@ -937,7 +947,7 @@         # FIXME add stage pruning
+         # self.stages = self.stages[:max_index]  # truncate blocks w/ stem as idx 0
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+@@ -948,7 +958,7 @@ 
+         if self.cls_token is not None:
+             cls_tokens = self.cls_token.expand(B, -1, -1)
+-            x = torch.cat((cls_tokens, x), dim=1)
++            x = mint.cat((cls_tokens, x), dim = 1)
+ 
+         if self.pos_embed is not None:
+             x = x + self.pos_embed
+@@ -967,7 +977,7 @@                 x = x[:, 0]
+         return x if pre_logits else self.head(x)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
+@@ -981,11 +991,8 @@                 rel_pos = state_dict[k]
+                 dest_rel_pos_shape = model.state_dict()[k].shape
+                 if rel_pos.shape[0] != dest_rel_pos_shape[0]:
+-                    rel_pos_resized = torch.nn.functional.interpolate(
+-                        rel_pos.reshape(1, rel_pos.shape[0], -1).permute(0, 2, 1),
+-                        size=dest_rel_pos_shape[0],
+-                        mode="linear",
+-                    )
++                    rel_pos_resized = nn.functional.interpolate(
++                        rel_pos.reshape(1, rel_pos.shape[0], -1).permute(0, 2, 1), size = dest_rel_pos_shape[0], mode = "linear")
+                     state_dict[k] = rel_pos_resized.reshape(-1, dest_rel_pos_shape[0]).permute(1, 0)
+         return state_dict
+ 

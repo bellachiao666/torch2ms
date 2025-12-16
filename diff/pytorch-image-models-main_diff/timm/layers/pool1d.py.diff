@@ -1,0 +1,14 @@
+--- pytorch+++ mindspore@@ -1,8 +1,12 @@-import torch
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ 
+ 
+ def global_pool_nlc(
+-        x: torch.Tensor,
++        x: ms.Tensor,
+         pool_type: str = 'token',
+         num_prefix_tokens: int = 1,
+         reduce_include_prefix: bool = False,

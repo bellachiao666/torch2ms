@@ -1,0 +1,9 @@
+--- pytorch+++ mindspore@@ -1,4 +1,9 @@ #!/usr/bin/env python3
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Bulk Model Script Runner
+ 
+ Run validation or benchmark script in separate process for each model

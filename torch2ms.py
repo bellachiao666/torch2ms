@@ -863,6 +863,13 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         for extra_val in positional_values[pos_idx:]:
             ms_args.append(cst.Arg(keyword=None, value=extra_val))
 
+        # 确保 LibCST 参数顺序合法：位置参数必须在关键字参数之前，否则会触发
+        # "Cannot have positional argument after keyword argument" 的校验错误。
+        if any(arg.keyword is None for arg in ms_args) and any(arg.keyword is not None for arg in ms_args):
+            positional = [arg for arg in ms_args if arg.keyword is None]
+            keyword = [arg for arg in ms_args if arg.keyword is not None]
+            ms_args = positional + keyword
+
         return ms_args, mismatch_notes
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:

@@ -1,0 +1,180 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Attention Pool 2D
+ 
+ Implementations of 2D spatial feature pooling using multi-head attention instead of average pool.
+@@ -9,8 +14,8 @@ """
+ from typing import Optional, Union, Tuple
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from .config import use_fused_attn
+ from .helpers import to_2tuple
+@@ -19,7 +24,7 @@ from .weight_init import trunc_normal_
+ 
+ 
+-class RotAttentionPool2d(nn.Module):
++class RotAttentionPool2d(msnn.Cell):
+     """ Attention based 2D feature pooling w/ rotary (relative) pos embedding.
+     This is a multi-head attention based replacement for (spatial) average pooling in NN architectures.
+ 
+@@ -69,7 +74,7 @@         self.rope_type = rope_type
+ 
+         if class_token:
+-            self.cls_token = nn.Parameter(torch.zeros(1, embed_dim, **dd))
++            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))
+         else:
+             self.cls_token = None
+ 
+@@ -97,15 +102,15 @@         if self.qkv is None:
+             in_features = self.q.in_features
+             trunc_normal_(self.q.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.q.bias)
++            nn.init.zeros_(self.q.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             trunc_normal_(self.k.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.k.bias)
++            nn.init.zeros_(self.k.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             trunc_normal_(self.v.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.v.bias)
++            nn.init.zeros_(self.v.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             in_features = self.qkv.in_features
+             trunc_normal_(self.qkv.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.qkv.bias)
++            nn.init.zeros_(self.qkv.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def reset(self, num_classes: Optional[int] = None, pool_type: Optional[str] = None):
+         # NOTE: this module is being used as a head, so need compatible reset()
+@@ -113,10 +118,10 @@             assert pool_type in ('', 'token')
+             self.pool_type = pool_type
+         if num_classes is not None:
+-            self.proj = nn.Linear(self.in_features, num_classes) if num_classes > 0 else nn.Identity()
++            self.proj = nn.Linear(self.in_features, num_classes) if num_classes > 0 else msnn.Identity()
+             self.out_features = num_classes if num_classes > 0 else self.embed_dim
+ 
+-    def _pool(self, x: torch.Tensor, H: int, W: int) -> torch.Tensor:
++    def _pool(self, x: ms.Tensor, H: int, W: int) -> ms.Tensor:
+         if self.pool_type == 'token':
+             x = x[:, 0]
+         else:
+@@ -124,14 +129,14 @@             x = x[:, 1:].reshape(x.shape[0], H, W, -1).permute(0, 3, 1, 2)
+         return x
+ 
+-    def forward(self, x, pre_logits: bool = False):
++    def construct(self, x, pre_logits: bool = False):
+         B, _, H, W = x.shape
+         N = H * W
+         x = x.flatten(2).transpose(1, 2)
+         if self.cls_token is None:
+-            x = torch.cat([x.mean(1, keepdim=True), x], dim=1)
+-        else:
+-            x = torch.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim=1)
++            x = mint.cat([x.mean(1, keepdim=True), x], dim = 1)
++        else:
++            x = mint.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim = 1)
+         if self.qkv is None:
+             q = self.q(x).reshape(B, N + 1, self.num_heads, self.head_dim).transpose(1, 2)
+             k = self.k(x).reshape(B, N + 1, self.num_heads, self.head_dim).transpose(1, 2)
+@@ -143,12 +148,12 @@         rope = self.pos_embed.get_embed((H, W))
+         if isinstance(rope, tuple):
+             # RotaryEmbedding returns (sin, cos) tuple - concatenate for apply_rot_embed_cat
+-            rope = torch.cat(rope, dim=-1)
+-        q = torch.cat([q[:, :, :1, :], apply_rot_embed_cat(q[:, :, 1:, :], rope)], dim=2).type_as(v)
+-        k = torch.cat([k[:, :, :1, :], apply_rot_embed_cat(k[:, :, 1:, :], rope)], dim=2).type_as(v)
++            rope = mint.cat(rope, dim = -1)
++        q = mint.cat([q[:, :, :1, :], apply_rot_embed_cat(q[:, :, 1:, :], rope)], dim = 2).type_as(v)
++        k = mint.cat([k[:, :, :1, :], apply_rot_embed_cat(k[:, :, 1:, :], rope)], dim = 2).type_as(v)
+ 
+         if self.fused_attn:
+-            x = nn.functional.scaled_dot_product_attention(q, k, v)
++            x = nn.functional.scaled_dot_product_attention(q, k, v)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = q @ k.transpose(-2, -1)
+@@ -164,7 +169,7 @@         return x
+ 
+ 
+-class AttentionPool2d(nn.Module):
++class AttentionPool2d(msnn.Cell):
+     """ Attention based 2D feature pooling w/ learned (absolute) pos embedding.
+     This is a multi-head attention based replacement for (spatial) average pooling in NN architectures.
+ 
+@@ -212,7 +217,7 @@         self.fused_attn = use_fused_attn()
+ 
+         if class_token:
+-            self.cls_token = nn.Parameter(torch.zeros(1, embed_dim, **dd))
++            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))
+         else:
+             self.cls_token = None
+ 
+@@ -226,7 +231,7 @@             self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)
+         self.drop = nn.Dropout(drop_rate)
+         self.proj = nn.Linear(embed_dim, self.out_features, **dd)
+-        self.pos_embed = nn.Parameter(torch.zeros(self.seq_len + 1, in_features, **dd))
++        self.pos_embed = ms.Parameter(mint.zeros(self.seq_len + 1, in_features, **dd))
+ 
+         self.init_weights()
+ 
+@@ -234,15 +239,15 @@         if self.qkv is None:
+             in_features = self.q.in_features
+             trunc_normal_(self.q.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.q.bias)
++            nn.init.zeros_(self.q.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             trunc_normal_(self.k.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.k.bias)
++            nn.init.zeros_(self.k.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             trunc_normal_(self.v.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.v.bias)
++            nn.init.zeros_(self.v.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             in_features = self.qkv.in_features
+             trunc_normal_(self.qkv.weight, std=in_features ** -0.5)
+-            nn.init.zeros_(self.qkv.bias)
++            nn.init.zeros_(self.qkv.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         trunc_normal_(self.pos_embed, std=in_features ** -0.5)
+ 
+     def reset(self, num_classes: Optional[int] = None, pool_type: Optional[str] = None):
+@@ -251,10 +256,10 @@             assert pool_type in ('', 'token')
+             self.pool_type = pool_type
+         if num_classes is not None:
+-            self.proj = nn.Linear(self.in_features, num_classes) if num_classes > 0 else nn.Identity()
++            self.proj = nn.Linear(self.in_features, num_classes) if num_classes > 0 else msnn.Identity()
+             self.out_features = num_classes if num_classes > 0 else self.embed_dim
+ 
+-    def _pool(self, x: torch.Tensor, H: int, W: int) -> torch.Tensor:
++    def _pool(self, x: ms.Tensor, H: int, W: int) -> ms.Tensor:
+         if self.pool_type == 'token':
+             x = x[:, 0]
+         else:
+@@ -262,14 +267,14 @@             x = x[:, 1:].reshape(x.shape[0], H, W, -1).permute(0, 3, 1, 2)
+         return x
+ 
+-    def forward(self, x, pre_logits: bool = False):
++    def construct(self, x, pre_logits: bool = False):
+         B, _, H, W = x.shape
+         N = H * W
+         x = x.flatten(2).transpose(1, 2)
+         if self.cls_token is None:
+-            x = torch.cat([x.mean(1, keepdim=True), x], dim=1)
+-        else:
+-            x = torch.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim=1)
++            x = mint.cat([x.mean(1, keepdim=True), x], dim = 1)
++        else:
++            x = mint.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim = 1)
+         pos_embed = resample_abs_pos_embed(self.pos_embed.unsqueeze(0), (H, W), num_prefix_tokens=1)
+         x = x + pos_embed
+ 
+@@ -282,7 +287,7 @@             q, k, v = x.unbind(0)
+ 
+         if self.fused_attn:
+-            x = nn.functional.scaled_dot_product_attention(q, k, v)
++            x = nn.functional.scaled_dot_product_attention(q, k, v)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = q @ k.transpose(-2, -1)

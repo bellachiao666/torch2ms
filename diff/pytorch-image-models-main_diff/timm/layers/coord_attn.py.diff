@@ -1,0 +1,117 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Coordinate Attention and Variants
+ 
+ Coordinate Attention decomposes channel attention into two 1D feature encoding processes
+@@ -11,16 +16,14 @@ Hacked together by / Copyright 2025 Ross Wightman
+ """
+ from typing import Optional, Type, Union
+-
+-import torch
+-from torch import nn
++# from torch import nn
+ 
+ from .create_act import create_act_layer
+ from .helpers import make_divisible
+ from .norm import GroupNorm1
+ 
+ 
+-class CoordAttn(nn.Module):
++class CoordAttn(msnn.Cell):
+     def __init__(
+             self,
+             channels: int,
+@@ -64,14 +67,14 @@             rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
+ 
+         self.conv1 = nn.Conv2d(channels, rd_channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
+-        self.bn1 = norm_layer(rd_channels, **dd) if norm_layer is not None else nn.Identity()
++        self.bn1 = norm_layer(rd_channels, **dd) if norm_layer is not None else msnn.Identity()
+         self.act = act_layer()
+ 
+         self.conv_h = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
+         self.conv_w = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         N, C, H, W = x.size()
+@@ -81,11 +84,11 @@         x_w = x.mean(2, keepdim=True)
+ 
+         x_w = x_w.transpose(-1, -2)
+-        y = torch.cat([x_h, x_w], dim=2)
++        y = mint.cat([x_h, x_w], dim = 2)
+         y = self.conv1(y)
+         y = self.bn1(y)
+         y = self.act(y)
+-        x_h, x_w = torch.split(y, [H, W], dim=2)
++        x_h, x_w = mint.split(y, [H, W], dim = 2)
+         x_w = x_w.transpose(-1, -2)
+ 
+         a_h = self.gate(self.conv_h(x_h))
+@@ -98,7 +101,7 @@         return out
+ 
+ 
+-class SimpleCoordAttn(nn.Module):
++class SimpleCoordAttn(msnn.Cell):
+     """Simplified Coordinate Attention variant.
+ 
+     Uses
+@@ -151,7 +154,7 @@ 
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         # Strip pooling
+@@ -173,7 +176,7 @@         return out
+ 
+ 
+-class EfficientLocalAttn(nn.Module):
++class EfficientLocalAttn(msnn.Cell):
+     """Efficient Local Attention.
+ 
+     Lightweight alternative to Coordinate Attention that preserves spatial
+@@ -233,12 +236,12 @@             self.norm_h = norm_layer(channels, **dd)
+             self.norm_w = norm_layer(channels, **dd)
+         else:
+-            self.norm_h = nn.Identity()
+-            self.norm_w = nn.Identity()
++            self.norm_h = msnn.Identity()
++            self.norm_w = msnn.Identity()
+         self.act = act_layer()
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         # Strip pooling: (N, C, H, W) -> (N, C, H) and (N, C, W)
+@@ -260,7 +263,7 @@         return out
+ 
+ 
+-class StripAttn(nn.Module):
++class StripAttn(msnn.Cell):
+     """Minimal Strip Attention.
+ 
+     Lightweight spatial attention using strip pooling with optional learned refinement.
+@@ -314,12 +317,12 @@                 **dd
+             )
+         else:
+-            self.conv_h = nn.Identity()
+-            self.conv_w = nn.Identity()
++            self.conv_h = msnn.Identity()
++            self.conv_w = msnn.Identity()
+ 
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         # Strip pooling

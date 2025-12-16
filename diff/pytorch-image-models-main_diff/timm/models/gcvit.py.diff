@@ -1,0 +1,264 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Global Context ViT
+ 
+ From scratch implementation of GCViT in the style of timm swin_transformer_v2_cr.py
+@@ -23,8 +28,8 @@ from functools import partial
+ from typing import Callable, List, Optional, Tuple, Type, Union
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import (
+@@ -51,7 +56,7 @@ __all__ = ['GlobalContextVit']
+ 
+ 
+-class MbConvBlock(nn.Module):
++class MbConvBlock(msnn.Cell):
+     """ A depthwise separable / fused mbconv style residual block with SE, `no norm.
+     """
+     def __init__(
+@@ -80,7 +85,7 @@         self.se = attn_layer(mid_chs, **attn_kwargs)
+         self.conv_pw = nn.Conv2d(mid_chs, out_chs, 1, 1, 0, bias=bias, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         shortcut = x
+         x = self.conv_dw(x)
+         x = self.act(x)
+@@ -90,7 +95,7 @@         return x
+ 
+ 
+-class Downsample2d(nn.Module):
++class Downsample2d(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -105,20 +110,20 @@         super().__init__()
+         dim_out = dim_out or dim
+ 
+-        self.norm1 = norm_layer(dim, **dd) if norm_layer is not None else nn.Identity()
++        self.norm1 = norm_layer(dim, **dd) if norm_layer is not None else msnn.Identity()
+         self.conv_block = MbConvBlock(dim, act_layer=act_layer, **dd)
+         assert reduction in ('conv', 'max', 'avg')
+         if reduction == 'conv':
+             self.reduction = nn.Conv2d(dim, dim_out, 3, 2, 1, bias=False, **dd)
+         elif reduction == 'max':
+             assert dim == dim_out
+-            self.reduction = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
++            self.reduction = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
+         else:
+             assert dim == dim_out
+-            self.reduction = nn.AvgPool2d(kernel_size=2)
+-        self.norm2 = norm_layer(dim_out, **dd) if norm_layer is not None else nn.Identity()
+-
+-    def forward(self, x):
++            self.reduction = nn.AvgPool2d(kernel_size = 2)
++        self.norm2 = norm_layer(dim_out, **dd) if norm_layer is not None else msnn.Identity()
++
++    def construct(self, x):
+         x = self.norm1(x)
+         x = self.conv_block(x)
+         x = self.reduction(x)
+@@ -126,7 +131,7 @@         return x
+ 
+ 
+-class FeatureBlock(nn.Module):
++class FeatureBlock(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -144,18 +149,18 @@             pool_fn = partial(nn.AvgPool2d, kernel_size=2)
+         else:
+             pool_fn = partial(nn.MaxPool2d, kernel_size=3, stride=2, padding=1)
+-        self.blocks = nn.Sequential()
++        self.blocks = msnn.SequentialCell()
+         for i in range(levels):
+             self.blocks.add_module(f'conv{i+1}', MbConvBlock(dim, act_layer=act_layer, **dd))
+             if reductions:
+                 self.blocks.add_module(f'pool{i+1}', pool_fn())
+                 reductions -= 1
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return self.blocks(x)
+ 
+ 
+-class Stem(nn.Module):
++class Stem(msnn.Cell):
+     def __init__(
+             self,
+             in_chs: int = 3,
+@@ -170,13 +175,13 @@         self.conv1 = nn.Conv2d(in_chs, out_chs, kernel_size=3, stride=2, padding=1, **dd)
+         self.down = Downsample2d(out_chs, act_layer=act_layer, norm_layer=norm_layer, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv1(x)
+         x = self.down(x)
+         return x
+ 
+ 
+-class WindowAttentionGlobal(nn.Module):
++class WindowAttentionGlobal(msnn.Cell):
+ 
+     def __init__(
+             self,
+@@ -208,7 +213,7 @@         self.proj = nn.Linear(dim, dim, **dd)
+         self.proj_drop = nn.Dropout(proj_drop)
+ 
+-    def forward(self, x, q_global: Optional[torch.Tensor] = None):
++    def construct(self, x, q_global: Optional[torch.Tensor] = None):
+         B, N, C = x.shape
+         if self.use_global and q_global is not None:
+             _assert(x.shape[-1] == q_global.shape[-1], 'x and q_global seq lengths should be equal')
+@@ -251,7 +256,7 @@     return x
+ 
+ 
+-class GlobalContextVitBlock(nn.Module):
++class GlobalContextVitBlock(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -289,13 +294,13 @@             proj_drop=proj_drop,
+             **dd,
+         )
+-        self.ls1 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else nn.Identity()
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        self.ls1 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+ 
+         self.norm2 = norm_layer(dim, **dd)
+         self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, drop=proj_drop, **dd)
+-        self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else nn.Identity()
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+ 
+     def _window_attn(self, x, q_global: Optional[torch.Tensor] = None):
+         B, H, W, C = x.shape
+@@ -305,13 +310,13 @@         x = window_reverse(attn_win, self.window_size, (H, W))
+         return x
+ 
+-    def forward(self, x, q_global: Optional[torch.Tensor] = None):
++    def construct(self, x, q_global: Optional[torch.Tensor] = None):
+         x = x + self.drop_path1(self.ls1(self._window_attn(self.norm1(x), q_global)))
+         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
+         return x
+ 
+ 
+-class GlobalContextVitStage(nn.Module):
++class GlobalContextVitStage(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -346,15 +351,15 @@             dim = dim * 2
+             feat_size = (feat_size[0] // 2, feat_size[1] // 2)
+         else:
+-            self.downsample = nn.Identity()
++            self.downsample = msnn.Identity()
+         self.feat_size = feat_size
+         window_size = to_2tuple(window_size)
+ 
+         feat_levels = int(math.log2(min(feat_size) / min(window_size)))
+         self.global_block = FeatureBlock(dim, feat_levels, **dd)
+-        self.global_norm = norm_layer_cl(dim, **dd) if global_norm else nn.Identity()
+-
+-        self.blocks = nn.ModuleList([
++        self.global_norm = norm_layer_cl(dim, **dd) if global_norm else msnn.Identity()
++
++        self.blocks = msnn.CellList([
+             GlobalContextVitBlock(
+                 dim=dim,
+                 num_heads=num_heads,
+@@ -373,12 +378,12 @@             )
+             for i in range(depth)
+         ])
+-        self.norm = norm_layer_cl(dim, **dd) if stage_norm else nn.Identity()
++        self.norm = norm_layer_cl(dim, **dd) if stage_norm else msnn.Identity()
+         self.dim = dim
+         self.feat_size = feat_size
+         self.grad_checkpointing = False
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         # input NCHW, downsample & global block are 2d conv + pooling
+         x = self.downsample(x)
+         global_query = self.global_block(x)
+@@ -396,7 +401,7 @@         return x
+ 
+ 
+-class GlobalContextVit(nn.Module):
++class GlobalContextVit(msnn.Cell):
+     def __init__(
+             self,
+             in_chans: int = 3,
+@@ -475,7 +480,9 @@                 **dd,
+             ))
+             self.feature_info += [dict(num_chs=stages[-1].dim, reduction=2**(i+2), module=f'stages.{i}')]
+-        self.stages = nn.Sequential(*stages)
++        self.stages = msnn.SequentialCell([
++            stages
++        ])
+ 
+         # Classifier head
+         self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)
+@@ -487,17 +494,17 @@         # note Conv2d left as default init
+         if scheme == 'vit':
+             if isinstance(module, nn.Linear):
+-                nn.init.xavier_uniform_(module.weight)
++                nn.init.xavier_uniform_(module.weight)  # 'torch.nn.init.xavier_uniform_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if module.bias is not None:
+                     if 'mlp' in name:
+-                        nn.init.normal_(module.bias, std=1e-6)
++                        nn.init.normal_(module.bias, std=1e-6)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                     else:
+-                        nn.init.zeros_(module.bias)
++                        nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             if isinstance(module, nn.Linear):
+-                nn.init.normal_(module.weight, std=.02)
++                nn.init.normal_(module.weight, std=.02)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if module.bias is not None:
+-                    nn.init.zeros_(module.bias)
++                    nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     @torch.jit.ignore
+     def no_weight_decay(self):
+@@ -518,6 +525,7 @@         for s in self.stages:
+             s.grad_checkpointing = enable
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         return self.head.fc
+@@ -531,7 +539,7 @@ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+@@ -585,7 +593,7 @@             self.reset_classifier(0, '')
+         return take_indices
+ 
+-    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
++    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
+         x = self.stem(x)
+         x = self.stages(x)
+         return x
+@@ -593,7 +601,7 @@     def forward_head(self, x, pre_logits: bool = False):
+         return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x

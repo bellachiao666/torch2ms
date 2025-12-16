@@ -1,0 +1,41 @@
+--- pytorch+++ mindspore@@ -1,9 +1,14 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """Classification training task."""
+ import logging
+ from typing import Callable, Dict, Optional, Union
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from .task import TrainingTask
+ 
+@@ -29,6 +34,7 @@         >>> result['loss'].backward()
+     """
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             model: nn.Module,
+@@ -61,14 +67,14 @@         Returns:
+             self (for method chaining)
+         """
+-        from torch.nn.parallel import DistributedDataParallel as DDP
+-        self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)
++        # from torch.nn.parallel import DistributedDataParallel as DDP
++        self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         return self
+ 
+     def forward(
+             self,
+-            input: torch.Tensor,
+-            target: torch.Tensor,
++            input: ms.Tensor,
++            target: ms.Tensor,
+     ) -> Dict[str, torch.Tensor]:
+         """Forward pass through model and compute classification loss.
+ 

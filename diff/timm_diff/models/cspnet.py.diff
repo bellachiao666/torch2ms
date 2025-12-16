@@ -1,0 +1,305 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """PyTorch CspNet
+ 
+ A PyTorch implementation of Cross Stage Partial Networks including:
+@@ -16,8 +21,8 @@ from functools import partial
+ from typing import Any, Dict, List, Optional, Tuple, Type, Union
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import ClassifierHead, ConvNormAct, DropPath, calculate_drop_path_rates, get_attn, create_act_layer, make_divisible
+@@ -132,7 +137,7 @@     )
+ 
+ 
+-class BottleneckBlock(nn.Module):
++class BottleneckBlock(msnn.Cell):
+     """ ResNe(X)t Bottleneck Block
+     """
+ 
+@@ -170,16 +175,16 @@             **ckwargs,
+             **dd,
+         )
+-        self.attn2 = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_first else nn.Identity()
++        self.attn2 = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_first else msnn.Identity()
+         self.conv3 = ConvNormAct(mid_chs, out_chs, kernel_size=1, apply_act=False, **ckwargs, **dd)
+-        self.attn3 = attn_layer(out_chs, act_layer=act_layer, **dd) if attn_last else nn.Identity()
+-        self.drop_path = DropPath(drop_path) if drop_path else nn.Identity()
++        self.attn3 = attn_layer(out_chs, act_layer=act_layer, **dd) if attn_last else msnn.Identity()
++        self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
+         self.act3 = create_act_layer(act_layer)
+ 
+     def zero_init_last(self):
+-        nn.init.zeros_(self.conv3.bn.weight)
+-
+-    def forward(self, x):
++        nn.init.zeros_(self.conv3.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1(x)
+         x = self.conv2(x)
+@@ -193,7 +198,7 @@         return x
+ 
+ 
+-class DarkBlock(nn.Module):
++class DarkBlock(msnn.Cell):
+     """ DarkNet Block
+     """
+ 
+@@ -218,7 +223,7 @@         ckwargs = dict(act_layer=act_layer, norm_layer=norm_layer)
+ 
+         self.conv1 = ConvNormAct(in_chs, mid_chs, kernel_size=1, **ckwargs, **dd)
+-        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else nn.Identity()
++        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else msnn.Identity()
+         self.conv2 = ConvNormAct(
+             mid_chs,
+             out_chs,
+@@ -229,12 +234,12 @@             **ckwargs,
+             **dd,
+         )
+-        self.drop_path = DropPath(drop_path) if drop_path else nn.Identity()
++        self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
+ 
+     def zero_init_last(self):
+-        nn.init.zeros_(self.conv2.bn.weight)
+-
+-    def forward(self, x):
++        nn.init.zeros_(self.conv2.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1(x)
+         x = self.attn(x)
+@@ -243,7 +248,7 @@         return x
+ 
+ 
+-class EdgeBlock(nn.Module):
++class EdgeBlock(msnn.Cell):
+     """ EdgeResidual / Fused-MBConv / MobileNetV1-like 3x3 + 1x1 block (w/ activated output)
+     """
+ 
+@@ -277,14 +282,14 @@             **ckwargs,
+             **dd,
+         )
+-        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else nn.Identity()
++        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else msnn.Identity()
+         self.conv2 = ConvNormAct(mid_chs, out_chs, kernel_size=1, **ckwargs, **dd)
+-        self.drop_path = DropPath(drop_path) if drop_path else nn.Identity()
++        self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
+ 
+     def zero_init_last(self):
+-        nn.init.zeros_(self.conv2.bn.weight)
+-
+-    def forward(self, x):
++        nn.init.zeros_(self.conv2.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1(x)
+         x = self.attn(x)
+@@ -293,7 +298,7 @@         return x
+ 
+ 
+-class CrossStage(nn.Module):
++class CrossStage(msnn.Cell):
+     """Cross Stage."""
+     def __init__(
+             self,
+@@ -327,10 +332,11 @@ 
+         if stride != 1 or first_dilation != dilation:
+             if avg_down:
+-                self.conv_down = nn.Sequential(
+-                    nn.AvgPool2d(2) if stride == 2 else nn.Identity(),  # FIXME dilation handling
++                self.conv_down = msnn.SequentialCell(
++                    [
++                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
+                     ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
+-                )
++                ])
+             else:
+                 self.conv_down = ConvNormAct(
+                     in_chs,
+@@ -345,7 +351,7 @@                 )
+             prev_chs = down_chs
+         else:
+-            self.conv_down = nn.Identity()
++            self.conv_down = msnn.Identity()
+             prev_chs = in_chs
+ 
+         # FIXME this 1x1 expansion is pushed down into the cross and block paths in the darknet cfgs. Also,
+@@ -361,7 +367,7 @@         )
+         prev_chs = exp_chs // 2  # output of conv_exp is always split in two
+ 
+-        self.blocks = nn.Sequential()
++        self.blocks = msnn.SequentialCell()
+         for i in range(depth):
+             self.blocks.add_module(str(i), block_fn(
+                 in_chs=prev_chs,
+@@ -379,17 +385,17 @@         self.conv_transition_b = ConvNormAct(prev_chs, exp_chs // 2, kernel_size=1, **conv_kwargs, **dd)
+         self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv_down(x)
+         x = self.conv_exp(x)
+         xs, xb = x.split(self.expand_chs // 2, dim=1)
+         xb = self.blocks(xb)
+         xb = self.conv_transition_b(xb).contiguous()
+-        out = self.conv_transition(torch.cat([xs, xb], dim=1))
++        out = self.conv_transition(mint.cat([xs, xb], dim = 1))
+         return out
+ 
+ 
+-class CrossStage3(nn.Module):
++class CrossStage3(msnn.Cell):
+     """Cross Stage 3.
+     Similar to CrossStage, but with only one transition conv for the output.
+     """
+@@ -425,10 +431,11 @@ 
+         if stride != 1 or first_dilation != dilation:
+             if avg_down:
+-                self.conv_down = nn.Sequential(
+-                    nn.AvgPool2d(2) if stride == 2 else nn.Identity(),  # FIXME dilation handling
++                self.conv_down = msnn.SequentialCell(
++                    [
++                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
+                     ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
+-                )
++                ])
+             else:
+                 self.conv_down = ConvNormAct(
+                     in_chs,
+@@ -457,7 +464,7 @@         )
+         prev_chs = exp_chs // 2  # expanded output is split in 2 for blocks and cross stage
+ 
+-        self.blocks = nn.Sequential()
++        self.blocks = msnn.SequentialCell()
+         for i in range(depth):
+             self.blocks.add_module(str(i), block_fn(
+                 in_chs=prev_chs,
+@@ -474,16 +481,16 @@         # transition convs
+         self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv_down(x)
+         x = self.conv_exp(x)
+         x1, x2 = x.split(self.expand_chs // 2, dim=1)
+         x1 = self.blocks(x1)
+-        out = self.conv_transition(torch.cat([x1, x2], dim=1))
++        out = self.conv_transition(mint.cat([x1, x2], dim = 1))
+         return out
+ 
+ 
+-class DarkStage(nn.Module):
++class DarkStage(msnn.Cell):
+     """DarkNet stage."""
+ 
+     def __init__(
+@@ -511,10 +518,11 @@         aa_layer = block_kwargs.pop('aa_layer', None)
+ 
+         if avg_down:
+-            self.conv_down = nn.Sequential(
+-                nn.AvgPool2d(2) if stride == 2 else nn.Identity(),   # FIXME dilation handling
++            self.conv_down = msnn.SequentialCell(
++                [
++                nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
+                 ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
+-            )
++            ])
+         else:
+             self.conv_down = ConvNormAct(
+                 in_chs,
+@@ -530,7 +538,7 @@ 
+         prev_chs = out_chs
+         block_out_chs = int(round(out_chs * block_ratio))
+-        self.blocks = nn.Sequential()
++        self.blocks = msnn.SequentialCell()
+         for i in range(depth):
+             self.blocks.add_module(str(i), block_fn(
+                 in_chs=prev_chs,
+@@ -544,7 +552,7 @@             ))
+             prev_chs = block_out_chs
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv_down(x)
+         x = self.blocks(x)
+         return x
+@@ -564,7 +572,7 @@         dtype=None,
+ ):
+     dd = {'device': device, 'dtype': dtype}
+-    stem = nn.Sequential()
++    stem = msnn.SequentialCell()
+     feature_info = []
+     if not isinstance(out_chs, (tuple, list)):
+         out_chs = [out_chs]
+@@ -596,11 +604,11 @@         if prev_feat is not None:
+             feature_info.append(prev_feat)
+         if aa_layer is not None:
+-            stem.add_module('pool', nn.MaxPool2d(kernel_size=3, stride=1, padding=1))
++            stem.add_module('pool', nn.MaxPool2d(kernel_size = 3, stride = 1, padding = 1))
+             stem.add_module('aa', aa_layer(channels=prev_chs, stride=2, **dd))
+             pool_name = 'aa'
+         else:
+-            stem.add_module('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
++            stem.add_module('pool', nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1))
+             pool_name = 'pool'
+         stem_stride *= 2
+         prev_feat = dict(num_chs=prev_chs, reduction=stem_stride, module='.'.join(['stem', pool_name]))
+@@ -698,10 +706,12 @@         prev_feat = dict(num_chs=prev_chs, reduction=net_stride, module=f'stages.{stage_idx}')
+ 
+     feature_info.append(prev_feat)
+-    return nn.Sequential(*stages), feature_info
+-
+-
+-class CspNet(nn.Module):
++    return msnn.SequentialCell([
++        stages
++    ]), feature_info
++
++
++class CspNet(msnn.Cell):
+     """Cross Stage Partial base model.
+ 
+     Paper: `CSPNet: A New Backbone that can Enhance Learning Capability of CNN` - https://arxiv.org/abs/1911.11929
+@@ -794,6 +804,7 @@     def set_grad_checkpointing(self, enable=True):
+         assert not enable, 'gradient checkpointing not supported'
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         return self.head.fc
+@@ -810,7 +821,7 @@     def forward_head(self, x, pre_logits: bool = False):
+         return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
+@@ -818,13 +829,13 @@ 
+ def _init_weights(module, name, zero_init_last=False):
+     if isinstance(module, nn.Conv2d):
+-        nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
++        nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')  # 'torch.nn.init.kaiming_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if module.bias is not None:
+-            nn.init.zeros_(module.bias)
++            nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(module, nn.Linear):
+-        nn.init.normal_(module.weight, mean=0.0, std=0.01)
++        nn.init.normal_(module.weight, mean=0.0, std=0.01)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if module.bias is not None:
+-            nn.init.zeros_(module.bias)
++            nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif zero_init_last and hasattr(module, 'zero_init_last'):
+         module.zero_init_last()
+ 

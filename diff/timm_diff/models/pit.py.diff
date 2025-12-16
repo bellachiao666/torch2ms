@@ -1,0 +1,184 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Pooling-based Vision Transformer (PiT) in PyTorch
+ 
+ A PyTorch implement of Pooling-based Vision Transformers as described in
+@@ -16,8 +21,8 @@ from functools import partial
+ from typing import List, Optional, Sequence, Tuple, Union, Type, Any
+ 
+-import torch
+-from torch import nn
++# import torch
++# from torch import nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import trunc_normal_, to_2tuple, calculate_drop_path_rates
+@@ -30,7 +35,7 @@ __all__ = ['PoolingVisionTransformer']  # model_registry will add each entrypoint fn to this
+ 
+ 
+-class SequentialTuple(nn.Sequential):
++class SequentialTuple(msnn.SequentialCell):
+     """ This module exists to work around torchscript typing issues list -> list"""
+     def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+         for module in self:
+@@ -38,7 +43,7 @@         return x
+ 
+ 
+-class Transformer(nn.Module):
++class Transformer(msnn.Cell):
+     def __init__(
+             self,
+             base_dim: int,
+@@ -58,8 +63,9 @@         embed_dim = base_dim * heads
+ 
+         self.pool = pool
+-        self.norm = norm_layer(embed_dim, **dd) if norm_layer else nn.Identity()
+-        self.blocks = nn.Sequential(*[
++        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()
++        self.blocks = msnn.SequentialCell([
++            [
+             Block(
+                 dim=embed_dim,
+                 num_heads=heads,
+@@ -71,9 +77,10 @@                 norm_layer=partial(nn.LayerNorm, eps=1e-6),
+                 **dd,
+             )
+-            for i in range(depth)])
+-
+-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
++            for i in range(depth)]
++        ])
++
++    def construct(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+         x, cls_tokens = x
+         token_length = cls_tokens.shape[1]
+         if self.pool is not None:
+@@ -81,7 +88,7 @@ 
+         B, C, H, W = x.shape
+         x = x.flatten(2).transpose(1, 2)
+-        x = torch.cat((cls_tokens, x), dim=1)
++        x = mint.cat((cls_tokens, x), dim = 1)
+ 
+         x = self.norm(x)
+         x = self.blocks(x)
+@@ -93,7 +100,7 @@         return x, cls_tokens
+ 
+ 
+-class Pooling(nn.Module):
++class Pooling(msnn.Cell):
+     def __init__(
+             self,
+             in_feature: int,
+@@ -118,13 +125,13 @@         )
+         self.fc = nn.Linear(in_feature, out_feature, **dd)
+ 
+-    def forward(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
++    def construct(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
+         x = self.conv(x)
+         cls_token = self.fc(cls_token)
+         return x, cls_token
+ 
+ 
+-class ConvEmbedding(nn.Module):
++class ConvEmbedding(msnn.Cell):
+     def __init__(
+             self,
+             in_channels: int,
+@@ -155,12 +162,12 @@             **dd,
+         )
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv(x)
+         return x
+ 
+ 
+-class PoolingVisionTransformer(nn.Module):
++class PoolingVisionTransformer(msnn.Cell):
+     """ Pooling-based Vision Transformer
+ 
+     A PyTorch implement of 'Rethinking Spatial Dimensions of Vision Transformers'
+@@ -201,9 +208,9 @@         self.feature_info = []
+ 
+         self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)
+-        self.pos_embed = nn.Parameter(torch.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))
+-        self.cls_token = nn.Parameter(torch.randn(1, self.num_tokens, embed_dim, **dd))
+-        self.pos_drop = nn.Dropout(p=pos_drop_drate)
++        self.pos_embed = ms.Parameter(mint.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))
++        self.cls_token = ms.Parameter(mint.randn(1, self.num_tokens, embed_dim, **dd))
++        self.pos_drop = nn.Dropout(p = pos_drop_drate)
+ 
+         transformers = []
+         # stochastic depth decay rule
+@@ -239,10 +246,10 @@ 
+         # Classifier head
+         self.head_drop = nn.Dropout(drop_rate)
+-        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+         self.head_dist = None
+         if distilled:
+-            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else nn.Identity()
++            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()
+         self.distilled_training = False  # must set this True to train w/ distillation token
+ 
+         trunc_normal_(self.pos_embed, std=.02)
+@@ -251,8 +258,8 @@ 
+     def _init_weights(self, m):
+         if isinstance(m, nn.LayerNorm):
+-            nn.init.constant_(m.bias, 0)
+-            nn.init.constant_(m.weight, 1.0)
++            nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     @torch.jit.ignore
+     def no_weight_decay(self):
+@@ -266,6 +273,7 @@     def set_grad_checkpointing(self, enable=True):
+         assert not enable, 'gradient checkpointing not supported'
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def get_classifier(self) -> nn.Module:
+         if self.head_dist is not None:
+             return self.head, self.head_dist
+@@ -278,13 +286,13 @@             self.global_pool = global_pool
+         device = self.head.weight.device if hasattr(self.head, 'weight') else None
+         dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
+-        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+         if self.head_dist is not None:
+-            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
++            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+@@ -342,7 +350,7 @@         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
+         self.transformers = self.transformers[:max_index + 1]  # truncate blocks w/ stem as idx 0
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+@@ -355,7 +363,7 @@         cls_tokens = self.norm(cls_tokens)
+         return cls_tokens
+ 
+-    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
++    def forward_head(self, x, pre_logits: bool = False) -> ms.Tensor:
+         if self.head_dist is not None:
+             assert self.global_pool == 'token'
+             x, x_dist = x[:, 0], x[:, 1]
+@@ -378,7 +386,7 @@                 x = self.head(x)
+             return x
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x

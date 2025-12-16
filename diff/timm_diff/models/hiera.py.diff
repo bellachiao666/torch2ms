@@ -1,0 +1,341 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ An PyTorch implementation of Hiera
+ 
+ Adapted for timm from originals at https://github.com/facebookresearch/hiera
+@@ -26,9 +31,9 @@ from functools import partial
+ from typing import Dict, List, Optional, Tuple, Type, Union
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.nn as nn
++# import torch.nn.functional as F
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import (
+@@ -64,7 +69,7 @@ 
+ 
+ @register_notrace_function
+-def get_resized_mask(target_size: List[int], mask: torch.Tensor) -> torch.Tensor:
++def get_resized_mask(target_size: List[int], mask: ms.Tensor) -> ms.Tensor:
+     # target_size: [(T), (H), W]
+     # (spatial) mask: [B, C, (t), (h), w]
+     if mask is None:
+@@ -72,15 +77,15 @@ 
+     _assert(len(mask.shape[2:]) == len(target_size), "mask spatial shape and target_size must match.")
+     if mask.shape[2:] != target_size:
+-        return F.interpolate(mask.float(), size=target_size)
++        return nn.functional.interpolate(mask.float(), size = target_size)
+     return mask
+ 
+ 
+ def undo_windowing(
+-        x: torch.Tensor,
++        x: ms.Tensor,
+         shape: List[int],
+         mu_shape: List[int],
+-) -> torch.Tensor:
++) -> ms.Tensor:
+     """
+     Restore spatial organization by undoing windowed organization of mask units.
+ 
+@@ -109,7 +114,7 @@     return x
+ 
+ 
+-class Unroll(nn.Module):
++class Unroll(msnn.Cell):
+     """
+     Reorders the tokens such that patches are contiguous in memory.
+     E.g., given [B, (H, W), C] and stride of (Sy, Sx), this will re-order the tokens as
+@@ -139,7 +144,7 @@         self.size = [i // s for i, s in zip(input_size, patch_stride)]
+         self.schedule = unroll_schedule
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """
+         Input: Flattened patch embeddings [B, N, C]
+         Output: Patch embeddings [B, N, C] permuted such that [B, 4, N//4, C].max(1) etc. performs MaxPoolNd
+@@ -171,7 +176,7 @@         return x
+ 
+ 
+-class Reroll(nn.Module):
++class Reroll(msnn.Cell):
+     """
+     Undos the "unroll" operation so that you can use intermediate features.
+     """
+@@ -199,12 +204,12 @@                     size = [n // s for n, s in zip(size, unroll_schedule[0])]
+                 unroll_schedule = unroll_schedule[1:]
+ 
+-    def forward(
+-            self,
+-            x: torch.Tensor,
++    def construct(
++            self,
++            x: ms.Tensor,
+             block_idx: int,
+-            mask: torch.Tensor = None
+-    ) -> torch.Tensor:
++            mask: ms.Tensor = None
++    ) -> ms.Tensor:
+         """
+         Roll the given tensor back up to spatial order assuming it's from the given block.
+ 
+@@ -252,7 +257,7 @@         return x
+ 
+ 
+-class MaskUnitAttention(nn.Module):
++class MaskUnitAttention(msnn.Cell):
+     """
+     Computes either Mask Unit or Global Attention. Also is able to perform q pooling.
+ 
+@@ -296,7 +301,7 @@         self.window_size = window_size
+         self.use_mask_unit_attn = use_mask_unit_attn
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """ Input should be of shape [batch, tokens, channels]. """
+         B, N, _ = x.shape
+         num_windows = (N // (self.q_stride * self.window_size)) if self.use_mask_unit_attn else 1
+@@ -309,7 +314,7 @@ 
+         if self.fused_attn:
+             # Note: the original paper did *not* use SDPA, it's a free boost!
+-            x = F.scaled_dot_product_attention(q, k, v)
++            x = F.scaled_dot_product_attention(q, k, v)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             attn = (q * self.scale) @ k.transpose(-1, -2)
+             attn = attn.softmax(dim=-1)
+@@ -320,7 +325,7 @@         return x
+ 
+ 
+-class HieraBlock(nn.Module):
++class HieraBlock(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -363,15 +368,15 @@             use_mask_unit_attn,
+             **dd
+         )
+-        self.ls1 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else nn.Identity()
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0 else nn.Identity()
++        self.ls1 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0 else msnn.Identity()
+ 
+         self.norm2 = norm_layer(dim_out, **dd)
+         self.mlp = Mlp(dim_out, int(dim_out * mlp_ratio), act_layer=act_layer, **dd)
+-        self.ls2 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else nn.Identity()
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0 else nn.Identity()
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.ls2 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0 else msnn.Identity()
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         # Attention + Q Pooling
+         x_norm = self.norm1(x)
+         if self.do_expand:
+@@ -379,12 +384,10 @@                 x = self.proj(x_norm)
+                 x = x.view(x.shape[0], self.attn.q_stride, -1, x.shape[-1]).amax(dim=1)  # max-pool
+             else:
+-                x = torch.cat([
++                x = mint.cat([
+                     x.view(x.shape[0], self.attn.q_stride, -1, x.shape[-1]).amax(dim=1),  # max-pool
+                     x.view(x.shape[0], self.attn.q_stride, -1, x.shape[-1]).mean(dim=1),  # avg-pool
+-                    ],
+-                    dim=-1,
+-                )
++                    ], dim = -1)
+         x = x + self.drop_path1(self.ls1(self.attn(x_norm)))
+ 
+         # MLP
+@@ -392,7 +395,7 @@         return x
+ 
+ 
+-class PatchEmbed(nn.Module):
++class PatchEmbed(msnn.Cell):
+     """Patch embed that supports any number of spatial dimensions (1d, 2d, 3d)."""
+ 
+     def __init__(
+@@ -420,14 +423,14 @@             **dd,
+         )
+ 
+-    def forward(
+-            self,
+-            x: torch.Tensor,
++    def construct(
++            self,
++            x: ms.Tensor,
+             mask: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
++    ) -> ms.Tensor:
+         if mask is not None:
+             mask = get_resized_mask(target_size=x.shape[2:], mask=mask)
+-            x = self.proj(x * mask.to(torch.bool))
++            x = self.proj(x * mask.to(ms.bool))
+         else:
+             x = self.proj(x)
+         if self.reshape:
+@@ -435,7 +438,7 @@         return x
+ 
+ 
+-class Hiera(nn.Module):
++class Hiera(msnn.Cell):
+ 
+     def __init__(
+             self,
+@@ -506,19 +509,19 @@         self.pos_embed_spatial: Optional[nn.Parameter] = None
+         self.pos_embed_temporal: Optional[nn.Parameter] = None
+         if sep_pos_embed:
+-            self.pos_embed_spatial = nn.Parameter(
+-                torch.zeros(1, self.tokens_spatial_shape[1] * self.tokens_spatial_shape[2], embed_dim, **dd)
++            self.pos_embed_spatial = ms.Parameter(
++                mint.zeros(1, self.tokens_spatial_shape[1] * self.tokens_spatial_shape[2], embed_dim, **dd)
+             )
+-            self.pos_embed_temporal = nn.Parameter(
+-                torch.zeros(1, self.tokens_spatial_shape[0], embed_dim, **dd)
++            self.pos_embed_temporal = ms.Parameter(
++                mint.zeros(1, self.tokens_spatial_shape[0], embed_dim, **dd)
+             )
+         else:
+             if abs_win_pos_embed:
+                 # absolute win, params NCHW to make tile & interpolate more natural before add & reshape
+-                self.pos_embed = nn.Parameter(torch.zeros(1, embed_dim, *global_pos_size, **dd))
+-                self.pos_embed_win = nn.Parameter(torch.zeros(1, embed_dim, *mask_unit_size, **dd))
++                self.pos_embed = ms.Parameter(mint.zeros(1, embed_dim, *global_pos_size, **dd))
++                self.pos_embed_win = ms.Parameter(mint.zeros(1, embed_dim, *mask_unit_size, **dd))
+             else:
+-                self.pos_embed = nn.Parameter(torch.zeros(1, num_tokens, embed_dim, **dd))
++                self.pos_embed = ms.Parameter(mint.zeros(1, num_tokens, embed_dim, **dd))
+ 
+         # Setup roll and reroll modules
+         self.unroll = Unroll(
+@@ -540,7 +543,7 @@         cur_stage = 0
+         depth = sum(stages)
+         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
+-        self.blocks = nn.ModuleList()
++        self.blocks = msnn.CellList()
+         self.feature_info = []
+         for i in range(depth):
+             dim_out = embed_dim
+@@ -589,13 +592,13 @@ 
+         # Initialize everything
+         if sep_pos_embed:
+-            nn.init.trunc_normal_(self.pos_embed_spatial, std=0.02)
+-            nn.init.trunc_normal_(self.pos_embed_temporal, std=0.02)
++            nn.init.trunc_normal_(self.pos_embed_spatial, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.trunc_normal_(self.pos_embed_temporal, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             if self.pos_embed is not None:
+-                nn.init.trunc_normal_(self.pos_embed, std=0.02)
++                nn.init.trunc_normal_(self.pos_embed, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.pos_embed_win is not None:
+-                nn.init.trunc_normal_(self.pos_embed_win, std=0.02)
++                nn.init.trunc_normal_(self.pos_embed_win, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         if weight_init != 'skip':
+             init_fn = init_weight_jax if weight_init == 'jax' else init_weight_vit
+@@ -643,7 +646,7 @@         self.num_classes = num_classes
+         self.head.reset(num_classes, global_pool, reset_other=reset_other)
+ 
+-    def get_random_mask(self, x: torch.Tensor, mask_ratio: float) -> torch.Tensor:
++    def get_random_mask(self, x: ms.Tensor, mask_ratio: float) -> ms.Tensor:
+         """
+         Generates a random mask, mask_ratio fraction are dropped.
+         1 is *keep*, 0 is *remove*. Useful for MAE, FLIP, etc.
+@@ -652,32 +655,28 @@         # Tokens selected for masking at mask unit level
+         num_windows = math.prod(self.mask_spatial_shape)  # num_mask_units
+         len_keep = int(num_windows * (1 - mask_ratio))
+-        noise = torch.rand(B, num_windows, device=x.device)
++        noise = mint.rand(size = (B, num_windows))  # 'torch.rand':没有对应的mindspore参数 'device' (position 5);
+ 
+         # Sort noise for each sample
+-        ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
+-        ids_restore = torch.argsort(ids_shuffle, dim=1)
++        ids_shuffle = mint.argsort(noise, dim = 1)  # ascend: small is keep, large is remove
++        ids_restore = mint.argsort(ids_shuffle, dim = 1)
+ 
+         # Generate the binary mask: 1 is *keep*, 0 is *remove*
+         # Note this is opposite to original MAE
+-        mask = torch.zeros([B, num_windows], device=x.device)
++        mask = mint.zeros([B, num_windows])  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+         mask[:, :len_keep] = 1
+         # Unshuffle to get the binary mask
+-        mask = torch.gather(mask, dim=1, index=ids_restore)
++        mask = ms.Tensor.gather(mask, dim = 1, index = ids_restore)
+ 
+         return mask.bool()
+ 
+-    def _pos_embed(self, x) -> torch.Tensor:
++    def _pos_embed(self, x) -> ms.Tensor:
+         if self.pos_embed_win is not None:
+             # absolute win position embedding, from
+             # Window Attention is Bugged: How not to Interpolate Position Embeddings (https://arxiv.org/abs/2311.05613)
+             pos_embed_win = self.pos_embed_win.tile(self.mask_spatial_shape)
+-            pos_embed = F.interpolate(
+-                self.pos_embed,
+-                size=pos_embed_win.shape[-2:],
+-                mode='bicubic',
+-                antialias=True,
+-            )
++            pos_embed = nn.functional.interpolate(
++                self.pos_embed, size = pos_embed_win.shape[-2:], mode = 'bicubic')  # 'torch.nn.functional.interpolate':没有对应的mindspore参数 'antialias' (position 6);
+             pos_embed = pos_embed + pos_embed_win
+             pos_embed = pos_embed.flatten(2).transpose(1, 2)
+         elif self.pos_embed is not None:
+@@ -686,18 +685,15 @@             pos_embed = (
+                 self.pos_embed_spatial.repeat(1, self.tokens_spatial_shape[0], 1)
+                 +
+-                torch.repeat_interleave(
+-                    self.pos_embed_temporal,
+-                    self.tokens_spatial_shape[1] * self.tokens_spatial_shape[2],
+-                    dim=1,
+-                )
++                mint.repeat_interleave(
++                    self.pos_embed_temporal, self.tokens_spatial_shape[1] * self.tokens_spatial_shape[2], dim = 1)
+             )
+         x = x + pos_embed
+         return x
+ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             mask: Optional[torch.Tensor] = None,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+@@ -779,10 +775,10 @@ 
+     def forward_features(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             mask: Optional[torch.Tensor] = None,
+             return_intermediates: bool = False,
+-    ) -> torch.Tensor:
++    ) -> ms.Tensor:
+         """
+         mask should be a boolean tensor of shape [B, #MUt*#MUy*#MUx] where #MU are the number of mask units in that dim.
+         Note: 1 in mask is *keep*, 0 is *remove*; mask.sum(dim=-1) should be the same across the batch.
+@@ -822,15 +818,15 @@ 
+         return x
+ 
+-    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
++    def forward_head(self, x, pre_logits: bool = False) -> ms.Tensor:
+         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+         return x
+ 
+-    def forward(
+-            self,
+-            x: torch.Tensor,
++    def construct(
++            self,
++            x: ms.Tensor,
+             mask: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
++    ) -> ms.Tensor:
+         x = self.forward_features(x, mask=mask)
+         if mask is None:
+             x = self.forward_head(x)

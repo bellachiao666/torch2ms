@@ -1,0 +1,49 @@
+--- pytorch+++ mindspore@@ -1,6 +1,11 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from typing import Optional, Tuple, List
+ 
+-import torch
++# import torch
+ 
+ 
+ def onnx_forward(onnx_file, example_input):
+@@ -14,6 +19,7 @@     return output
+ 
+ 
++# 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def onnx_export(
+         model: torch.nn.Module,
+         output_file: str,
+@@ -45,7 +51,7 @@         if not input_size:
+             assert hasattr(model, 'default_cfg'), 'Cannot file model default config, input size must be provided'
+             input_size = model.default_cfg.get('input_size')
+-        example_input = torch.randn((batch_size,) + input_size, requires_grad=training)
++        example_input = mint.randn((batch_size,) + input_size)  # 'torch.randn':没有对应的mindspore参数 'requires_grad' (position 6);
+ 
+     # Run model once before export trace, sets padding for models with Conv2dSameExport. This means
+     # that the padding for models with Conv2dSameExport (most models with tf_ prefix) is fixed for
+@@ -71,12 +77,12 @@         export_type = torch.onnx.OperatorExportTypes.ONNX
+ 
+     if use_dynamo:
+-        export_options = torch.onnx.ExportOptions(dynamic_shapes=dynamic_size)
++        export_options = torch.onnx.ExportOptions(dynamic_shapes=dynamic_size)  # 'torch.onnx.ExportOptions' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         export_output = torch.onnx.dynamo_export(
+             model,
+             example_input,
+             export_options=export_options,
+-        )
++        )  # 'torch.onnx.dynamo_export' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         export_output.save(output_file)
+     else:
+         torch.onnx.export(
+@@ -92,7 +98,7 @@             dynamic_axes=dynamic_axes,
+             opset_version=opset,
+             operator_export_type=export_type
+-        )
++        )  # 'torch.onnx.export' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     if check:
+         onnx_model = onnx.load(output_file)

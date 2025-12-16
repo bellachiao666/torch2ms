@@ -1,0 +1,14 @@
+--- pytorch+++ mindspore@@ -1,8 +1,13 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Attention Factory
+ 
+ Hacked together by / Copyright 2021 Ross Wightman
+ """
+-import torch
++# import torch
+ from functools import partial
+ 
+ from .bottleneck_attn import BottleneckAttn

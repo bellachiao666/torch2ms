@@ -1,0 +1,287 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Next-ViT
+ 
+ As described in https://arxiv.org/abs/2207.05501
+@@ -8,9 +13,9 @@ from functools import partial
+ from typing import List, Optional, Tuple, Union, Type
+ 
+-import torch
+-import torch.nn.functional as F
+-from torch import nn
++# import torch
++# import torch.nn.functional as F
++# from torch import nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import DropPath, calculate_drop_path_rates, trunc_normal_, ConvMlp, get_norm_layer, get_act_layer, use_fused_attn
+@@ -28,8 +33,8 @@     """
+     weight = module.weight.data
+     if module.bias is None:
+-        zeros = torch.zeros(module.out_chs, device=weight.device).type(weight.type())
+-        module.bias = nn.Parameter(zeros)
++        zeros = mint.zeros(module.out_chs).type(weight.type())  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
++        module.bias = ms.Parameter(zeros)
+     bias = module.bias.data
+     if pre_bn_2 is None:
+         assert pre_bn_1.track_running_stats is True, "Unsupported bn_module.track_running_stats is False"
+@@ -70,7 +75,7 @@     module.bias.data = bias
+ 
+ 
+-class ConvNormAct(nn.Module):
++class ConvNormAct(msnn.Cell):
+     def __init__(
+             self,
+             in_chs: int,
+@@ -98,7 +103,7 @@         self.norm = norm_layer(out_chs, **dd)
+         self.act = act_layer()
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.conv(x)
+         x = self.norm(x)
+         x = self.act(x)
+@@ -115,7 +120,7 @@     return new_v
+ 
+ 
+-class PatchEmbed(nn.Module):
++class PatchEmbed(msnn.Cell):
+     def __init__(
+             self,
+             in_chs: int,
+@@ -128,23 +133,23 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         if stride == 2:
+-            self.pool = nn.AvgPool2d((2, 2), stride=2, ceil_mode=True, count_include_pad=False)
++            self.pool = nn.AvgPool2d((2, 2), stride = 2, ceil_mode = True, count_include_pad = False)
+             self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=1, stride=1, bias=False, **dd)
+             self.norm = norm_layer(out_chs, **dd)
+         elif in_chs != out_chs:
+-            self.pool = nn.Identity()
++            self.pool = msnn.Identity()
+             self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=1, stride=1, bias=False, **dd)
+             self.norm = norm_layer(out_chs, **dd)
+         else:
+-            self.pool = nn.Identity()
+-            self.conv = nn.Identity()
+-            self.norm = nn.Identity()
+-
+-    def forward(self, x):
++            self.pool = msnn.Identity()
++            self.conv = msnn.Identity()
++            self.norm = msnn.Identity()
++
++    def construct(self, x):
+         return self.norm(self.conv(self.pool(x)))
+ 
+ 
+-class ConvAttention(nn.Module):
++class ConvAttention(msnn.Cell):
+     """
+     Multi-Head Convolutional Attention
+     """
+@@ -174,14 +179,14 @@         self.act = act_layer()
+         self.projection = nn.Conv2d(out_chs, out_chs, kernel_size=1, bias=False, **dd)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         out = self.group_conv3x3(x)
+         out = self.norm(out)
+         out = self.act(out)
+         out = self.projection(out)
+         return out
+ 
+-class NextConvBlock(nn.Module):
++class NextConvBlock(msnn.Cell):
+     """
+     Next Convolution Block
+     """
+@@ -232,10 +237,10 @@     def reparameterize(self):
+         if not self.is_fused:
+             merge_pre_bn(self.mlp.fc1, self.norm)
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+             self.is_fused = True
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.patch_embed(x)
+         x = x + self.attn_drop_path(self.mhca(x))
+ 
+@@ -244,7 +249,7 @@         return x
+ 
+ 
+-class EfficientAttention(nn.Module):
++class EfficientAttention(msnn.Cell):
+     """
+     Efficient Multi-Head Self Attention
+     """
+@@ -282,13 +287,13 @@         self.sr_ratio = sr_ratio
+         self.N_ratio = sr_ratio ** 2
+         if sr_ratio > 1:
+-            self.sr = nn.AvgPool1d(kernel_size=self.N_ratio, stride=self.N_ratio)
++            self.sr = nn.AvgPool1d(kernel_size=self.N_ratio, stride=self.N_ratio)  # 'torch.nn.AvgPool1d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             self.norm = norm_layer(dim, **dd)
+         else:
+             self.sr = None
+             self.norm = None
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         B, N, C = x.shape
+         q = self.q(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+ 
+@@ -303,7 +308,7 @@             x = F.scaled_dot_product_attention(
+                 q, k, v,
+                 dropout_p=self.attn_drop.p if self.training else 0.,
+-            )
++            )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = q @ k.transpose(-1, -2)
+@@ -317,7 +322,7 @@         return x
+ 
+ 
+-class NextTransformerBlock(nn.Module):
++class NextTransformerBlock(msnn.Cell):
+     """
+     Next Transformer Block
+     """
+@@ -394,17 +399,17 @@             if self.e_mhsa.norm is not None:
+                 merge_pre_bn(self.e_mhsa.k, self.norm1, self.e_mhsa.norm)
+                 merge_pre_bn(self.e_mhsa.v, self.norm1, self.e_mhsa.norm)
+-                self.e_mhsa.norm = nn.Identity()
++                self.e_mhsa.norm = msnn.Identity()
+             else:
+                 merge_pre_bn(self.e_mhsa.k, self.norm1)
+                 merge_pre_bn(self.e_mhsa.v, self.norm1)
+-            self.norm1 = nn.Identity()
++            self.norm1 = msnn.Identity()
+ 
+             merge_pre_bn(self.mlp.fc1, self.norm2)
+-            self.norm2 = nn.Identity()
++            self.norm2 = msnn.Identity()
+             self.is_fused = True
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.patch_embed(x)
+         B, C, H, W = x.shape
+ 
+@@ -415,14 +420,14 @@ 
+         out = self.projection(x)
+         out = out + self.mhca_drop_path(self.mhca(out))
+-        x = torch.cat([x, out], dim=1)
++        x = mint.cat([x, out], dim = 1)
+ 
+         out = self.norm2(x)
+         x = x + self.mlp_drop_path(self.mlp(out))
+         return x
+ 
+ 
+-class NextStage(nn.Module):
++class NextStage(msnn.Cell):
+ 
+     def __init__(
+             self,
+@@ -482,13 +487,15 @@                 blocks.append(layer)
+             in_chs = out_chs
+ 
+-        self.blocks = nn.Sequential(*blocks)
++        self.blocks = msnn.SequentialCell([
++            blocks
++        ])
+ 
+     @torch.jit.ignore
+     def set_grad_checkpointing(self, enable=True):
+         self.grad_checkpointing = enable
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -496,7 +503,7 @@         return x
+ 
+ 
+-class NextViT(nn.Module):
++class NextViT(msnn.Cell):
+     def __init__(
+             self,
+             in_chans: int,
+@@ -545,7 +552,8 @@             [NextConvBlock, NextConvBlock, NextConvBlock, NextConvBlock, NextTransformerBlock] * (depths[2] // 5),
+             [NextConvBlock] * (depths[3] - 1) + [NextTransformerBlock]]
+ 
+-        self.stem = nn.Sequential(
++        self.stem = msnn.SequentialCell(
++            [
+             ConvNormAct(
+                 in_chans, stem_chs[0], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
+             ConvNormAct(
+@@ -553,8 +561,8 @@             ConvNormAct(
+                 stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
+             ConvNormAct(
+-                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
+-        )
++                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd)
++        ])
+         in_chs = out_chs = stem_chs[-1]
+         stages = []
+         idx = 0
+@@ -579,7 +587,9 @@             stages += [stage]
+             idx += depths[stage_idx]
+         self.num_features = self.head_hidden_size = out_chs
+-        self.stages = nn.Sequential(*stages)
++        self.stages = msnn.SequentialCell([
++            stages
++        ])
+         self.norm = norm_layer(out_chs, **dd)
+         self.head = ClassifierHead(pool_type=global_pool, in_features=out_chs, num_classes=num_classes, **dd)
+ 
+@@ -591,11 +601,11 @@             if isinstance(m, nn.Linear):
+                 trunc_normal_(m.weight, std=.02)
+                 if hasattr(m, 'bias') and m.bias is not None:
+-                    nn.init.constant_(m.bias, 0)
++                    nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             elif isinstance(m, nn.Conv2d):
+                 trunc_normal_(m.weight, std=.02)
+                 if hasattr(m, 'bias') and m.bias is not None:
+-                    nn.init.constant_(m.bias, 0)
++                    nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     @torch.jit.ignore
+     def group_matcher(self, coarse=False):
+@@ -613,6 +623,7 @@         for stage in self.stages:
+             stage.set_grad_checkpointing(enable=enable)
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         return self.head.fc
+@@ -623,7 +634,7 @@ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+@@ -685,7 +696,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+         self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+@@ -702,7 +713,7 @@     def forward_head(self, x, pre_logits: bool = False):
+         return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x

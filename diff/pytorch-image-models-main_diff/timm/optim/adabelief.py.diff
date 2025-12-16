@@ -1,0 +1,81 @@
+--- pytorch+++ mindspore@@ -1,8 +1,14 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import math
+-import torch
+-from torch.optim.optimizer import Optimizer
+-
+-
++# import torch
++# from torch.optim.optimizer import Optimizer
++
++
++# 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class AdaBelief(Optimizer):
+     r"""Implements AdaBelief algorithm. Modified from Adam in PyTorch
+ 
+@@ -95,13 +101,13 @@                 # State initialization
+                 state['step'] = 0
+                 # Exponential moving average of gradient values
+-                state['exp_avg'] = torch.zeros_like(p)
++                state['exp_avg'] = mint.zeros_like(p)
+ 
+                 # Exponential moving average of squared gradient values
+-                state['exp_avg_var'] = torch.zeros_like(p)
++                state['exp_avg_var'] = mint.zeros_like(p)
+                 if amsgrad:
+                     # Maintains max of all exp. moving avg. of sq. grad. values
+-                    state['max_exp_avg_var'] = torch.zeros_like(p)
++                    state['max_exp_avg_var'] = mint.zeros_like(p)
+ 
+     @torch.no_grad()
+     def step(self, closure=None):
+@@ -120,14 +126,14 @@                 if p.grad is None:
+                     continue
+                 grad = p.grad
+-                if grad.dtype in {torch.float16, torch.bfloat16}:
++                if grad.dtype in {ms.float16, ms.bfloat16}:
+                     grad = grad.float()
+                 if grad.is_sparse:
+                     raise RuntimeError(
+                         'AdaBelief does not support sparse gradients, please consider SparseAdam instead')
+ 
+                 p_fp32 = p
+-                if p.dtype in {torch.float16, torch.bfloat16}:
++                if p.dtype in {ms.float16, ms.bfloat16}:
+                     p_fp32 = p_fp32.float()
+ 
+                 amsgrad = group['amsgrad']
+@@ -137,12 +143,12 @@                 if len(state) == 0:
+                     state['step'] = 0
+                     # Exponential moving average of gradient values
+-                    state['exp_avg'] = torch.zeros_like(p_fp32)
++                    state['exp_avg'] = mint.zeros_like(p_fp32)
+                     # Exponential moving average of squared gradient values
+-                    state['exp_avg_var'] = torch.zeros_like(p_fp32)
++                    state['exp_avg_var'] = mint.zeros_like(p_fp32)
+                     if amsgrad:
+                         # Maintains max of all exp. moving avg. of sq. grad. values
+-                        state['max_exp_avg_var'] = torch.zeros_like(p_fp32)
++                        state['max_exp_avg_var'] = mint.zeros_like(p_fp32)
+                 
+                 # perform weight decay, check if decoupled weight decay
+                 if group['decoupled_decay']:
+@@ -169,7 +175,7 @@                 if amsgrad:
+                     max_exp_avg_var = state['max_exp_avg_var']
+                     # Maintains the maximum of all 2nd moment running avg. till now
+-                    torch.max(max_exp_avg_var, exp_avg_var.add_(group['eps']), out=max_exp_avg_var)
++                    mint.max(max_exp_avg_var, exp_avg_var.add_(group['eps']))
+ 
+                     # Use the max. for normalizing running avg. of gradient
+                     denom = (max_exp_avg_var.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
+@@ -212,7 +218,7 @@                     elif step_size > 0:
+                         p_fp32.add_(exp_avg, alpha=-step_size * group['lr'])
+                 
+-                if p.dtype in {torch.float16, torch.bfloat16}:
++                if p.dtype in {ms.float16, ms.bfloat16}:
+                     p.copy_(p_fp32)
+ 
+         return loss

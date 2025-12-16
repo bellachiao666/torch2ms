@@ -1,0 +1,30 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Lookahead Optimizer Wrapper.
+ Implementation modified from: https://github.com/alphadl/lookahead.pytorch
+ Paper: `Lookahead Optimizer: k steps forward, 1 step back` - https://arxiv.org/abs/1907.08610
+@@ -7,11 +12,12 @@ from collections import OrderedDict
+ from typing import Callable, Dict
+ 
+-import torch
+-from torch.optim.optimizer import Optimizer
++# import torch
++# from torch.optim.optimizer import Optimizer
+ from collections import defaultdict
+ 
+ 
++# 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class Lookahead(Optimizer):
+     def __init__(self, base_optimizer, alpha=0.5, k=6):
+         # NOTE super().__init__() not called on purpose
+@@ -39,7 +45,7 @@                 continue
+             param_state = self._base_optimizer.state[fast_p]
+             if 'lookahead_slow_buff' not in param_state:
+-                param_state['lookahead_slow_buff'] = torch.empty_like(fast_p)
++                param_state['lookahead_slow_buff'] = mint.empty_like(fast_p)
+                 param_state['lookahead_slow_buff'].copy_(fast_p)
+             slow = param_state['lookahead_slow_buff']
+             slow.add_(fast_p - slow, alpha=group['lookahead_alpha'])

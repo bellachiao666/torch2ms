@@ -1,0 +1,281 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Vision Transformer (ViT) in PyTorch
+ 
+ A PyTorch implement of Vision Transformers as described in:
+@@ -13,9 +18,8 @@ from functools import partial
+ from typing import Callable, List, Optional, Tuple, Type, Union
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.nn as nn
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
+ from timm.layers import (
+     PatchEmbed,
+@@ -34,7 +38,7 @@     to_2tuple,
+     use_fused_attn,
+ )
+-from torch.jit import Final
++# from torch.jit import Final
+ 
+ from ._builder import build_model_with_cfg
+ from ._features import feature_take_indices
+@@ -49,7 +53,7 @@ _logger = logging.getLogger(__name__)
+ 
+ 
+-def get_rel_pos(q_size: int, k_size: int, rel_pos: torch.Tensor) -> torch.Tensor:
++def get_rel_pos(q_size: int, k_size: int, rel_pos: ms.Tensor) -> ms.Tensor:
+     """
+     Get relative positional embeddings according to the relative positions of
+         query and key sizes.
+@@ -65,18 +69,15 @@     # Interpolate rel pos if needed.
+     if rel_pos.shape[0] != max_rel_dist:
+         # Interpolate rel pos.
+-        rel_pos_resized = F.interpolate(
+-            rel_pos.reshape(1, rel_pos.shape[0], -1).permute(0, 2, 1),
+-            size=max_rel_dist,
+-            mode="linear",
+-        )
++        rel_pos_resized = nn.functional.interpolate(
++            rel_pos.reshape(1, rel_pos.shape[0], -1).permute(0, 2, 1), size = max_rel_dist, mode = "linear")
+         rel_pos_resized = rel_pos_resized.reshape(-1, max_rel_dist).permute(1, 0)
+     else:
+         rel_pos_resized = rel_pos
+ 
+     # Scale the coords with short length if shapes for q and k are different.
+-    q_coords = torch.arange(q_size, dtype=torch.float32)[:, None] * max(k_size / q_size, 1.0)
+-    k_coords = torch.arange(k_size, dtype=torch.float32)[None, :] * max(q_size / k_size, 1.0)
++    q_coords = mint.arange(q_size, dtype = ms.float32)[:, None] * max(k_size / q_size, 1.0)
++    k_coords = mint.arange(k_size, dtype = ms.float32)[None, :] * max(q_size / k_size, 1.0)
+     relative_coords = (q_coords - k_coords) + (k_size - 1) * max(q_size / k_size, 1.0)
+ 
+     return rel_pos_resized[relative_coords.long()]
+@@ -85,12 +86,12 @@ 
+ 
+ def get_decomposed_rel_pos_bias(
+-        q: torch.Tensor,
+-        rel_pos_h: torch.Tensor,
+-        rel_pos_w: torch.Tensor,
++        q: ms.Tensor,
++        rel_pos_h: ms.Tensor,
++        rel_pos_w: ms.Tensor,
+         q_size: Tuple[int, int],
+         k_size: Tuple[int, int],
+-) -> torch.Tensor:
++) -> ms.Tensor:
+     """
+     Calculate decomposed Relative Positional Embeddings from :paper:`mvitv2`.
+     https://github.com/facebookresearch/mvit/blob/19786631e330df9f3622e5402b4a419a263a2c80/mvit/models/attention.py
+@@ -111,14 +112,14 @@ 
+     B, _, dim = q.shape
+     r_q = q.reshape(B, q_h, q_w, dim)
+-    rel_h = torch.einsum("bhwc,hkc->bhwk", r_q, Rh)
+-    rel_w = torch.einsum("bhwc,wkc->bhwk", r_q, Rw)
++    rel_h = mint.einsum("bhwc,hkc->bhwk", r_q, Rh)
++    rel_w = mint.einsum("bhwc,wkc->bhwk", r_q, Rw)
+ 
+     attn_bias = rel_h[:, :, :, :, None] + rel_w[:, :, :, None, :]
+     return attn_bias.reshape(-1, q_h * q_w, k_h * k_w)
+ 
+ 
+-class Attention(nn.Module):
++class Attention(msnn.Cell):
+     fused_attn: Final[bool]
+ 
+     def __init__(
+@@ -145,8 +146,8 @@         self.fused_attn = use_fused_attn()
+ 
+         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+-        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
+-        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
++        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
++        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
+         self.attn_drop = nn.Dropout(attn_drop)
+         self.proj = nn.Linear(dim, dim, **dd)
+         self.proj_drop = nn.Dropout(proj_drop)
+@@ -157,11 +158,11 @@                 input_size is not None
+             ), "Input size must be provided if using relative positional encoding."
+             # initialize relative positional embeddings
+-            self.rel_pos_h = nn.Parameter(torch.zeros(2 * input_size[0] - 1, self.head_dim, **dd))
+-            self.rel_pos_w = nn.Parameter(torch.zeros(2 * input_size[1] - 1, self.head_dim, **dd))
++            self.rel_pos_h = ms.Parameter(mint.zeros(2 * input_size[0] - 1, self.head_dim, **dd))
++            self.rel_pos_w = ms.Parameter(mint.zeros(2 * input_size[1] - 1, self.head_dim, **dd))
+         self.rope = rope
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         B, H, W, _ = x.shape
+         N = H * W
+         x = x.reshape(B, N, -1)
+@@ -185,7 +186,7 @@                 q, k, v,
+                 attn_mask=attn_bias,
+                 dropout_p=self.attn_drop.p if self.training else 0.,
+-            )
++            )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = q @ k.transpose(-2, -1)
+@@ -202,7 +203,7 @@         return x
+ 
+ 
+-class Block(nn.Module):
++class Block(msnn.Cell):
+ 
+     def __init__(
+             self,
+@@ -242,8 +243,8 @@             rope=rope,
+             **dd,
+         )
+-        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+ 
+         self.norm2 = norm_layer(dim, **dd)
+         self.mlp = mlp_layer(
+@@ -253,10 +254,10 @@             drop=proj_drop,
+             **dd,
+         )
+-        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-    def forward(self, x):
++        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++    def construct(self, x):
+         B, H, W, _ = x.shape
+ 
+         shortcut = x
+@@ -281,7 +282,7 @@         return x
+ 
+ 
+-def window_partition(x: torch.Tensor, window_size: int) -> Tuple[torch.Tensor, Tuple[int, int]]:
++def window_partition(x: ms.Tensor, window_size: int) -> Tuple[torch.Tensor, Tuple[int, int]]:
+     """
+     Partition into non-overlapping windows with padding if needed.
+     Args:
+@@ -296,7 +297,7 @@ 
+     pad_h = (window_size - H % window_size) % window_size
+     pad_w = (window_size - W % window_size) % window_size
+-    x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
++    x = nn.functional.pad(x, (0, 0, 0, pad_w, 0, pad_h))
+     Hp, Wp = H + pad_h, W + pad_w
+ 
+     x = x.view(B, Hp // window_size, window_size, Wp // window_size, window_size, C)
+@@ -305,8 +306,8 @@ 
+ 
+ def window_unpartition(
+-    windows: torch.Tensor, window_size: int, hw: Tuple[int, int], pad_hw: Optional[Tuple[int, int]] = None,
+-) -> torch.Tensor:
++    windows: ms.Tensor, window_size: int, hw: Tuple[int, int], pad_hw: Optional[Tuple[int, int]] = None,
++) -> ms.Tensor:
+     """
+     Window unpartition into original sequences and removing padding.
+     Args:
+@@ -327,7 +328,7 @@     return x
+ 
+ 
+-class VisionTransformerSAM(nn.Module):
++class VisionTransformerSAM(msnn.Cell):
+     """ Vision Transformer for Segment-Anything Model(SAM)
+ 
+     A PyTorch impl of : `Exploring Plain Vision Transformer Backbones for Object Detection` or `Segment Anything Model (SAM)`
+@@ -426,18 +427,18 @@ 
+         if use_abs_pos:
+             # Initialize absolute positional embedding with pretrain image size.
+-            self.pos_embed = nn.Parameter(torch.zeros(1, grid_size[0], grid_size[1], embed_dim, **dd))
++            self.pos_embed = ms.Parameter(mint.zeros(1, grid_size[0], grid_size[1], embed_dim, **dd))
+         else:
+             self.pos_embed = None
+-        self.pos_drop = nn.Dropout(p=pos_drop_rate)
++        self.pos_drop = nn.Dropout(p = pos_drop_rate)
+         if patch_drop_rate > 0:
+             self.patch_drop = PatchDropout(
+                 patch_drop_rate,
+                 num_prefix_tokens=0,
+             )
+         else:
+-            self.patch_drop = nn.Identity()
+-        self.norm_pre = norm_layer(embed_dim, **dd) if pre_norm else nn.Identity()
++            self.patch_drop = msnn.Identity()
++        self.norm_pre = norm_layer(embed_dim, **dd) if pre_norm else msnn.Identity()
+ 
+         if use_rope:
+             assert not use_rel_pos, "ROPE and relative pos embeddings should not be enabled at same time"
+@@ -465,7 +466,8 @@ 
+         # stochastic depth decay rule
+         dpr = calculate_drop_path_rates(drop_path_rate, depth)
+-        self.blocks = nn.Sequential(*[
++        self.blocks = msnn.SequentialCell([
++            [
+             block_fn(
+                 dim=embed_dim,
+                 num_heads=num_heads,
+@@ -485,12 +487,14 @@                 rope=self.rope_window if i not in global_attn_indexes else self.rope_global,
+                 **dd,
+             )
+-            for i in range(depth)])
++            for i in range(depth)]
++        ])
+         self.feature_info = [
+             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
+ 
+         if neck_chans:
+-            self.neck = nn.Sequential(
++            self.neck = msnn.SequentialCell(
++                [
+                 nn.Conv2d(
+                     embed_dim,
+                     neck_chans,
+@@ -507,12 +511,12 @@                     bias=False,
+                     **dd,
+                 ),
+-                LayerNorm2d(neck_chans, **dd),
+-            )
++                LayerNorm2d(neck_chans, **dd)
++            ])
+             self.num_features = neck_chans
+         else:
+             if head_hidden_size:
+-                self.neck = nn.Identity()
++                self.neck = msnn.Identity()
+             else:
+                 # should have a final norm with standard ClassifierHead
+                 self.neck = LayerNorm2d(embed_dim, **dd)
+@@ -552,6 +556,7 @@     def set_grad_checkpointing(self, enable=True):
+         self.grad_checkpointing = enable
+ 
++    # 类型标注 'torch.nn.Module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.ignore
+     def get_classifier(self) -> nn.Module:
+         return self.head
+@@ -562,7 +567,7 @@ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+@@ -631,7 +636,7 @@         self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+         if prune_norm:
+             # neck is being treated as equivalent to final norm here
+-            self.neck = nn.Identity()
++            self.neck = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+@@ -654,7 +659,7 @@     def forward_head(self, x, pre_logits: bool = False):
+         return self.head(x, pre_logits=True) if pre_logits else self.head(x)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
