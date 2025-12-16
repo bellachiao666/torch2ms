@@ -862,6 +862,11 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
         for extra_val in positional_values[pos_idx:]:
             ms_args.append(cst.Arg(keyword=None, value=extra_val))
+            
+        if any(arg.keyword is None for arg in ms_args) and any(arg.keyword is not None for arg in ms_args):
+            positional = [arg for arg in ms_args if arg.keyword is None]
+            keyword = [arg for arg in ms_args if arg.keyword is not None]
+            ms_args = positional + keyword
 
         return ms_args, mismatch_notes
 
