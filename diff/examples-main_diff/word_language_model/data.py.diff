@@ -1,0 +1,20 @@
+--- pytorch+++ mindspore@@ -1,6 +1,10 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import os
+ from io import open
+-import torch
+ 
+ class Dictionary(object):
+     def __init__(self):
+@@ -42,7 +46,7 @@                 ids = []
+                 for word in words:
+                     ids.append(self.dictionary.word2idx[word])
+-                idss.append(torch.tensor(ids).type(torch.int64))
+-            ids = torch.cat(idss)
++                idss.append(ms.Tensor(ids).type(ms.int64))
++            ids = mint.cat(idss)
+ 
+         return ids

@@ -1,0 +1,55 @@
+--- pytorch+++ mindspore@@ -1,5 +1,9 @@-import torch
+-import torch.fx as fx
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# import torch.fx as fx
+ 
+ # An inverse mapping is one that takes a function f(x) and returns a function g
+ # such that f(g(x)) == x. For example,since log(exp(x)) == x, exp and log are
+@@ -10,10 +14,10 @@     invert_mapping[a] = b
+     invert_mapping[b] = a
+ inverses = [
+-    (torch.sin, torch.arcsin),
+-    (torch.cos, torch.arccos),
+-    (torch.tan, torch.arctan),
+-    (torch.exp, torch.log),
++    (mint.sin, mint.arcsin),
++    (mint.cos, mint.arccos),
++    (mint.tan, mint.arctan),
++    (mint.exp, mint.log),
+ ]
+ for a, b in inverses:
+     add_inverse(a, b)
+@@ -23,9 +27,9 @@ # functions, and then we look up its inverse in `invert_mapping`. Note that
+ # this transform assumes that all operations take in only one input and return
+ # one output.
+-def invert(model: torch.nn.Module) -> torch.nn.Module:
+-    fx_model = fx.symbolic_trace(model)
+-    new_graph = fx.Graph()  # As we're building up a new graph
++def invert(model: msnn.Cell) -> msnn.Cell:
++    fx_model = fx.symbolic_trace(model)  # 'torch.fx.symbolic_trace' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    new_graph = fx.Graph()  # As we're building up a new graph; 'torch.fx.Graph' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     env = {}
+     for node in reversed(fx_model.graph.nodes):
+         if node.op == 'call_function':
+@@ -45,11 +49,11 @@             raise RuntimeError("Not implemented")
+ 
+     new_graph.lint()
+-    return fx.GraphModule(fx_model, new_graph)
++    return fx.GraphModule(fx_model, new_graph)  # 'torch.fx.GraphModule' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def f(x):
+-    return torch.exp(torch.tan(x))
++    return mint.exp(mint.tan(x))
+ 
+ res = invert(f)
+ print(res.code)
+@@ -59,4 +63,4 @@     arctan_1 = torch.arctan(log_1);  log_1 = None
+     return arctan_1
+ """
+-print(f(res((torch.arange(5) + 1))))  # [1., 2., 3., 4, 5.]
++print(f(res((mint.arange(5) + 1))))  # [1., 2., 3., 4, 5.]

@@ -1,0 +1,149 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import argparse
+ import os
+ import sys
+@@ -5,12 +10,11 @@ import re
+ 
+ import numpy as np
+-import torch
+-from torch.optim import Adam
+-from torch.utils.data import DataLoader
+-from torchvision import datasets
+-from torchvision import transforms
+-import torch.onnx
++# import torch
++# from torch.optim import Adam
++# from torch.utils.data import DataLoader
++# from torchvision import datasets
++# from torchvision import transforms
+ 
+ import utils
+ from transformer_net import TransformerNet
+@@ -30,33 +34,33 @@ 
+ def train(args):
+     if args.accel:
+-        device = torch.accelerator.current_accelerator()
+-    else:
+-        device = torch.device("cpu")
++        device = torch.accelerator.current_accelerator()  # 'torch.accelerator.current_accelerator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    else:
++        device = torch.device("cpu")  # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     print(f"Using device: {device}")
+ 
+     np.random.seed(args.seed)
+-    torch.manual_seed(args.seed)
+-
+-    transform = transforms.Compose([
+-        transforms.Resize(args.image_size),
+-        transforms.CenterCrop(args.image_size),
++    torch.manual_seed(args.seed)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    transform = ms.dataset.transforms.Compose([
++        ms.dataset.vision.Resize(args.image_size),
++        ms.dataset.vision.CenterCrop(args.image_size),
+         transforms.ToTensor(),
+         transforms.Lambda(lambda x: x.mul(255))
+-    ])
+-    train_dataset = datasets.ImageFolder(args.dataset, transform)
+-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size)
++    ])  # 'torchvision.transforms.Resize'默认值不一致(position 1): PyTorch=<InterpolationMode.BILINEAR: 'bilinear'>, MindSpore=2;; 'torchvision.transforms.ToTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torchvision.transforms.Lambda' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    train_dataset = datasets.ImageFolder(args.dataset, transform)  # 'torchvision.datasets.ImageFolder' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    train_loader = DataLoader(train_dataset, batch_size=args.batch_size)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     transformer = TransformerNet().to(device)
+-    optimizer = Adam(transformer.parameters(), args.lr)
+-    mse_loss = torch.nn.MSELoss()
++    optimizer = mint.optim.Adam(transformer.parameters(), args.lr)
++    mse_loss = nn.MSELoss()
+ 
+     vgg = Vgg16(requires_grad=False).to(device)
+-    style_transform = transforms.Compose([
++    style_transform = ms.dataset.transforms.Compose([
+         transforms.ToTensor(),
+         transforms.Lambda(lambda x: x.mul(255))
+-    ])
++    ])  # 'torchvision.transforms.ToTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torchvision.transforms.Lambda' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     style = utils.load_image(args.style_image, size=args.style_size)
+     style = style_transform(style)
+     style = style.repeat(args.batch_size, 1, 1, 1).to(device)
+@@ -111,7 +115,7 @@                 transformer.eval().cpu()
+                 ckpt_model_filename = "ckpt_epoch_" + str(e) + "_batch_id_" + str(batch_id + 1) + ".pth"
+                 ckpt_model_path = os.path.join(args.checkpoint_model_dir, ckpt_model_filename)
+-                torch.save(transformer.state_dict(), ckpt_model_path)
++                torch.save(transformer.state_dict(), ckpt_model_path)  # 'torch.save' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 transformer.to(device).train()
+ 
+     # save model
+@@ -119,33 +123,34 @@     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+     save_model_filename = f"epoch_{args.epochs}_{timestamp}_{args.content_weight}_{args.style_weight}.model"
+     save_model_path = os.path.join(args.save_model_dir, save_model_filename)
+-    torch.save(transformer.state_dict(), save_model_path)
++    torch.save(transformer.state_dict(), save_model_path)  # 'torch.save' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     print("\nDone, trained model saved at", save_model_path)
+ 
+ 
+ def stylize(args):
+     if args.accel:
+-        device = torch.accelerator.current_accelerator()
+-    else:
+-        device = torch.device("cpu")
++        device = torch.accelerator.current_accelerator()  # 'torch.accelerator.current_accelerator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    else:
++        device = torch.device("cpu")  # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     
+     print(f"Using device: {device}")
+ 
+     content_image = utils.load_image(args.content_image, scale=args.content_scale)
+-    content_transform = transforms.Compose([
++    content_transform = ms.dataset.transforms.Compose([
+         transforms.ToTensor(),
+         transforms.Lambda(lambda x: x.mul(255))
+-    ])
++    ])  # 'torchvision.transforms.ToTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torchvision.transforms.Lambda' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     content_image = content_transform(content_image)
+     content_image = content_image.unsqueeze(0).to(device)
+ 
+     if args.model.endswith(".onnx"):
+         output = stylize_onnx(content_image, args)
+     else:
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             style_model = TransformerNet()
+-            state_dict = torch.load(args.model)
++            state_dict = torch.load(args.model)  # 'torch.load' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             # remove saved deprecated running_* keys in InstanceNorm from the checkpoint
+             for k in list(state_dict.keys()):
+                 if re.search(r'in\d+\.running_(mean|var)$', k):
+@@ -157,7 +162,7 @@                 assert args.export_onnx.endswith(".onnx"), "Export model file should end with .onnx"
+                 output = torch.onnx._export(
+                     style_model, content_image, args.export_onnx, opset_version=11,
+-                ).cpu()            
++                ).cpu()  # 'torch.onnx._export' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.onnx._export.cpu' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             else:
+                 output = style_model(content_image).cpu()
+     utils.save_image(args.output_image, output[0])
+@@ -185,7 +190,7 @@     ort_outs = ort_session.run(None, ort_inputs)
+     img_out_y = ort_outs[0]
+ 
+-    return torch.from_numpy(img_out_y)
++    return torch.from_numpy(img_out_y)  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def main():
+@@ -244,9 +249,11 @@     if args.subcommand is None:
+         print("ERROR: specify either train or eval")
+         sys.exit(1)
++    # 'torch.accelerator.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if args.accel and not torch.accelerator.is_available():
+         print("ERROR: accelerator is not available, try running on CPU")
+         sys.exit(1)
++    # 'torch.accelerator.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if not args.accel and torch.accelerator.is_available():
+         print("WARNING: accelerator is available, run with --accel to enable it")
+ 

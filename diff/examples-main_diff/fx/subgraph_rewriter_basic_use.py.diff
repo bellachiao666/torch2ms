@@ -1,0 +1,57 @@
+--- pytorch+++ mindspore@@ -1,5 +1,9 @@-import torch
+-from torch.fx import symbolic_trace, replace_pattern
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# from torch.fx import symbolic_trace, replace_pattern
+ 
+ 
+ '''
+@@ -26,19 +30,19 @@ '''
+ 
+ # Sample module
+-class M(torch.nn.Module):
++class M(msnn.Cell):
+     def __init__(self):
+         super().__init__()
+ 
+-    def forward(self, x, w1, w2):
+-        val1 = torch.neg(w1)
+-        m1 = torch.cat([val1, w2]).sum()
+-        val2 = torch.neg(w1)
+-        m2 = torch.cat([val2, w2]).sum()
+-        return x + torch.max(m1) + torch.max(m2)
++    def construct(self, x, w1, w2):
++        val1 = mint.neg(w1)
++        m1 = mint.cat([val1, w2]).sum()
++        val2 = mint.neg(w1)
++        m2 = mint.cat([val2, w2]).sum()
++        return x + mint.max(m1) + mint.max(m2)
+ 
+ # Symbolically trace an instance of `M`
+-traced = symbolic_trace(M())
++traced = symbolic_trace(M())  # 'torch.fx.symbolic_trace' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ # Define the pattern. The FX Subgraph Rewriter will match all
+ # non-overlapping instances of the pattern in the larger graph.
+@@ -49,15 +53,15 @@ # operations that contribute to the single output value of the pattern
+ # are considered
+ def pattern(a1, a2):
+-    val1 = torch.neg(a1)
+-    return torch.cat([val1, a2]).sum()
++    val1 = mint.neg(a1)
++    return mint.cat([val1, a2]).sum()
+ 
+ # Define the replacement (same rules as the pattern)
+ def replacement(w1, w2):
+-    return torch.stack([w1, w2])
++    return mint.stack([w1, w2])
+ 
+ # Replace `pattern` with `replacement` in `traced`
+-replace_pattern(traced, pattern, replacement)
++replace_pattern(traced, pattern, replacement)  # 'torch.fx.replace_pattern' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ # After calling `replace_pattern`, the generated code is:
+ '''

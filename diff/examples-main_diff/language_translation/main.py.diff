@@ -1,0 +1,100 @@
+--- pytorch+++ mindspore@@ -1,9 +1,14 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from time import time # Track how long an epoch takes
+ import os # Creating and finding files/directories
+ import logging # Logging tools
+ from datetime import date # Logging the date for model versioning
+ 
+-import torch # For ML
++# import torch # For ML
+ from tqdm import tqdm # For fancy progress bars
+ 
+ from src.model import Translator # Our model
+@@ -11,7 +16,7 @@ from argparse import ArgumentParser # For args
+ 
+ # Train on the GPU if possible
+-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
++DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ # Function to generate output sequence using greedy algorithm
+ def greedy_decode(model, src, src_mask, max_len, start_symbol, end_symbol):
+@@ -24,14 +29,14 @@     memory = model.encode(src, src_mask)
+ 
+     # Output will be stored here
+-    ys = torch.ones(1, 1).fill_(start_symbol).type(torch.long).to(DEVICE)
++    ys = mint.ones(1, 1).fill_(start_symbol).type(ms.int64).to(DEVICE)
+ 
+     # For each element in our translation (which could range up to the maximum translation length)
+     for _ in range(max_len-1):
+ 
+         # Decode the encoded representation of the input
+         memory = memory.to(DEVICE)
+-        tgt_mask = (generate_square_subsequent_mask(ys.size(0), DEVICE).type(torch.bool)).to(DEVICE)
++        tgt_mask = (generate_square_subsequent_mask(ys.size(0), DEVICE).type(ms.bool_)).to(DEVICE)
+         out = model.decode(ys, memory, tgt_mask)
+ 
+         # Reshape
+@@ -39,11 +44,11 @@ 
+         # Covert to probabilities and take the max of these probabilities
+         prob = model.ff(out[:, -1])
+-        _, next_word = torch.max(prob, dim=1)
++        _, next_word = mint.max(prob, dim=1)
+         next_word = next_word.item()
+ 
+         # Now we have an output which is the vector representation of the translation
+-        ys = torch.cat([ys, torch.ones(1, 1).type_as(src.data).fill_(next_word)], dim=0)
++        ys = mint.cat([ys, mint.ones(1, 1).type_as(src.data).fill_(next_word)], dim=0)
+         if next_word == end_symbol:
+             break
+ 
+@@ -72,7 +77,7 @@     ).to(DEVICE)
+ 
+     # Load in weights
+-    model.load_state_dict(torch.load(opts.model_path))
++    model.load_state_dict(torch.load(opts.model_path))  # 'torch.load' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Set to inference
+     model.eval()
+@@ -87,7 +92,7 @@         src = src_transform(sentence).view(-1, 1)
+         num_tokens = src.shape[0]
+ 
+-        src_mask = (torch.zeros(num_tokens, num_tokens)).type(torch.bool)
++        src_mask = (mint.zeros(num_tokens, num_tokens)).type(ms.bool_)
+ 
+         # Decode
+         tgt_tokens = greedy_decode(
+@@ -223,10 +228,10 @@     logging.info("Model created... starting training!")
+ 
+     # Set up our learning tools
+-    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=special_symbols["<pad>"])
++    loss_fn = nn.CrossEntropyLoss(ignore_index=special_symbols["<pad>"])
+ 
+     # These special values are from the "Attention is all you need" paper
+-    optim = torch.optim.Adam(model.parameters(), lr=opts.lr, betas=(0.9, 0.98), eps=1e-9)
++    optim = mint.optim.Adam(model.parameters(), lr=opts.lr, betas=(0.9, 0.98), eps=1e-9)
+ 
+     best_val_loss = 1e6
+     
+@@ -241,9 +246,9 @@         if val_loss < best_val_loss:
+             best_val_loss = val_loss
+             logging.info("New best model, saving...")
+-            torch.save(model.state_dict(), opts.logging_dir + "best.pt")
+-
+-        torch.save(model.state_dict(), opts.logging_dir + "last.pt")
++            torch.save(model.state_dict(), opts.logging_dir + "best.pt")  # 'torch.save' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++        torch.save(model.state_dict(), opts.logging_dir + "last.pt")  # 'torch.save' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         logger.info(f"Epoch: {epoch}\n\tTrain loss: {train_loss:.3f}\n\tVal loss: {val_loss:.3f}\n\tEpoch time = {epoch_time:.1f} seconds\n\tETA = {epoch_time*(opts.epochs-idx-1):.1f} seconds")
+ 
+@@ -298,7 +303,7 @@ 
+     args = parser.parse_args()
+ 
+-    DEVICE = torch.device("cuda" if args.backend == "gpu" and torch.cuda.is_available() else "cpu")
++    DEVICE = torch.device("cuda" if args.backend == "gpu" and torch.cuda.is_available() else "cpu")  # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     if args.inference:
+         inference(args)

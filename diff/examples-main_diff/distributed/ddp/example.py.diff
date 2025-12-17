@@ -1,0 +1,100 @@
+--- pytorch+++ mindspore@@ -1,49 +1,54 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import argparse
+ import os
+ import sys
+ import tempfile
+ from urllib.parse import urlparse
+ 
+-import torch
+-import torch.distributed as dist
+-import torch.nn as nn
+-import torch.optim as optim
++# import torch
++# import torch.distributed as dist
++# import torch.nn as nn
++# import torch.optim as optim
+ 
+-from torch.nn.parallel import DistributedDataParallel as DDP
++# from torch.nn.parallel import DistributedDataParallel as DDP
+ 
+ def verify_min_gpu_count(min_gpus: int = 2) -> bool:
+     """ verification that we have at least 2 gpus to run dist examples """
+-    has_gpu = torch.accelerator.is_available()
+-    gpu_count = torch.accelerator.device_count()
++    has_gpu = torch.accelerator.is_available()  # 'torch.accelerator.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    gpu_count = torch.accelerator.device_count()  # 'torch.accelerator.device_count' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     return has_gpu and gpu_count >= min_gpus
+ 
+-class ToyModel(nn.Module):
++class ToyModel(msnn.Cell):
+     def __init__(self):
+         super(ToyModel, self).__init__()
+         self.net1 = nn.Linear(10, 10)
+         self.relu = nn.ReLU()
+         self.net2 = nn.Linear(10, 5)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         return self.net2(self.relu(self.net1(x)))
+ 
+ 
+ def demo_basic(rank):
+ 
+     print(
+-        f"[{os.getpid()}] rank = {dist.get_rank()}, "
+-        + f"world_size = {dist.get_world_size()}"
++        f"[{os.getpid()}] rank = {mint.distributed.get_rank()}, "
++        + f"world_size = {mint.distributed.get_world_size()}"
+         )
+ 
+     model = ToyModel().to(rank)
+-    ddp_model = DDP(model, device_ids=[rank])
++    ddp_model = DDP(model, device_ids=[rank])  # 'torch.nn.parallel.DistributedDataParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     loss_fn = nn.MSELoss()
+-    optimizer = optim.SGD(ddp_model.parameters(), lr=0.001)
++    optimizer = optim.SGD(ddp_model.parameters(), lr=0.001)  # 'torch.optim.SGD' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     optimizer.zero_grad()
+-    outputs = ddp_model(torch.randn(20, 10))
+-    labels = torch.randn(20, 5).to(rank)
++    outputs = ddp_model(mint.randn(20, 10))
++    labels = mint.randn(20, 5).to(rank)
+     loss_fn(outputs, labels).backward()
+     optimizer.step()
+ 
+@@ -75,23 +80,23 @@             # It is a example application, For convience, we create a file in temp dir.
+             temp_dir = tempfile.gettempdir()
+             init_method = f"file:///{os.path.join(temp_dir, 'ddp_example')}"
+-        dist.init_process_group(backend="gloo", init_method=init_method, rank=int(env_dict["RANK"]), world_size=int(env_dict["WORLD_SIZE"]))
++        mint.distributed.init_process_group(backend="gloo", init_method=init_method, rank=int(env_dict["RANK"]), world_size=int(env_dict["WORLD_SIZE"]))
+     else:
+         print(f"[{os.getpid()}] Initializing process group with: {env_dict}")  
+-        acc = torch.accelerator.current_accelerator()
+-        backend = torch.distributed.get_default_backend_for_device(acc)
+-        torch.accelerator.set_device_index(rank)
+-        dist.init_process_group(backend=backend)
++        acc = torch.accelerator.current_accelerator()  # 'torch.accelerator.current_accelerator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        backend = torch.distributed.get_default_backend_for_device(acc)  # 'torch.distributed.get_default_backend_for_device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        torch.accelerator.set_device_index(rank)  # 'torch.accelerator.set_device_index' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        mint.distributed.init_process_group(backend=backend)
+ 
+     print(
+-        f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
+-        + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
++        f"[{os.getpid()}]: world_size = {mint.distributed.get_world_size()}, "
++        + f"rank = {mint.distributed.get_rank()}, backend={mint.distributed.get_backend()} \n", end=''
+     )
+ 
+     demo_basic(rank)
+ 
+     # Tear down the process group
+-    dist.destroy_process_group()
++    dist.destroy_process_group()  # 'torch.distributed.destroy_process_group' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ if __name__ == "__main__":
+     _min_gpu_count = 2

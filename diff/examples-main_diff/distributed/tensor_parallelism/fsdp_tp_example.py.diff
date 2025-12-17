@@ -1,0 +1,100 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ This is the script to test 2D Parallel which combines Tensor/Sequence
+ parallel with Fully Sharded Data Parallel (TP/SP + FSDP) on a example
+@@ -31,10 +36,8 @@ 
+ import sys
+ import os
+-import torch
+-import torch.distributed as dist
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.distributed as dist
+ 
+ from log_utils import rank_log, get_logger, verify_min_gpu_count
+ 
+@@ -48,10 +51,10 @@ 
+ from llama2_model import Transformer, ModelArgs
+ 
+-from torch.distributed.device_mesh import init_device_mesh
+-from torch.distributed.fsdp import fully_shard
+-from torch.distributed._tensor import Shard, Replicate
+-from torch.distributed.tensor.parallel import (
++# from torch.distributed.device_mesh import init_device_mesh
++# from torch.distributed.fsdp import fully_shard
++# from torch.distributed._tensor import Shard, Replicate
++from ms.Tensor.parallel import (
+     parallelize_module,
+     ColwiseParallel,
+     RowwiseParallel,
+@@ -76,11 +79,11 @@ # create a sharding plan based on the given world_size.
+ dp_size = _world_size // tp_size
+ 
+-device_type = torch.accelerator.current_accelerator().type
++device_type = torch.accelerator.current_accelerator().type  # 'torch.accelerator.current_accelerator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ # Create a device mesh with 2 dimensions.
+ # First dim is the data parallel dimension
+ # Second dim is the tensor parallel dimension.
+-device_mesh = init_device_mesh(device_type, (dp_size, tp_size), mesh_dim_names=("dp", "tp"))
++device_mesh = init_device_mesh(device_type, (dp_size, tp_size), mesh_dim_names=("dp", "tp"))  # 'torch.distributed.device_mesh.init_device_mesh' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ rank_log(_rank, logger, f"Device Mesh created: {device_mesh=}")
+ tp_mesh = device_mesh["tp"]
+@@ -115,7 +118,7 @@             output_layouts=Replicate()
+         ),
+     }
+-)
++)  # 'torch.distributed._tensor.Replicate' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed._tensor.Shard' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.tensor.parallel.RowwiseParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.tensor.parallel.SequenceParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.tensor.parallel.ColwiseParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.tensor.parallel.parallelize_module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ for layer_id, transformer_block in enumerate(model.layers):
+     layer_tp_plan = {
+@@ -136,24 +139,24 @@         "feed_forward.w1": ColwiseParallel(),
+         "feed_forward.w2": RowwiseParallel(output_layouts=Shard(1)),
+         "feed_forward.w3": ColwiseParallel(),
+-    }
++    }  # 'torch.distributed.tensor.parallel.SequenceParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed._tensor.Shard' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed._tensor.Replicate' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.tensor.parallel.PrepareModuleInput' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.tensor.parallel.ColwiseParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.tensor.parallel.RowwiseParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Custom parallelization plan for the model
+     parallelize_module(
+         module=transformer_block,
+         device_mesh=tp_mesh,
+         parallelize_plan=layer_tp_plan
+-    )
++    )  # 'torch.distributed.tensor.parallel.parallelize_module' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ # Init FSDP using the dp device mesh
+-sharded_model = fully_shard(model, mesh=dp_mesh)
++sharded_model = fully_shard(model, mesh=dp_mesh)  # 'torch.distributed.fsdp.fully_shard' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ rank_log(_rank, logger, f"Model after parallelization {sharded_model=}\n")
+ 
+ # Create an optimizer for the parallelized and sharded model.
+ lr = 3e-3
+ rank_log(_rank, logger, f"Creating AdamW optimizer with learning rate {lr}")
+-optimizer = torch.optim.AdamW(sharded_model.parameters(), lr=lr, foreach=True)
++optimizer = mint.optim.AdamW(sharded_model.parameters(), lr=lr, foreach=True)
+ 
+ # Training loop:
+ # Perform a num of iterations of forward/backward
+@@ -164,8 +167,8 @@ 
+ for i in range(num_iterations):
+     # seeding with dp_rank to ensure identical inputs for TP groups
+-    torch.manual_seed(i + dp_rank)
+-    inp = torch.randint(32000, (8, 256), device=device_type)
++    torch.manual_seed(i + dp_rank)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    inp = mint.randint(32000, (8, 256), device=device_type)
+ 
+     output = sharded_model(inp)
+     output.sum().backward()
+@@ -174,5 +177,6 @@ 
+ rank_log(_rank, logger, "2D training successfully completed!")
+ 
++# 'torch.distributed.is_initialized' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ if dist.is_initialized():
+-    dist.destroy_process_group()
++    dist.destroy_process_group()  # 'torch.distributed.destroy_process_group' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

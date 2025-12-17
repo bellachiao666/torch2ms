@@ -1,0 +1,37 @@
+--- pytorch+++ mindspore@@ -1,17 +1,20 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from collections import namedtuple
+-
+-import torch
+-from torchvision import models
++# from torchvision import models
+ 
+ 
+-class Vgg16(torch.nn.Module):
++class Vgg16(msnn.Cell):
+     def __init__(self, requires_grad=False):
+         super(Vgg16, self).__init__()
+-        vgg_pretrained_features = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1).features
+-        self.slice1 = torch.nn.Sequential()
+-        self.slice2 = torch.nn.Sequential()
+-        self.slice3 = torch.nn.Sequential()
+-        self.slice4 = torch.nn.Sequential()
++        vgg_pretrained_features = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1).features  # 'torchvision.models.vgg16' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        self.slice1 = msnn.SequentialCell()
++        self.slice2 = msnn.SequentialCell()
++        self.slice3 = msnn.SequentialCell()
++        self.slice4 = msnn.SequentialCell()
+         for x in range(4):
+             self.slice1.add_module(str(x), vgg_pretrained_features[x])
+         for x in range(4, 9):
+@@ -24,7 +27,7 @@             for param in self.parameters():
+                 param.requires_grad = False
+ 
+-    def forward(self, X):
++    def construct(self, X):
+         h = self.slice1(X)
+         h_relu1_2 = h
+         h = self.slice2(h)

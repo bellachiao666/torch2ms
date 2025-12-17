@@ -1,0 +1,18 @@
+--- pytorch+++ mindspore@@ -1,7 +1,10 @@-import torch
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import os
+-import torch.distributed as dist
+-from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
++# from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
+     checkpoint_wrapper,
+     CheckpointImpl,
+     apply_activation_checkpointing,
+@@ -28,4 +31,4 @@ 
+     apply_activation_checkpointing(
+         model, checkpoint_wrapper_fn=non_reentrant_wrapper, check_fn=check_fn
+-    )
++    )  # 'torch.distributed.algorithms._checkpoint.checkpoint_wrapper.apply_activation_checkpointing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

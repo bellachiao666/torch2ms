@@ -1,0 +1,39 @@
+--- pytorch+++ mindspore@@ -1,8 +1,13 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from os.path import exists, join, basename
+ from os import makedirs, remove
+ from six.moves import urllib
+ import tarfile
+-from torchvision.transforms import Compose, CenterCrop, ToTensor, Resize
++# from torchvision.transforms import Compose, CenterCrop, ToTensor, Resize
+ 
+ from dataset import DatasetFromFolder
+ 
+@@ -36,18 +41,18 @@ 
+ 
+ def input_transform(crop_size, upscale_factor):
+-    return Compose([
+-        CenterCrop(crop_size),
+-        Resize(crop_size // upscale_factor),
++    return ms.dataset.transforms.Compose([
++        ms.dataset.vision.CenterCrop(crop_size),
++        ms.dataset.vision.Resize(crop_size // upscale_factor),
+         ToTensor(),
+-    ])
++    ])  # 'torchvision.transforms.Resize'默认值不一致(position 1): PyTorch=<InterpolationMode.BILINEAR: 'bilinear'>, MindSpore=2;; 'torchvision.transforms.ToTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def target_transform(crop_size):
+-    return Compose([
+-        CenterCrop(crop_size),
++    return ms.dataset.transforms.Compose([
++        ms.dataset.vision.CenterCrop(crop_size),
+         ToTensor(),
+-    ])
++    ])  # 'torchvision.transforms.ToTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ 
+ def get_training_set(upscale_factor):

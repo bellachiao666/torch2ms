@@ -1,0 +1,77 @@
+--- pytorch+++ mindspore@@ -1,8 +1,13 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ 
+ from enum import Enum, auto
+ 
+-import torch
+-from torch.fx import GraphModule, Node, Proxy, symbolic_trace
++# import torch
++# from torch.fx import GraphModule, Node, Proxy, symbolic_trace
+ 
+ '''
+ Wrap Graph Output Dynamically
+@@ -18,16 +23,16 @@ 
+ 
+ # Sample module
+-class M(torch.nn.Module):
++class M(msnn.Cell):
+     def __init__(self):
+         super().__init__()
+ 
+-    def forward(self, x, y):
+-        y = torch.cat([x, y])
++    def construct(self, x, y):
++        y = mint.cat([x, y])
+         return y
+ 
+ # Symbolically trace an instance of `M`
+-traced = symbolic_trace(M())
++traced = symbolic_trace(M())  # 'torch.fx.symbolic_trace' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+ # Selected activation functions
+ class ActivationFunction(Enum):
+@@ -37,11 +42,13 @@ 
+ # Map activation function names to their implementation
+ activation_functions = {
+-    ActivationFunction.RELU: torch.nn.ReLU(),
++    ActivationFunction.RELU: nn.ReLU(),
+     ActivationFunction.LEAKY_RELU: torch.nn.LeakyReLU(),
+-    ActivationFunction.PRELU: torch.nn.PReLU(),
+-}
++    ActivationFunction.PRELU: nn.PReLU(),
++}  # 'torch.nn.LeakyReLU' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
++# 'torch.fx.GraphModule' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.fx.Node' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def wrap_in_activation_function(m: GraphModule, fn: ActivationFunction) -> GraphModule:
+     # Get output node
+     output_node: Optional[Node] = None
+@@ -57,12 +64,12 @@     wrap_node = output_node.all_input_nodes[0]
+ 
+     # Wrap the actual output in a Proxy
+-    wrap_proxy = Proxy(wrap_node)
++    wrap_proxy = Proxy(wrap_node)  # 'torch.fx.Proxy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Get the implementation of the specified activation function and
+     # symbolically trace it
+     fn_impl = activation_functions[fn]
+-    fn_impl_traced = symbolic_trace(fn_impl)
++    fn_impl_traced = symbolic_trace(fn_impl)  # 'torch.fx.symbolic_trace' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Call the specified activation function using the Proxy wrapper for
+     # `output_op`. The result of this call is another Proxy, which we
+@@ -76,10 +83,10 @@ 
+ 
+ # Example call
+-x, y = torch.randn(5, 3), torch.randn(5, 3)
++x, y = mint.randn(5, 3), mint.randn(5, 3)
+ orig_output = traced(x, y)
+ 
+ wrap_in_activation_function(traced, ActivationFunction.LEAKY_RELU)
+ new_output = traced(x, y)
+ 
+-torch.testing.assert_close(new_output, torch.nn.LeakyReLU()(orig_output))
++torch.testing.assert_close(new_output, torch.nn.LeakyReLU()(orig_output))  # 'torch.nn.LeakyReLU' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.testing.assert_close' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

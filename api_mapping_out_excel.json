@@ -19771,6 +19771,11 @@
       "pytorch": "torch.nn.Sequential",
       "mindspore": "mindspore.nn.SequentialCell",
       "params": []
+    },
+    "torch.nn.functional.adaptive_max_pool2d": {
+      "pytorch": "torch.nn.functional.adaptive_max_pool2d",
+      "mindspore": "mindspore.nn.AdaptiveMaxPool2d",
+      "params": []
     }
   }
 }

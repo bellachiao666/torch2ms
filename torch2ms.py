@@ -632,14 +632,10 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             module = self.pt_aliases.get(prefix)
             if module:
                 suffix = parts[i:]
+                if not suffix:
+                    return module
                 result_parts = [module]
-                if suffix:
-                    result_parts.extend(suffix)
-                else:
-                    # 别名已包含符号名则直接返回，否则补上当前名称
-                    if module.split(".")[-1] == parts[i - 1]:
-                        return module
-                    result_parts.append(parts[i - 1])
+                result_parts.extend(suffix)
                 return ".".join(result_parts)
 
         if full_path.startswith("torch"):

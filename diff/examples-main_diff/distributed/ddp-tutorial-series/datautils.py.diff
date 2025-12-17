@@ -1,0 +1,18 @@
+--- pytorch+++ mindspore@@ -1,10 +1,15 @@-import torch
+-from torch.utils.data import Dataset
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
++# from torch.utils.data import Dataset
+ 
++# 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class MyTrainDataset(Dataset):
+     def __init__(self, size):
+         self.size = size
+-        self.data = [(torch.rand(20), torch.rand(1)) for _ in range(size)]
++        self.data = [(mint.rand(20), mint.rand(1)) for _ in range(size)]
+ 
+     def __len__(self):
+         return self.size

@@ -1,0 +1,9 @@
+--- pytorch+++ mindspore@@ -1,4 +1,8 @@-import torch
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from PIL import Image
+ 
+ 

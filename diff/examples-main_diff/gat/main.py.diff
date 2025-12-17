@@ -1,0 +1,224 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import os
+ import time
+ import requests
+@@ -5,17 +10,16 @@ import numpy as np
+ import argparse
+ 
+-import torch
+-from torch import nn
+-import torch.nn.functional as F
+-from torch.optim import Adam
++# import torch
++# from torch import nn
++# from torch.optim import Adam
+ 
+ 
+ ################################
+ ###  GAT LAYER DEFINITION    ###
+ ################################
+ 
+-class GraphAttentionLayer(nn.Module):
++class GraphAttentionLayer(msnn.Cell):
+     """
+     Graph Attention Layer (GAT) as described in the paper `"Graph Attention Networks" <https://arxiv.org/pdf/1710.10903.pdf>`.
+ 
+@@ -45,13 +49,13 @@ 
+         #  A shared linear transformation, parametrized by a weight matrix W is applied to every node
+         #  Initialize the weight matrix W 
+-        self.W = nn.Parameter(torch.empty(size=(in_features, self.n_hidden * n_heads)))
++        self.W = ms.Parameter(mint.empty(size=(in_features, self.n_hidden * n_heads)))
+ 
+         # Initialize the attention weights a
+-        self.a = nn.Parameter(torch.empty(size=(n_heads, 2 * self.n_hidden, 1)))
+-
+-        self.leakyrelu = nn.LeakyReLU(leaky_relu_slope) # LeakyReLU activation function
+-        self.softmax = nn.Softmax(dim=1) # softmax activation function to the attention coefficients
++        self.a = ms.Parameter(mint.empty(size=(n_heads, 2 * self.n_hidden, 1)))
++
++        self.leakyrelu = nn.LeakyReLU(leaky_relu_slope)  # LeakyReLU activation function; 'torch.nn.LeakyReLU' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        self.softmax = nn.Softmax(dim = 1) # softmax activation function to the attention coefficients
+ 
+         self.reset_parameters() # Reset the parameters
+ 
+@@ -60,11 +64,11 @@         """
+         Reinitialize learnable parameters.
+         """
+-        nn.init.xavier_normal_(self.W)
+-        nn.init.xavier_normal_(self.a)
++        nn.init.xavier_normal_(self.W)  # 'torch.nn.init.xavier_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.xavier_normal_(self.a)  # 'torch.nn.init.xavier_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     
+ 
+-    def _get_attention_scores(self, h_transformed: torch.Tensor):
++    def _get_attention_scores(self, h_transformed: ms.Tensor):
+         """calculates the attention scores e_ij for all pairs of nodes (i, j) in the graph
+         in vectorized parallel form. for each pair of source and target nodes (i, j),
+         the attention score e_ij is computed as follows:
+@@ -81,15 +85,15 @@             torch.Tensor: Attention score matrix with shape (n_heads, n_nodes, n_nodes), where n_nodes is the number of nodes.
+         """
+         
+-        source_scores = torch.matmul(h_transformed, self.a[:, :self.n_hidden, :])
+-        target_scores = torch.matmul(h_transformed, self.a[:, self.n_hidden:, :])
++        source_scores = mint.matmul(h_transformed, self.a[:, :self.n_hidden, :])
++        target_scores = mint.matmul(h_transformed, self.a[:, self.n_hidden:, :])
+ 
+         # broadcast add 
+         # (n_heads, n_nodes, 1) + (n_heads, 1, n_nodes) = (n_heads, n_nodes, n_nodes)
+         e = source_scores + target_scores.mT
+         return self.leakyrelu(e)
+ 
+-    def forward(self,  h: torch.Tensor, adj_mat: torch.Tensor):
++    def construct(self,  h: ms.Tensor, adj_mat: ms.Tensor):
+         """
+         Performs a graph attention layer operation.
+ 
+@@ -104,8 +108,8 @@ 
+         # Apply linear transformation to node feature -> W h
+         # output shape (n_nodes, n_hidden * n_heads)
+-        h_transformed = torch.mm(h, self.W)
+-        h_transformed = F.dropout(h_transformed, self.dropout, training=self.training)
++        h_transformed = mint.mm(h, self.W)
++        h_transformed = nn.functional.dropout(h_transformed, self.dropout, training = self.training)
+ 
+         # splitting the heads by reshaping the tensor and putting heads dim first
+         # output shape (n_heads, n_nodes, n_hidden)
+@@ -116,16 +120,16 @@         e = self._get_attention_scores(h_transformed)
+ 
+         # Set the attention score for non-existent edges to -9e15 (MASKING NON-EXISTENT EDGES)
+-        connectivity_mask = -9e16 * torch.ones_like(e)
+-        e = torch.where(adj_mat > 0, e, connectivity_mask) # masked attention scores
++        connectivity_mask = -9e16 * mint.ones_like(e)
++        e = mint.where(adj_mat > 0, e, connectivity_mask) # masked attention scores
+         
+         # attention coefficients are computed as a softmax over the rows
+         # for each column j in the attention score matrix e
+-        attention = F.softmax(e, dim=-1)
+-        attention = F.dropout(attention, self.dropout, training=self.training)
++        attention = nn.functional.softmax(e, dim = -1)
++        attention = nn.functional.dropout(attention, self.dropout, training = self.training)
+ 
+         # final node embeddings are computed as a weighted average of the features of its neighbors
+-        h_prime = torch.matmul(attention, h_transformed)
++        h_prime = mint.matmul(attention, h_transformed)
+ 
+         # concatenating/averaging the attention heads
+         # output shape (n_nodes, out_features)
+@@ -140,7 +144,7 @@ ### MAIN GAT NETWORK MODULE  ###
+ ################################
+ 
+-class GAT(nn.Module):
++class GAT(msnn.Cell):
+     """
+     Graph Attention Network (GAT) as described in the paper `"Graph Attention Networks" <https://arxiv.org/pdf/1710.10903.pdf>`.
+     Consists of a 2-layer stack of Graph Attention Layers (GATs). The fist GAT Layer is followed by an ELU activation.
+@@ -181,7 +185,7 @@             )
+         
+ 
+-    def forward(self, input_tensor: torch.Tensor , adj_mat: torch.Tensor):
++    def construct(self, input_tensor: ms.Tensor , adj_mat: ms.Tensor):
+         """
+         Performs a forward pass through the network.
+ 
+@@ -195,12 +199,12 @@ 
+         # Apply the first Graph Attention layer
+         x = self.gat1(input_tensor, adj_mat)
+-        x = F.elu(x) # Apply ELU activation function to the output of the first layer
++        x = nn.functional.elu(x) # Apply ELU activation function to the output of the first layer
+ 
+         # Apply the second Graph Attention layer
+         x = self.gat2(x, adj_mat)
+ 
+-        return F.log_softmax(x, dim=1) # Apply log softmax activation function
++        return mint.special.log_softmax(x, dim=1) # Apply log softmax activation function
+ 
+ ################################
+ ### LOADING THE CORA DATASET ###
+@@ -221,16 +225,16 @@     cites_tensor = np.genfromtxt(cites_path, dtype=np.int32)
+ 
+     # Process features
+-    features = torch.FloatTensor(content_tensor[:, 1:-1].astype(np.int32)) # Extract feature values
+-    scale_vector = torch.sum(features, dim=1) # Compute sum of features for each node
++    features = torch.FloatTensor(content_tensor[:, 1:-1].astype(np.int32))  # Extract feature values; 'torch.FloatTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    scale_vector = mint.sum(features, dim=1) # Compute sum of features for each node
+     scale_vector = 1 / scale_vector # Compute reciprocal of the sums
+     scale_vector[scale_vector == float('inf')] = 0 # Handle division by zero cases
+-    scale_vector = torch.diag(scale_vector).to_sparse() # Convert the scale vector to a sparse diagonal matrix
++    scale_vector = torch.diag(scale_vector).to_sparse()  # Convert the scale vector to a sparse diagonal matrix; 'torch.diag' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.diag.to_sparse' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     features = scale_vector @ features # Scale the features using the scale vector
+ 
+     # Process labels
+     classes, labels = np.unique(content_tensor[:, -1], return_inverse=True) # Extract unique classes and map labels to indices
+-    labels = torch.LongTensor(labels) # Convert labels to a tensor
++    labels = torch.LongTensor(labels)  # Convert labels to a tensor; 'torch.LongTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Process adjacency matrix
+     idx = content_tensor[:, 0].astype(np.int32) # Extract node indices
+@@ -243,8 +247,8 @@ 
+     V = len(idx) # Number of nodes
+     E = edges.shape[0] # Number of edges
+-    adj_mat = torch.sparse_coo_tensor(edges.T, torch.ones(E), (V, V), dtype=torch.int64) # Create the initial adjacency matrix as a sparse tensor
+-    adj_mat = torch.eye(V) + adj_mat # Add self-loops to the adjacency matrix
++    adj_mat = torch.sparse_coo_tensor(edges.T, mint.ones(E), (V, V), dtype=ms.int64)  # Create the initial adjacency matrix as a sparse tensor; 'torch.sparse_coo_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    adj_mat = mint.eye(V) + adj_mat # Add self-loops to the adjacency matrix
+ 
+     # return features.to_sparse().to(device), labels.to(device), adj_mat.to_sparse().to(device)
+     return features.to(device), labels.to(device), adj_mat.to(device)
+@@ -259,7 +263,7 @@     optimizer.zero_grad()
+ 
+     # Forward pass
+-    output = model(*input) 
++    output = model(*input)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     loss = criterion(output[mask_train], target[mask_train]) # Compute the loss using the training mask
+ 
+     loss.backward()
+@@ -276,8 +280,9 @@ 
+ def test(model, criterion, input, target, mask):
+     model.eval()
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     with torch.no_grad():
+-        output = model(*input)
++        output = model(*input)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         output, target = output[mask], target[mask]
+ 
+         loss = criterion(output, target)
+@@ -315,15 +320,15 @@                         help='random seed (default: 13)')
+     args = parser.parse_args()
+ 
+-    torch.manual_seed(args.seed)
+-
+-    use_accel = not args.no_accel and torch.accelerator.is_available()
++    torch.manual_seed(args.seed)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    use_accel = not args.no_accel and torch.accelerator.is_available()  # 'torch.accelerator.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Set the device to run on
+     if use_accel:
+-        device = torch.accelerator.current_accelerator()
++        device = torch.accelerator.current_accelerator()  # 'torch.accelerator.current_accelerator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     else:
+-        device = torch.device('cpu')
++        device = torch.device('cpu')  # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     print(f'Using {device} device')
+ 
+     # Load the dataset
+@@ -342,7 +347,7 @@     # Load the dataset
+     features, labels, adj_mat = load_cora(device=device)
+     # Split the dataset into training, validation, and test sets
+-    idx = torch.randperm(len(labels)).to(device)
++    idx = mint.randperm(len(labels)).to(device)
+     idx_test, idx_val, idx_train = idx[:1200], idx[1200:1600], idx[1600:]
+ 
+ 
+@@ -359,7 +364,7 @@     ).to(device)
+ 
+     # configure the optimizer and loss function
+-    optimizer = Adam(gat_net.parameters(), lr=args.lr, weight_decay=args.l2)
++    optimizer = mint.optim.Adam(gat_net.parameters(), lr = args.lr, weight_decay = args.l2)
+     criterion = nn.NLLLoss()
+ 
+     # Train and evaluate the model

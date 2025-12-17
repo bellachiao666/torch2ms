@@ -1,0 +1,260 @@
+--- pytorch+++ mindspore@@ -1,12 +1,17 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ # Copyright (c) Meta Platforms, Inc. and affiliates.
+ # This software may be used and distributed according to the terms of the Llama 2 Community License Agreement.
+ 
+ from dataclasses import dataclass
+ from typing import Optional, Tuple
+ 
+-import torch
+-import torch.nn.functional as F
+-from torch import nn
++# import torch
++# import torch.nn.functional as F
++# from torch import nn
+ 
+ 
+ @dataclass
+@@ -43,14 +48,14 @@     Returns:
+         torch.Tensor: Precomputed frequency tensor with complex exponentials.
+     """
+-    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+-    t = torch.arange(end, device=freqs.device)  # type: ignore
+-    freqs = torch.outer(t, freqs).float()  # type: ignore
+-    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
++    freqs = 1.0 / (theta ** (mint.arange(0, dim, 2)[: (dim // 2)].float() / dim))
++    t = mint.arange(end, device=freqs.device)  # type: ignore
++    freqs = mint.outer(t, freqs).float()  # type: ignore
++    freqs_cis = mint.polar(mint.ones_like(freqs), freqs)  # complex64
+     return freqs_cis
+ 
+ 
+-def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
++def reshape_for_broadcast(freqs_cis: ms.Tensor, x: ms.Tensor):
+     """
+     Reshape frequency tensor for broadcasting it with another tensor.
+ 
+@@ -68,14 +73,14 @@     assert 0 <= 1 < ndim
+     assert freqs_cis.shape == (x.shape[1], x.shape[-1])
+     shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
+-    return freqs_cis.view(*shape)
++    return freqs_cis.view(*shape)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def apply_rotary_emb(
+-    xq: torch.Tensor,
+-    xk: torch.Tensor,
+-    freqs_cis: torch.Tensor,
+-) -> Tuple[torch.Tensor, torch.Tensor]:
++    xq: ms.Tensor,
++    xk: ms.Tensor,
++    freqs_cis: ms.Tensor,
++) -> Tuple[ms.Tensor, ms.Tensor]:
+     """
+     Apply rotary embeddings to input tensors using the given frequency tensor.
+ 
+@@ -92,15 +97,15 @@     Returns:
+         Tuple[torch.Tensor, torch.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
+     """
+-    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
+-    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
++    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 'torch.view_as_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 'torch.view_as_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
+-    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
+-    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
++    xq_out = ms.Tensor.flatten(3)  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    xk_out = ms.Tensor.flatten(3)  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     return xq_out.type_as(xq), xk_out.type_as(xk)
+ 
+ 
+-def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
++def repeat_kv(x: ms.Tensor, n_rep: int) -> ms.Tensor:
+     """torch.repeat_interleave(x, dim=2, repeats=n_rep)"""
+     bs, slen, n_kv_heads, head_dim = x.shape
+     if n_rep == 1:
+@@ -112,7 +117,7 @@     )
+ 
+ 
+-class RMSNorm(nn.Module):
++class RMSNorm(msnn.Cell):
+     """
+     Initialize the RMSNorm normalization layer.
+ 
+@@ -129,20 +134,20 @@     def __init__(self, dim: int, eps: float = 1e-6):
+         super().__init__()
+         self.eps = eps
+-        self.weight = nn.Parameter(torch.ones(dim))
+-
+-    def _norm(self, x: torch.Tensor):
+-        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+-
+-    def forward(self, x: torch.Tensor):
++        self.weight = ms.Parameter(mint.ones(dim))
++
++    def _norm(self, x: ms.Tensor):
++        return x * mint.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
++
++    def construct(self, x: ms.Tensor):
+         output = self._norm(x.float()).type_as(x)
+         return output * self.weight
+ 
+     def reset_parameters(self):
+-        torch.nn.init.ones_(self.weight)  # type: ignore
+-
+-
+-class Attention(nn.Module):
++        torch.nn.init.ones_(self.weight)  # type: ignore; 'torch.nn.init.ones_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++
++class Attention(msnn.Cell):
+     """
+     Multi-head attention module.
+ 
+@@ -174,23 +179,21 @@         self.head_dim = model_args.dim // model_args.n_heads
+ 
+         self.wq = nn.Linear(
+-            model_args.dim, model_args.n_heads * self.head_dim, bias=False
+-        )
+-        self.wk = nn.Linear(model_args.dim, self.n_kv_heads * self.head_dim, bias=False)
+-        self.wv = nn.Linear(model_args.dim, self.n_kv_heads * self.head_dim, bias=False)
++            model_args.dim, model_args.n_heads * self.head_dim, bias = False)
++        self.wk = nn.Linear(model_args.dim, self.n_kv_heads * self.head_dim, bias = False)
++        self.wv = nn.Linear(model_args.dim, self.n_kv_heads * self.head_dim, bias = False)
+         self.wo = nn.Linear(
+-            model_args.n_heads * self.head_dim, model_args.dim, bias=False
+-        )
++            model_args.n_heads * self.head_dim, model_args.dim, bias = False)
+ 
+     def init_weights(self, init_std: float):
+         for linear in (self.wq, self.wk, self.wv):
+-            nn.init.trunc_normal_(linear.weight, mean=0.0, std=0.02)
+-        nn.init.trunc_normal_(self.wo.weight, mean=0.0, std=init_std)
+-
+-    def forward(
++            nn.init.trunc_normal_(linear.weight, mean=0.0, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.trunc_normal_(self.wo.weight, mean=0.0, std=init_std)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(
+         self,
+-        x: torch.Tensor,
+-        freqs_cis: torch.Tensor,
++        x: ms.Tensor,
++        freqs_cis: ms.Tensor,
+     ):
+         """
+         Forward pass of the attention module.
+@@ -220,7 +223,7 @@         xv = values.transpose(1, 2)  # (bs, n_local_heads, seqlen, head_dim)
+ 
+         # we use casual mask for training
+-        output = F.scaled_dot_product_attention(xq, xk, xv, is_causal=True)
++        output = F.scaled_dot_product_attention(xq, xk, xv, is_causal=True)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         output = output.transpose(
+             1, 2
+         ).contiguous()  # (bs, seqlen, n_local_heads, head_dim)
+@@ -228,7 +231,7 @@         return self.wo(output)
+ 
+ 
+-class FeedForward(nn.Module):
++class FeedForward(msnn.Cell):
+     """
+     FeedForward module
+ 
+@@ -259,20 +262,20 @@             hidden_dim = int(ffn_dim_multiplier * hidden_dim)
+         hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
+ 
+-        self.w1 = nn.Linear(dim, hidden_dim, bias=False)
+-        self.w2 = nn.Linear(hidden_dim, dim, bias=False)
+-        self.w3 = nn.Linear(dim, hidden_dim, bias=False)
+-
+-    def forward(self, x):
+-        return self.w2(F.silu(self.w1(x)) * self.w3(x))
++        self.w1 = nn.Linear(dim, hidden_dim, bias = False)
++        self.w2 = nn.Linear(hidden_dim, dim, bias = False)
++        self.w3 = nn.Linear(dim, hidden_dim, bias = False)
++
++    def construct(self, x):
++        return self.w2(nn.functional.silu(self.w1(x)) * self.w3(x))
+ 
+     def init_weights(self, init_std: float):
+-        nn.init.trunc_normal_(self.w1.weight, mean=0.0, std=0.02)
++        nn.init.trunc_normal_(self.w1.weight, mean=0.0, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         for linear in (self.w2, self.w3):
+-            nn.init.trunc_normal_(linear.weight, mean=0.0, std=init_std)
+-
+-
+-class TransformerBlock(nn.Module):
++            nn.init.trunc_normal_(linear.weight, mean=0.0, std=init_std)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++
++class TransformerBlock(msnn.Cell):
+     """
+     TransformerBlock Module
+ 
+@@ -318,10 +321,10 @@         else:
+             self.weight_init_std = 0.02 / (2 * self.num_layers) ** 0.5
+ 
+-    def forward(
++    def construct(
+         self,
+-        x: torch.Tensor,
+-        freqs_cis: torch.Tensor,
++        x: ms.Tensor,
++        freqs_cis: ms.Tensor,
+     ):
+         """
+         Perform a forward pass through the TransformerBlock.
+@@ -345,7 +348,7 @@         self.feed_forward.init_weights(self.weight_init_std)
+ 
+ 
+-class Transformer(nn.Module):
++class Transformer(msnn.Cell):
+     """
+     Transformer Module
+ 
+@@ -381,7 +384,7 @@                 model_args.max_seq_len * 2,
+             ),
+         )
+-        self.layers = torch.nn.ModuleList()
++        self.layers = msnn.CellList()
+         for layer_id in range(model_args.n_layers):
+             self.layers.append(TransformerBlock(layer_id, model_args))
+ 
+@@ -389,7 +392,7 @@             dim=model_args.dim, eps=model_args.norm_eps
+         )
+ 
+-        self.output = nn.Linear(model_args.dim, model_args.vocab_size, bias=False)
++        self.output = nn.Linear(model_args.dim, model_args.vocab_size, bias = False)
+         self.init_weights()
+ 
+     def init_weights(self):
+@@ -404,6 +407,7 @@         ``init_weights``. We only call it in the constructor of this
+         ``Transformer`` root module to avoid reinitializing tensors.
+         """
++        # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.device(self.freqs_cis.device):
+             self.freqs_cis = precompute_freqs_cis(
+                 self.model_args.dim // self.model_args.n_heads,
+@@ -411,7 +415,7 @@                 # (use 2x max sequence length to be safe)
+                 self.model_args.max_seq_len * 2,
+             )
+-        nn.init.normal_(self.tok_embeddings.weight)
++        nn.init.normal_(self.tok_embeddings.weight)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         for layer in self.layers:
+             layer.init_weights()
+         self.norm.reset_parameters()
+@@ -423,9 +427,9 @@             std=final_out_std,
+             a=-cutoff_factor * final_out_std,
+             b=cutoff_factor * final_out_std,
+-        )
+-
+-    def forward(self, tokens: torch.Tensor):
++        )  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, tokens: ms.Tensor):
+         """
+         Perform a forward pass through the Transformer model.
+ 

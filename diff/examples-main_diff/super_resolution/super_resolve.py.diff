@@ -1,0 +1,39 @@
+--- pytorch+++ mindspore@@ -1,8 +1,13 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from __future__ import print_function
+ import argparse
+-import torch
++# import torch
+ from PIL import Image
+-from torchvision.transforms import ToTensor
++# from torchvision.transforms import ToTensor
+ from model import Net
+ 
+ import numpy as np
+@@ -22,18 +27,19 @@ with open(opt.model, 'rb') as f:
+     safe_globals = [
+         Net,
+-        torch.nn.modules.activation.ReLU,
+-        torch.nn.modules.conv.Conv2d,
++        nn.ReLU,
++        nn.Conv2d,
+         torch.nn.modules.pixelshuffle.PixelShuffle,
+     ]
++    # 'torch.serialization.safe_globals' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     with torch.serialization.safe_globals(safe_globals):
+-        model = torch.load(f)
++        model = torch.load(f)  # 'torch.load' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+-img_to_tensor = ToTensor()
++img_to_tensor = ToTensor()  # 'torchvision.transforms.ToTensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ input = img_to_tensor(y).view(1, -1, y.size[1], y.size[0])
+ 
+ if opt.accel:
+-    device = torch.accelerator.current_accelerator()
++    device = torch.accelerator.current_accelerator()  # 'torch.accelerator.current_accelerator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     model = model.to(device)
+     input = input.to(device)
+ 

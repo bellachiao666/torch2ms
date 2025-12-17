@@ -1,0 +1,23 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+"""
+This python script converts the network into Script Module
+"""
+# from torchvision import models
+
+# Download and load the pre-trained model
+model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)  # 'torchvision.models.resnet18' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+
+# Set upgrading the gradients to False
+for param in model.parameters():
+	param.requires_grad = False
+
+# Save the model except the final FC Layer
+resnet18 = msnn.SequentialCell(*list(model.children())[:-1])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+
+example_input = mint.rand(1, 3, 224, 224)
+script_module = mint.trace(resnet18, example_input)
+script_module.save('resnet18_without_last_layer.pt')

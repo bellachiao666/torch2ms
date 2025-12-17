@@ -1,0 +1,83 @@
+--- pytorch+++ mindspore@@ -1,26 +1,31 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from __future__ import print_function
+ import argparse
+-import torch
+-import torch.nn as nn
+-import torch.optim as optim
++# import torch
++# import torch.nn as nn
++# import torch.optim as optim
+ import numpy as np
+ import matplotlib
+ matplotlib.use('Agg')
+ import matplotlib.pyplot as plt
+ 
+-class Sequence(nn.Module):
++class Sequence(msnn.Cell):
+     def __init__(self):
+         super(Sequence, self).__init__()
+-        self.lstm1 = nn.LSTMCell(1, 51)
+-        self.lstm2 = nn.LSTMCell(51, 51)
++        self.lstm1 = nn.LSTMCell(1, 51)  # 'torch.nn.LSTMCell' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        self.lstm2 = nn.LSTMCell(51, 51)  # 'torch.nn.LSTMCell' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         self.linear = nn.Linear(51, 1)
+ 
+-    def forward(self, input, future = 0):
++    def construct(self, input, future = 0):
+         outputs = []
+-        h_t = torch.zeros(input.size(0), 51, dtype=torch.double)
+-        c_t = torch.zeros(input.size(0), 51, dtype=torch.double)
+-        h_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
+-        c_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
++        h_t = mint.zeros(input.size(0), 51, dtype=ms.float64)
++        c_t = mint.zeros(input.size(0), 51, dtype=ms.float64)
++        h_t2 = mint.zeros(input.size(0), 51, dtype=ms.float64)
++        c_t2 = mint.zeros(input.size(0), 51, dtype=ms.float64)
+ 
+         for input_t in input.split(1, dim=1):
+             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
+@@ -32,7 +37,7 @@             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
+             output = self.linear(h_t2)
+             outputs += [output]
+-        outputs = torch.cat(outputs, dim=1)
++        outputs = mint.cat(outputs, dim=1)
+         return outputs
+ 
+ 
+@@ -42,19 +47,19 @@     opt = parser.parse_args()
+     # set random seed to 0
+     np.random.seed(0)
+-    torch.manual_seed(0)
++    torch.manual_seed(0)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     # load data and make training set
+-    data = torch.load('traindata.pt')
+-    input = torch.from_numpy(data[3:, :-1])
+-    target = torch.from_numpy(data[3:, 1:])
+-    test_input = torch.from_numpy(data[:3, :-1])
+-    test_target = torch.from_numpy(data[:3, 1:])
++    data = torch.load('traindata.pt')  # 'torch.load' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    input = torch.from_numpy(data[3:, :-1])  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    target = torch.from_numpy(data[3:, 1:])  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    test_input = torch.from_numpy(data[:3, :-1])  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    test_target = torch.from_numpy(data[:3, 1:])  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     # build the model
+     seq = Sequence()
+     seq.double()
+     criterion = nn.MSELoss()
+     # use LBFGS as optimizer since we can load the whole data to train
+-    optimizer = optim.LBFGS(seq.parameters(), lr=0.8)
++    optimizer = optim.LBFGS(seq.parameters(), lr=0.8)  # 'torch.optim.LBFGS' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     #begin to train
+     for i in range(opt.steps):
+         print('STEP: ', i)
+@@ -67,6 +72,7 @@             return loss
+         optimizer.step(closure)
+         # begin to predict, no need to track gradient here
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             future = 1000
+             pred = seq(test_input, future=future)

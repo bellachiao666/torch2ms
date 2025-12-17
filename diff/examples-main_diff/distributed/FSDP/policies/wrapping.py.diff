@@ -1,0 +1,31 @@
+--- pytorch+++ mindspore@@ -1,24 +1,17 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ # holds various wrapping policies for fsdp
+ 
+ 
+-import torch.distributed as dist
+-import torch.nn as nn
+-import torch
+ 
+ from transformers.models.t5.modeling_t5 import T5Block
+-
+-from torch.distributed.fsdp.fully_sharded_data_parallel import (
+-    FullyShardedDataParallel as FSDP,
+-    CPUOffload,
+-    BackwardPrefetch,
+-    MixedPrecision,
+-)
+-from torch.distributed.fsdp.wrap import (
++# from torch.distributed.fsdp.wrap import (
+     transformer_auto_wrap_policy,
+     size_based_auto_wrap_policy,
+-    enable_wrap,
+-    wrap,
+-)
++    )
+ 
+ import functools
+ from typing import Type

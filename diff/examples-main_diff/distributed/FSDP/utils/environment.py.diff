@@ -1,0 +1,25 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ # Copyright (c) 2022 Meta Platforms, Inc. and its affiliates.
+ # All rights reserved.
+ #
+@@ -10,9 +15,9 @@ # Hence the reason for a checker!
+ 
+ from pkg_resources import packaging
+-import torch
+-import torch.cuda.nccl as nccl
+-import torch.distributed as dist
++# import torch
++# import torch.cuda.nccl as nccl
++# import torch.distributed as dist
+ 
+ # global flag that confirms ampere architecture, cuda version and
+ # nccl version to verify bfloat16 native support is ready
+@@ -24,4 +29,4 @@         and packaging.version.parse(torch.version.cuda).release >= (11, 0)
+         and dist.is_nccl_available()
+         and nccl.version() >= (2, 10)
+-    )
++    )  # 'torch.cuda.is_bf16_supported' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.distributed.is_nccl_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.cuda.nccl.version' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
