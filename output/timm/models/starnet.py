@@ -45,9 +45,9 @@ class ConvBN(msnn.SequentialCell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.add_module('conv', nn.Conv2d(
-            in_channels, out_channels, kernel_size, stride=stride, padding=padding, **dd, **kwargs))
+            in_channels, out_channels, kernel_size, stride=stride, padding=padding, **dd, **kwargs))  # 存在 *args/**kwargs，需手动确认参数映射;
         if with_bn:
-            self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))
+            self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
             nn.init.constant_(self.bn.weight, 1)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
@@ -64,11 +64,11 @@ class Block(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.dwconv = ConvBN(dim, dim, 7, 1, 3, groups=dim, with_bn=True, **dd)
-        self.f1 = ConvBN(dim, mlp_ratio * dim, 1, with_bn=False, **dd)
-        self.f2 = ConvBN(dim, mlp_ratio * dim, 1, with_bn=False, **dd)
-        self.g = ConvBN(mlp_ratio * dim, dim, 1, with_bn=True, **dd)
-        self.dwconv2 = ConvBN(dim, dim, 7, 1, 3, groups=dim, with_bn=False, **dd)
+        self.dwconv = ConvBN(dim, dim, 7, 1, 3, groups=dim, with_bn=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.f1 = ConvBN(dim, mlp_ratio * dim, 1, with_bn=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.f2 = ConvBN(dim, mlp_ratio * dim, 1, with_bn=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.g = ConvBN(mlp_ratio * dim, dim, 1, with_bn=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.dwconv2 = ConvBN(dim, dim, 7, 1, 3, groups=dim, with_bn=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
@@ -112,7 +112,7 @@ class StarNet(msnn.Cell):
         self.stem = msnn.SequentialCell(
             ConvBN(in_chans, stem_chs, kernel_size=3, stride=2, padding=1, **dd),
             act_layer(),
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         prev_chs = stem_chs
 
         # build stages
@@ -121,20 +121,20 @@ class StarNet(msnn.Cell):
         cur = 0
         for i_layer in range(len(depths)):
             embed_dim = base_dim * 2 ** i_layer
-            down_sampler = ConvBN(prev_chs, embed_dim, 3, stride=2, padding=1, **dd)
-            blocks = [Block(embed_dim, mlp_ratio, dpr[cur + i], act_layer, **dd) for i in range(depths[i_layer])]
+            down_sampler = ConvBN(prev_chs, embed_dim, 3, stride=2, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            blocks = [Block(embed_dim, mlp_ratio, dpr[cur + i], act_layer, **dd) for i in range(depths[i_layer])]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             cur += depths[i_layer]
             prev_chs = embed_dim
-            stages.append(msnn.SequentialCell(down_sampler, *blocks))
+            stages.append(msnn.SequentialCell(down_sampler, *blocks))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.feature_info.append(dict(
                     num_chs=prev_chs, reduction=2**(i_layer+2), module=f'stages.{i_layer}'))
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # head
         self.num_features = self.head_hidden_size = prev_chs
-        self.norm = nn.BatchNorm2d(self.num_features, **dd)
+        self.norm = nn.BatchNorm2d(self.num_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-        self.head = Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -146,11 +146,11 @@ class StarNet(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set:
         return set()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         matcher = dict(
             stem=r'^stem\.\d+',
@@ -161,11 +161,11 @@ class StarNet(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -318,48 +318,48 @@ def _create_starnet(variant: str, pretrained: bool = False, **kwargs: Any) -> St
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def starnet_s1(pretrained: bool = False, **kwargs: Any) -> StarNet:
     model_args = dict(base_dim=24, depths=[2, 2, 8, 3])
-    return _create_starnet('starnet_s1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_starnet('starnet_s1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def starnet_s2(pretrained: bool = False, **kwargs: Any) -> StarNet:
     model_args = dict(base_dim=32, depths=[1, 2, 6, 2])
-    return _create_starnet('starnet_s2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_starnet('starnet_s2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def starnet_s3(pretrained: bool = False, **kwargs: Any) -> StarNet:
     model_args = dict(base_dim=32, depths=[2, 2, 8, 4])
-    return _create_starnet('starnet_s3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_starnet('starnet_s3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def starnet_s4(pretrained: bool = False, **kwargs: Any) -> StarNet:
     model_args = dict(base_dim=32, depths=[3, 3, 12, 5])
-    return _create_starnet('starnet_s4', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_starnet('starnet_s4', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 # very small networks #
 @register_model
 def starnet_s050(pretrained: bool = False, **kwargs: Any) -> StarNet:
     model_args = dict(base_dim=16, depths=[1, 1, 3, 1], mlp_ratio=3)
-    return _create_starnet('starnet_s050', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_starnet('starnet_s050', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def starnet_s100(pretrained: bool = False, **kwargs: Any) -> StarNet:
     model_args = dict(base_dim=20, depths=[1, 2, 4, 1], mlp_ratio=4)
-    return _create_starnet('starnet_s100', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_starnet('starnet_s100', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def starnet_s150(pretrained: bool = False, **kwargs: Any) -> StarNet:
     model_args = dict(base_dim=24, depths=[1, 2, 4, 2], mlp_ratio=3)
-    return _create_starnet('starnet_s150', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_starnet('starnet_s150', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

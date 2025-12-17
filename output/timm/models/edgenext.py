@@ -52,7 +52,7 @@ class PositionalEncodingFourier(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)
+        self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.scale = 2 * math.pi
         self.temperature = temperature
         self.hidden_dim = hidden_dim
@@ -114,15 +114,15 @@ class ConvBlock(msnn.Cell):
             depthwise=True,
             bias=conv_bias,
             **dd,
-        )
-        self.norm = norm_layer(dim_out, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             dim_out,
             int(expand_ratio * dim_out),
             act_layer=act_layer,
             **dd,
-        )
-        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim_out, **dd)) if ls_init_value > 0 else None
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim_out, **dd)) if ls_init_value > 0 else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -156,11 +156,11 @@ class CrossCovarianceAttn(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.num_heads = num_heads
-        self.temperature = ms.Parameter(mint.ones(num_heads, 1, 1, **dd))
+        self.temperature = ms.Parameter(mint.ones(num_heads, 1, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x):
@@ -179,7 +179,7 @@ class CrossCovarianceAttn(msnn.Cell):
         x = self.proj_drop(x)
         return x
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'temperature'}
 
@@ -211,14 +211,14 @@ class SplitTransposeBlock(msnn.Cell):
 
         convs = []
         for i in range(self.num_scales):
-            convs.append(create_conv2d(width, width, kernel_size=3, depthwise=True, bias=conv_bias, **dd))
+            convs.append(create_conv2d(width, width, kernel_size=3, depthwise=True, bias=conv_bias, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.convs = msnn.CellList(convs)
 
         self.pos_embd = None
         if use_pos_emb:
-            self.pos_embd = PositionalEncodingFourier(dim=dim, **dd)
-        self.norm_xca = norm_layer(dim, **dd)
-        self.gamma_xca = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None
+            self.pos_embd = PositionalEncodingFourier(dim=dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm_xca = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma_xca = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.xca = CrossCovarianceAttn(
             dim,
             num_heads=num_heads,
@@ -226,16 +226,16 @@ class SplitTransposeBlock(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.norm = norm_layer(dim, eps=1e-6, **dd)
+        self.norm = norm_layer(dim, eps=1e-6, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             dim,
             int(expand_ratio * dim),
             act_layer=act_layer,
             **dd,
-        )
-        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -307,7 +307,7 @@ class EdgeNeXtStage(msnn.Cell):
             self.downsample = msnn.SequentialCell(
                 norm_layer(in_chs, **dd),
                 nn.Conv2d(in_chs, out_chs, kernel_size=2, stride=2, bias=conv_bias, **dd)
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
             in_chs = out_chs
 
         stage_blocks = []
@@ -327,7 +327,7 @@ class EdgeNeXtStage(msnn.Cell):
                         act_layer=act_layer,
                         **dd,
                     )
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 stage_blocks.append(
                     SplitTransposeBlock(
@@ -343,9 +343,9 @@ class EdgeNeXtStage(msnn.Cell):
                         act_layer=act_layer,
                         **dd,
                     )
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs
-        self.blocks = msnn.SequentialCell(*stage_blocks)
+        self.blocks = msnn.SequentialCell(*stage_blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -396,12 +396,12 @@ class EdgeNeXt(msnn.Cell):
             self.stem = msnn.SequentialCell(
                 nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4, bias=conv_bias, **dd,),
                 norm_layer(dims[0], **dd),
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.stem = msnn.SequentialCell(
                 nn.Conv2d(in_chans, dims[0], kernel_size=9, stride=4, padding=9 // 2, bias=conv_bias, **dd),
                 norm_layer(dims[0], **dd),
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         curr_stride = 4
         stages = []
@@ -430,23 +430,23 @@ class EdgeNeXt(msnn.Cell):
                 norm_layer_cl=norm_layer_cl,
                 act_layer=act_layer,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             # NOTE feature_info use currently assumes stage 0 == stride 1, rest are stride 2
             in_chs = dims[i]
             self.feature_info += [dict(num_chs=in_chs, reduction=curr_stride, module=f'stages.{i}')]
 
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.num_features = self.head_hidden_size = dims[-1]
         if head_norm_first:
-            self.norm_pre = norm_layer(self.num_features, **dd)
+            self.norm_pre = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head = ClassifierHead(
                 self.num_features,
                 num_classes,
                 pool_type=global_pool,
                 drop_rate=self.drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.norm_pre = msnn.Identity()
             self.head = NormMlpClassifierHead(
@@ -456,11 +456,11 @@ class EdgeNeXt(msnn.Cell):
                 drop_rate=self.drop_rate,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         named_apply(partial(_init_weights, head_init_scale=head_init_scale), self)
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
@@ -471,12 +471,12 @@ class EdgeNeXt(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -614,7 +614,7 @@ def _create_edgenext(variant, pretrained=False, **kwargs):
         EdgeNeXt, variant, pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -664,7 +664,7 @@ def edgenext_xx_small(pretrained=False, **kwargs) -> EdgeNeXt:
     # Jetson FPS=51.66 versus 47.67 for MobileViT_XXS
     # For A100: FPS @ BS=1: 212.13 & @ BS=256: 7042.06 versus FPS @ BS=1: 96.68 & @ BS=256: 4624.71 for MobileViT_XXS
     model_args = dict(depths=(2, 2, 6, 2), dims=(24, 48, 88, 168), heads=(4, 4, 4, 4))
-    return _create_edgenext('edgenext_xx_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_edgenext('edgenext_xx_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -675,7 +675,7 @@ def edgenext_x_small(pretrained=False, **kwargs) -> EdgeNeXt:
     # Jetson FPS=31.61 versus 28.49 for MobileViT_XS
     # For A100: FPS @ BS=1: 179.55 & @ BS=256: 4404.95 versus FPS @ BS=1: 94.55 & @ BS=256: 2361.53 for MobileViT_XS
     model_args = dict(depths=(3, 3, 9, 3), dims=(32, 64, 100, 192), heads=(4, 4, 4, 4))
-    return _create_edgenext('edgenext_x_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_edgenext('edgenext_x_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -686,7 +686,7 @@ def edgenext_small(pretrained=False, **kwargs) -> EdgeNeXt:
     # Jetson FPS=20.47 versus 18.86 for MobileViT_S
     # For A100: FPS @ BS=1: 172.33 & @ BS=256: 3010.25 versus FPS @ BS=1: 93.84 & @ BS=256: 1785.92 for MobileViT_S
     model_args = dict(depths=(3, 3, 9, 3), dims=(48, 96, 160, 304))
-    return _create_edgenext('edgenext_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_edgenext('edgenext_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -697,7 +697,7 @@ def edgenext_base(pretrained=False, **kwargs) -> EdgeNeXt:
     # Jetson FPS=xx.xx versus xx.xx for MobileViT_S
     # For A100: FPS @ BS=1: xxx.xx & @ BS=256: xxxx.xx
     model_args = dict(depths=[3, 3, 9, 3], dims=[80, 160, 288, 584])
-    return _create_edgenext('edgenext_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_edgenext('edgenext_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -705,5 +705,5 @@ def edgenext_small_rw(pretrained=False, **kwargs) -> EdgeNeXt:
     model_args = dict(
         depths=(3, 3, 9, 3), dims=(48, 96, 192, 384),
         downsample_block=True, conv_bias=False, stem_type='overlap')
-    return _create_edgenext('edgenext_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_edgenext('edgenext_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

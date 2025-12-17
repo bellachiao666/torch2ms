@@ -52,19 +52,7 @@
          for i in range(batch_size):
              tensor[i].copy_(batch[i][0])
          return tensor, targets
-@@ -79,6 +83,12 @@ 
- class PrefetchLoader:
- 
-+    # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch.utils.data' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch.utils' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def __init__(
-             self,
-             loader: torch.utils.data.DataLoader,
-@@ -101,11 +111,11 @@         self.device = device
+@@ -101,11 +105,11 @@         self.device = device
          if fp16:
              # fp16 arg is deprecated, but will override dtype arg if set for bwd compat
 -            img_dtype = torch.float16
@@ -79,7 +67,7 @@
              [x * 255 for x in std], device=device, dtype=img_dtype).view(normalization_shape)
          if re_prob > 0.:
              self.random_erasing = RandomErasing(
-@@ -117,16 +127,16 @@             )
+@@ -117,16 +121,16 @@             )
          else:
              self.random_erasing = None
 -        self.is_cuda = device.type == 'cuda' and torch.cuda.is_available()
@@ -99,7 +87,7 @@
              stream_context = partial(torch.npu.stream, stream=stream)
          else:
              stream = None
-@@ -148,9 +158,9 @@ 
+@@ -148,9 +152,9 @@ 
              if stream is not None:
                  if self.is_cuda:
 -                    torch.cuda.current_stream(device=self.device).wait_stream(stream)
@@ -110,7 +98,7 @@
  
              input = next_input
              target = next_target
-@@ -182,12 +192,12 @@ 
+@@ -182,12 +186,12 @@ 
  
  def _worker_init(worker_id, worker_seeding='all'):
 -    worker_info = torch.utils.data.get_worker_info()
@@ -124,16 +112,7 @@
          np.random.seed(seed % (2 ** 32 - 1))
      else:
          assert worker_seeding in ('all', 'part')
-@@ -197,6 +207,9 @@             np.random.seed(worker_info.seed % (2 ** 32 - 1))
- 
- 
-+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def create_loader(
-         dataset: Union[ImageDataset, IterableImageDataset],
-         input_size: Union[int, Tuple[int, int], Tuple[int, int, int]],
-@@ -230,7 +243,7 @@         collate_fn: Optional[Callable] = None,
+@@ -230,7 +234,7 @@         collate_fn: Optional[Callable] = None,
          pin_memory: bool = False,
          fp16: bool = False,  # deprecated, use img_dtype
 -        img_dtype: torch.dtype = torch.float32,
@@ -141,7 +120,7 @@
          device: torch.device = torch.device('cuda'),
          use_prefetcher: bool = True,
          use_multi_epochs_loader: bool = False,
-@@ -328,7 +341,7 @@             if num_aug_repeats:
+@@ -328,7 +332,7 @@             if num_aug_repeats:
                  sampler = RepeatAugSampler(dataset, num_repeats=num_aug_repeats)
              else:
 -                sampler = torch.utils.data.distributed.DistributedSampler(dataset)
@@ -149,22 +128,27 @@
          else:
              # This will add extra duplicate entries to result in equal num
              # of samples per-process, will slightly alter validation results
-@@ -355,10 +368,10 @@         persistent_workers=persistent_workers
+@@ -355,10 +359,10 @@         persistent_workers=persistent_workers
      )
      try:
 -        loader = loader_class(dataset, **loader_args)
-+        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
      except TypeError as e:
          loader_args.pop('persistent_workers')  # only in Pytorch 1.7+
 -        loader = loader_class(dataset, **loader_args)
-+        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
      if use_prefetcher:
          prefetch_re_prob = re_prob if is_training and not no_aug else 0.
          loader = PrefetchLoader(
-@@ -378,6 +391,7 @@     return loader
+@@ -378,10 +382,11 @@     return loader
  
  
 +# 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class MultiEpochsDataLoader(torch.utils.data.DataLoader):
  
      def __init__(self, *args, **kwargs):
+-        super().__init__(*args, **kwargs)
++        super().__init__(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self._DataLoader__initialized = False
+         if self.batch_sampler is None:
+             self.sampler = _RepeatSampler(self.sampler)

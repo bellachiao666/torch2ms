@@ -191,6 +191,7 @@ class Adopt(Optimizer):
         return has_complex
 
     #@_use_grad_for_differentiable  # FIXME internal context mgr, can't use
+    @torch.no_grad()
     def step(self, closure=None):
         """Perform a single optimization step.
 

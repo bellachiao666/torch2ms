@@ -109,7 +109,7 @@ __all__ = ['Eva']
 class EvaAttention(msnn.Cell):
     """ EVA Attention with ROPE, no k-bias, and fused/unfused qkv options
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -162,25 +162,25 @@ class EvaAttention(msnn.Cell):
         self.rotate_half = rotate_half
 
         if qkv_fused:
-            self.qkv = nn.Linear(dim, attn_dim * 3, bias=False, **dd)
+            self.qkv = nn.Linear(dim, attn_dim * 3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.q_proj = self.k_proj = self.v_proj = None
             if qkv_bias:
-                self.q_bias = ms.Parameter(mint.zeros(attn_dim, **dd))
-                self.register_buffer('k_bias', mint.zeros(attn_dim, **dd), persistent=False)
-                self.v_bias = ms.Parameter(mint.zeros(attn_dim, **dd))
+                self.q_bias = ms.Parameter(mint.zeros(attn_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                self.register_buffer('k_bias', mint.zeros(attn_dim, **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                self.v_bias = ms.Parameter(mint.zeros(attn_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.q_bias = self.k_bias = self.v_bias = None
         else:
-            self.q_proj = nn.Linear(dim, attn_dim, bias=qkv_bias, **dd)
-            self.k_proj = nn.Linear(dim, attn_dim, bias=False, **dd)
-            self.v_proj = nn.Linear(dim, attn_dim, bias=qkv_bias, **dd)
+            self.q_proj = nn.Linear(dim, attn_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.k_proj = nn.Linear(dim, attn_dim, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.v_proj = nn.Linear(dim, attn_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.qkv = None
             self.q_bias = self.k_bias = self.v_bias = None
-        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
-        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
+        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.norm = norm_layer(attn_dim, **dd) if scale_norm else msnn.Identity()
-        self.proj = nn.Linear(attn_dim, dim, **dd)
+        self.norm = norm_layer(attn_dim, **dd) if scale_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = nn.Linear(attn_dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(
@@ -299,7 +299,7 @@ class EvaBlock(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         attn_cls = AttentionRope if attn_type == 'rope' else EvaAttention
         self.attn = attn_cls(
             dim,
@@ -314,11 +314,11 @@ class EvaBlock(msnn.Cell):
             scale_norm=scale_attn_inner,
             rotate_half=rotate_half,
             **dd,
-        )
-        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd)) if init_values is not None else None
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd)) if init_values is not None else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         hidden_features = int(dim * mlp_ratio)
         if swiglu_mlp:
             if scale_mlp or swiglu_align_to:
@@ -330,7 +330,7 @@ class EvaBlock(msnn.Cell):
                     drop=proj_drop,
                     align_to=swiglu_align_to,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 # w/o any extra norm, an impl with packed weights is used
                 self.mlp = GluMlp(
@@ -341,7 +341,7 @@ class EvaBlock(msnn.Cell):
                     gate_last=False,
                     drop=proj_drop,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.mlp = Mlp(
                 in_features=dim,
@@ -350,8 +350,8 @@ class EvaBlock(msnn.Cell):
                 norm_layer=norm_layer if scale_mlp else None,
                 drop=proj_drop,
                 **dd,
-            )
-        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd)) if init_values is not None else None
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd)) if init_values is not None else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(
@@ -434,8 +434,8 @@ class EvaBlockPostNorm(msnn.Cell):
             scale_norm=scale_attn_inner,
             rotate_half=rotate_half,
             **dd,
-        )
-        self.norm1 = norm_layer(dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         hidden_features = int(dim * mlp_ratio)
@@ -449,7 +449,7 @@ class EvaBlockPostNorm(msnn.Cell):
                     drop=proj_drop,
                     align_to=swiglu_align_to,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 # w/o any extra norm, an impl with packed fc1 weights is used, matches existing GluMLP
                 self.mlp = GluMlp(
@@ -460,7 +460,7 @@ class EvaBlockPostNorm(msnn.Cell):
                     gate_last=False,
                     drop=proj_drop,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.mlp = Mlp(
                 in_features=dim,
@@ -469,8 +469,8 @@ class EvaBlockPostNorm(msnn.Cell):
                 norm_layer=norm_layer if scale_mlp else None,
                 drop=proj_drop,
                 **dd,
-            )
-        self.norm2 = norm_layer(dim, **dd)
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(
@@ -623,16 +623,16 @@ class Eva(msnn.Cell):
             bias=not use_pre_transformer_norm,
             **embed_args,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         num_patches = self.patch_embed.num_patches
         r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
 
-        self.cls_token = ms.Parameter(mint.empty(1, 1, embed_dim, **dd)) if class_token else None
-        self.reg_token = ms.Parameter(mint.empty(1, num_reg_tokens, embed_dim, **dd)) if num_reg_tokens else None
+        self.cls_token = ms.Parameter(mint.empty(1, 1, embed_dim, **dd)) if class_token else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.reg_token = ms.Parameter(mint.empty(1, num_reg_tokens, embed_dim, **dd)) if num_reg_tokens else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.cls_embed = class_token and self.reg_token is None
 
         num_pos_tokens = num_patches if no_embed_class else num_patches + self.num_prefix_tokens
-        self.pos_embed = ms.Parameter(mint.empty(1, num_pos_tokens, embed_dim, **dd)) if use_abs_pos_emb else None
+        self.pos_embed = ms.Parameter(mint.empty(1, num_pos_tokens, embed_dim, **dd)) if use_abs_pos_emb else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
         if patch_drop_rate > 0:
             self.patch_drop = PatchDropoutWithIndices(patch_drop_rate, num_prefix_tokens=self.num_prefix_tokens)
@@ -651,7 +651,7 @@ class Eva(msnn.Cell):
                 temperature=rope_temperature,
                 grid_indexing=rope_grid_indexing,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if rope_type == 'mixed':
                 rope_kwargs.update(dict(depth=depth))
                 self.rope_mixed = True
@@ -662,11 +662,11 @@ class Eva(msnn.Cell):
                     ref_feat_shape=ref_feat_shape,
                 ))
 
-            self.rope = create_rope_embed(rope_type=rope_type, **rope_kwargs)
+            self.rope = create_rope_embed(rope_type=rope_type, **rope_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.rope = None
 
-        self.norm_pre = norm_layer(embed_dim, **dd) if activate_pre_norm else msnn.Identity()
+        self.norm_pre = norm_layer(embed_dim, **dd) if activate_pre_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
         block_fn = EvaBlockPostNorm if use_post_norm else EvaBlock
@@ -691,11 +691,11 @@ class Eva(msnn.Cell):
                 init_values=init_values,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
 
-        self.norm = norm_layer(embed_dim, **dd) if activate_post_norm else msnn.Identity()
+        self.norm = norm_layer(embed_dim, **dd) if activate_post_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if global_pool == 'map':
             self.attn_pool = AttentionPoolLatent(
@@ -705,12 +705,12 @@ class Eva(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer=nn.GELU,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.attn_pool = None
-        self.fc_norm = norm_layer(embed_dim, **dd) if activate_fc_norm else msnn.Identity()
+        self.fc_norm = norm_layer(embed_dim, **dd) if activate_fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.init_weights(head_init_scale=head_init_scale)
 
@@ -748,7 +748,7 @@ class Eva(msnn.Cell):
             if m.bias is not None:
                 nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set[str]:
         """Parameters to exclude from weight decay."""
         nwd = {'pos_embed', 'cls_token'}
@@ -756,12 +756,12 @@ class Eva(msnn.Cell):
             return nwd | {f"rope.{p}" for p in rope.no_weight_decay()}
         return nwd
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing."""
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Create layer groupings for optimization."""
         matcher = dict(
@@ -770,7 +770,7 @@ class Eva(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -1243,7 +1243,7 @@ def _create_eva(variant: str, pretrained: bool = False, **kwargs) -> Eva:
     if use_naflex:
         # Import here to avoid circular import
         from .naflexvit import _create_naflexvit_from_eva
-        return _create_naflexvit_from_eva(variant, pretrained, **kwargs)
+        return _create_naflexvit_from_eva(variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     out_indices = kwargs.pop('out_indices', 3)
     model = build_model_with_cfg(
@@ -1251,7 +1251,7 @@ def _create_eva(variant: str, pretrained: bool = False, **kwargs) -> Eva:
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1721,7 +1721,7 @@ default_cfgs = generate_default_cfgs({
 def eva_giant_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
     """EVA-g model https://arxiv.org/abs/2211.07636"""
     model_args = dict(patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408)
-    model = _create_eva('eva_giant_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva_giant_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1729,7 +1729,7 @@ def eva_giant_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
 def eva_giant_patch14_336(pretrained: bool = False, **kwargs) -> Eva:
     """EVA-g model https://arxiv.org/abs/2211.07636"""
     model_args = dict(patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408)
-    model = _create_eva('eva_giant_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva_giant_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1737,7 +1737,7 @@ def eva_giant_patch14_336(pretrained: bool = False, **kwargs) -> Eva:
 def eva_giant_patch14_560(pretrained: bool = False, **kwargs) -> Eva:
     """EVA-g model https://arxiv.org/abs/2211.07636"""
     model_args = dict(patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408)
-    model = _create_eva('eva_giant_patch14_560', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva_giant_patch14_560', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1755,7 +1755,7 @@ def eva02_tiny_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_tiny_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_tiny_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1773,7 +1773,7 @@ def eva02_small_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_small_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_small_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1793,7 +1793,7 @@ def eva02_base_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_base_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_base_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1813,7 +1813,7 @@ def eva02_large_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_large_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_large_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1831,7 +1831,7 @@ def eva02_tiny_patch14_336(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_tiny_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_tiny_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1849,7 +1849,7 @@ def eva02_small_patch14_336(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_small_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_small_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1869,7 +1869,7 @@ def eva02_base_patch14_448(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_base_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_base_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1889,7 +1889,7 @@ def eva02_large_patch14_448(pretrained: bool = False, **kwargs) -> Eva:
         use_rot_pos_emb=True,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('eva02_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1899,7 +1899,7 @@ def eva_giant_patch14_clip_224(pretrained: bool = False, **kwargs) -> Eva:
     model_args = dict(
         patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408,
         global_pool=kwargs.pop('global_pool', 'token'))
-    model = _create_eva('eva_giant_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva_giant_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1921,7 +1921,7 @@ def eva02_base_patch16_clip_224(pretrained: bool = False, **kwargs) -> Eva:
         ref_feat_shape=(16, 16),  # 224/14
         global_pool=kwargs.pop('global_pool', 'token'),
     )
-    model = _create_eva('eva02_base_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_base_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1943,7 +1943,7 @@ def eva02_large_patch14_clip_224(pretrained: bool = False, **kwargs) -> Eva:
         ref_feat_shape=(16, 16),  # 224/14
         global_pool=kwargs.pop('global_pool', 'token'),
     )
-    model = _create_eva('eva02_large_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_large_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1965,7 +1965,7 @@ def eva02_large_patch14_clip_336(pretrained: bool = False, **kwargs) -> Eva:
         ref_feat_shape=(16, 16),  # 224/14
         global_pool=kwargs.pop('global_pool', 'token'),
     )
-    model = _create_eva('eva02_large_patch14_clip_336', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_large_patch14_clip_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1982,7 +1982,7 @@ def eva02_enormous_patch14_clip_224(pretrained: bool = False, **kwargs) -> Eva:
         use_post_norm=True,
         global_pool=kwargs.pop('global_pool', 'token'),
     )
-    model = _create_eva('eva02_enormous_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('eva02_enormous_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2004,7 +2004,7 @@ def vit_medium_patch16_rope_reg1_gap_256(pretrained: bool = False, **kwargs) -> 
         use_abs_pos_emb=False,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('vit_medium_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_medium_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2026,7 +2026,7 @@ def vit_mediumd_patch16_rope_reg1_gap_256(pretrained: bool = False, **kwargs) ->
         use_abs_pos_emb=False,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('vit_mediumd_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_mediumd_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2048,7 +2048,7 @@ def vit_betwixt_patch16_rope_reg4_gap_256(pretrained: bool = False, **kwargs) ->
         use_abs_pos_emb=False,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('vit_betwixt_patch16_rope_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_betwixt_patch16_rope_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2070,7 +2070,7 @@ def vit_base_patch16_rope_reg1_gap_256(pretrained: bool = False, **kwargs) -> Ev
         use_abs_pos_emb=False,
         ref_feat_shape=(16, 16),  # 224/14
     )
-    model = _create_eva('vit_base_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_base_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2095,7 +2095,7 @@ def vit_pe_core_tiny_patch16_384(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True
     )
-    return _create_eva('vit_pe_core_tiny_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_core_tiny_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 
@@ -2120,7 +2120,7 @@ def vit_pe_core_small_patch16_384(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True
     )
-    return _create_eva('vit_pe_core_small_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_core_small_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2144,7 +2144,7 @@ def vit_pe_core_base_patch16_224(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True
     )
-    return _create_eva('vit_pe_core_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_core_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2168,7 +2168,7 @@ def vit_pe_core_large_patch14_336(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True,
     )
-    return _create_eva('vit_pe_core_large_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_core_large_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2192,7 +2192,7 @@ def vit_pe_core_gigantic_patch14_448(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True,
     )
-    return _create_eva('vit_pe_core_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_core_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2217,7 +2217,7 @@ def vit_pe_lang_large_patch14_448(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True,
     )
-    return _create_eva('vit_pe_lang_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_lang_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2241,7 +2241,7 @@ def vit_pe_lang_gigantic_patch14_448(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True,
     )
-    return _create_eva('vit_pe_lang_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_lang_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2264,7 +2264,7 @@ def vit_pe_spatial_tiny_patch16_512(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True
     )
-    return _create_eva('vit_pe_spatial_tiny_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_spatial_tiny_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2287,7 +2287,7 @@ def vit_pe_spatial_small_patch16_512(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True
     )
-    return _create_eva('vit_pe_spatial_small_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_spatial_small_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2310,7 +2310,7 @@ def vit_pe_spatial_base_patch16_512(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True
     )
-    return _create_eva('vit_pe_spatial_base_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_spatial_base_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2333,7 +2333,7 @@ def vit_pe_spatial_large_patch14_448(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True,
     )
-    return _create_eva('vit_pe_spatial_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_spatial_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2357,7 +2357,7 @@ def vit_pe_spatial_gigantic_patch14_448(pretrained: bool = False, **kwargs) -> E
         norm_layer=partial(LayerNorm, eps=1e-5),
         #dynamic_img_size=True,
     )
-    return _create_eva('vit_pe_spatial_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_eva('vit_pe_spatial_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 # RoPE-ViT models from https://github.com/naver-ai/rope-vit
@@ -2380,7 +2380,7 @@ def vit_small_patch16_rope_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_grid_indexing='xy',
         rope_temperature=100.0,
     )
-    model = _create_eva('vit_small_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2404,7 +2404,7 @@ def vit_base_patch16_rope_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_grid_indexing='xy',
         rope_temperature=100.0,
     )
-    model = _create_eva('vit_base_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_base_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2427,7 +2427,7 @@ def vit_large_patch16_rope_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_grid_indexing='xy',
         rope_temperature=100.0,
     )
-    model = _create_eva('vit_large_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_large_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2451,7 +2451,7 @@ def vit_small_patch16_rope_mixed_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_temperature=10.0,
         rope_type='mixed'
     )
-    model = _create_eva('vit_small_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2475,7 +2475,7 @@ def vit_base_patch16_rope_mixed_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_temperature=10.0,
         rope_type='mixed'
     )
-    model = _create_eva('vit_base_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_base_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2499,7 +2499,7 @@ def vit_large_patch16_rope_mixed_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_temperature=10.0,
         rope_type='mixed'
     )
-    model = _create_eva('vit_large_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_large_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2524,7 +2524,7 @@ def vit_small_patch16_rope_ape_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_grid_indexing='xy',
         rope_temperature=100.0,
     )
-    model = _create_eva('vit_small_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2549,7 +2549,7 @@ def vit_base_patch16_rope_ape_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_temperature=100.0,
     )
 
-    model = _create_eva('vit_base_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_base_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2574,7 +2574,7 @@ def vit_large_patch16_rope_ape_224(pretrained: bool = False, **kwargs) -> Eva:
         rope_temperature=100.0,
     )
 
-    model = _create_eva('vit_large_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_large_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2600,7 +2600,7 @@ def vit_small_patch16_rope_mixed_ape_224(pretrained: bool = False, **kwargs) -> 
         rope_type='mixed'
     )
 
-    model = _create_eva('vit_small_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2625,7 +2625,7 @@ def vit_base_patch16_rope_mixed_ape_224(pretrained: bool = False, **kwargs) -> E
         rope_temperature=10.0,
         rope_type='mixed'
     )
-    model = _create_eva('vit_base_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_base_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2650,7 +2650,7 @@ def vit_large_patch16_rope_mixed_ape_224(pretrained: bool = False, **kwargs) -> 
         rope_temperature=10.0,
         rope_type='mixed'
     )
-    model = _create_eva('vit_large_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_large_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2675,7 +2675,7 @@ def vit_small_patch16_dinov3(pretrained: bool = False, **kwargs) -> Eva:
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_small_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2700,7 +2700,7 @@ def vit_small_patch16_dinov3_qkvb(pretrained: bool = False, **kwargs) -> Eva:
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_small_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2727,7 +2727,7 @@ def vit_small_plus_patch16_dinov3(pretrained: bool = False, **kwargs) -> Eva:
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_small_plus_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_plus_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2754,7 +2754,7 @@ def vit_small_plus_patch16_dinov3_qkvb(pretrained: bool = False, **kwargs) -> Ev
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_small_plus_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_small_plus_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2779,7 +2779,7 @@ def vit_base_patch16_dinov3(pretrained: bool = False, **kwargs) -> Eva:
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_base_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_base_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2804,7 +2804,7 @@ def vit_base_patch16_dinov3_qkvb(pretrained: bool = False, **kwargs) -> Eva:
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_base_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_base_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2829,7 +2829,7 @@ def vit_large_patch16_dinov3(pretrained: bool = False, **kwargs) -> Eva:
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_large_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_large_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2854,7 +2854,7 @@ def vit_large_patch16_dinov3_qkvb(pretrained: bool = False, **kwargs) -> Eva:
         use_fc_norm=False,
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
-    model = _create_eva('vit_large_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_large_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2882,7 +2882,7 @@ def vit_huge_plus_patch16_dinov3(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
 
-    model = _create_eva('vit_huge_plus_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_huge_plus_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2910,7 +2910,7 @@ def vit_huge_plus_patch16_dinov3_qkvb(pretrained: bool = False, **kwargs) -> Eva
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
 
-    model = _create_eva('vit_huge_plus_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_huge_plus_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 @register_model
@@ -2938,5 +2938,5 @@ def vit_7b_patch16_dinov3(pretrained: bool = False, **kwargs) -> Eva:
         norm_layer=partial(LayerNorm, eps=1e-5),
     )
 
-    model = _create_eva('vit_7b_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_eva('vit_7b_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

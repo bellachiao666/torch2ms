@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import DropPath, calculate_drop_path_rates, NormMlpClassifierHead, ClassifierHead, EffectiveSEModule, \
-@@ -21,20 +26,20 @@ __all__ = ["RDNet"]
+@@ -21,54 +26,54 @@ __all__ = ["RDNet"]
  
  
 -class Block(nn.Module):
@@ -40,10 +40,13 @@
              nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
              norm_layer(in_chs, **dd),
              nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
-@@ -42,24 +47,24 @@             nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
-         )
- 
+             act_layer(),
+             nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          return self.layers(x)
  
@@ -69,10 +72,14 @@
              nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
              norm_layer(in_chs, **dd),
              nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
-@@ -68,7 +73,7 @@             EffectiveSEModule(out_chs, **dd),
-         )
- 
+             act_layer(),
+             nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
+             EffectiveSEModule(out_chs, **dd),
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          return self.layers(x)
  
@@ -99,15 +106,19 @@
          self.growth_rate = growth_rate
  
 -        self.gamma = nn.Parameter(ls_init_value * torch.ones(growth_rate, **dd)) if ls_init_value > 0 else None
-+        self.gamma = ms.Parameter(ls_init_value * mint.ones(growth_rate, **dd)) if ls_init_value > 0 else None
++        self.gamma = ms.Parameter(ls_init_value * mint.ones(growth_rate, **dd)) if ls_init_value > 0 else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          growth_rate = int(growth_rate)
          inter_chs = int(num_input_features * bottleneck_width_ratio / 8) * 8
  
-@@ -122,8 +127,8 @@             **dd,
-         )
- 
+@@ -120,10 +125,10 @@             norm_layer=norm_layer,
+             act_layer=act_layer,
+             **dd,
+-        )
+-
 -    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
 -        x = torch.cat(x, 1)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: List[ms.Tensor]) -> ms.Tensor:
 +        x = mint.cat(x, 1)
          x = self.layers(x)
@@ -121,7 +132,13 @@
      def __init__(
              self,
              num_block: int,
-@@ -159,15 +164,15 @@             self.add_module(f"dense_block{i}", layer)
+@@ -154,20 +159,20 @@                 block_idx=i,
+                 **dd,
+                 **kwargs,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             num_input_features += growth_rate
+             self.add_module(f"dense_block{i}", layer)
          self.num_out_features = num_input_features
  
 -    def forward(self, init_feature: torch.Tensor) -> torch.Tensor:
@@ -141,14 +158,15 @@
      def __init__(
              self,
              in_chans: int = 3,  # timm option [--in-chans]
-@@ -232,14 +237,14 @@         assert stem_type in ('patch', 'overlap', 'overlap_tiered')
+@@ -232,18 +237,18 @@         assert stem_type in ('patch', 'overlap', 'overlap_tiered')
          if stem_type == 'patch':
              # NOTE: this stem is a minimal form of ViT PatchEmbed, as used in SwinTransformer w/ patch_size = 4
 -            self.stem = nn.Sequential(
 +            self.stem = msnn.SequentialCell(
                  nn.Conv2d(in_chans, num_init_features, kernel_size=patch_size, stride=patch_size, bias=conv_bias, **dd),
                  norm_layer(num_init_features, **dd),
-             )
+-            )
++            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
              stem_stride = patch_size
          else:
              mid_chs = make_divisible(num_init_features // 2) if 'tiered' in stem_type else num_init_features
@@ -157,28 +175,88 @@
                  nn.Conv2d(in_chans, mid_chs, kernel_size=3, stride=2, padding=1, bias=conv_bias, **dd),
                  nn.Conv2d(mid_chs, num_init_features, kernel_size=3, stride=2, padding=1, bias=conv_bias, **dd),
                  norm_layer(num_init_features, **dd),
-@@ -299,8 +304,8 @@                         growth_rate=growth_rates[i],
+-            )
++            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             stem_stride = 4
+ 
+         # features
+@@ -263,7 +268,7 @@                     curr_stride *= 2
+                     k_size = stride = 2
+ 
+-                dense_stage_layers.append(norm_layer(num_features, **dd))
++                dense_stage_layers.append(norm_layer(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                 dense_stage_layers.append(nn.Conv2d(
+                     num_features,
+                     compressed_num_features,
+@@ -271,7 +276,7 @@                     stride=stride,
+                     padding=0,
+                     **dd,
+-                ))
++                ))  # 存在 *args/**kwargs，需手动确认参数映射;
+                 num_features = compressed_num_features
+ 
+             stage = DenseStage(
+@@ -286,7 +291,7 @@                 norm_layer=norm_layer,
+                 act_layer=act_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             dense_stage_layers.append(stage)
+             num_features += num_blocks_list[i] * growth_rates[i]
+ 
+@@ -299,23 +304,23 @@                         growth_rate=growth_rates[i],
                      )
                  ]
 -            dense_stages.append(nn.Sequential(*dense_stage_layers))
 -        self.dense_stages = nn.Sequential(*dense_stages)
-+            dense_stages.append(msnn.SequentialCell(*dense_stage_layers))
-+        self.dense_stages = msnn.SequentialCell(*dense_stages)
++            dense_stages.append(msnn.SequentialCell(*dense_stage_layers))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.dense_stages = msnn.SequentialCell(*dense_stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.num_features = self.head_hidden_size = num_features
  
          # if head_norm_first == true, norm -> global pool -> fc ordering, like most other nets
-@@ -315,7 +320,7 @@                 **dd,
-             )
+         # otherwise pool -> norm -> fc, the default RDNet ordering (pretrained NV weights)
+         if head_norm_first:
+-            self.norm_pre = norm_layer(self.num_features, **dd)
++            self.norm_pre = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             self.head = ClassifierHead(
+                 self.num_features,
+                 num_classes,
+                 pool_type=global_pool,
+                 drop_rate=self.drop_rate,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
 -            self.norm_pre = nn.Identity()
 +            self.norm_pre = msnn.Identity()
              self.head = NormMlpClassifierHead(
                  self.num_features,
                  num_classes,
-@@ -341,7 +346,7 @@             s.grad_checkpointing = enable
+@@ -323,11 +328,11 @@                 drop_rate=self.drop_rate,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
-     @torch.jit.ignore
+         named_apply(partial(_init_weights, head_init_scale=head_init_scale), self)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         assert not coarse, "coarse grouping is not implemented for RDNet"
+         return dict(
+@@ -335,13 +340,13 @@             blocks=r'^dense_stages\.(\d+)',
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         for s in self.dense_stages:
+             s.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
  
@@ -230,3 +308,41 @@
          if name and 'head.' in name:
              module.weight.data.mul_(head_init_scale)
              module.bias.data.mul_(head_init_scale)
+@@ -466,7 +471,7 @@         RDNet, variant, pretrained,
+         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
+-        **kwargs)
++        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -511,7 +516,7 @@         "transition_compression_ratio": 0.5,
+         "block_type": ["Block"] + ["Block"] + ["BlockESE"] * 4 + ["BlockESE"],
+     }
+-    model = _create_rdnet("rdnet_tiny", pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_rdnet("rdnet_tiny", pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -526,7 +531,7 @@         "transition_compression_ratio": 0.5,
+         "block_type": ["Block"] + ["Block"] + ["BlockESE"] * (n_layer - 4) + ["BlockESE"] * 2,
+     }
+-    model = _create_rdnet("rdnet_small", pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_rdnet("rdnet_small", pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -541,7 +546,7 @@         "transition_compression_ratio": 0.5,
+         "block_type": ["Block"] + ["Block"] + ["BlockESE"] * (n_layer - 4) + ["BlockESE"] * 2,
+     }
+-    model = _create_rdnet("rdnet_base", pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_rdnet("rdnet_base", pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -556,5 +561,5 @@         "transition_compression_ratio": 0.5,
+         "block_type": ["Block"] + ["Block"] + ["BlockESE"] * (n_layer - 4) + ["BlockESE"] * 2,
+     }
+-    model = _create_rdnet("rdnet_large", pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_rdnet("rdnet_large", pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model

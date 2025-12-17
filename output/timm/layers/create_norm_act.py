@@ -103,9 +103,9 @@ def create_norm_act_layer(
         **kwargs,
 ):
     layer = get_norm_act_layer(layer_name, act_layer=act_layer)
-    layer_instance = layer(num_features, apply_act=apply_act, **kwargs)
+    layer_instance = layer(num_features, apply_act=apply_act, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if jit:
-        layer_instance = torch.jit.script(layer_instance)  # 'torch.jit.script' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        layer_instance = ms.jit(layer_instance)
     return layer_instance
 
 
@@ -145,6 +145,6 @@ def get_norm_act_layer(
         # In the future, may force use of `apply_act` with `act_layer` arg bound to relevant NormAct types
         norm_act_kwargs.setdefault('act_layer', act_layer)
     if norm_act_kwargs:
-        norm_act_layer = functools.partial(norm_act_layer, **norm_act_kwargs)  # bind/rebind args
+        norm_act_layer = functools.partial(norm_act_layer, **norm_act_kwargs)  # bind/rebind args; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return norm_act_layer

@@ -37,9 +37,9 @@ class FilterResponseNormTlu2d(msnn.Cell):
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.rms = rms
         self.eps = eps
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-        self.tau = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.tau = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -79,8 +79,8 @@ class FilterResponseNormAct2d(msnn.Cell):
             self.act = msnn.Identity()
         self.rms = rms
         self.eps = eps
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 

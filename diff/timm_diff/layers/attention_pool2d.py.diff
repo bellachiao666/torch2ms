@@ -24,15 +24,47 @@
      """ Attention based 2D feature pooling w/ rotary (relative) pos embedding.
      This is a multi-head attention based replacement for (spatial) average pooling in NN architectures.
  
-@@ -69,7 +74,7 @@         self.rope_type = rope_type
+@@ -29,7 +34,7 @@     NOTE: While this impl does not require a fixed feature size, performance at differeing resolutions from
+     train varies widely and falls off dramatically. I'm not sure if there is a way around this... -RW
+     """
+-    fused_attn: torch.jit.Final[bool]
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
+@@ -69,19 +74,19 @@         self.rope_type = rope_type
  
          if class_token:
 -            self.cls_token = nn.Parameter(torch.zeros(1, embed_dim, **dd))
-+            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))
++            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              self.cls_token = None
  
-@@ -97,15 +102,15 @@         if self.qkv is None:
+         if qkv_separate:
+-            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
+-            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
+-            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
++            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+             self.qkv = None
+         else:
+-            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)
++            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.drop = nn.Dropout(drop_rate)
+-        self.proj = nn.Linear(embed_dim, self.out_features, **dd)
++        self.proj = nn.Linear(embed_dim, self.out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+         self.pos_embed = create_rope_embed(
+             rope_type=rope_type,
+@@ -91,21 +96,21 @@             ref_feat_shape=ref_feat_size,
+             rotate_half=False,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def init_weights(self, zero_init_last: bool = False):
+         if self.qkv is None:
              in_features = self.q.in_features
              trunc_normal_(self.q.weight, std=in_features ** -0.5)
 -            nn.init.zeros_(self.q.bias)
@@ -105,19 +137,39 @@
      """ Attention based 2D feature pooling w/ learned (absolute) pos embedding.
      This is a multi-head attention based replacement for (spatial) average pooling in NN architectures.
  
-@@ -212,7 +217,7 @@         self.fused_attn = use_fused_attn()
+@@ -173,7 +178,7 @@ 
+     NOTE: This requires feature size upon construction and well prevent adaptive sizing of the network.
+     """
+-    fused_attn: torch.jit.Final[bool]
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
+@@ -212,21 +217,21 @@         self.fused_attn = use_fused_attn()
  
          if class_token:
 -            self.cls_token = nn.Parameter(torch.zeros(1, embed_dim, **dd))
-+            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))
++            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              self.cls_token = None
  
-@@ -226,7 +231,7 @@             self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)
+         if qkv_separate:
+-            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
+-            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
+-            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
++            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+             self.qkv = None
+         else:
+             self.q = self.k = self.v = None
+-            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)
++            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.drop = nn.Dropout(drop_rate)
-         self.proj = nn.Linear(embed_dim, self.out_features, **dd)
+-        self.proj = nn.Linear(embed_dim, self.out_features, **dd)
 -        self.pos_embed = nn.Parameter(torch.zeros(self.seq_len + 1, in_features, **dd))
-+        self.pos_embed = ms.Parameter(mint.zeros(self.seq_len + 1, in_features, **dd))
++        self.proj = nn.Linear(embed_dim, self.out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.pos_embed = ms.Parameter(mint.zeros(self.seq_len + 1, in_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.init_weights()
  

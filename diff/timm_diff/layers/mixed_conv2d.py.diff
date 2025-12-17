@@ -23,7 +23,12 @@
  class MixedConv2d(nn.ModuleDict):
      """ Mixed Grouped Convolution
  
-@@ -62,7 +66,7 @@         self.splits = in_splits
+@@ -58,11 +62,11 @@                     groups=conv_groups,
+                     **kwargs,
+                 )
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.splits = in_splits
  
      def forward(self, x):
 -        x_split = torch.split(x, self.splits, 1)

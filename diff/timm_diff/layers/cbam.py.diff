@@ -35,7 +35,14 @@
              mlp_bias=False,
              device=None,
              dtype=None,
-@@ -42,7 +44,7 @@         self.fc2 = nn.Conv2d(rd_channels, channels, 1, bias=mlp_bias, **dd)
+@@ -37,12 +39,12 @@         super().__init__()
+         if not rd_channels:
+             rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
+-        self.fc1 = nn.Conv2d(channels, rd_channels, 1, bias=mlp_bias, **dd)
++        self.fc1 = nn.Conv2d(channels, rd_channels, 1, bias=mlp_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.act = act_layer(inplace=True)
+-        self.fc2 = nn.Conv2d(rd_channels, channels, 1, bias=mlp_bias, **dd)
++        self.fc2 = nn.Conv2d(rd_channels, channels, 1, bias=mlp_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.gate = create_act_layer(gate_layer)
  
 -    def forward(self, x):
@@ -120,8 +127,13 @@
              mlp_bias: bool = False,
              device=None,
              dtype=None,
-@@ -140,13 +142,13 @@         )
-         self.spatial = SpatialAttn(spatial_kernel_size, gate_layer=gate_layer, **dd)
+@@ -137,16 +139,16 @@             gate_layer=gate_layer,
+             mlp_bias=mlp_bias,
+             **dd,
+-        )
+-        self.spatial = SpatialAttn(spatial_kernel_size, gate_layer=gate_layer, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.spatial = SpatialAttn(spatial_kernel_size, gate_layer=gate_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
 -    def forward(self, x):
 +    def construct(self, x):
@@ -145,8 +157,13 @@
              mlp_bias: bool = False,
              device=None,
              dtype=None,
-@@ -174,7 +176,7 @@         )
-         self.spatial = LightSpatialAttn(spatial_kernel_size, **dd)
+@@ -171,10 +173,10 @@             gate_layer=gate_layer,
+             mlp_bias=mlp_bias,
+             **dd,
+-        )
+-        self.spatial = LightSpatialAttn(spatial_kernel_size, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.spatial = LightSpatialAttn(spatial_kernel_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
 -    def forward(self, x):
 +    def construct(self, x):

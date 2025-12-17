@@ -21,14 +21,7 @@
  class Lion(Optimizer):
      r"""Implements Lion algorithm."""
  
-@@ -78,7 +84,6 @@             group.setdefault('maximize', False)
-             group.setdefault('foreach', None)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
- 
-@@ -111,7 +116,7 @@ 
+@@ -111,7 +117,7 @@ 
                  # State initialization
                  if len(state) == 0:
 -                    state['exp_avg'] = torch.zeros_like(p, memory_format=torch.preserve_format)
@@ -36,7 +29,7 @@
  
                  exp_avgs.append(state['exp_avg'])
  
-@@ -133,9 +138,9 @@ 
+@@ -133,9 +139,9 @@ 
  
  def lion(
 -        params: List[torch.Tensor],
@@ -48,7 +41,7 @@
          # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
          # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
          maximize: bool = False,
-@@ -153,7 +158,7 @@     if foreach is None:
+@@ -153,7 +159,7 @@     if foreach is None:
          try:
              # cannot do foreach if this overload doesn't exist when caution enabled
 -            foreach = not caution or 'Scalar' in torch.ops.aten._foreach_maximum_.overloads()
@@ -56,7 +49,7 @@
          except:
              foreach = False
  
-@@ -180,9 +185,9 @@ 
+@@ -180,9 +186,9 @@ 
  
  def _single_tensor_lion(
 -        params: List[torch.Tensor],
@@ -68,7 +61,7 @@
          *,
          beta1: float,
          beta2: float,
-@@ -197,9 +202,9 @@         exp_avg = exp_avgs[i]
+@@ -197,9 +203,9 @@         exp_avg = exp_avgs[i]
  
          if torch.is_complex(param):
 -            grad = torch.view_as_real(grad)
@@ -80,7 +73,7 @@
  
          # Perform stepweight decay
          wd_scale = lr if max_lr is None else lr ** 2 / max_lr
-@@ -221,9 +226,9 @@ 
+@@ -221,9 +227,9 @@ 
  
  def _multi_tensor_lion(
 -        params: List[torch.Tensor],
@@ -92,7 +85,7 @@
          *,
          beta1: float,
          beta2: float,
-@@ -237,32 +242,32 @@         return
+@@ -237,32 +243,32 @@         return
  
      if maximize:
 -        grads = torch._foreach_neg(tuple(grads))  # type: ignore[assignment]

@@ -6,3 +6,11 @@
  """ Misc utils
  
  Hacked together by / Copyright 2020 Ross Wightman
+@@ -17,7 +22,7 @@     group = parser.add_mutually_exclusive_group(required=False)
+     group.add_argument('--' + name, dest=dest_name, action='store_true', help=help)
+     group.add_argument('--no-' + name, dest=dest_name, action='store_false', help=help)
+-    parser.set_defaults(**{dest_name: default})
++    parser.set_defaults(**{dest_name: default})  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class ParseKwargs(argparse.Action):

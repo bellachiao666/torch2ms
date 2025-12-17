@@ -79,7 +79,7 @@ class LinearBottleneck(msnn.Cell):
 
         if exp_ratio != 1.:
             dw_chs = make_divisible(round(in_chs * exp_ratio), divisor=ch_div)
-            self.conv_exp = ConvNormAct(in_chs, dw_chs, act_layer=act_layer, **dd)
+            self.conv_exp = ConvNormAct(in_chs, dw_chs, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             dw_chs = in_chs
             self.conv_exp = None
@@ -93,14 +93,14 @@ class LinearBottleneck(msnn.Cell):
             groups=dw_chs,
             apply_act=False,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if se_ratio > 0:
-            self.se = SEWithNorm(dw_chs, rd_channels=make_divisible(int(dw_chs * se_ratio), ch_div), **dd)
+            self.se = SEWithNorm(dw_chs, rd_channels=make_divisible(int(dw_chs * se_ratio), ch_div), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.se = None
         self.act_dw = create_act_layer(dw_act_layer)
 
-        self.conv_pwl = ConvNormAct(dw_chs, out_chs, 1, apply_act=False, **dd)
+        self.conv_pwl = ConvNormAct(dw_chs, out_chs, 1, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = drop_path
 
     def feat_channels(self, exp: bool = False) -> int:
@@ -234,14 +234,14 @@ def _build_blocks(
             dw_act_layer=dw_act_layer,
             drop_path=drop_path,
             **dd,
-        ))
+        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         curr_stride *= stride
         dilation = next_dilation
         prev_chs = chs
         feat_chs += [features[-1].feat_channels()]
     pen_chs = make_divisible(1280 * width_mult, divisor=ch_div)
     feature_info += [dict(num_chs=feat_chs[-1], reduction=curr_stride, module=f'features.{len(features) - 1}')]
-    features.append(ConvNormAct(prev_chs, pen_chs, act_layer=act_layer, **dd))
+    features.append(ConvNormAct(prev_chs, pen_chs, act_layer=act_layer, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return features, feature_info
 
 
@@ -298,7 +298,7 @@ class RexNet(msnn.Cell):
         assert output_stride in (32, 16, 8)
         stem_base_chs = 32 / width_mult if width_mult < 1.0 else 32
         stem_chs = make_divisible(round(stem_base_chs * width_mult), divisor=ch_div)
-        self.stem = ConvNormAct(in_chans, stem_chs, 3, stride=2, act_layer=act_layer, **dd)
+        self.stem = ConvNormAct(in_chans, stem_chs, 3, stride=2, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         block_cfg = _block_cfg(width_mult, depth_mult, initial_chs, final_chs, se_ratio, ch_div)
         features, self.feature_info = _build_blocks(
@@ -311,15 +311,15 @@ class RexNet(msnn.Cell):
             dw_act_layer,
             drop_path_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_features = self.head_hidden_size = features[-1].out_channels
-        self.features = msnn.SequentialCell(*features)
+        self.features = msnn.SequentialCell(*features)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.head = ClassifierHead(self.num_features, num_classes, global_pool, drop_rate, **dd)
+        self.head = ClassifierHead(self.num_features, num_classes, global_pool, drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         efficientnet_init_weights(self)
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Group matcher for parameter groups.
 
@@ -335,7 +335,7 @@ class RexNet(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -344,7 +344,7 @@ class RexNet(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier module.
 
@@ -364,7 +364,7 @@ class RexNet(msnn.Cell):
         if device is not None or dtype is not None:
             dd = {'device': device, 'dtype': dtype}
             pool_type = global_pool if global_pool is not None else self.head.global_pool.pool_type
-            self.head = ClassifierHead(self.num_features, num_classes, pool_type, self.drop_rate, **dd)
+            self.head = ClassifierHead(self.num_features, num_classes, pool_type, self.drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.head.reset(num_classes, global_pool)
 
@@ -500,7 +500,7 @@ def _create_rexnet(variant: str, pretrained: bool, **kwargs) -> RexNet:
         pretrained,
         feature_cfg=feature_cfg,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -551,58 +551,58 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def rexnet_100(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 1.0x"""
-    return _create_rexnet('rexnet_100', pretrained, **kwargs)
+    return _create_rexnet('rexnet_100', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnet_130(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 1.3x"""
-    return _create_rexnet('rexnet_130', pretrained, width_mult=1.3, **kwargs)
+    return _create_rexnet('rexnet_130', pretrained, width_mult=1.3, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnet_150(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 1.5x"""
-    return _create_rexnet('rexnet_150', pretrained, width_mult=1.5, **kwargs)
+    return _create_rexnet('rexnet_150', pretrained, width_mult=1.5, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnet_200(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 2.0x"""
-    return _create_rexnet('rexnet_200', pretrained, width_mult=2.0, **kwargs)
+    return _create_rexnet('rexnet_200', pretrained, width_mult=2.0, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnet_300(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 3.0x"""
-    return _create_rexnet('rexnet_300', pretrained, width_mult=3.0, **kwargs)
+    return _create_rexnet('rexnet_300', pretrained, width_mult=3.0, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnetr_100(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 1.0x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_100', pretrained, ch_div=8, **kwargs)
+    return _create_rexnet('rexnetr_100', pretrained, ch_div=8, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnetr_130(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 1.3x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_130', pretrained, width_mult=1.3, ch_div=8, **kwargs)
+    return _create_rexnet('rexnetr_130', pretrained, width_mult=1.3, ch_div=8, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnetr_150(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 1.5x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_150', pretrained, width_mult=1.5, ch_div=8, **kwargs)
+    return _create_rexnet('rexnetr_150', pretrained, width_mult=1.5, ch_div=8, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnetr_200(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 2.0x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_200', pretrained, width_mult=2.0, ch_div=8, **kwargs)
+    return _create_rexnet('rexnetr_200', pretrained, width_mult=2.0, ch_div=8, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def rexnetr_300(pretrained: bool = False, **kwargs) -> RexNet:
     """ReXNet V1 3.0x w/ rounded (mod 16) channels"""
-    return _create_rexnet('rexnetr_300', pretrained, width_mult=3.0, ch_div=16, **kwargs)
+    return _create_rexnet('rexnetr_300', pretrained, width_mult=3.0, ch_div=16, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

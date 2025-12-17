@@ -27,14 +27,17 @@
      _has_safetensors = True
  except ImportError:
      _has_safetensors = False
-@@ -58,7 +63,7 @@     if os.getenv('TORCH_MODEL_ZOO'):
+@@ -58,9 +63,9 @@     if os.getenv('TORCH_MODEL_ZOO'):
          _logger.warning('TORCH_MODEL_ZOO is deprecated, please use env TORCH_HOME instead')
  
 -    hub_dir = get_dir()
-+    hub_dir = get_dir()  # 'torch.hub._get_torch_home' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    hub_dir = get_dir()  # 'torch.hub._get_torch_home.get_dir' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      child_dir = () if not child_dir else (child_dir,)
-     model_dir = os.path.join(hub_dir, 'checkpoints', *child_dir)
+-    model_dir = os.path.join(hub_dir, 'checkpoints', *child_dir)
++    model_dir = os.path.join(hub_dir, 'checkpoints', *child_dir)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
      os.makedirs(model_dir, exist_ok=True)
+     return model_dir
+ 
 @@ -74,7 +79,7 @@     if isinstance(url, (list, tuple)):
          url, filename = url
      else:

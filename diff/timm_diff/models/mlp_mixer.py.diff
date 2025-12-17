@@ -36,15 +36,22 @@
              drop: float = 0.,
              drop_path: float = 0.,
              device=None,
-@@ -91,18 +96,18 @@         tokens_dim, channels_dim = [int(x * dim) for x in to_2tuple(mlp_ratio)]
-         self.norm1 = norm_layer(dim, **dd)
-         self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop, **dd)
+@@ -89,20 +94,20 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         tokens_dim, channels_dim = [int(x * dim) for x in to_2tuple(mlp_ratio)]
+-        self.norm1 = norm_layer(dim, **dd)
+-        self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop, **dd)
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-+        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-         self.norm2 = norm_layer(dim, **dd)
-         self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)
- 
+-        self.norm2 = norm_layer(dim, **dd)
+-        self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          """Forward pass."""
          x = x + self.drop_path(self.mlp_tokens(self.norm1(x).transpose(1, 2)).transpose(1, 2))
@@ -64,8 +71,8 @@
 -        self.beta = nn.Parameter(torch.zeros((1, 1, dim), **dd))
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+        self.alpha = ms.Parameter(mint.ones((1, 1, dim), **dd))
-+        self.beta = ms.Parameter(mint.zeros((1, 1, dim), **dd))
++        self.alpha = ms.Parameter(mint.ones((1, 1, dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.beta = ms.Parameter(mint.zeros((1, 1, dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          """Apply affine transformation."""
@@ -92,19 +99,25 @@
              init_values: float = 1e-4,
              drop: float = 0.,
              drop_path: float = 0.,
-@@ -158,20 +163,20 @@         channel_dim = int(dim * mlp_ratio)
-         self.norm1 = norm_layer(dim, **dd)
-         self.linear_tokens = nn.Linear(seq_len, seq_len, **dd)
+@@ -156,22 +161,22 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         channel_dim = int(dim * mlp_ratio)
+-        self.norm1 = norm_layer(dim, **dd)
+-        self.linear_tokens = nn.Linear(seq_len, seq_len, **dd)
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-+        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-         self.norm2 = norm_layer(dim, **dd)
-         self.mlp_channels = mlp_layer(dim, channel_dim, act_layer=act_layer, drop=drop, **dd)
+-        self.norm2 = norm_layer(dim, **dd)
+-        self.mlp_channels = mlp_layer(dim, channel_dim, act_layer=act_layer, drop=drop, **dd)
 -        self.ls1 = nn.Parameter(init_values * torch.ones(dim, **dd))
 -        self.ls2 = nn.Parameter(init_values * torch.ones(dim, **dd))
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+        self.ls1 = ms.Parameter(init_values * mint.ones(dim, **dd))
-+        self.ls2 = ms.Parameter(init_values * mint.ones(dim, **dd))
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.linear_tokens = nn.Linear(seq_len, seq_len, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.mlp_channels = mlp_layer(dim, channel_dim, act_layer=act_layer, drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          """Forward pass."""
@@ -126,7 +139,15 @@
              device=None,
              dtype=None,
      ) -> None:
-@@ -200,10 +205,10 @@     def init_weights(self) -> None:
+@@ -194,16 +199,16 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         gate_dim = dim // 2
+-        self.norm = norm_layer(gate_dim, **dd)
+-        self.proj = nn.Linear(seq_len, seq_len, **dd)
++        self.norm = norm_layer(gate_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.proj = nn.Linear(seq_len, seq_len, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+     def init_weights(self) -> None:
          """Initialize weights for projection gate."""
          # special init for the projection gate, called as override by base model init
 -        nn.init.normal_(self.proj.weight, std=1e-6)
@@ -160,12 +181,24 @@
              drop: float = 0.,
              drop_path: float = 0.,
              device=None,
-@@ -254,15 +259,15 @@             drop=drop,
+@@ -244,8 +249,8 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         channel_dim = int(dim * mlp_ratio)
+-        self.norm = norm_layer(dim, **dd)
+-        sgu = partial(SpatialGatingUnit, seq_len=seq_len, **dd)
++        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        sgu = partial(SpatialGatingUnit, seq_len=seq_len, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp_channels = mlp_layer(
+             dim,
+             channel_dim,
+@@ -253,16 +258,16 @@             gate_layer=sgu,
+             drop=drop,
              **dd,
-         )
+-        )
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -193,7 +226,11 @@
              drop_rate: float = 0.,
              proj_drop_rate: float = 0.,
              drop_path_rate: float = 0.,
-@@ -328,7 +333,7 @@         )
+@@ -325,10 +330,10 @@             embed_dim=embed_dim,
+             norm_layer=norm_layer if stem_norm else None,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          reduction = self.stem.feat_ratio() if hasattr(self.stem, 'feat_ratio') else patch_size
          # FIXME drop_path (stochastic depth scaling rule or all the same?)
 -        self.blocks = nn.Sequential(*[
@@ -201,18 +238,48 @@
              block_layer(
                  embed_dim,
                  self.stem.num_patches,
-@@ -345,7 +350,7 @@             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=reduction) for i in range(num_blocks)]
-         self.norm = norm_layer(embed_dim, **dd)
+@@ -340,16 +345,16 @@                 drop_path=drop_path_rate,
+                 **dd,
+             )
+-            for _ in range(num_blocks)])
++            for _ in range(num_blocks)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.feature_info = [
+             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=reduction) for i in range(num_blocks)]
+-        self.norm = norm_layer(embed_dim, **dd)
++        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.head_drop = nn.Dropout(drop_rate)
 -        self.head = nn.Linear(embed_dim, self.num_classes, **dd) if num_classes > 0 else nn.Identity()
-+        self.head = nn.Linear(embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()
++        self.head = nn.Linear(embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
  
          self.init_weights(nlhb=nlhb)
  
-@@ -384,7 +389,7 @@         self.grad_checkpointing = enable
+-    @torch.jit.ignore
++    @ms.jit
+     def init_weights(self, nlhb: bool = False) -> None:
+         """Initialize model weights.
  
-     @torch.jit.ignore
+@@ -359,7 +364,7 @@         head_bias = -math.log(self.num_classes) if nlhb else 0.
+         named_apply(partial(_init_weights, head_bias=head_bias), module=self)  # depth-first
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+         """Create regex patterns for parameter grouping.
+ 
+@@ -374,7 +379,7 @@             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True) -> None:
+         """Enable or disable gradient checkpointing.
+ 
+@@ -383,8 +388,8 @@         """
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          """Get the classifier module."""
          return self.head
@@ -313,3 +380,161 @@
      elif hasattr(module, 'init_weights'):
          # NOTE if a parent module contains init_weights method, it can override the init of the
          # child modules as this will be called in depth-first order.
+@@ -581,7 +586,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -702,8 +707,8 @@     """ Mixer-S/32 224x224
+     Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=32, num_blocks=8, embed_dim=512, **kwargs)
+-    model = _create_mixer('mixer_s32_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=32, num_blocks=8, embed_dim=512, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_s32_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -712,8 +717,8 @@     """ Mixer-S/16 224x224
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=16, num_blocks=8, embed_dim=512, **kwargs)
+-    model = _create_mixer('mixer_s16_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=16, num_blocks=8, embed_dim=512, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_s16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -722,8 +727,8 @@     """ Mixer-B/32 224x224
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=32, num_blocks=12, embed_dim=768, **kwargs)
+-    model = _create_mixer('mixer_b32_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=32, num_blocks=12, embed_dim=768, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_b32_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -732,8 +737,8 @@     """ Mixer-B/16 224x224. ImageNet-1k pretrained weights.
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=16, num_blocks=12, embed_dim=768, **kwargs)
+-    model = _create_mixer('mixer_b16_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=16, num_blocks=12, embed_dim=768, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_b16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -742,8 +747,8 @@     """ Mixer-L/32 224x224.
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=32, num_blocks=24, embed_dim=1024, **kwargs)
+-    model = _create_mixer('mixer_l32_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=32, num_blocks=24, embed_dim=1024, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_l32_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -752,8 +757,8 @@     """ Mixer-L/16 224x224. ImageNet-1k pretrained weights.
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=16, num_blocks=24, embed_dim=1024, **kwargs)
+-    model = _create_mixer('mixer_l16_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=16, num_blocks=24, embed_dim=1024, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_l16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -764,8 +769,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=(1.0, 4.0),
+-        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
+-    model = _create_mixer('gmixer_12_224', pretrained=pretrained, **model_args)
++        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmixer_12_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -776,8 +781,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=(1.0, 4.0),
+-        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
+-    model = _create_mixer('gmixer_24_224', pretrained=pretrained, **model_args)
++        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmixer_24_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -787,8 +792,8 @@     Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+     """
+     model_args = dict(
+-        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=4, block_layer=ResBlock, norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_12_224', pretrained=pretrained, **model_args)
++        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=4, block_layer=ResBlock, norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_12_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -799,8 +804,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=4,
+-        block_layer=partial(ResBlock, init_values=1e-5), norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_24_224', pretrained=pretrained, **model_args)
++        block_layer=partial(ResBlock, init_values=1e-5), norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_24_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -811,8 +816,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=36, embed_dim=384, mlp_ratio=4,
+-        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_36_224', pretrained=pretrained, **model_args)
++        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_36_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -823,8 +828,8 @@     """
+     model_args = dict(
+         patch_size=8, num_blocks=24, embed_dim=768, mlp_ratio=4,
+-        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_big_24_224', pretrained=pretrained, **model_args)
++        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_big_24_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -835,8 +840,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=30, embed_dim=128, mlp_ratio=6, block_layer=SpatialGatingBlock,
+-        mlp_layer=GatedMlp, **kwargs)
+-    model = _create_mixer('gmlp_ti16_224', pretrained=pretrained, **model_args)
++        mlp_layer=GatedMlp, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmlp_ti16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -847,8 +852,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=30, embed_dim=256, mlp_ratio=6, block_layer=SpatialGatingBlock,
+-        mlp_layer=GatedMlp, **kwargs)
+-    model = _create_mixer('gmlp_s16_224', pretrained=pretrained, **model_args)
++        mlp_layer=GatedMlp, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmlp_s16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -859,8 +864,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=30, embed_dim=512, mlp_ratio=6, block_layer=SpatialGatingBlock,
+-        mlp_layer=GatedMlp, **kwargs)
+-    model = _create_mixer('gmlp_b16_224', pretrained=pretrained, **model_args)
++        mlp_layer=GatedMlp, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmlp_b16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 

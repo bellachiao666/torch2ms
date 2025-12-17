@@ -19,14 +19,7 @@
  class Lars(Optimizer):
      """ LARS for PyTorch
      
-@@ -72,7 +78,6 @@         for group in self.param_groups:
-             group.setdefault("nesterov", False)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
- 
-@@ -105,13 +110,13 @@                     trust_ratio = trust_coeff * w_norm / (g_norm + w_norm * weight_decay + eps)
+@@ -105,13 +111,13 @@                     trust_ratio = trust_coeff * w_norm / (g_norm + w_norm * weight_decay + eps)
                      # FIXME nested where required since logical and/or not working in PT XLA
                      # Set the ratio to 1.0 (no change) if either weight norm or grad norm is zero
 -                    trust_ratio = torch.where(
@@ -42,7 +35,7 @@
                      grad.add_(p, alpha=weight_decay)
                      grad.mul_(trust_ratio)
  
-@@ -119,7 +124,7 @@                 if momentum != 0:
+@@ -119,7 +125,7 @@                 if momentum != 0:
                      param_state = self.state[p]
                      if 'momentum_buffer' not in param_state:
 -                        buf = param_state['momentum_buffer'] = torch.clone(grad).detach()

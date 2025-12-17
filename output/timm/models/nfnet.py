@@ -226,32 +226,32 @@ class NormFreeBlock(msnn.Cell):
                 first_dilation=first_dilation,
                 conv_layer=conv_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.downsample = None
 
         self.act1 = act_layer()
-        self.conv1 = conv_layer(in_chs, mid_chs, 1, **dd)
+        self.conv1 = conv_layer(in_chs, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act2 = act_layer(inplace=True)
-        self.conv2 = conv_layer(mid_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)
+        self.conv2 = conv_layer(mid_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if extra_conv:
             self.act2b = act_layer(inplace=True)
-            self.conv2b = conv_layer(mid_chs, mid_chs, 3, stride=1, dilation=dilation, groups=groups, **dd)
+            self.conv2b = conv_layer(mid_chs, mid_chs, 3, stride=1, dilation=dilation, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.act2b = None
             self.conv2b = None
         if reg and attn_layer is not None:
-            self.attn = attn_layer(mid_chs, **dd)  # RegNet blocks apply attn btw conv2 & 3
+            self.attn = attn_layer(mid_chs, **dd)  # RegNet blocks apply attn btw conv2 & 3; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.attn = None
         self.act3 = act_layer()
-        self.conv3 = conv_layer(mid_chs, out_chs, 1, gain_init=1. if skipinit else 0., **dd)
+        self.conv3 = conv_layer(mid_chs, out_chs, 1, gain_init=1. if skipinit else 0., **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if not reg and attn_layer is not None:
-            self.attn_last = attn_layer(out_chs, **dd)  # ResNet blocks apply attn after conv3
+            self.attn_last = attn_layer(out_chs, **dd)  # ResNet blocks apply attn after conv3; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.attn_last = None
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
-        self.skipinit_gain = ms.Parameter(ms.Tensor(0., **dd)) if skipinit else None
+        self.skipinit_gain = ms.Parameter(ms.Tensor(0., **dd)) if skipinit else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """Forward pass.
@@ -332,16 +332,16 @@ def create_stem(
             stem_feature = dict(num_chs=out_chs // 2, reduction=2, module='stem.conv2')
         last_idx = len(stem_chs) - 1
         for i, (c, s) in enumerate(zip(stem_chs, strides)):
-            stem[f'conv{i + 1}'] = conv_layer(in_chs, c, kernel_size=3, stride=s, **dd)
+            stem[f'conv{i + 1}'] = conv_layer(in_chs, c, kernel_size=3, stride=s, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if i != last_idx:
                 stem[f'act{i + 2}'] = act_layer(inplace=True)
             in_chs = c
     elif '3x3' in stem_type:
         # 3x3 stem conv as in RegNet
-        stem['conv'] = conv_layer(in_chs, out_chs, kernel_size=3, stride=2, **dd)
+        stem['conv'] = conv_layer(in_chs, out_chs, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         # 7x7 stem conv as in ResNet
-        stem['conv'] = conv_layer(in_chs, out_chs, kernel_size=7, stride=2, **dd)
+        stem['conv'] = conv_layer(in_chs, out_chs, kernel_size=7, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     if 'pool' in stem_type:
         stem['pool'] = nn.MaxPool2d(3, stride = 2, padding = 1)
@@ -422,7 +422,7 @@ class NormFreeNet(msnn.Cell):
         self.drop_rate = drop_rate
         self.grad_checkpointing = False
 
-        cfg = replace(cfg, **kwargs)
+        cfg = replace(cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         assert cfg.act_layer in _nonlin_gamma, f"Please add non-linearity constants for activation ({cfg.act_layer})."
         conv_layer = ScaledStdConv2dSame if cfg.same_padding else ScaledStdConv2d
         if cfg.gamma_in_act:
@@ -431,7 +431,7 @@ class NormFreeNet(msnn.Cell):
         else:
             act_layer = get_act_layer(cfg.act_layer)
             conv_layer = partial(conv_layer, gamma=_nonlin_gamma[cfg.act_layer], eps=cfg.std_conv_eps)
-        attn_layer = partial(get_attn(cfg.attn_layer), **cfg.attn_kwargs) if cfg.attn_layer else None
+        attn_layer = partial(get_attn(cfg.attn_layer), **cfg.attn_kwargs) if cfg.attn_layer else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         stem_chs = make_divisible((cfg.stem_chs or cfg.channels[0]) * cfg.width_factor, cfg.ch_div)
         self.stem, stem_stride, stem_feat = create_stem(
@@ -441,7 +441,7 @@ class NormFreeNet(msnn.Cell):
             conv_layer=conv_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.feature_info = [stem_feat]
         drop_path_rates = calculate_drop_path_rates(drop_path_rate, cfg.depths, stagewise=True)
@@ -481,20 +481,20 @@ class NormFreeNet(msnn.Cell):
                     conv_layer=conv_layer,
                     drop_path_rate=drop_path_rates[stage_idx][block_idx],
                     **dd,
-                )]
+                )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 if block_idx == 0:
                     expected_var = 1.  # expected var is reset after first block of each stage
                 expected_var += cfg.alpha ** 2   # Even if reset occurs, increment expected variance
                 first_dilation = dilation
                 prev_chs = out_chs
             self.feature_info += [dict(num_chs=prev_chs, reduction=net_stride, module=f'stages.{stage_idx}')]
-            stages += [msnn.SequentialCell(*blocks)]
-        self.stages = msnn.SequentialCell(*stages)
+            stages += [msnn.SequentialCell(*blocks)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if cfg.num_features:
             # The paper NFRegNet models have an EfficientNet-like final head convolution.
             self.num_features = make_divisible(cfg.width_factor * cfg.num_features, cfg.ch_div)
-            self.final_conv = conv_layer(prev_chs, self.num_features, 1, **dd)
+            self.final_conv = conv_layer(prev_chs, self.num_features, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.feature_info[-1] = dict(num_chs=self.num_features, reduction=net_stride, module=f'final_conv')
         else:
             self.num_features = prev_chs
@@ -508,7 +508,7 @@ class NormFreeNet(msnn.Cell):
             pool_type=global_pool,
             drop_rate=self.drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         for n, m in self.named_modules():
             if 'fc' in n and isinstance(m, nn.Linear):
@@ -523,7 +523,7 @@ class NormFreeNet(msnn.Cell):
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Group parameters for optimization."""
         matcher = dict(
@@ -535,12 +535,12 @@ class NormFreeNet(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing."""
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.head.fc
@@ -826,7 +826,7 @@ def _create_normfreenet(variant: str, pretrained: bool = False, **kwargs: Any) -
         model_cfg=model_cfg,
         feature_cfg=feature_cfg,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _dcfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
@@ -956,91 +956,91 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def dm_nfnet_f0(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F0 (DeepMind weight compatible)."""
-    return _create_normfreenet('dm_nfnet_f0', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('dm_nfnet_f0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dm_nfnet_f1(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F1 (DeepMind weight compatible)."""
-    return _create_normfreenet('dm_nfnet_f1', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('dm_nfnet_f1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dm_nfnet_f2(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F2 (DeepMind weight compatible)."""
-    return _create_normfreenet('dm_nfnet_f2', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('dm_nfnet_f2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dm_nfnet_f3(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F3 (DeepMind weight compatible)."""
-    return _create_normfreenet('dm_nfnet_f3', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('dm_nfnet_f3', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dm_nfnet_f4(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F4 (DeepMind weight compatible)."""
-    return _create_normfreenet('dm_nfnet_f4', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('dm_nfnet_f4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dm_nfnet_f5(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F5 (DeepMind weight compatible)."""
-    return _create_normfreenet('dm_nfnet_f5', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('dm_nfnet_f5', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dm_nfnet_f6(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F6 (DeepMind weight compatible)."""
-    return _create_normfreenet('dm_nfnet_f6', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('dm_nfnet_f6', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f0(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F0."""
-    return _create_normfreenet('nfnet_f0', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f1(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F1."""
-    return _create_normfreenet('nfnet_f1', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f2(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F2."""
-    return _create_normfreenet('nfnet_f2', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f3(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F3."""
-    return _create_normfreenet('nfnet_f3', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f3', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f4(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F4."""
-    return _create_normfreenet('nfnet_f4', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f5(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F5."""
-    return _create_normfreenet('nfnet_f5', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f5', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f6(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F6."""
-    return _create_normfreenet('nfnet_f6', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f6', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nfnet_f7(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """NFNet-F7."""
-    return _create_normfreenet('nfnet_f7', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_f7', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1049,7 +1049,7 @@ def nfnet_l0(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
 
     My experimental 'light' model w/ F0 repeats, 1.5x final_conv mult, 64 group_size, .25 bottleneck & SE ratio
     """
-    return _create_normfreenet('nfnet_l0', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nfnet_l0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1058,7 +1058,7 @@ def eca_nfnet_l0(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
 
     My experimental 'light' model w/ F0 repeats, 1.5x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
     """
-    return _create_normfreenet('eca_nfnet_l0', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('eca_nfnet_l0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1067,7 +1067,7 @@ def eca_nfnet_l1(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
 
     My experimental 'light' model w/ F1 repeats, 2.0x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
     """
-    return _create_normfreenet('eca_nfnet_l1', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('eca_nfnet_l1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1076,7 +1076,7 @@ def eca_nfnet_l2(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
 
     My experimental 'light' model w/ F2 repeats, 2.0x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
     """
-    return _create_normfreenet('eca_nfnet_l2', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('eca_nfnet_l2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1085,109 +1085,109 @@ def eca_nfnet_l3(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
 
     My experimental 'light' model w/ F3 repeats, 2.0x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
     """
-    return _create_normfreenet('eca_nfnet_l3', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('eca_nfnet_l3', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_regnet_b0(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free RegNet-B0.
     """
-    return _create_normfreenet('nf_regnet_b0', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_regnet_b0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_regnet_b1(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free RegNet-B1.
     """
-    return _create_normfreenet('nf_regnet_b1', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_regnet_b1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_regnet_b2(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free RegNet-B2.
     """
-    return _create_normfreenet('nf_regnet_b2', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_regnet_b2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_regnet_b3(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free RegNet-B3.
     """
-    return _create_normfreenet('nf_regnet_b3', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_regnet_b3', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_regnet_b4(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free RegNet-B4.
     """
-    return _create_normfreenet('nf_regnet_b4', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_regnet_b4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_regnet_b5(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free RegNet-B5.
     """
-    return _create_normfreenet('nf_regnet_b5', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_regnet_b5', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_resnet26(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free ResNet-26.
     """
-    return _create_normfreenet('nf_resnet26', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_resnet26', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_resnet50(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free ResNet-50.
     """
-    return _create_normfreenet('nf_resnet50', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_resnet50', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_resnet101(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free ResNet-101.
     """
-    return _create_normfreenet('nf_resnet101', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_resnet101', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_seresnet26(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free SE-ResNet26."""
-    return _create_normfreenet('nf_seresnet26', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_seresnet26', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_seresnet50(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free SE-ResNet50."""
-    return _create_normfreenet('nf_seresnet50', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_seresnet50', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_seresnet101(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free SE-ResNet101."""
-    return _create_normfreenet('nf_seresnet101', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_seresnet101', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_ecaresnet26(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free ECA-ResNet26."""
-    return _create_normfreenet('nf_ecaresnet26', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_ecaresnet26', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_ecaresnet50(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free ECA-ResNet50."""
-    return _create_normfreenet('nf_ecaresnet50', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_ecaresnet50', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def nf_ecaresnet101(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Normalization-Free ECA-ResNet101."""
-    return _create_normfreenet('nf_ecaresnet101', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('nf_ecaresnet101', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def test_nfnet(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
     """Test NFNet model for experimentation."""
-    return _create_normfreenet('test_nfnet', pretrained=pretrained, **kwargs)
+    return _create_normfreenet('test_nfnet', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

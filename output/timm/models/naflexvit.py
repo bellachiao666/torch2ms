@@ -155,7 +155,7 @@ def _overlay_kwargs(cfg: NaFlexVitCfg, **kwargs) -> NaFlexVitCfg:
     config_kwargs = {k: v for k, v in kwargs.items() if k in config_fields}
 
     if config_kwargs:
-        cfg = replace(cfg, **config_kwargs)
+        cfg = replace(cfg, **config_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return cfg
 
@@ -202,9 +202,6 @@ def calculate_naflex_grid_sizes(_coord: ms.Tensor):
 class NaFlexRopeIterator:
     """Iterator for generating batched ROPE embeddings for mixed mode with multiple grid sizes."""
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
         self,
         rope_module,
@@ -306,7 +303,7 @@ def get_block_fn(cfg: NaFlexVitCfg) -> Callable:
         if cfg.attn_layer:
             block_kwargs['attn_layer'] = cfg.attn_layer
         if block_kwargs:
-            block_fn = partial(block_fn, **block_kwargs)
+            block_fn = partial(block_fn, **block_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         return block_fn
 
 
@@ -416,8 +413,8 @@ class NaFlexEmbeds(msnn.Cell):
         self.num_prefix_tokens += reg_tokens
 
         # Create class and register tokens
-        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd)) if class_token else None
-        self.reg_token = ms.Parameter(mint.zeros(1, reg_tokens, embed_dim, **dd)) if reg_tokens else None
+        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd)) if class_token else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.reg_token = ms.Parameter(mint.zeros(1, reg_tokens, embed_dim, **dd)) if reg_tokens else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Calculate grid size and number of patches
         self.default_img_size: Optional[Tuple[int, int]] = None
@@ -439,7 +436,7 @@ class NaFlexEmbeds(msnn.Cell):
                 "`norm_layer` must be given when input_norm_layer=True"
             input_norm_layer = norm_layer if input_norm_layer is True else (input_norm_layer or None)
             self.norm_input = input_norm_layer(patch_dim) if input_norm_layer else None
-            self.proj = nn.Linear(patch_dim, embed_dim, bias=proj_bias, **dd)
+            self.proj = nn.Linear(patch_dim, embed_dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.flatten = False
             self.is_linear = True
         else:
@@ -453,7 +450,7 @@ class NaFlexEmbeds(msnn.Cell):
                 stride=patch_size,
                 bias=proj_bias,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
             self.flatten = True
             self.is_linear = False
 
@@ -489,12 +486,12 @@ class NaFlexEmbeds(msnn.Cell):
             assert self.pos_embed_grid_size is not None
             h, w = self.pos_embed_grid_size
             self.pos_embed_type = 'factorized'
-            self.pos_embed_y = ms.Parameter(mint.randn(1, h, embed_dim, **dd) * .02)
-            self.pos_embed_x = ms.Parameter(mint.randn(1, w, embed_dim, **dd) * .02)
+            self.pos_embed_y = ms.Parameter(mint.randn(1, h, embed_dim, **dd) * .02)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.pos_embed_x = ms.Parameter(mint.randn(1, w, embed_dim, **dd) * .02)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert self.pos_embed_grid_size is not None
             h, w = self.pos_embed_grid_size
-            self.pos_embed = ms.Parameter(mint.randn(1, h, w, embed_dim, **dd) * .02)
+            self.pos_embed = ms.Parameter(mint.randn(1, h, w, embed_dim, **dd) * .02)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.pos_embed_type = 'learned'
 
         # Dropout layer
@@ -911,8 +908,6 @@ class NaFlexEmbeds(msnn.Cell):
         return x, grid_size
 
 
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @register_notrace_function
 def create_attention_mask(
         patch_valid: ms.Tensor,
@@ -1093,7 +1088,7 @@ class NaFlexVit(msnn.Cell):
         # Initialize config
         cfg = cfg or NaFlexVitCfg()
         if kwargs:
-            cfg = _overlay_kwargs(cfg, **kwargs)
+            cfg = _overlay_kwargs(cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Validate configuration
         assert cfg.global_pool in ('', 'avg', 'avgmax', 'max', 'token', 'map')
@@ -1139,8 +1134,8 @@ class NaFlexVit(msnn.Cell):
             pos_drop_rate=cfg.pos_drop_rate,
             enable_patch_interpolator=getattr(cfg, 'enable_patch_interpolator', False),
             **dd,
-        )
-        self.norm_pre = norm_layer(cfg.embed_dim, **dd) if cfg.pre_norm else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm_pre = norm_layer(cfg.embed_dim, **dd) if cfg.pre_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # ROPE position embeddings at model level
         self.rope: Optional[msnn.Cell] = None
@@ -1156,7 +1151,7 @@ class NaFlexVit(msnn.Cell):
                     feat_shape=None,  # Dynamic shapes for NaFlex
                     grid_indexing=cfg.rope_grid_indexing,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 self.rope_is_mixed = True
             elif cfg.rope_type == 'axial':
                 self.rope = RotaryEmbeddingCat(
@@ -1168,7 +1163,7 @@ class NaFlexVit(msnn.Cell):
                     grid_offset=cfg.rope_grid_offset,
                     grid_indexing=cfg.rope_grid_indexing,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 self.rope_is_mixed = False
             else:
                 raise ValueError(f"Unknown rope_type: {cfg.rope_type}")
@@ -1204,7 +1199,7 @@ class NaFlexVit(msnn.Cell):
                 **dd,
             )
             for i in range(cfg.depth)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Feature info for downstream tasks
         patch_reduction = self.embeds.feat_ratio(as_scalar=True)
@@ -1213,7 +1208,7 @@ class NaFlexVit(msnn.Cell):
             for i in range(cfg.depth)
         ]
 
-        self.norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and not cfg.fc_norm else msnn.Identity()
+        self.norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and not cfg.fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier Head
         if cfg.global_pool == 'map':
@@ -1224,7 +1219,7 @@ class NaFlexVit(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.attn_pool = None
 
@@ -1232,9 +1227,9 @@ class NaFlexVit(msnn.Cell):
         fc_norm = cfg.fc_norm
         if fc_norm is None:
             fc_norm = cfg.global_pool == 'avg'
-        self.fc_norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and fc_norm else msnn.Identity()
+        self.fc_norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_drop = nn.Dropout(cfg.drop_rate)
-        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if cfg.weight_init != 'skip':
             self.init_weights(cfg.weight_init)
@@ -1268,7 +1263,7 @@ class NaFlexVit(msnn.Cell):
         head_bias = -math.log(self.num_classes) if 'nlhb' in mode else 0.
         named_apply(get_init_weights_vit(mode, head_bias), self)
 
-    @torch.jit.ignore()
+    @ms.jit()
     def load_pretrained(self, checkpoint_path: str, prefix: str = '') -> None:
         # Custom loading for the new model structure
         from .vision_transformer import _load_weights as _orig_load_weights
@@ -1294,7 +1289,7 @@ class NaFlexVit(msnn.Cell):
 
         _load_weights_adapter(self, checkpoint_path, prefix)
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set:
         """Get set of parameter names that should not have weight decay applied.
 
@@ -1306,7 +1301,7 @@ class NaFlexVit(msnn.Cell):
             skip_list.update(self.rope.no_weight_decay())
         return skip_list
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict:
         """Get parameter group matcher for optimizer parameter grouping.
 
@@ -1321,7 +1316,7 @@ class NaFlexVit(msnn.Cell):
             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing for memory efficiency.
 
@@ -1332,7 +1327,7 @@ class NaFlexVit(msnn.Cell):
         if hasattr(self.embeds, 'patch_embed') and hasattr(self.embeds.patch_embed, 'set_grad_checkpointing'):
             self.embeds.patch_embed.set_grad_checkpointing(enable)
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classification head module.
 
@@ -1787,7 +1782,7 @@ class NaFlexVit(msnn.Cell):
             )
 
             # Pass patches & patch_valid to forward_head for masked pooling
-            x = self.forward_head(**features)
+            x = self.forward_head(**features)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             x = self.forward_features(x)
             x = self.forward_head(x)
@@ -1944,7 +1939,7 @@ def _create_naflexvit(variant: str, pretrained: bool = False, **kwargs) -> NaFle
     # pop in-place so the original kwargs is emptied of cfg-specific keys
     cfg_updates = {k: kwargs.pop(k) for k in list(kwargs) if k in cfg_field_names}
     if cfg_updates:
-        cfg = _overlay_kwargs(cfg, **cfg_updates)
+        cfg = _overlay_kwargs(cfg, **cfg_updates)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     model = build_model_with_cfg(
         NaFlexVit, variant, pretrained,
@@ -1952,7 +1947,7 @@ def _create_naflexvit(variant: str, pretrained: bool = False, **kwargs) -> NaFle
         cfg=cfg,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1996,7 +1991,7 @@ def _create_naflexvit_from_classic(
         **kwargs  # User overrides take precedence
     }
 
-    return _create_naflexvit(variant, pretrained, **flex_kwargs)
+    return _create_naflexvit(variant, pretrained, **flex_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _create_naflexvit_from_eva(
@@ -2063,7 +2058,7 @@ def _create_naflexvit_from_eva(
         **kwargs  # Pass remaining kwargs through
     }
 
-    return _create_naflexvit(variant, pretrained, **naflex_kwargs)
+    return _create_naflexvit(variant, pretrained, **naflex_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2080,7 +2075,7 @@ def naflexvit_base_patch16_gap(pretrained: bool = False, **kwargs) -> NaFlexVit:
         reg_tokens=4,
         fc_norm=True,
     )
-    model = _create_naflexvit('naflexvit_base_patch16_gap', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_base_patch16_gap', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2099,7 +2094,7 @@ def naflexvit_base_patch16_par_gap(pretrained: bool = False, **kwargs) -> NaFlex
         reg_tokens=4,
         fc_norm=True,
     )
-    model = _create_naflexvit('naflexvit_base_patch16_par_gap', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_base_patch16_par_gap', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2119,7 +2114,7 @@ def naflexvit_base_patch16_parfac_gap(pretrained: bool = False, **kwargs) -> NaF
         reg_tokens=4,
         fc_norm=True,
     )
-    model = _create_naflexvit('naflexvit_base_patch16_parfac_gap', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_base_patch16_parfac_gap', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2136,7 +2131,7 @@ def naflexvit_base_patch16_map(pretrained: bool = False, **kwargs) -> NaFlexVit:
         global_pool='map',
         reg_tokens=1,
     )
-    model = _create_naflexvit('naflexvit_base_patch16_map', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_base_patch16_map', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2161,7 +2156,7 @@ def naflexvit_so150m2_patch16_reg1_gap(pretrained: bool = False, **kwargs) -> Na
         global_pool='avg',
         fc_norm=True,
     )
-    model = _create_naflexvit('naflexvit_so150m2_patch16_reg1_gap', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_so150m2_patch16_reg1_gap', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2185,7 +2180,7 @@ def naflexvit_so150m2_patch16_reg1_map(pretrained: bool = False, **kwargs) -> Na
         reg_tokens=1,
         global_pool='map',
     )
-    model = _create_naflexvit('naflexvit_so150m2_patch16_reg1_map', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_so150m2_patch16_reg1_map', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2201,7 +2196,7 @@ def naflexvit_base_patch16_siglip(pretrained: bool = False, **kwargs) -> NaFlexV
         act_layer='gelu_tanh',
         global_pool='map',
     )
-    model = _create_naflexvit('naflexvit_base_patch16_siglip', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_base_patch16_siglip', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2218,5 +2213,5 @@ def naflexvit_so400m_patch16_siglip(pretrained: bool = False, **kwargs) -> NaFle
         act_layer='gelu_tanh',
         global_pool='map',
     )
-    model = _create_naflexvit('naflexvit_so400m_patch16_siglip', pretrained=pretrained, cfg=cfg, **kwargs)
+    model = _create_naflexvit('naflexvit_so400m_patch16_siglip', pretrained=pretrained, cfg=cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

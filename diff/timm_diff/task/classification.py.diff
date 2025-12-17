@@ -13,12 +13,7 @@
  
  from .task import TrainingTask
  
-@@ -29,10 +33,13 @@         >>> result['loss'].backward()
-     """
- 
-+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+@@ -31,8 +35,8 @@ 
      def __init__(
              self,
 -            model: nn.Module,
@@ -28,13 +23,13 @@
              device: Optional[torch.device] = None,
              dtype: Optional[torch.dtype] = None,
              verbose: bool = True,
-@@ -61,15 +68,15 @@         Returns:
+@@ -61,15 +65,15 @@         Returns:
              self (for method chaining)
          """
 -        from torch.nn.parallel import DistributedDataParallel as DDP
 -        self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)
 +        # from torch.nn.parallel import DistributedDataParallel as DDP
-+        self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel.DDP' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          return self
  
      def forward(

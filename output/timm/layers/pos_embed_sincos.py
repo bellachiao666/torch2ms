@@ -17,8 +17,6 @@ from .grid import ndgrid
 from .trace_utils import _assert
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def pixel_freq_bands(
         num_bands: int,
         max_freq: float = 224.,
@@ -32,8 +30,6 @@ def pixel_freq_bands(
     return bands * torch.pi
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def freq_bands(
         num_bands: int,
         temperature: float = 10000.,
@@ -45,9 +41,6 @@ def freq_bands(
     return bands
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def build_sincos2d_pos_embed(
         feat_shape: List[int],
         dim: int = 64,
@@ -95,9 +88,6 @@ def swap_shape_xy(seq: List[int]) -> List[int]:
     return [seq[1], seq[0]] + list(seq[2:])
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def build_fourier_pos_embed(
         feat_shape: List[int],
         bands: Optional[ms.Tensor] = None,
@@ -338,9 +328,6 @@ def apply_keep_indices_nlc(
     return pos_embed.gather(-2, keep_indices)
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def build_rotary_pos_embed(
         feat_shape: List[int],
         bands: Optional[ms.Tensor] = None,
@@ -718,9 +705,6 @@ def init_random_2d_freqs(
     return mint.stack([fx, fy], dim=0)
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.fx.wrap
 @register_notrace_function
 def get_mixed_grid(
@@ -924,9 +908,6 @@ class RotaryEmbeddingMixed(msnn.Cell):
         return {'freqs'}
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.fx.wrap
 @register_notrace_function
 def make_coords_dinov3(
@@ -1036,9 +1017,6 @@ class RotaryEmbeddingDinoV3(msnn.Cell):
             self.register_buffer("pos_embed_cached", None, persistent=False)
             self.feat_shape = None
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _compute_periods(self, device: torch.device = 'cpu', dtype: torch.dtype = ms.float32) -> ms.Tensor:
         """Construct periods from either min/max or temperature."""
         dim = self.dim // 4
@@ -1191,18 +1169,18 @@ def create_rope_embed(
     """
     if rope_type == 'base':
         kwargs.pop('rotate_half', None)  # doesn't support
-        return RotaryEmbedding(dim=dim // num_heads, **kwargs)
+        return RotaryEmbedding(dim=dim // num_heads, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif rope_type == 'cat':
         kwargs.pop('rotate_half', None)  # doesn't support
-        return RotaryEmbeddingCat(dim=dim // num_heads, **kwargs)
+        return RotaryEmbeddingCat(dim=dim // num_heads, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif rope_type == 'mixed':
         # Mixed requires depth parameter, generates differing embeddings per layer and head
         kwargs.pop('in_pixels', None)  # doesn't support
         kwargs.pop('ref_feat_shape', None)  # doesn't support
-        return RotaryEmbeddingMixed(dim=dim, num_heads=num_heads, **kwargs)
+        return RotaryEmbeddingMixed(dim=dim, num_heads=num_heads, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif rope_type == 'dinov3':
         kwargs.pop('in_pixels', None)  # doesn't support
         kwargs.pop('ref_feat_shape', None)  # doesn't support
-        return RotaryEmbeddingDinoV3(dim=dim // num_heads, **kwargs)
+        return RotaryEmbeddingDinoV3(dim=dim // num_heads, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         raise ValueError(f"Unknown RoPE type: {rope_type}")

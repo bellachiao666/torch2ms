@@ -69,7 +69,7 @@ def get_graph_node_names(model: msnn.Cell) -> Tuple[List[str], List[str]]:
             'leaf_modules': list(_leaf_modules),
             'autowrap_functions': list(_autowrap_functions)
         }
-    )  # 'torchvision.models.feature_extraction.get_graph_node_names' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    )  # 'torchvision.models.feature_extraction.get_graph_node_names._get_graph_node_names' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
 
 def create_feature_extractor(model: msnn.Cell, return_nodes: Union[Dict[str, str], List[str]]):
@@ -80,4 +80,4 @@ def create_feature_extractor(model: msnn.Cell, return_nodes: Union[Dict[str, str
             'leaf_modules': list(_leaf_modules),
             'autowrap_functions': list(_autowrap_functions)
         }
-    )  # 'torchvision.models.feature_extraction.create_feature_extractor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    )  # 'torchvision.models.feature_extraction.create_feature_extractor._create_feature_extractor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

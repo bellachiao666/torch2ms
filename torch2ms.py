@@ -25,62 +25,22 @@ with open("api_mapping_out_excel.json", "r", encoding="utf8") as f:
 
 def _literal_to_expr(value):
     """
-    将 Python 字面量转成 LibCST 表达式节点，便于后续直接拼装到 AST 中。
-
-    示例:
-        >>> expr = _literal_to_expr({"flag": True, "items": [1, 2]})
-        >>> isinstance(expr, cst.BaseExpression)
-        True
-        >>> expr.dump()
-        "Dict(elements=[Element(key=SimpleString(value='\"flag\"'), value=Name(value='\"True\"')), ...])"
-
-    输出:
-        返回与输入值结构一致的 LibCST 表达式节点，`dump()` 后可看到完整结构。
+    将 Python 字面量转成 LibCST 表达式节点，便于直接拼装到 AST。
     """
     return cst.parse_expression(repr(value))
 
 
 class _MindSporeImportCollector(cst.CSTVisitor):
     """
-    读取导入语句，记录所有 MindSpore 模块前缀（不限于 nn）。
-
-    示例:
-        >>> code = "import mindspore.nn as mnn\\nfrom mindspore import ops"
-        >>> collector = _MindSporeImportCollector()
-        >>> cst.parse_module(code).visit(collector)
-        >>> collector.alias_by_module
-        {'mindspore.nn': 'mnn', 'mindspore.ops': 'mindspore.ops'}
-
-    输出:
-        访问导入节点后在 `alias_by_module` 中得到模块到别名的映射。
+    收集 MindSpore 导入别名，用于还原完整调用名。
     """
 
     def __init__(self) -> None:
-        """
-        初始化 MindSpore 导入收集器，准备记录模块别名。
-
-        示例:
-            >>> collector = _MindSporeImportCollector()
-            >>> collector.alias_by_module
-            {}
-
-        输出:
-            生成一个空的 `alias_by_module` 字典，等待填充。
-        """
         self.alias_by_module = {}
 
     def _maybe_record(self, module: str, alias: str) -> None:
         """
-        判断并记录符合前缀的模块别名。
-
-        示例:
-            >>> collector = _MindSporeImportCollector()
-            >>> collector._maybe_record("mindspore.nn", "mnn")
-            >>> collector.alias_by_module
-            {'mindspore.nn': 'mnn'}
-
-        输出:
-            当模块前缀以 mindspore 开头时，将别名写入 `alias_by_module`。
+        符合 mindspore 前缀时记录模块别名。
         """
         if not module:
             return
@@ -91,16 +51,6 @@ class _MindSporeImportCollector(cst.CSTVisitor):
     def visit_Import(self, node: cst.Import) -> None:
         """
         处理 `import` 语句收集 MindSpore 别名。
-
-        示例:
-            >>> code = "import mindspore.nn as mnn"
-            >>> collector = _MindSporeImportCollector()
-            >>> cst.parse_module(code).visit(collector)
-            >>> collector.alias_by_module
-            {'mindspore.nn': 'mnn'}
-
-        输出:
-            导入语句访问后，别名被记录到 `alias_by_module`。
         """
         for name in node.names:
             module = cst_helpers.get_full_name_for_node(name.name)
@@ -113,17 +63,7 @@ class _MindSporeImportCollector(cst.CSTVisitor):
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
         """
-        处理 `from ... import ...` 语句，补充 MindSpore 模块别名。
-
-        示例:
-            >>> code = "from mindspore import ops"
-            >>> collector = _MindSporeImportCollector()
-            >>> cst.parse_module(code).visit(collector)
-            >>> collector.alias_by_module
-            {'mindspore.ops': 'ops'}
-
-        输出:
-            针对非星号导入，将完整模块路径与别名的对应关系写入。
+        处理 `from ... import ...`，记录 MindSpore 模块别名。
         """
         if node.module is None:
             return
@@ -145,15 +85,7 @@ class _MindSporeImportCollector(cst.CSTVisitor):
 
 def collect_mindspore_aliases(module: cst.Module) -> dict:
     """
-    根据导入语句收集 MindSpore 模块前缀映射，便于后续还原完整调用名。
-
-    示例:
-        >>> mod = cst.parse_module("import mindspore.nn as mnn\\nfrom mindspore import ops")
-        >>> collect_mindspore_aliases(mod)
-        {'mindspore.nn': 'mnn', 'mindspore.ops': 'ops'}
-
-    输出:
-        返回字典，键为 MindSpore 模块全名，值为代码中的别名。
+    根据导入语句收集 MindSpore 模块前缀到别名的映射。
     """
     collector = _MindSporeImportCollector()
     module.visit(collector)
@@ -176,16 +108,6 @@ class _TorchImportCollector(cst.CSTVisitor):
     """
 
     def __init__(self) -> None:
-        """
-        初始化 torch 导入收集器。
-
-        示例:
-            >>> _TorchImportCollector().module_by_alias
-            {}
-
-        输出:
-            创建空的别名记录字典。
-        """
         self.module_by_alias = {}
 
     def _maybe_record(self, module: str, alias: str) -> None:
@@ -699,9 +621,15 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             module = self.pt_aliases.get(prefix)
             if module:
                 suffix = parts[i:]
+                result_parts = [module]
                 if suffix:
-                    return ".".join([module, *suffix])
-                return module
+                    result_parts.extend(suffix)
+                else:
+                    # 别名已包含符号名则直接返回，否则补上当前名称
+                    if module.split(".")[-1] == parts[i - 1]:
+                        return module
+                    result_parts.append(parts[i - 1])
+                return ".".join(result_parts)
 
         if full_path.startswith("torch"):
             return full_path
@@ -738,7 +666,8 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         keyword_values = {}
         for arg in call.args:
             if arg.star:
-                return call.args, []  # 避免破坏 *args/**kwargs
+                # *args/**kwargs 保守不处理，并提示手动确认
+                return call.args, ["存在 *args/**kwargs，需手动确认参数映射;"]
             if arg.keyword is None:
                 positional_values.append(arg.value)
             else:
@@ -922,6 +851,9 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                 original_node,
                 [f"'{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
             )
+        # 未命中映射但包含 *args/**kwargs，提醒人工确认
+        if any(arg.star for arg in updated_node.args):
+            self._record_note(original_node, ["存在 *args/**kwargs，未转换，需手动确认参数映射;"])
         return updated_node
 
     def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.BaseExpression:
@@ -991,19 +923,17 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
     def _convert_decorator(self, dec: cst.Decorator, notes: List[str]) -> Optional[cst.Decorator]:
         """
-        统一转换装饰器表达式，支持属性和调用形式；未映射时记录提示。
+        统一转换装饰器表达式，支持属性和调用形式；有映射则替换，无映射则保留并提示。
         """
         expr = dec.decorator
         target = expr.func if isinstance(expr, cst.Call) else expr
         full_name = cst_helpers.get_full_name_for_node(target)
         pt_full_name = self._resolve_pt_full_name(full_name)
-        if not pt_full_name:
-            return dec
 
-        # torch.no_grad 无 MindSpore 直接等价，保留提示并移除
-        if pt_full_name == "torch.no_grad":
-            notes.append("torch.no_grad 装饰器需手动替换为 MindSpore 等价实现;")
-            return None
+        if not pt_full_name:
+            if full_name and full_name.startswith("torch"):
+                notes.append(f"装饰器 '{full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;")
+            return dec
 
         api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(pt_full_name.split(".")[-1])
         if api_conf:
@@ -1026,11 +956,36 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         new_expr = self._convert_annotation_expr(updated_node.annotation, missing_notes)
 
         if missing_notes:
-            seen = set()
+            # 仅保留最具体的提示，去掉层层前缀的冗余（如 torch / torch.jit / torch.jit.Final）
+            names_notes = []
             for note in missing_notes:
+                if "'" in note:
+                    name = note.split("'")[1]
+                    names_notes.append((name, note))
+            drop_prefix = set()
+            for name, _ in names_notes:
+                for other, _ in names_notes:
+                    if other != name and other.startswith(name):
+                        drop_prefix.add(name)
+                        break
+            filtered = []
+            for name, note in names_notes:
+                if name in drop_prefix:
+                    continue
+                if note not in filtered:
+                    filtered.append(note)
+            if not filtered:
+                filtered = list(dict.fromkeys(missing_notes))
+
+            seen = set()
+            for note in filtered:
                 if note in seen:
                     continue
-                self._record_func_note(original_node, note)
+                func = self._find_enclosing_func(original_node)
+                if func is not None:
+                    self._record_func_note(func, note)
+                else:
+                    self._record_note(original_node, [note])
                 seen.add(note)
 
         return updated_node.with_changes(annotation=new_expr)
@@ -1303,34 +1258,16 @@ def _comment_torch_imports(code: str) -> str:
 
 def convert_code(code: str) -> str:
     """
-    将整段 PyTorch 源码转换为 MindSpore 源码（LibCST 版本）。
-
-    示例:
-        >>> src = "import torch.nn as nn\\nnet = nn.ReLU()"
-        >>> result = convert_code(src)
-        >>> "mindspore" in result
-        True
-
-    输出:
-        返回转换后的 MindSpore 源码字符串，包含必要的参数名替换与行尾提示。
-
-    流程概览:
-        1) 收集 torch 导入/赋值别名；
-        2) 依据映射表改写调用和类型标注，并记录提示；
-        3) 清理已失效的 torch 导入，剩余的加注释屏蔽；
-        4) 补齐标准化的 MindSpore 导入前缀。
+    将一段 PyTorch 源码转换为 MindSpore 源码（LibCST）。
     """
     module = cst.parse_module(code)
-    api_by_class = {
-        conf["pytorch"].split(".")[-1]: conf for conf in API_MAP.values()
-    }
+    api_by_class = {conf["pytorch"].split(".")[-1]: conf for conf in API_MAP.values()}
+
     pt_aliases = collect_torch_aliases(module)
-    pt_assignment_aliases, pt_assignment_wrapped = collect_torch_assignment_aliases(
-        module, api_by_class, pt_aliases
-    )
+    pt_assignment_aliases, pt_assignment_wrapped = collect_torch_assignment_aliases(module, api_by_class, pt_aliases)
 
     wrapper = metadata.MetadataWrapper(module)
-    new_module = wrapper.visit(
+    transformed = wrapper.visit(
         TorchToMindSporeTransformer(
             API_MAP,
             ms_aliases=None,
@@ -1340,17 +1277,14 @@ def convert_code(code: str) -> str:
             use_mint=False,
         )
     )
-    # 第二遍遍历: 基于名称使用情况，清理不再需要的 torch 导入
+
+    # 清理已失效的 torch 导入，再对残留 torch 导入做软屏蔽。
     name_collector = _NameUsageCollector()
-    new_module.visit(name_collector)
-    cleaner = TorchImportCleaner(name_collector.used_names)
-    new_module = new_module.visit(cleaner)
+    transformed.visit(name_collector)
+    transformed = transformed.visit(TorchImportCleaner(name_collector.used_names))
 
-    new_code = new_module.code
-    new_code = _comment_torch_imports(new_code)
-    new_code = _ensure_default_ms_imports(new_code)
-
-    return new_code
+    new_code = _comment_torch_imports(transformed.code)
+    return _ensure_default_ms_imports(new_code)
 
 
 def generate_diff(old: str, new: str) -> str:
@@ -1449,9 +1383,6 @@ def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff
         f.write(diff)
     if show_diff:
         print(f"已保存 diff 到: {diff_path}")
-
-    # print(f"已生成新文件: {new_filename}")
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

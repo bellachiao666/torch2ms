@@ -18,15 +18,7 @@
  
      _has_safetensors = True
  except ImportError:
-@@ -41,6 +46,8 @@     return cleaned_state_dict
- 
- 
-+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def load_state_dict(
-         checkpoint_path: str,
-         use_ema: bool = True,
-@@ -65,9 +72,9 @@             checkpoint = safetensors.torch.load_file(checkpoint_path, device=device)
+@@ -65,9 +70,9 @@             checkpoint = safetensors.torch.load_file(checkpoint_path, device=device)
          else:
              try:
 -                checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=weights_only)
@@ -37,18 +29,15 @@
  
          state_dict_key = ''
          if isinstance(checkpoint, dict):
-@@ -87,8 +94,10 @@         raise FileNotFoundError()
+@@ -88,7 +93,7 @@ 
  
- 
-+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def load_checkpoint(
 -        model: torch.nn.Module,
 +        model: msnn.Cell,
          checkpoint_path: str,
          use_ema: bool = True,
          device: Union[str, torch.device] = 'cpu',
-@@ -131,7 +140,7 @@ 
+@@ -131,7 +136,7 @@ 
  def remap_state_dict(
          state_dict: Dict[str, Any],
 -        model: torch.nn.Module,
@@ -56,19 +45,15 @@
          allow_reshape: bool = True
  ) -> Dict[str, Any]:
      """Remap checkpoint by iterating over state dicts in order (ignoring original keys).
-@@ -158,8 +167,11 @@     return out_dict
+@@ -159,7 +164,7 @@ 
  
- 
-+# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def resume_checkpoint(
 -        model: torch.nn.Module,
 +        model: msnn.Cell,
          checkpoint_path: str,
          optimizer: Optional[torch.optim.Optimizer] = None,
          loss_scaler: Optional[Any] = None,
-@@ -179,7 +191,7 @@     """
+@@ -179,7 +184,7 @@     """
      resume_epoch = None
      if os.path.isfile(checkpoint_path):
 -        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)

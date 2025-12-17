@@ -72,7 +72,7 @@ class MbConvBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        attn_kwargs = dict(act_layer=act_layer, **dd)
+        attn_kwargs = dict(act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if isinstance(attn_layer, str) and attn_layer == 'se' or attn_layer == 'eca':
             attn_kwargs['rd_ratio'] = 0.25
             attn_kwargs['bias'] = False
@@ -80,10 +80,10 @@ class MbConvBlock(msnn.Cell):
         out_chs = out_chs or in_chs
         mid_chs = int(expand_ratio * in_chs)
 
-        self.conv_dw = nn.Conv2d(in_chs, mid_chs, 3, 1, 1, groups=in_chs, bias=bias, **dd)
+        self.conv_dw = nn.Conv2d(in_chs, mid_chs, 3, 1, 1, groups=in_chs, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.se = attn_layer(mid_chs, **attn_kwargs)
-        self.conv_pw = nn.Conv2d(mid_chs, out_chs, 1, 1, 0, bias=bias, **dd)
+        self.se = attn_layer(mid_chs, **attn_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv_pw = nn.Conv2d(mid_chs, out_chs, 1, 1, 0, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         shortcut = x
@@ -110,18 +110,18 @@ class Downsample2d(msnn.Cell):
         super().__init__()
         dim_out = dim_out or dim
 
-        self.norm1 = norm_layer(dim, **dd) if norm_layer is not None else msnn.Identity()
-        self.conv_block = MbConvBlock(dim, act_layer=act_layer, **dd)
+        self.norm1 = norm_layer(dim, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv_block = MbConvBlock(dim, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         assert reduction in ('conv', 'max', 'avg')
         if reduction == 'conv':
-            self.reduction = nn.Conv2d(dim, dim_out, 3, 2, 1, bias=False, **dd)
+            self.reduction = nn.Conv2d(dim, dim_out, 3, 2, 1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         elif reduction == 'max':
             assert dim == dim_out
             self.reduction = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
         else:
             assert dim == dim_out
             self.reduction = nn.AvgPool2d(kernel_size = 2)
-        self.norm2 = norm_layer(dim_out, **dd) if norm_layer is not None else msnn.Identity()
+        self.norm2 = norm_layer(dim_out, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.norm1(x)
@@ -151,7 +151,7 @@ class FeatureBlock(msnn.Cell):
             pool_fn = partial(nn.MaxPool2d, kernel_size=3, stride=2, padding=1)
         self.blocks = msnn.SequentialCell()
         for i in range(levels):
-            self.blocks.add_module(f'conv{i+1}', MbConvBlock(dim, act_layer=act_layer, **dd))
+            self.blocks.add_module(f'conv{i+1}', MbConvBlock(dim, act_layer=act_layer, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if reductions:
                 self.blocks.add_module(f'pool{i+1}', pool_fn())
                 reductions -= 1
@@ -172,8 +172,8 @@ class Stem(msnn.Cell):
     ):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
-        self.conv1 = nn.Conv2d(in_chs, out_chs, kernel_size=3, stride=2, padding=1, **dd)
-        self.down = Downsample2d(out_chs, act_layer=act_layer, norm_layer=norm_layer, **dd)
+        self.conv1 = nn.Conv2d(in_chs, out_chs, kernel_size=3, stride=2, padding=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.down = Downsample2d(out_chs, act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv1(x)
@@ -204,13 +204,13 @@ class WindowAttentionGlobal(msnn.Cell):
         self.scale = self.head_dim ** -0.5
         self.use_global = use_global
 
-        self.rel_pos = RelPosBias(window_size=window_size, num_heads=num_heads, **dd)
+        self.rel_pos = RelPosBias(window_size=window_size, num_heads=num_heads, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if self.use_global:
-            self.qkv = nn.Linear(dim, dim * 2, bias=qkv_bias, **dd)
+            self.qkv = nn.Linear(dim, dim * 2, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
-            self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+            self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x, q_global: Optional[ms.Tensor] = None):
@@ -283,7 +283,7 @@ class GlobalContextVitBlock(msnn.Cell):
         self.window_size = window_size
         self.num_windows = int((feat_size[0] // window_size[0]) * (feat_size[1] // window_size[1]))
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = attn_layer(
             dim,
             num_heads=num_heads,
@@ -293,13 +293,13 @@ class GlobalContextVitBlock(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
-        self.ls1 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
-        self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, drop=proj_drop, **dd)
-        self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, drop=proj_drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def _window_attn(self, x, q_global: Optional[ms.Tensor] = None):
@@ -347,7 +347,7 @@ class GlobalContextVitStage(msnn.Cell):
                 dim_out=dim * 2,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             dim = dim * 2
             feat_size = (feat_size[0] // 2, feat_size[1] // 2)
         else:
@@ -356,8 +356,8 @@ class GlobalContextVitStage(msnn.Cell):
         window_size = to_2tuple(window_size)
 
         feat_levels = int(math.log2(min(feat_size) / min(window_size)))
-        self.global_block = FeatureBlock(dim, feat_levels, **dd)
-        self.global_norm = norm_layer_cl(dim, **dd) if global_norm else msnn.Identity()
+        self.global_block = FeatureBlock(dim, feat_levels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.global_norm = norm_layer_cl(dim, **dd) if global_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.blocks = msnn.CellList([
             GlobalContextVitBlock(
@@ -377,8 +377,8 @@ class GlobalContextVitStage(msnn.Cell):
                 **dd,
             )
             for i in range(depth)
-        ])
-        self.norm = norm_layer_cl(dim, **dd) if stage_norm else msnn.Identity()
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer_cl(dim, **dd) if stage_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.dim = dim
         self.feat_size = feat_size
         self.grad_checkpointing = False
@@ -453,7 +453,7 @@ class GlobalContextVit(msnn.Cell):
             act_layer=act_layer,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dpr = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
         stages = []
@@ -478,12 +478,12 @@ class GlobalContextVit(msnn.Cell):
                 norm_layer=norm_layer,
                 norm_layer_cl=norm_layer_cl,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.feature_info += [dict(num_chs=stages[-1].dim, reduction=2**(i+2), module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier head
-        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)
+        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if weight_init:
             named_apply(partial(self._init_weights, scheme=weight_init), self)
@@ -504,13 +504,13 @@ class GlobalContextVit(msnn.Cell):
                 if module.bias is not None:
                     nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {
             k for k, _ in self.named_parameters()
             if any(n in k for n in ["relative_position_bias_table", "rel_pos.mlp"])}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^stem',  # stem and embed
@@ -518,12 +518,12 @@ class GlobalContextVit(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -532,7 +532,7 @@ class GlobalContextVit(msnn.Cell):
         self.num_classes = num_classes
         if global_pool is None:
             global_pool = self.head.global_pool.pool_type
-        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=self.drop_rate, **dd)
+        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=self.drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def forward_intermediates(
             self,
@@ -609,7 +609,7 @@ def _create_gcvit(variant, pretrained=False, **kwargs):
         GlobalContextVit, variant, pretrained,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -644,8 +644,8 @@ def gcvit_xxtiny(pretrained=False, **kwargs) -> GlobalContextVit:
     model_kwargs = dict(
         depths=(2, 2, 6, 2),
         num_heads=(2, 4, 8, 16),
-        **kwargs)
-    return _create_gcvit('gcvit_xxtiny', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_gcvit('gcvit_xxtiny', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -653,8 +653,8 @@ def gcvit_xtiny(pretrained=False, **kwargs) -> GlobalContextVit:
     model_kwargs = dict(
         depths=(3, 4, 6, 5),
         num_heads=(2, 4, 8, 16),
-        **kwargs)
-    return _create_gcvit('gcvit_xtiny', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_gcvit('gcvit_xtiny', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -662,8 +662,8 @@ def gcvit_tiny(pretrained=False, **kwargs) -> GlobalContextVit:
     model_kwargs = dict(
         depths=(3, 4, 19, 5),
         num_heads=(2, 4, 8, 16),
-        **kwargs)
-    return _create_gcvit('gcvit_tiny', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_gcvit('gcvit_tiny', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -674,8 +674,8 @@ def gcvit_small(pretrained=False, **kwargs) -> GlobalContextVit:
         embed_dim=96,
         mlp_ratio=2,
         layer_scale=1e-5,
-        **kwargs)
-    return _create_gcvit('gcvit_small', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_gcvit('gcvit_small', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -686,5 +686,5 @@ def gcvit_base(pretrained=False, **kwargs) -> GlobalContextVit:
         embed_dim=128,
         mlp_ratio=2,
         layer_scale=1e-5,
-        **kwargs)
-    return _create_gcvit('gcvit_base', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_gcvit('gcvit_base', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

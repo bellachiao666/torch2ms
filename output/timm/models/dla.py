@@ -12,8 +12,6 @@ Res2Net Paper: `Res2Net: A New Multi-scale Backbone Architecture` - https://arxi
 """
 import math
 from typing import List, Optional, Tuple, Type
-
-# import torch
 # import torch.nn as nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
@@ -48,8 +46,8 @@ class DlaBasic(msnn.Cell):
             bias=False,
             dilation=dilation,
             **dd,
-        )
-        self.bn1 = nn.BatchNorm2d(planes, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         self.conv2 = nn.Conv2d(
             planes,
@@ -60,8 +58,8 @@ class DlaBasic(msnn.Cell):
             bias=False,
             dilation=dilation,
             **dd,
-        )
-        self.bn2 = nn.BatchNorm2d(planes, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.stride = stride
 
     def construct(self, x, shortcut: Optional[ms.Tensor] = None, children: Optional[List[ms.Tensor]] = None):
@@ -102,8 +100,8 @@ class DlaBottleneck(msnn.Cell):
         mid_planes = int(math.floor(outplanes * (base_width / 64)) * cardinality)
         mid_planes = mid_planes // self.expansion
 
-        self.conv1 = nn.Conv2d(inplanes, mid_planes, kernel_size=1, bias=False, **dd)
-        self.bn1 = nn.BatchNorm2d(mid_planes, **dd)
+        self.conv1 = nn.Conv2d(inplanes, mid_planes, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(mid_planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.conv2 = nn.Conv2d(
             mid_planes,
             mid_planes,
@@ -114,10 +112,10 @@ class DlaBottleneck(msnn.Cell):
             dilation=dilation,
             groups=cardinality,
             **dd,
-        )
-        self.bn2 = nn.BatchNorm2d(mid_planes, **dd)
-        self.conv3 = nn.Conv2d(mid_planes, outplanes, kernel_size=1, bias=False, **dd)
-        self.bn3 = nn.BatchNorm2d(outplanes, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(mid_planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv3 = nn.Conv2d(mid_planes, outplanes, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = nn.BatchNorm2d(outplanes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
     def construct(self, x, shortcut: Optional[ms.Tensor] = None, children: Optional[List[ms.Tensor]] = None):
@@ -167,8 +165,8 @@ class DlaBottle2neck(msnn.Cell):
         mid_planes = mid_planes // self.expansion
         self.width = mid_planes
 
-        self.conv1 = nn.Conv2d(inplanes, mid_planes * scale, kernel_size=1, bias=False, **dd)
-        self.bn1 = nn.BatchNorm2d(mid_planes * scale, **dd)
+        self.conv1 = nn.Conv2d(inplanes, mid_planes * scale, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(mid_planes * scale, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         num_scale_convs = max(1, scale - 1)
         convs = []
@@ -184,14 +182,14 @@ class DlaBottle2neck(msnn.Cell):
                 groups=cardinality,
                 bias=False,
                 **dd,
-            ))
-            bns.append(nn.BatchNorm2d(mid_planes, **dd))
+            ))  # 存在 *args/**kwargs，需手动确认参数映射;
+            bns.append(nn.BatchNorm2d(mid_planes, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
         self.convs = msnn.CellList(convs)
         self.bns = msnn.CellList(bns)
         self.pool = nn.AvgPool2d(kernel_size = 3, stride = stride, padding = 1) if self.is_first else None
 
-        self.conv3 = nn.Conv2d(mid_planes * scale, outplanes, kernel_size=1, bias=False, **dd)
-        self.bn3 = nn.BatchNorm2d(outplanes, **dd)
+        self.conv3 = nn.Conv2d(mid_planes * scale, outplanes, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = nn.BatchNorm2d(outplanes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
     def construct(self, x, shortcut: Optional[ms.Tensor] = None, children: Optional[List[ms.Tensor]] = None):
@@ -250,8 +248,8 @@ class DlaRoot(msnn.Cell):
             bias=False,
             padding=(kernel_size - 1) // 2,
             **dd,
-        )
-        self.bn = nn.BatchNorm2d(out_channels, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn = nn.BatchNorm2d(out_channels, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         self.shortcut = shortcut
 
@@ -291,18 +289,18 @@ class DlaTree(msnn.Cell):
             root_dim += in_channels
         self.downsample = nn.MaxPool2d(stride, stride = stride) if stride > 1 else msnn.Identity()
         self.project = msnn.Identity()
-        cargs = dict(dilation=dilation, cardinality=cardinality, base_width=base_width, **dd)
+        cargs = dict(dilation=dilation, cardinality=cardinality, base_width=base_width, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if levels == 1:
-            self.tree1 = block(in_channels, out_channels, stride, **cargs)
-            self.tree2 = block(out_channels, out_channels, 1, **cargs)
+            self.tree1 = block(in_channels, out_channels, stride, **cargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.tree2 = block(out_channels, out_channels, 1, **cargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if in_channels != out_channels:
                 # NOTE the official impl/weights have  project layers in levels > 1 case that are never
                 # used, I've moved the project layer here to avoid wasted params but old checkpoints will
                 # need strict=False while loading.
                 self.project = msnn.SequentialCell(
                     nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, bias=False, **dd),
-                    nn.BatchNorm2d(out_channels, **dd))
-            self.root = DlaRoot(root_dim, out_channels, root_kernel_size, root_shortcut, **dd)
+                    nn.BatchNorm2d(out_channels, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.root = DlaRoot(root_dim, out_channels, root_kernel_size, root_shortcut, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             cargs.update(dict(root_kernel_size=root_kernel_size, root_shortcut=root_shortcut))
             self.tree1 = DlaTree(
@@ -313,7 +311,7 @@ class DlaTree(msnn.Cell):
                 stride,
                 root_dim=0,
                 **cargs,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.tree2 = DlaTree(
                 levels - 1,
                 block,
@@ -321,7 +319,7 @@ class DlaTree(msnn.Cell):
                 out_channels,
                 root_dim=root_dim + out_channels,
                 **cargs,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.root = None
         self.level_root = level_root
         self.root_dim = root_dim
@@ -373,14 +371,14 @@ class DLA(msnn.Cell):
             nn.Conv2d(in_chans, channels[0], kernel_size=7, stride=1, padding=3, bias=False, **dd),
             nn.BatchNorm2d(channels[0], **dd),
             nn.ReLU(),
-        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.level0 = self._make_conv_level(channels[0], channels[0], levels[0], **dd)
-        self.level1 = self._make_conv_level(channels[0], channels[1], levels[1], stride=2, **dd)
-        cargs = dict(cardinality=cardinality, base_width=base_width, root_shortcut=shortcut_root, **dd)
-        self.level2 = DlaTree(levels[2], block, channels[1], channels[2], 2, level_root=False, **cargs)
-        self.level3 = DlaTree(levels[3], block, channels[2], channels[3], 2, level_root=True, **cargs)
-        self.level4 = DlaTree(levels[4], block, channels[3], channels[4], 2, level_root=True, **cargs)
-        self.level5 = DlaTree(levels[5], block, channels[4], channels[5], 2, level_root=True, **cargs)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+        self.level0 = self._make_conv_level(channels[0], channels[0], levels[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.level1 = self._make_conv_level(channels[0], channels[1], levels[1], stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        cargs = dict(cardinality=cardinality, base_width=base_width, root_shortcut=shortcut_root, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.level2 = DlaTree(levels[2], block, channels[1], channels[2], 2, level_root=False, **cargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.level3 = DlaTree(levels[3], block, channels[2], channels[3], 2, level_root=True, **cargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.level4 = DlaTree(levels[4], block, channels[3], channels[4], 2, level_root=True, **cargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.level5 = DlaTree(levels[5], block, channels[4], channels[5], 2, level_root=True, **cargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(num_chs=channels[0], reduction=1, module='level0'),  # rare to have a meaningful stride 1 level
             dict(num_chs=channels[1], reduction=2, module='level1'),
@@ -398,7 +396,7 @@ class DLA(msnn.Cell):
             use_conv=True,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()
 
         for m in self.modules():
@@ -425,11 +423,11 @@ class DLA(msnn.Cell):
                     **dd,
                 ),
                 nn.BatchNorm2d(planes, **dd),
-                nn.ReLU()])  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                nn.ReLU()])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
             inplanes = planes
-        return msnn.SequentialCell(*modules)
+        return msnn.SequentialCell(*modules)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^base_layer',
@@ -442,11 +440,11 @@ class DLA(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.fc
 
@@ -488,7 +486,7 @@ def _create_dla(variant, pretrained=False, **kwargs):
         pretrained_strict=False,
         feature_cfg=dict(out_indices=(1, 2, 3, 4, 5)),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -523,7 +521,7 @@ def dla60_res2net(pretrained=False, **kwargs) -> DLA:
     model_args = dict(
         levels=(1, 1, 1, 2, 3, 1), channels=(16, 32, 128, 256, 512, 1024),
         block=DlaBottle2neck, cardinality=1, base_width=28)
-    return _create_dla('dla60_res2net', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla60_res2net', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -531,21 +529,21 @@ def dla60_res2next(pretrained=False,**kwargs):
     model_args = dict(
         levels=(1, 1, 1, 2, 3, 1), channels=(16, 32, 128, 256, 512, 1024),
         block=DlaBottle2neck, cardinality=8, base_width=4)
-    return _create_dla('dla60_res2next', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla60_res2next', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dla34(pretrained=False, **kwargs) -> DLA:  # DLA-34
     model_args = dict(
         levels=[1, 1, 1, 2, 2, 1], channels=[16, 32, 64, 128, 256, 512], block=DlaBasic)
-    return _create_dla('dla34', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla34', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def dla46_c(pretrained=False, **kwargs) -> DLA:  # DLA-46-C
     model_args = dict(
         levels=[1, 1, 1, 2, 2, 1], channels=[16, 32, 64, 64, 128, 256], block=DlaBottleneck)
-    return _create_dla('dla46_c', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla46_c', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -553,7 +551,7 @@ def dla46x_c(pretrained=False, **kwargs) -> DLA:  # DLA-X-46-C
     model_args = dict(
         levels=[1, 1, 1, 2, 2, 1], channels=[16, 32, 64, 64, 128, 256],
         block=DlaBottleneck, cardinality=32, base_width=4)
-    return _create_dla('dla46x_c', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla46x_c', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -561,7 +559,7 @@ def dla60x_c(pretrained=False, **kwargs) -> DLA:  # DLA-X-60-C
     model_args = dict(
         levels=[1, 1, 1, 2, 3, 1], channels=[16, 32, 64, 64, 128, 256],
         block=DlaBottleneck, cardinality=32, base_width=4)
-    return _create_dla('dla60x_c', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla60x_c', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -569,7 +567,7 @@ def dla60(pretrained=False, **kwargs) -> DLA:  # DLA-60
     model_args = dict(
         levels=[1, 1, 1, 2, 3, 1], channels=[16, 32, 128, 256, 512, 1024],
         block=DlaBottleneck)
-    return _create_dla('dla60', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla60', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -577,7 +575,7 @@ def dla60x(pretrained=False, **kwargs) -> DLA:  # DLA-X-60
     model_args = dict(
         levels=[1, 1, 1, 2, 3, 1], channels=[16, 32, 128, 256, 512, 1024],
         block=DlaBottleneck, cardinality=32, base_width=4)
-    return _create_dla('dla60x', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla60x', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -585,7 +583,7 @@ def dla102(pretrained=False, **kwargs) -> DLA:  # DLA-102
     model_args = dict(
         levels=[1, 1, 1, 3, 4, 1], channels=[16, 32, 128, 256, 512, 1024],
         block=DlaBottleneck, shortcut_root=True)
-    return _create_dla('dla102', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla102', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -593,7 +591,7 @@ def dla102x(pretrained=False, **kwargs) -> DLA:  # DLA-X-102
     model_args = dict(
         levels=[1, 1, 1, 3, 4, 1], channels=[16, 32, 128, 256, 512, 1024],
         block=DlaBottleneck, cardinality=32, base_width=4, shortcut_root=True)
-    return _create_dla('dla102x', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla102x', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -601,7 +599,7 @@ def dla102x2(pretrained=False, **kwargs) -> DLA:  # DLA-X-102 64
     model_args = dict(
         levels=[1, 1, 1, 3, 4, 1], channels=[16, 32, 128, 256, 512, 1024],
         block=DlaBottleneck, cardinality=64, base_width=4, shortcut_root=True)
-    return _create_dla('dla102x2', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla102x2', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -609,4 +607,4 @@ def dla169(pretrained=False, **kwargs) -> DLA:  # DLA-169
     model_args = dict(
         levels=[1, 1, 2, 3, 5, 1], channels=[16, 32, 128, 256, 512, 1024],
         block=DlaBottleneck, shortcut_root=True)
-    return _create_dla('dla169', pretrained, **dict(model_args, **kwargs))
+    return _create_dla('dla169', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

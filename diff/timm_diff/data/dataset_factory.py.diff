@@ -36,11 +36,24 @@
      has_imagenet = True
  except ImportError:
      has_imagenet = False
+@@ -113,11 +118,11 @@     name = name.lower()
+     if name.startswith('torch/'):
+         name = name.split('/', 2)[-1]
+-        torch_kwargs = dict(root=root, download=download, **kwargs)
++        torch_kwargs = dict(root=root, download=download, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if name in _TORCH_BASIC_DS:
+             ds_class = _TORCH_BASIC_DS[name]
+             use_train = split in _TRAIN_SYNONYM
+-            ds = ds_class(train=use_train, **torch_kwargs)
++            ds = ds_class(train=use_train, **torch_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif name == 'inaturalist' or name == 'inat':
+             assert has_inaturalist, 'Please update to PyTorch 1.10, torchvision 0.11+ for Inaturalist'
+             target_type = 'full'
 @@ -131,30 +136,30 @@                 split = '2021_train'
              elif split in _EVAL_SYNONYM:
                  split = '2021_valid'
 -            ds = INaturalist(version=split, target_type=target_type, **torch_kwargs)
-+            ds = INaturalist(version=split, target_type=target_type, **torch_kwargs)  # 'torchvision.datasets.INaturalist' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            ds = INaturalist(version=split, target_type=target_type, **torch_kwargs)  # 'torchvision.datasets.INaturalist' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          elif name == 'places365':
              assert has_places365, 'Please update to a newer PyTorch and torchvision for Places365 dataset.'
              if split in _TRAIN_SYNONYM:
@@ -48,12 +61,12 @@
              elif split in _EVAL_SYNONYM:
                  split = 'val'
 -            ds = Places365(split=split, **torch_kwargs)
-+            ds = Places365(split=split, **torch_kwargs)  # 'torchvision.datasets.Places365' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            ds = Places365(split=split, **torch_kwargs)  # 'torchvision.datasets.Places365' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          elif name == 'qmnist':
              assert has_qmnist, 'Please update to a newer PyTorch and torchvision for QMNIST dataset.'
              use_train = split in _TRAIN_SYNONYM
 -            ds = QMNIST(train=use_train, **torch_kwargs)
-+            ds = QMNIST(train=use_train, **torch_kwargs)  # 'torchvision.datasets.QMNIST' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            ds = QMNIST(train=use_train, **torch_kwargs)  # 'torchvision.datasets.QMNIST' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          elif name == 'imagenet':
 -            torch_kwargs.pop('download')
 +            torch_kwargs.pop('download')  # 'torch_kwargs.pop' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -61,14 +74,52 @@
              if split in _EVAL_SYNONYM:
                  split = 'val'
 -            ds = ImageNet(split=split, **torch_kwargs)
-+            ds = ImageNet(split=split, **torch_kwargs)  # 'torchvision.datasets.ImageNet' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            ds = ImageNet(split=split, **torch_kwargs)  # 'torchvision.datasets.ImageNet' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          elif name == 'image_folder' or name == 'folder':
              # in case torchvision ImageFolder is preferred over timm ImageDataset for some reason
              if search_split and os.path.isdir(root):
                  # look for split specific sub-folder in root
                  root = _search_split(root, split)
 -            ds = ImageFolder(root, **kwargs)
-+            ds = ImageFolder(root, **kwargs)  # 'torchvision.datasets.ImageFolder' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            ds = ImageFolder(root, **kwargs)  # 'torchvision.datasets.ImageFolder' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              assert False, f"Unknown torchvision dataset {name}"
      elif name.startswith('hfds/'):
+@@ -168,7 +173,7 @@             input_img_mode=input_img_mode,
+             trust_remote_code=trust_remote_code,
+             **kwargs,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     elif name.startswith('hfids/'):
+         ds = IterableImageDataset(
+             root,
+@@ -184,7 +189,7 @@             input_img_mode=input_img_mode,
+             trust_remote_code=trust_remote_code,
+             **kwargs,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     elif name.startswith('tfds/'):
+         ds = IterableImageDataset(
+             root,
+@@ -199,7 +204,7 @@             seed=seed,
+             input_img_mode=input_img_mode,
+             **kwargs
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     elif name.startswith('wds/'):
+         ds = IterableImageDataset(
+             root,
+@@ -213,7 +218,7 @@             seed=seed,
+             input_img_mode=input_img_mode,
+             **kwargs
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     else:
+         # FIXME support more advance split cfg for ImageFolder/Tar datasets in the future
+         if search_split and os.path.isdir(root):
+@@ -226,5 +231,5 @@             load_bytes=load_bytes,
+             input_img_mode=input_img_mode,
+             **kwargs,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return ds

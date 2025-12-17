@@ -53,7 +53,7 @@ class SelectiveKernelBasic(msnn.Cell):
         super().__init__()
 
         sk_kwargs = sk_kwargs or {}
-        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)
+        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         assert cardinality == 1, 'BasicBlock only supports cardinality of 1'
         assert base_width == 64, 'BasicBlock doest not support changing base width'
         first_planes = planes // reduce_first
@@ -69,7 +69,7 @@ class SelectiveKernelBasic(msnn.Cell):
             drop_layer=drop_block,
             **conv_kwargs,
             **sk_kwargs,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = ConvNormAct(
             first_planes,
             outplanes,
@@ -77,8 +77,8 @@ class SelectiveKernelBasic(msnn.Cell):
             dilation=dilation,
             apply_act=False,
             **conv_kwargs,
-        )
-        self.se = create_attn(attn_layer, outplanes, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.se = create_attn(attn_layer, outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer(inplace=True)
         self.downsample = downsample
         self.drop_path = drop_path
@@ -130,13 +130,13 @@ class SelectiveKernelBottleneck(msnn.Cell):
         super().__init__()
 
         sk_kwargs = sk_kwargs or {}
-        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)
+        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         width = int(math.floor(planes * (base_width / 64)) * cardinality)
         first_planes = width // reduce_first
         outplanes = planes * self.expansion
         first_dilation = first_dilation or dilation
 
-        self.conv1 = ConvNormAct(inplanes, first_planes, kernel_size=1, **conv_kwargs)
+        self.conv1 = ConvNormAct(inplanes, first_planes, kernel_size=1, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = SelectiveKernel(
             first_planes,
             width,
@@ -147,9 +147,9 @@ class SelectiveKernelBottleneck(msnn.Cell):
             drop_layer=drop_block,
             **conv_kwargs,
             **sk_kwargs,
-        )
-        self.conv3 = ConvNormAct(width, outplanes, kernel_size=1, apply_act=False, **conv_kwargs)
-        self.se = create_attn(attn_layer, outplanes, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv3 = ConvNormAct(width, outplanes, kernel_size=1, apply_act=False, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.se = create_attn(attn_layer, outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer(inplace=True)
         self.downsample = downsample
         self.drop_path = drop_path
@@ -180,7 +180,7 @@ def _create_skresnet(variant, pretrained=False, **kwargs):
         variant,
         pretrained,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -216,7 +216,7 @@ def skresnet18(pretrained=False, **kwargs) -> ResNet:
     model_args = dict(
         block=SelectiveKernelBasic, layers=[2, 2, 2, 2], block_args=dict(sk_kwargs=sk_kwargs),
         zero_init_last=False)
-    return _create_skresnet('skresnet18', pretrained, **dict(model_args, **kwargs))
+    return _create_skresnet('skresnet18', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -230,7 +230,7 @@ def skresnet34(pretrained=False, **kwargs) -> ResNet:
     model_args = dict(
         block=SelectiveKernelBasic, layers=[3, 4, 6, 3], block_args=dict(sk_kwargs=sk_kwargs),
         zero_init_last=False)
-    return _create_skresnet('skresnet34', pretrained, **dict(model_args, **kwargs))
+    return _create_skresnet('skresnet34', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -244,7 +244,7 @@ def skresnet50(pretrained=False, **kwargs) -> ResNet:
     model_args = dict(
         block=SelectiveKernelBottleneck, layers=[3, 4, 6, 3], block_args=dict(sk_kwargs=sk_kwargs),
         zero_init_last=False)
-    return _create_skresnet('skresnet50', pretrained, **dict(model_args, **kwargs))
+    return _create_skresnet('skresnet50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -258,7 +258,7 @@ def skresnet50d(pretrained=False, **kwargs) -> ResNet:
     model_args = dict(
         block=SelectiveKernelBottleneck, layers=[3, 4, 6, 3], stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(sk_kwargs=sk_kwargs), zero_init_last=False)
-    return _create_skresnet('skresnet50d', pretrained, **dict(model_args, **kwargs))
+    return _create_skresnet('skresnet50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -270,5 +270,5 @@ def skresnext50_32x4d(pretrained=False, **kwargs) -> ResNet:
     model_args = dict(
         block=SelectiveKernelBottleneck, layers=[3, 4, 6, 3], cardinality=32, base_width=4,
         block_args=dict(sk_kwargs=sk_kwargs), zero_init_last=False)
-    return _create_skresnet('skresnext50_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_skresnet('skresnext50_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

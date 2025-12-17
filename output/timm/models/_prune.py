@@ -97,7 +97,7 @@ def adapt_model_from_string(parent_module, model_string):
                 groups=g,
                 stride=old_module.stride,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
             set_layer(new_module, n, new_conv)
         elif isinstance(old_module, BatchNormAct2d):
             new_bn = BatchNormAct2d(
@@ -107,7 +107,7 @@ def adapt_model_from_string(parent_module, model_string):
                 affine=old_module.affine,
                 track_running_stats=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             new_bn.drop = old_module.drop
             new_bn.act = old_module.act
             set_layer(new_module, n, new_bn)
@@ -119,7 +119,7 @@ def adapt_model_from_string(parent_module, model_string):
                 affine=old_module.affine,
                 track_running_stats=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
             set_layer(new_module, n, new_bn)
         elif isinstance(old_module, nn.Linear):
             # FIXME extra checks to ensure this is actually the FC classifier layer and not a diff Linear layer?
@@ -129,7 +129,7 @@ def adapt_model_from_string(parent_module, model_string):
                 out_features=old_module.out_features,
                 bias=old_module.bias is not None,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             set_layer(new_module, n, new_fc)
             if hasattr(new_module, 'num_features'):
                 if getattr(new_module, 'head_hidden_size', 0) == new_module.num_features:

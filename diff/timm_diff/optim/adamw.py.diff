@@ -35,14 +35,7 @@
          for group in self.param_groups:
              group.setdefault('amsgrad', False)
              group.setdefault('caution', False)
-@@ -97,7 +103,6 @@             group.setdefault('maximize', False)
-             group.setdefault('capturable', False)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
- 
-@@ -134,14 +139,14 @@ 
+@@ -134,14 +140,14 @@ 
                  # State initialization
                  if len(state) == 0:
 -                    state['step'] = torch.tensor(0.)
@@ -60,7 +53,7 @@
  
                  exp_avgs.append(state['exp_avg'])
                  exp_avg_sqs.append(state['exp_avg_sq'])
-@@ -173,12 +178,12 @@ 
+@@ -173,12 +179,12 @@ 
  
  def adamw(
 -        params: List[Tensor],
@@ -78,7 +71,7 @@
          foreach: Optional[bool] = None,
          capturable: bool = False,
          *,
-@@ -196,7 +201,7 @@       See AdamWLegacy class for details.
+@@ -196,7 +202,7 @@       See AdamWLegacy class for details.
      """
  
 -    if not all(isinstance(t, torch.Tensor) for t in state_steps):
@@ -86,7 +79,7 @@
          raise RuntimeError(
              'API has changed, `state_steps` argument must contain a list of' +
              ' singleton tensors')
-@@ -204,7 +209,7 @@     if foreach is None:
+@@ -204,7 +210,7 @@     if foreach is None:
          try:
              # cannot do foreach if this overload doesn't exist when caution enabled
 -            foreach = not caution or 'Scalar' in torch.ops.aten._foreach_maximum_.overloads()
@@ -94,7 +87,7 @@
          except:
              foreach = False
  
-@@ -234,12 +239,12 @@ 
+@@ -234,12 +240,12 @@ 
  
  def _single_tensor_adamw(
 -        params: List[Tensor],
@@ -112,7 +105,7 @@
          *,
          amsgrad: bool,
          beta1: float,
-@@ -273,7 +278,7 @@         if amsgrad:
+@@ -273,7 +279,7 @@         if amsgrad:
              max_exp_avg_sq = max_exp_avg_sqs[i]
              # Maintains the maximum of all 2nd moment running avg. till now
 -            torch.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
@@ -120,7 +113,7 @@
              denom_base = max_exp_avg_sq
          else:
              denom_base = exp_avg_sq
-@@ -283,8 +288,8 @@ 
+@@ -283,8 +289,8 @@ 
              # 1 - beta1 ** step can't be captured in a CUDA graph, even if step is a CUDA tensor
              # (incurs "RuntimeError: CUDA error: operation not permitted when stream is capturing")
 -            bias_correction1 = 1 - torch.pow(beta1, step)
@@ -130,7 +123,7 @@
  
              step_size = lr / bias_correction1
              step_size_neg = step_size.neg()
-@@ -320,12 +325,12 @@ 
+@@ -320,12 +326,12 @@ 
  
  def _multi_tensor_adamw(
 -        params: List[Tensor],
@@ -148,7 +141,7 @@
          *,
          amsgrad: bool,
          beta1: float,
-@@ -347,72 +352,72 @@         ), "If capturable=True, params and state_steps must be CUDA tensors."
+@@ -347,72 +353,72 @@         ), "If capturable=True, params and state_steps must be CUDA tensors."
  
      if maximize:
 -        grads = torch._foreach_neg(tuple(grads))  # type: ignore[assignment]
@@ -258,7 +251,7 @@
      else:
          bias_correction1 = [1 - beta1 ** step.item() for step in state_steps]
          bias_correction2 = [1 - beta2 ** step.item() for step in state_steps]
-@@ -423,23 +428,23 @@ 
+@@ -423,23 +429,23 @@ 
          if amsgrad:
              # Maintains the maximum of all 2nd moment running avg. till now
 -            max_exp_avg_sqs = [torch.view_as_real(x) if torch.is_complex(x) else x for x in max_exp_avg_sqs]

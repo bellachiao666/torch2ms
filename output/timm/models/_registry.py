@@ -51,7 +51,7 @@ def generate_default_cfgs(cfgs: Dict[str, Union[Dict[str, Any], PretrainedCfg]])
 
     for k, v in cfgs.items():
         if isinstance(v, dict):
-            v = PretrainedCfg(**v)
+            v = PretrainedCfg(**v)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         has_weights = v.has_weights
 
         model, tag = split_model_name_tag(k)
@@ -108,7 +108,7 @@ def register_model(fn: Callable[..., Any]) -> Callable[..., Any]:
             # new style default cfg dataclass w/ multiple entries per model-arch
             assert isinstance(default_cfg, dict)
             # old style cfg dict per model-arch
-            pretrained_cfg = PretrainedCfg(**default_cfg)
+            pretrained_cfg = PretrainedCfg(**default_cfg)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             default_cfg = DefaultCfg(tags=deque(['']), cfgs={'': pretrained_cfg})
 
         for tag_idx, tag in enumerate(default_cfg.tags):
@@ -119,7 +119,7 @@ def register_model(fn: Callable[..., Any]) -> Callable[..., Any]:
             if pretrained_cfg.hf_hub_id and pretrained_cfg.hf_hub_id == 'timm/':
                 # auto-complete hub name w/ architecture.tag
                 replace_items['hf_hub_id'] = pretrained_cfg.hf_hub_id + model_name_tag
-            pretrained_cfg = replace(pretrained_cfg, **replace_items)
+            pretrained_cfg = replace(pretrained_cfg, **replace_items)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
             if is_default:
                 _model_pretrained_cfgs[model_name] = pretrained_cfg
@@ -147,7 +147,7 @@ def _deprecated_model_shim(deprecated_name: str, current_fn: Callable = None, cu
         current_name = '.'.join([current_fn.__name__, current_tag]) if current_tag else current_fn.__name__
         warnings.warn(f'Mapping deprecated model name {deprecated_name} to current {current_name}.', stacklevel=2)
         pretrained_cfg = kwargs.pop('pretrained_cfg', None)
-        return current_fn(pretrained=pretrained, pretrained_cfg=pretrained_cfg or current_tag, **kwargs)
+        return current_fn(pretrained=pretrained, pretrained_cfg=pretrained_cfg or current_tag, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return _fn
 
 

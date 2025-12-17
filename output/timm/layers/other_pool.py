@@ -113,7 +113,7 @@ class SimPool2d(msnn.Cell):
     Uses GAP as query initialization and applies cross-attention between the GAP query
     and spatial features to produce a weighted pooled representation.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -146,12 +146,12 @@ class SimPool2d(msnn.Cell):
         self.fused_attn = use_fused_attn()
 
         norm_layer = norm_layer or nn.LayerNorm
-        self.norm = norm_layer(dim, **dd)
-        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if qk_norm:
-            self.q_norm = norm_layer(self.head_dim, **dd)
-            self.k_norm = norm_layer(self.head_dim, **dd)
+            self.q_norm = norm_layer(self.head_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.k_norm = norm_layer(self.head_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.q_norm = msnn.Identity()
             self.k_norm = msnn.Identity()
@@ -209,7 +209,7 @@ class SimPool1d(msnn.Cell):
     Uses GAP as query initialization and applies cross-attention between the GAP query
     and sequence tokens to produce a weighted pooled representation.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -241,12 +241,12 @@ class SimPool1d(msnn.Cell):
         self.fused_attn = use_fused_attn()
 
         norm_layer = norm_layer or nn.LayerNorm
-        self.norm = norm_layer(dim, **dd)
-        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if qk_norm:
-            self.q_norm = norm_layer(self.head_dim, **dd)
-            self.k_norm = norm_layer(self.head_dim, **dd)
+            self.q_norm = norm_layer(self.head_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.k_norm = norm_layer(self.head_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.q_norm = msnn.Identity()
             self.k_norm = msnn.Identity()

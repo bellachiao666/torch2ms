@@ -42,11 +42,11 @@ class Mlp(msnn.Cell):
         drop_probs = to_2tuple(drop)
         linear_layer = partial(nn.Conv2d, kernel_size=1) if use_conv else nn.Linear
 
-        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
+        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop_probs[0])
-        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()
-        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)
+        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop2 = nn.Dropout(drop_probs[1])
 
     def construct(self, x):
@@ -90,11 +90,11 @@ class GluMlp(msnn.Cell):
         self.chunk_dim = 1 if use_conv else -1
         self.gate_last = gate_last  # use second half of width for gate
 
-        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
+        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop_probs[0])
-        self.norm = norm_layer(hidden_features // 2, **dd) if norm_layer is not None else msnn.Identity()
-        self.fc2 = linear_layer(hidden_features // 2, out_features, bias=bias[1], **dd)
+        self.norm = norm_layer(hidden_features // 2, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc2 = linear_layer(hidden_features // 2, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop2 = nn.Dropout(drop_probs[1])
 
     def init_weights(self):
@@ -145,12 +145,12 @@ class SwiGLU(msnn.Cell):
         if align_to:
             hidden_features = hidden_features + (-hidden_features % align_to)
 
-        self.fc1_g = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
-        self.fc1_x = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
+        self.fc1_g = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.fc1_x = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop_probs[0])
-        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()
-        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)
+        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop2 = nn.Dropout(drop_probs[1])
 
     def init_weights(self):
@@ -193,17 +193,17 @@ class GatedMlp(msnn.Cell):
         bias = to_2tuple(bias)
         drop_probs = to_2tuple(drop)
 
-        self.fc1 = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
+        self.fc1 = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop_probs[0])
         if gate_layer is not None:
             assert hidden_features % 2 == 0
-            self.gate = gate_layer(hidden_features, **dd)
+            self.gate = gate_layer(hidden_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             hidden_features = hidden_features // 2  # FIXME base reduction on gate property?
         else:
             self.gate = msnn.Identity()
-        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()
-        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)
+        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop2 = nn.Dropout(drop_probs[1])
 
     def construct(self, x):
@@ -238,11 +238,11 @@ class ConvMlp(msnn.Cell):
         hidden_features = hidden_features or in_features
         bias = to_2tuple(bias)
 
-        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)
-        self.norm = norm_layer(hidden_features, **dd) if norm_layer else msnn.Identity()
+        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(hidden_features, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.drop = nn.Dropout(drop)
-        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1], **dd)
+        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.fc1(x)
@@ -278,11 +278,11 @@ class GlobalResponseNormMlp(msnn.Cell):
         drop_probs = to_2tuple(drop)
         linear_layer = partial(nn.Conv2d, kernel_size=1) if use_conv else nn.Linear
 
-        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
+        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop_probs[0])
-        self.grn = GlobalResponseNorm(hidden_features, channels_last=not use_conv, **dd)
-        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)
+        self.grn = GlobalResponseNorm(hidden_features, channels_last=not use_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop2 = nn.Dropout(drop_probs[1])
 
     def construct(self, x):

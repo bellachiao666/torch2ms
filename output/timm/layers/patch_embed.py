@@ -31,7 +31,7 @@ class PatchEmbed(msnn.Cell):
     """ 2D Image to Patch Embedding
     """
     output_fmt: Format
-    dynamic_img_pad: torch.jit.Final[bool]
+    dynamic_img_pad: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -63,8 +63,8 @@ class PatchEmbed(msnn.Cell):
         self.strict_img_size = strict_img_size
         self.dynamic_img_pad = dynamic_img_pad
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, bias=bias, **dd)
-        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()
+        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _init_img_size(self, img_size: Union[int, Tuple[int, int]]):
         assert self.patch_size
@@ -260,9 +260,6 @@ def resample_patch_embed_old(
 DTYPE_INTERMEDIATE = ms.float32
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _compute_resize_matrix(
         old_size: Tuple[int, int],
         new_size: Tuple[int, int],
@@ -285,8 +282,6 @@ def _compute_resize_matrix(
     return resize_matrix # Shape: (new_total, old_total)
 
 
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _apply_resampling(
         patch_embed: ms.Tensor,
         pinv_matrix: ms.Tensor,
@@ -301,7 +296,7 @@ def _apply_resampling(
     patch_embed = patch_embed.reshape(c_out, c_in, -1).to(dtype=intermediate_dtype)
     pinv_matrix = pinv_matrix.to(dtype=intermediate_dtype)
     resampled_patch_embed = patch_embed @ pinv_matrix  # (C_out, C_in, P_old * P_old) @ (P_old * P_old, P_new * P_new)
-    resampled_patch_embed = resampled_patch_embed.reshape(c_out, c_in, *new_size_tuple).to(dtype=orig_dtype)
+    resampled_patch_embed = resampled_patch_embed.reshape(c_out, c_in, *new_size_tuple).to(dtype=orig_dtype)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return resampled_patch_embed
 
 
@@ -361,9 +356,6 @@ class PatchEmbedResamplerFixedOrigSize(msnn.Cell):
         # Cache map key is the target new_size tuple
         self._pinv_cache_map: Dict[Tuple[int, int], str] = {}
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _get_or_create_pinv_matrix(
             self,
             new_size: Tuple[int, int],

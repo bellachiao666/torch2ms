@@ -61,8 +61,8 @@ class SeparableConv2d(msnn.Cell):
             groups=in_channels,
             bias=False,
             **dd,
-        )
-        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, 1, 0, 1, 1, bias=False, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, 1, 0, 1, 1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv1(x)
@@ -86,8 +86,8 @@ class Block(msnn.Cell):
         super().__init__()
 
         if out_channels != in_channels or strides != 1:
-            self.skip = nn.Conv2d(in_channels, out_channels, 1, stride=strides, bias=False, **dd)
-            self.skipbn = nn.BatchNorm2d(out_channels, **dd)
+            self.skip = nn.Conv2d(in_channels, out_channels, 1, stride=strides, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.skipbn = nn.BatchNorm2d(out_channels, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.skip = None
 
@@ -100,8 +100,8 @@ class Block(msnn.Cell):
                 inc = in_channels
                 outc = in_channels if i < (reps - 1) else out_channels
             rep.append(nn.ReLU())  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-            rep.append(SeparableConv2d(inc, outc, 3, stride=1, padding=1, **dd))
-            rep.append(nn.BatchNorm2d(outc, **dd))
+            rep.append(SeparableConv2d(inc, outc, 3, stride=1, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            rep.append(nn.BatchNorm2d(outc, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if not start_with_relu:
             rep = rep[1:]
@@ -110,7 +110,7 @@ class Block(msnn.Cell):
 
         if strides != 1:
             rep.append(nn.MaxPool2d(3, strides, 1))
-        self.rep = msnn.SequentialCell(*rep)
+        self.rep = msnn.SequentialCell(*rep)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, inp):
         x = self.rep(inp)
@@ -151,36 +151,36 @@ class Xception(msnn.Cell):
         self.num_classes = num_classes
         self.num_features = self.head_hidden_size = 2048
 
-        self.conv1 = nn.Conv2d(in_chans, 32, 3, 2, 0, bias=False, **dd)
-        self.bn1 = nn.BatchNorm2d(32, **dd)
+        self.conv1 = nn.Conv2d(in_chans, 32, 3, 2, 0, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(32, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act1 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
-        self.conv2 = nn.Conv2d(32, 64, 3, bias=False, **dd)
-        self.bn2 = nn.BatchNorm2d(64, **dd)
+        self.conv2 = nn.Conv2d(32, 64, 3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(64, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act2 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
-        self.block1 = Block(64, 128, 2, 2, start_with_relu=False, **dd)
-        self.block2 = Block(128, 256, 2, 2, **dd)
-        self.block3 = Block(256, 728, 2, 2, **dd)
+        self.block1 = Block(64, 128, 2, 2, start_with_relu=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block2 = Block(128, 256, 2, 2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block3 = Block(256, 728, 2, 2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.block4 = Block(728, 728, 3, 1, **dd)
-        self.block5 = Block(728, 728, 3, 1, **dd)
-        self.block6 = Block(728, 728, 3, 1, **dd)
-        self.block7 = Block(728, 728, 3, 1, **dd)
+        self.block4 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block5 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block6 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block7 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.block8 = Block(728, 728, 3, 1, **dd)
-        self.block9 = Block(728, 728, 3, 1, **dd)
-        self.block10 = Block(728, 728, 3, 1, **dd)
-        self.block11 = Block(728, 728, 3, 1, **dd)
+        self.block8 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block9 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block10 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.block11 = Block(728, 728, 3, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.block12 = Block(728, 1024, 2, 2, grow_first=False, **dd)
+        self.block12 = Block(728, 1024, 2, 2, grow_first=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv3 = SeparableConv2d(1024, 1536, 3, 1, 1, **dd)
-        self.bn3 = nn.BatchNorm2d(1536, **dd)
+        self.conv3 = SeparableConv2d(1024, 1536, 3, 1, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn3 = nn.BatchNorm2d(1536, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act3 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
-        self.conv4 = SeparableConv2d(1536, self.num_features, 3, 1, 1, **dd)
-        self.bn4 = nn.BatchNorm2d(self.num_features, **dd)
+        self.conv4 = SeparableConv2d(1536, self.num_features, 3, 1, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn4 = nn.BatchNorm2d(self.num_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act4 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         self.feature_info = [
             dict(num_chs=64, reduction=2, module='act2'),
@@ -190,7 +190,7 @@ class Xception(msnn.Cell):
             dict(num_chs=2048, reduction=32, module='act4'),
         ]
 
-        self.global_pool, self.fc = create_classifier(self.num_features, self.num_classes, pool_type=global_pool, **dd)
+        self.global_pool, self.fc = create_classifier(self.num_features, self.num_classes, pool_type=global_pool, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # #------- init weights --------
         for m in self.modules():
@@ -200,7 +200,7 @@ class Xception(msnn.Cell):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^conv[12]|bn[12]',
@@ -210,11 +210,11 @@ class Xception(msnn.Cell):
             ],
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, "gradient checkpointing not supported"
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.fc
 
@@ -269,7 +269,7 @@ def _xception(variant, pretrained=False, **kwargs):
     return build_model_with_cfg(
         Xception, variant, pretrained,
         feature_cfg=dict(feature_cls='hook'),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 default_cfgs = generate_default_cfgs({
@@ -292,7 +292,7 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def legacy_xception(pretrained=False, **kwargs) -> Xception:
-    return _xception('legacy_xception', pretrained=pretrained, **kwargs)
+    return _xception('legacy_xception', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 register_model_deprecations(__name__, {

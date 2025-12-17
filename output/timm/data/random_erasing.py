@@ -87,7 +87,7 @@ class RandomErasing:
         for _ in range(count):
             for attempt in range(10):
                 target_area = random.uniform(self.min_area, self.max_area) * area / count
-                aspect_ratio = math.exp(random.uniform(*self.log_aspect_ratio))
+                aspect_ratio = math.exp(random.uniform(*self.log_aspect_ratio))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 h = int(round(math.sqrt(target_area * aspect_ratio)))
                 w = int(round(math.sqrt(target_area / aspect_ratio)))
                 if w < img_w and h < img_h:
@@ -104,7 +104,7 @@ class RandomErasing:
 
     def __call__(self, input):
         if len(input.size()) == 3:
-            self._erase(input, *input.size(), input.dtype)
+            self._erase(input, *input.size(), input.dtype)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             batch_size, chan, img_h, img_w = input.size()
             # skip first slice of batch if num_splits is set (for clean portion of samples)

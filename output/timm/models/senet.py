@@ -19,8 +19,6 @@ support for extras like dilation, switchable BN/activations, feature extraction,
 import math
 from collections import OrderedDict
 from typing import Type, Optional, Tuple
-
-# import torch
 # import torch.nn as nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
@@ -44,9 +42,9 @@ class SEModule(msnn.Cell):
     def __init__(self, channels: int, reduction: int, device=None, dtype=None):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.fc1 = nn.Conv2d(channels, channels // reduction, kernel_size=1, **dd)
+        self.fc1 = nn.Conv2d(channels, channels // reduction, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.fc2 = nn.Conv2d(channels // reduction, channels, kernel_size=1, **dd)
+        self.fc2 = nn.Conv2d(channels // reduction, channels, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.sigmoid = nn.Sigmoid()
 
     def construct(self, x):
@@ -106,8 +104,8 @@ class SEBottleneck(Bottleneck):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes * 2, kernel_size=1, bias=False, **dd)
-        self.bn1 = nn.BatchNorm2d(planes * 2, **dd)
+        self.conv1 = nn.Conv2d(inplanes, planes * 2, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(planes * 2, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.conv2 = nn.Conv2d(
             planes * 2,
             planes * 4,
@@ -117,12 +115,12 @@ class SEBottleneck(Bottleneck):
             groups=groups,
             bias=False,
             **dd,
-        )
-        self.bn2 = nn.BatchNorm2d(planes * 4, **dd)
-        self.conv3 = nn.Conv2d(planes * 4, planes * 4, kernel_size=1, bias=False, **dd)
-        self.bn3 = nn.BatchNorm2d(planes * 4, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(planes * 4, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv3 = nn.Conv2d(planes * 4, planes * 4, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = nn.BatchNorm2d(planes * 4, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.se_module = SEModule(planes * 4, reduction=reduction, **dd)
+        self.se_module = SEModule(planes * 4, reduction=reduction, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.downsample = downsample
         self.stride = stride
 
@@ -148,14 +146,14 @@ class SEResNetBottleneck(Bottleneck):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False, stride=stride, **dd)
-        self.bn1 = nn.BatchNorm2d(planes, **dd)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1, groups=groups, bias=False, **dd)
-        self.bn2 = nn.BatchNorm2d(planes, **dd)
-        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False, **dd)
-        self.bn3 = nn.BatchNorm2d(planes * 4, **dd)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False, stride=stride, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1, groups=groups, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = nn.BatchNorm2d(planes * 4, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.se_module = SEModule(planes * 4, reduction=reduction, **dd)
+        self.se_module = SEModule(planes * 4, reduction=reduction, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.downsample = downsample
         self.stride = stride
 
@@ -181,14 +179,14 @@ class SEResNeXtBottleneck(Bottleneck):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         width = math.floor(planes * (base_width / 64)) * groups
-        self.conv1 = nn.Conv2d(inplanes, width, kernel_size=1, bias=False, stride=1, **dd)
-        self.bn1 = nn.BatchNorm2d(width, **dd)
-        self.conv2 = nn.Conv2d(width, width, kernel_size=3, stride=stride, padding=1, groups=groups, bias=False, **dd)
-        self.bn2 = nn.BatchNorm2d(width, **dd)
-        self.conv3 = nn.Conv2d(width, planes * 4, kernel_size=1, bias=False, **dd)
-        self.bn3 = nn.BatchNorm2d(planes * 4, **dd)
+        self.conv1 = nn.Conv2d(inplanes, width, kernel_size=1, bias=False, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(width, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv2 = nn.Conv2d(width, width, kernel_size=3, stride=stride, padding=1, groups=groups, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(width, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv3 = nn.Conv2d(width, planes * 4, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = nn.BatchNorm2d(planes * 4, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.se_module = SEModule(planes * 4, reduction=reduction, **dd)
+        self.se_module = SEModule(planes * 4, reduction=reduction, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.downsample = downsample
         self.stride = stride
 
@@ -209,12 +207,12 @@ class SEResNetBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, padding=1, stride=stride, bias=False, **dd)
-        self.bn1 = nn.BatchNorm2d(planes, **dd)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1, groups=groups, bias=False, **dd)
-        self.bn2 = nn.BatchNorm2d(planes, **dd)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, padding=1, stride=stride, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1, groups=groups, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(planes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.se_module = SEModule(planes, reduction=reduction, **dd)
+        self.se_module = SEModule(planes, reduction=reduction, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.downsample = downsample
         self.stride = stride
 
@@ -316,13 +314,13 @@ class SENet(msnn.Cell):
                 ('conv3', nn.Conv2d(64, inplanes, 3, stride=1, padding=1, bias=False, **dd)),
                 ('bn3', nn.BatchNorm2d(inplanes, **dd)),
                 ('relu3', nn.ReLU()),
-            ]  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+            ]  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         else:
             layer0_modules = [
                 ('conv1', nn.Conv2d(in_chans, inplanes, kernel_size=7, stride=2, padding=3, bias=False, **dd)),
                 ('bn1', nn.BatchNorm2d(inplanes, **dd)),
                 ('relu1', nn.ReLU()),
-            ]  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+            ]  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         self.layer0 = msnn.SequentialCell(OrderedDict(layer0_modules))
         # To preserve compatibility with Caffe weights `ceil_mode=True` is used instead of `padding=1`.
         self.pool0 = nn.MaxPool2d(3, stride = 2, ceil_mode = True)
@@ -336,7 +334,7 @@ class SENet(msnn.Cell):
             downsample_kernel_size=1,
             downsample_padding=0,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=64 * block.expansion, reduction=4, module='layer1')]
         self.layer2 = self._make_layer(
             block,
@@ -348,7 +346,7 @@ class SENet(msnn.Cell):
             downsample_kernel_size=downsample_kernel_size,
             downsample_padding=downsample_padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=128 * block.expansion, reduction=8, module='layer2')]
         self.layer3 = self._make_layer(
             block,
@@ -360,7 +358,7 @@ class SENet(msnn.Cell):
             downsample_kernel_size=downsample_kernel_size,
             downsample_padding=downsample_padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=256 * block.expansion, reduction=16, module='layer3')]
         self.layer4 = self._make_layer(
             block,
@@ -372,7 +370,7 @@ class SENet(msnn.Cell):
             downsample_kernel_size=downsample_kernel_size,
             downsample_padding=downsample_padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=512 * block.expansion, reduction=32, module='layer4')]
         self.num_features = self.head_hidden_size = 512 * block.expansion
         self.global_pool, self.last_linear = create_classifier(
@@ -380,7 +378,7 @@ class SENet(msnn.Cell):
             self.num_classes,
             pool_type=global_pool,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         for m in self.modules():
             _weight_init(m)
@@ -395,25 +393,25 @@ class SENet(msnn.Cell):
                     self.inplanes, planes * block.expansion, kernel_size=downsample_kernel_size,
                     stride=stride, padding=downsample_padding, bias=False, **dd),
                 nn.BatchNorm2d(planes * block.expansion, **dd),
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
 
-        layers = [block(self.inplanes, planes, groups, reduction, stride, downsample, **dd)]
+        layers = [block(self.inplanes, planes, groups, reduction, stride, downsample, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, groups, reduction, **dd))
+            layers.append(block(self.inplanes, planes, groups, reduction, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        return msnn.SequentialCell(*layers)
+        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(stem=r'^layer0', blocks=r'^layer(\d+)' if coarse else r'^layer(\d+)\.(\d+)')
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.last_linear
 
@@ -444,7 +442,7 @@ class SENet(msnn.Cell):
 
 
 def _create_senet(variant, pretrained=False, **kwargs):
-    return build_model_with_cfg(SENet, variant, pretrained, **kwargs)
+    return build_model_with_cfg(SENet, variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -485,35 +483,35 @@ default_cfgs = generate_default_cfgs({
 def legacy_seresnet18(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNetBlock, layers=[2, 2, 2, 2], groups=1, reduction=16)
-    return _create_senet('legacy_seresnet18', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnet18', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def legacy_seresnet34(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNetBlock, layers=[3, 4, 6, 3], groups=1, reduction=16)
-    return _create_senet('legacy_seresnet34', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnet34', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def legacy_seresnet50(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNetBottleneck, layers=[3, 4, 6, 3], groups=1, reduction=16)
-    return _create_senet('legacy_seresnet50', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnet50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def legacy_seresnet101(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNetBottleneck, layers=[3, 4, 23, 3], groups=1, reduction=16)
-    return _create_senet('legacy_seresnet101', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnet101', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def legacy_seresnet152(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNetBottleneck, layers=[3, 8, 36, 3], groups=1, reduction=16)
-    return _create_senet('legacy_seresnet152', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnet152', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -521,25 +519,25 @@ def legacy_senet154(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEBottleneck, layers=[3, 8, 36, 3], groups=64, reduction=16,
         downsample_kernel_size=3, downsample_padding=1,  inplanes=128, input_3x3=True)
-    return _create_senet('legacy_senet154', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_senet154', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def legacy_seresnext26_32x4d(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNeXtBottleneck, layers=[2, 2, 2, 2], groups=32, reduction=16)
-    return _create_senet('legacy_seresnext26_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnext26_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def legacy_seresnext50_32x4d(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNeXtBottleneck, layers=[3, 4, 6, 3], groups=32, reduction=16)
-    return _create_senet('legacy_seresnext50_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnext50_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def legacy_seresnext101_32x4d(pretrained=False, **kwargs) -> SENet:
     model_args = dict(
         block=SEResNeXtBottleneck, layers=[3, 4, 23, 3], groups=32, reduction=16)
-    return _create_senet('legacy_seresnext101_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_senet('legacy_seresnext101_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

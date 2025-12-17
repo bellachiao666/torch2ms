@@ -394,8 +394,8 @@ class HighResolutionModule(msnn.Cell):
             num_blocks,
             num_channels,
             **dd,
-        )
-        self.fuse_layers = self._make_fuse_layers(**dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fuse_layers = self._make_fuse_layers(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.fuse_act = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
     def _check_branches(self, num_branches, block_types, num_blocks, num_in_chs, num_channels):
@@ -424,20 +424,20 @@ class HighResolutionModule(msnn.Cell):
                     **dd,
                 ),
                 nn.BatchNorm2d(num_channels[branch_index] * block_type.expansion, momentum=_BN_MOMENTUM, **dd),
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
 
-        layers = [block_type(self.num_in_chs[branch_index], num_channels[branch_index], stride, downsample, **dd)]
+        layers = [block_type(self.num_in_chs[branch_index], num_channels[branch_index], stride, downsample, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_in_chs[branch_index] = num_channels[branch_index] * block_type.expansion
         for i in range(1, num_blocks[branch_index]):
-            layers.append(block_type(self.num_in_chs[branch_index], num_channels[branch_index], **dd))
+            layers.append(block_type(self.num_in_chs[branch_index], num_channels[branch_index], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        return msnn.SequentialCell(*layers)
+        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _make_branches(self, num_branches, block_type, num_blocks, num_channels, device=None, dtype=None):
         dd = {'device': device, 'dtype': dtype}
         branches = []
         for i in range(num_branches):
-            branches.append(self._make_one_branch(i, block_type, num_blocks, num_channels, **dd))
+            branches.append(self._make_one_branch(i, block_type, num_blocks, num_channels, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         return msnn.CellList(branches)
 
@@ -456,7 +456,7 @@ class HighResolutionModule(msnn.Cell):
                     fuse_layer.append(msnn.SequentialCell(
                         nn.Conv2d(num_in_chs[j], num_in_chs[i], 1, 1, 0, bias=False, **dd),
                         nn.BatchNorm2d(num_in_chs[i], momentum=_BN_MOMENTUM, **dd),
-                        nn.Upsample(scale_factor = 2 ** (j - i), mode = 'nearest')))
+                        nn.Upsample(scale_factor = 2 ** (j - i), mode = 'nearest')))  # 存在 *args/**kwargs，需手动确认参数映射;
                 elif j == i:
                     fuse_layer.append(msnn.Identity())
                 else:
@@ -467,15 +467,15 @@ class HighResolutionModule(msnn.Cell):
                             conv3x3s.append(msnn.SequentialCell(
                                 nn.Conv2d(num_in_chs[j], num_out_chs_conv3x3, 3, 2, 1, bias=False, **dd),
                                 nn.BatchNorm2d(num_out_chs_conv3x3, momentum=_BN_MOMENTUM, **dd)
-                            ))
+                            ))  # 存在 *args/**kwargs，需手动确认参数映射;
                         else:
                             num_out_chs_conv3x3 = num_in_chs[j]
                             conv3x3s.append(msnn.SequentialCell(
                                 nn.Conv2d(num_in_chs[j], num_out_chs_conv3x3, 3, 2, 1, bias=False, **dd),
                                 nn.BatchNorm2d(num_out_chs_conv3x3, momentum=_BN_MOMENTUM, **dd),
                                 nn.ReLU()
-                            ))  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-                    fuse_layer.append(msnn.SequentialCell(*conv3x3s))
+                            ))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                    fuse_layer.append(msnn.SequentialCell(*conv3x3s))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             fuse_layers.append(msnn.CellList(fuse_layer))
 
         return msnn.CellList(fuse_layers)
@@ -505,7 +505,7 @@ class HighResolutionModule(msnn.Cell):
 class SequentialList(msnn.SequentialCell):
 
     def __init__(self, *args):
-        super().__init__(*args)
+        super().__init__(*args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     @torch.jit._overload_method  # noqa: F811
     def forward(self, x):
@@ -555,42 +555,42 @@ class HighResolutionNet(msnn.Cell):
         self.num_classes = num_classes
         assert output_stride == 32  # FIXME support dilation
 
-        cfg.update(**kwargs)
+        cfg.update(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stem_width = cfg['stem_width']
-        self.conv1 = nn.Conv2d(in_chans, stem_width, kernel_size=3, stride=2, padding=1, bias=False, **dd)
-        self.bn1 = nn.BatchNorm2d(stem_width, momentum=_BN_MOMENTUM, **dd)
+        self.conv1 = nn.Conv2d(in_chans, stem_width, kernel_size=3, stride=2, padding=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = nn.BatchNorm2d(stem_width, momentum=_BN_MOMENTUM, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act1 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.conv2 = nn.Conv2d(stem_width, 64, kernel_size=3, stride=2, padding=1, bias=False, **dd)
-        self.bn2 = nn.BatchNorm2d(64, momentum=_BN_MOMENTUM, **dd)
+        self.conv2 = nn.Conv2d(stem_width, 64, kernel_size=3, stride=2, padding=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = nn.BatchNorm2d(64, momentum=_BN_MOMENTUM, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act2 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         self.stage1_cfg = cfg['stage1']
         num_channels = self.stage1_cfg['num_channels'][0]
         block_type = block_types_dict[self.stage1_cfg['block_type']]
         num_blocks = self.stage1_cfg['num_blocks'][0]
-        self.layer1 = self._make_layer(block_type, 64, num_channels, num_blocks, **dd)
+        self.layer1 = self._make_layer(block_type, 64, num_channels, num_blocks, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stage1_out_channel = block_type.expansion * num_channels
 
         self.stage2_cfg = cfg['stage2']
         num_channels = self.stage2_cfg['num_channels']
         block_type = block_types_dict[self.stage2_cfg['block_type']]
         num_channels = [num_channels[i] * block_type.expansion for i in range(len(num_channels))]
-        self.transition1 = self._make_transition_layer([stage1_out_channel], num_channels, **dd)
-        self.stage2, pre_stage_channels = self._make_stage(self.stage2_cfg, num_channels, **dd)
+        self.transition1 = self._make_transition_layer([stage1_out_channel], num_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.stage2, pre_stage_channels = self._make_stage(self.stage2_cfg, num_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.stage3_cfg = cfg['stage3']
         num_channels = self.stage3_cfg['num_channels']
         block_type = block_types_dict[self.stage3_cfg['block_type']]
         num_channels = [num_channels[i] * block_type.expansion for i in range(len(num_channels))]
-        self.transition2 = self._make_transition_layer(pre_stage_channels, num_channels, **dd)
-        self.stage3, pre_stage_channels = self._make_stage(self.stage3_cfg, num_channels, **dd)
+        self.transition2 = self._make_transition_layer(pre_stage_channels, num_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.stage3, pre_stage_channels = self._make_stage(self.stage3_cfg, num_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.stage4_cfg = cfg['stage4']
         num_channels = self.stage4_cfg['num_channels']
         block_type = block_types_dict[self.stage4_cfg['block_type']]
         num_channels = [num_channels[i] * block_type.expansion for i in range(len(num_channels))]
-        self.transition3 = self._make_transition_layer(pre_stage_channels, num_channels, **dd)
-        self.stage4, pre_stage_channels = self._make_stage(self.stage4_cfg, num_channels, multi_scale_output=True, **dd)
+        self.transition3 = self._make_transition_layer(pre_stage_channels, num_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.stage4, pre_stage_channels = self._make_stage(self.stage4_cfg, num_channels, multi_scale_output=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.head = head
         self.head_channels = None  # set if _make_head called
@@ -602,18 +602,18 @@ class HighResolutionNet(msnn.Cell):
                 pre_stage_channels,
                 conv_bias=head_conv_bias,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.global_pool, self.head_drop, self.classifier = create_classifier(
                 self.num_features,
                 self.num_classes,
                 pool_type=global_pool,
                 drop_rate=drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             if head == 'incre':
                 self.num_features = self.head_hidden_size = 2048
-                self.incre_modules, _, _ = self._make_head(pre_stage_channels, incre_only=True, **dd)
+                self.incre_modules, _, _ = self._make_head(pre_stage_channels, incre_only=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.num_features = self.head_hidden_size = 256
                 self.incre_modules = None
@@ -640,7 +640,7 @@ class HighResolutionNet(msnn.Cell):
         # from C, 2C, 4C, 8C to 128, 256, 512, 1024
         incre_modules = []
         for i, channels in enumerate(pre_stage_channels):
-            incre_modules.append(self._make_layer(head_block_type, channels, self.head_channels[i], 1, stride=1, **dd))
+            incre_modules.append(self._make_layer(head_block_type, channels, self.head_channels[i], 1, stride=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         incre_modules = msnn.CellList(incre_modules)
         if incre_only:
             return incre_modules, None, None
@@ -662,7 +662,7 @@ class HighResolutionNet(msnn.Cell):
                 ),
                 nn.BatchNorm2d(out_channels, momentum=_BN_MOMENTUM, **dd),
                 nn.ReLU()
-            )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
             downsamp_modules.append(downsamp_module)
         downsamp_modules = msnn.CellList(downsamp_modules)
 
@@ -678,7 +678,7 @@ class HighResolutionNet(msnn.Cell):
             ),
             nn.BatchNorm2d(self.num_features, momentum=_BN_MOMENTUM, **dd),
             nn.ReLU()
-        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         return incre_modules, downsamp_modules, final_layer
 
@@ -694,7 +694,7 @@ class HighResolutionNet(msnn.Cell):
                     transition_layers.append(msnn.SequentialCell(
                         nn.Conv2d(num_channels_pre_layer[i], num_channels_cur_layer[i], 3, 1, 1, bias=False, **dd),
                         nn.BatchNorm2d(num_channels_cur_layer[i], momentum=_BN_MOMENTUM, **dd),
-                        nn.ReLU()))  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                        nn.ReLU()))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
                 else:
                     transition_layers.append(msnn.Identity())
             else:
@@ -705,8 +705,8 @@ class HighResolutionNet(msnn.Cell):
                     conv3x3s.append(msnn.SequentialCell(
                         nn.Conv2d(_in_chs, _out_chs, 3, 2, 1, bias=False, **dd),
                         nn.BatchNorm2d(_out_chs, momentum=_BN_MOMENTUM, **dd),
-                        nn.ReLU()))  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-                transition_layers.append(msnn.SequentialCell(*conv3x3s))
+                        nn.ReLU()))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                transition_layers.append(msnn.SequentialCell(*conv3x3s))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         return msnn.CellList(transition_layers)
 
@@ -717,14 +717,14 @@ class HighResolutionNet(msnn.Cell):
             downsample = msnn.SequentialCell(
                 nn.Conv2d(inplanes, planes * block_type.expansion, kernel_size=1, stride=stride, bias=False, **dd),
                 nn.BatchNorm2d(planes * block_type.expansion, momentum=_BN_MOMENTUM, **dd),
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
 
-        layers = [block_type(inplanes, planes, stride, downsample, **dd)]
+        layers = [block_type(inplanes, planes, stride, downsample, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         inplanes = planes * block_type.expansion
         for i in range(1, block_types):
-            layers.append(block_type(inplanes, planes, **dd))
+            layers.append(block_type(inplanes, planes, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        return msnn.SequentialCell(*layers)
+        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _make_stage(self, layer_config, num_in_chs, multi_scale_output=True, device=None, dtype=None):
         num_modules = layer_config['num_modules']
@@ -751,9 +751,9 @@ class HighResolutionNet(msnn.Cell):
             ))
             num_in_chs = modules[-1].get_num_in_chs()
 
-        return SequentialList(*modules), num_in_chs
+        return SequentialList(*modules), num_in_chs  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -763,7 +763,7 @@ class HighResolutionNet(msnn.Cell):
                 nn.init.constant_(m.weight, 1)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^conv[12]|bn[12]',
@@ -775,11 +775,11 @@ class HighResolutionNet(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, "gradient checkpointing not supported"
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
@@ -871,7 +871,7 @@ class HighResolutionNetFeatures(HighResolutionNet):
             drop_rate=drop_rate,
             head=feature_location,
             **kwargs,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = FeatureInfo(self.feature_info, out_indices)
         self._out_idx = {f['index'] for f in self.feature_info.get_dicts()}
 
@@ -919,7 +919,7 @@ def _create_hrnet(variant, pretrained=False, cfg_variant=None, **model_kwargs):
         pretrained_strict=pretrained_strict,
         kwargs_filter=kwargs_filter,
         **model_kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if features_only:
         model.pretrained_cfg = pretrained_cfg_for_features(model.default_cfg)
         model.default_cfg = model.pretrained_cfg  # backwards compat
@@ -968,57 +968,57 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def hrnet_w18_small(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w18_small', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w18_small', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w18_small_v2(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w18_small_v2', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w18_small_v2', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w18(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w18', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w18', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w30(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w30', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w30', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w32(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w32', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w32', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w40(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w40', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w40', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w44(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w44', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w44', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w48(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w48', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w48', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w64(pretrained=False, **kwargs) -> HighResolutionNet:
-    return _create_hrnet('hrnet_w64', pretrained, **kwargs)
+    return _create_hrnet('hrnet_w64', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w18_ssld(pretrained=False, **kwargs) -> HighResolutionNet:
     kwargs.setdefault('head_conv_bias', False)
-    return _create_hrnet('hrnet_w18_ssld', cfg_variant='hrnet_w18', pretrained=pretrained, **kwargs)
+    return _create_hrnet('hrnet_w18_ssld', cfg_variant='hrnet_w18', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hrnet_w48_ssld(pretrained=False, **kwargs) -> HighResolutionNet:
     kwargs.setdefault('head_conv_bias', False)
-    return _create_hrnet('hrnet_w48_ssld', cfg_variant='hrnet_w48', pretrained=pretrained, **kwargs)
+    return _create_hrnet('hrnet_w48_ssld', cfg_variant='hrnet_w48', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

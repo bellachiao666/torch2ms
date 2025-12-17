@@ -23,6 +23,14 @@
  class ImageDataset(data.Dataset):
  
      def __init__(
+@@ -41,7 +47,7 @@                 class_map=class_map,
+                 additional_features=additional_features,
+                 **kwargs,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.reader = reader
+         self.load_bytes = load_bytes
+         self.input_img_mode = input_img_mode
 @@ -87,6 +93,7 @@         return self.reader.filenames(basename, absolute)
  
  
@@ -30,6 +38,14 @@
  class IterableImageDataset(data.IterableDataset):
  
      def __init__(
+@@ -127,7 +134,7 @@                 target_key=target_key,
+                 max_steps=max_steps,
+                 **kwargs,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.reader = reader
+         self.transform = transform
 @@ -167,6 +174,7 @@         return self.reader.filenames(basename, absolute)
  
  

@@ -11,8 +11,6 @@ timm functionality.
 Copyright 2021 Ross Wightman
 """
 from typing import Any, Dict, List, Optional, Type, Union, cast
-
-# import torch
 # import torch.nn as nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
@@ -66,10 +64,10 @@ class ConvMlp(msnn.Cell):
         super().__init__()
         self.input_kernel_size = kernel_size
         mid_features = int(out_features * mlp_ratio)
-        self.fc1 = conv_layer(in_features, mid_features, kernel_size, bias=True, **dd)
+        self.fc1 = conv_layer(in_features, mid_features, kernel_size, bias=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer(True)
         self.drop = nn.Dropout(drop_rate)
-        self.fc2 = conv_layer(mid_features, out_features, 1, bias=True, **dd)
+        self.fc2 = conv_layer(mid_features, out_features, 1, bias=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act2 = act_layer(True)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -150,13 +148,13 @@ class VGG(msnn.Cell):
                 net_stride *= 2
             else:
                 v = cast(int, v)
-                conv2d = conv_layer(prev_chs, v, kernel_size=3, padding=1, **dd)
+                conv2d = conv_layer(prev_chs, v, kernel_size=3, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 if norm_layer is not None:
-                    layers += [conv2d, norm_layer(v, **dd), act_layer(inplace=True)]
+                    layers += [conv2d, norm_layer(v, **dd), act_layer(inplace=True)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 else:
                     layers += [conv2d, act_layer(inplace=True)]
                 prev_chs = v
-        self.features = msnn.SequentialCell(*layers)
+        self.features = msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info.append(dict(num_chs=prev_chs, reduction=net_stride, module=f'features.{len(layers) - 1}'))
 
         self.num_features = prev_chs
@@ -170,18 +168,18 @@ class VGG(msnn.Cell):
             act_layer=act_layer,
             conv_layer=conv_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head = ClassifierHead(
             self.head_hidden_size,
             num_classes,
             pool_type=global_pool,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self._initialize_weights()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Group matcher for parameter groups.
 
@@ -194,7 +192,7 @@ class VGG(msnn.Cell):
         # this treats BN layers as separate groups for bn variants, a lot of effort to fix that
         return dict(stem=r'^features\.0', blocks=r'^features\.(\d+)')
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -203,7 +201,7 @@ class VGG(msnn.Cell):
         """
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier module.
 
@@ -320,7 +318,7 @@ def _create_vgg(variant: str, pretrained: bool, **kwargs: Any) -> VGG:
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         pretrained_filter_fn=_filter_fn,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -362,8 +360,8 @@ def vgg11(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 11-layer model (configuration "A") from
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(**kwargs)
-    return _create_vgg('vgg11', pretrained=pretrained, **model_args)
+    model_args = dict(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg11', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -371,8 +369,8 @@ def vgg11_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 11-layer model (configuration "A") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg11_bn', pretrained=pretrained, **model_args)
+    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg11_bn', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -380,8 +378,8 @@ def vgg13(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 13-layer model (configuration "B")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(**kwargs)
-    return _create_vgg('vgg13', pretrained=pretrained, **model_args)
+    model_args = dict(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg13', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -389,8 +387,8 @@ def vgg13_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 13-layer model (configuration "B") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg13_bn', pretrained=pretrained, **model_args)
+    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg13_bn', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -398,8 +396,8 @@ def vgg16(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 16-layer model (configuration "D")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(**kwargs)
-    return _create_vgg('vgg16', pretrained=pretrained, **model_args)
+    model_args = dict(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg16', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -407,8 +405,8 @@ def vgg16_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 16-layer model (configuration "D") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg16_bn', pretrained=pretrained, **model_args)
+    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg16_bn', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -416,8 +414,8 @@ def vgg19(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 19-layer model (configuration "E")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(**kwargs)
-    return _create_vgg('vgg19', pretrained=pretrained, **model_args)
+    model_args = dict(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg19', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -425,5 +423,5 @@ def vgg19_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
     r"""VGG 19-layer model (configuration 'E') with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
     """
-    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg19_bn', pretrained=pretrained, **model_args)
+    model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vgg('vgg19_bn', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

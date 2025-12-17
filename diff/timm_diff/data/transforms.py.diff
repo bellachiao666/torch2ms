@@ -68,7 +68,7 @@
  
      def __repr__(self) -> str:
          return f"{self.__class__.__name__}()"
-@@ -212,7 +216,7 @@             tuple: params (i, j, h, w) to be passed to ``crop`` for a random
+@@ -212,13 +216,13 @@             tuple: params (i, j, h, w) to be passed to ``crop`` for a random
                  sized crop.
          """
 -        img_w, img_h = F.get_image_size(img)
@@ -76,6 +76,14 @@
          area = img_w * img_h
  
          for attempt in range(10):
+-            target_area = random.uniform(*scale) * area
++            target_area = random.uniform(*scale) * area  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             log_ratio = (math.log(ratio[0]), math.log(ratio[1]))
+-            aspect_ratio = math.exp(random.uniform(*log_ratio))
++            aspect_ratio = math.exp(random.uniform(*log_ratio))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+             target_w = int(round(math.sqrt(target_area * aspect_ratio)))
+             target_h = int(round(math.sqrt(target_area / aspect_ratio)))
 @@ -255,7 +259,7 @@             interpolation = random.choice(self.interpolation)
          else:
              interpolation = self.interpolation
@@ -215,6 +223,14 @@
          target_h, target_w = target_size
          ratio_h = img_h / target_h
          ratio_w = img_w / target_w
+@@ -518,7 +522,7 @@ 
+         if random_aspect_prob > 0 and random.random() < random_aspect_prob:
+             log_aspect = (math.log(random_aspect_range[0]), math.log(random_aspect_range[1]))
+-            aspect_factor = math.exp(random.uniform(*log_aspect))
++            aspect_factor = math.exp(random.uniform(*log_aspect))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             aspect_factor = math.sqrt(aspect_factor)
+             # currently applying random aspect adjustment equally to both dims,
+             # could change to keep output sizes above their target where possible
 @@ -544,7 +548,7 @@             interpolation = random.choice(self.interpolation)
          else:
              interpolation = self.interpolation

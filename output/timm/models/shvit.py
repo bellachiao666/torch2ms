@@ -39,6 +39,7 @@ class Residual(msnn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return x + self.m(x)
 
+    @torch.no_grad()
     def fuse(self) -> msnn.Cell:
         if isinstance(self.m, Conv2dNorm):
             m = self.m.fuse()
@@ -67,11 +68,12 @@ class Conv2dNorm(msnn.SequentialCell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.add_module('c', nn.Conv2d(
-            in_channels, out_channels, kernel_size, stride, padding, bias=False, **dd, **kwargs))
-        self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))
+            in_channels, out_channels, kernel_size, stride, padding, bias=False, **dd, **kwargs))  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self) -> nn.Conv2d:
         c, bn = self._modules.values()
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -96,12 +98,13 @@ class NormLinear(msnn.SequentialCell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.add_module('bn', nn.BatchNorm1d(in_features, **dd))
-        self.add_module('l', nn.Linear(in_features, out_features, bias=bias, **dd))
+        self.add_module('bn', nn.BatchNorm1d(in_features, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.add_module('l', nn.Linear(in_features, out_features, bias=bias, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
         trunc_normal_(self.l.weight, std=std)
         if bias:
             nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self) -> nn.Linear:
         bn, l = self._modules.values()
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -129,12 +132,12 @@ class PatchMerging(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         hid_dim = int(dim * 4)
-        self.conv1 = Conv2dNorm(dim, hid_dim, **dd)
+        self.conv1 = Conv2dNorm(dim, hid_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer()
-        self.conv2 = Conv2dNorm(hid_dim, hid_dim, 3, 2, 1, groups=hid_dim, **dd)
+        self.conv2 = Conv2dNorm(hid_dim, hid_dim, 3, 2, 1, groups=hid_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act2 = act_layer()
-        self.se = SqueezeExcite(hid_dim, 0.25, **dd)
-        self.conv3 = Conv2dNorm(hid_dim, out_dim, **dd)
+        self.se = SqueezeExcite(hid_dim, 0.25, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv3 = Conv2dNorm(hid_dim, out_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.conv1(x)
@@ -157,9 +160,9 @@ class FFN(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.pw1 = Conv2dNorm(dim, embed_dim, **dd)
+        self.pw1 = Conv2dNorm(dim, embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
-        self.pw2 = Conv2dNorm(embed_dim, dim, bn_weight_init=0, **dd)
+        self.pw2 = Conv2dNorm(embed_dim, dim, bn_weight_init=0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.pw1(x)
@@ -187,10 +190,10 @@ class SHSA(msnn.Cell):
         self.dim = dim
         self.pdim = pdim
 
-        self.pre_norm = norm_layer(pdim, **dd)
+        self.pre_norm = norm_layer(pdim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.qkv = Conv2dNorm(pdim, qk_dim * 2 + pdim, **dd)
-        self.proj = msnn.SequentialCell(act_layer(), Conv2dNorm(dim, dim, bn_weight_init=0, **dd))
+        self.qkv = Conv2dNorm(pdim, qk_dim * 2 + pdim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = msnn.SequentialCell(act_layer(), Conv2dNorm(dim, dim, bn_weight_init=0, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         B, _, H, W = x.shape
@@ -221,12 +224,12 @@ class BasicBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv = Residual(Conv2dNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0, **dd))
+        self.conv = Residual(Conv2dNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if type == "s":
-            self.mixer = Residual(SHSA(dim, qk_dim, pdim, norm_layer, act_layer, **dd))
+            self.mixer = Residual(SHSA(dim, qk_dim, pdim, norm_layer, act_layer, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.mixer = msnn.Identity()
-        self.ffn = Residual(FFN(dim, int(dim * 2), **dd))
+        self.ffn = Residual(FFN(dim, int(dim * 2), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.conv(x)
@@ -258,11 +261,11 @@ class StageBlock(msnn.Cell):
             PatchMerging(prev_dim, dim, act_layer, **dd),
             Residual(Conv2dNorm(dim, dim, 3, 1, 1, groups=dim, **dd)),
             Residual(FFN(dim, int(dim * 2), act_layer, **dd)),
-        ) if prev_dim != dim else msnn.Identity()
+        ) if prev_dim != dim else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.blocks = msnn.SequentialCell(*[
             BasicBlock(dim, qk_dim, pdim, type, norm_layer, act_layer, **dd) for _ in range(depth)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.downsample(x)
@@ -306,7 +309,7 @@ class SHViT(msnn.Cell):
             Conv2dNorm(stem_chs // 4, stem_chs // 2, 3, 2, 1, **dd),
             act_layer(),
             Conv2dNorm(stem_chs // 2, stem_chs, 3, 2, 1, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Build SHViT blocks
         stages = []
@@ -322,22 +325,22 @@ class SHViT(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer=act_layer,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_chs = embed_dim[i]
             self.feature_info.append(dict(num_chs=prev_chs, reduction=2**(i+4), module=f'stages.{i}'))
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier head
         self.num_features = self.head_hidden_size = embed_dim[-1]
         self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-        self.head = NormLinear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = NormLinear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set:
         return set()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         matcher = dict(
             stem=r'^patch_embed',  # stem and embed
@@ -348,12 +351,12 @@ class SHViT(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.l
 
@@ -437,6 +440,7 @@ class SHViT(msnn.Cell):
         x = self.forward_head(x)
         return x
 
+    @torch.no_grad()
     def fuse(self):
         def fuse_children(net):
             for child_name, child in net.named_children():
@@ -524,7 +528,7 @@ def _create_shvit(variant: str, pretrained: bool = False, **kwargs: Any) -> SHVi
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(0, 1, 2), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -532,25 +536,25 @@ def _create_shvit(variant: str, pretrained: bool = False, **kwargs: Any) -> SHVi
 def shvit_s1(pretrained: bool = False, **kwargs: Any) -> SHViT:
     model_args = dict(
         embed_dim=(128, 224, 320), depth=(2, 4, 5), partial_dim=(32, 48, 68), types=("i", "s", "s"))
-    return _create_shvit('shvit_s1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_shvit('shvit_s1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def shvit_s2(pretrained: bool = False, **kwargs: Any) -> SHViT:
     model_args = dict(
         embed_dim=(128, 308, 448), depth=(2, 4, 5), partial_dim=(32, 66, 96), types=("i", "s", "s"))
-    return _create_shvit('shvit_s2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_shvit('shvit_s2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def shvit_s3(pretrained: bool = False, **kwargs: Any) -> SHViT:
     model_args = dict(
         embed_dim=(192, 352, 448), depth=(3, 5, 5), partial_dim=(48, 75, 96), types=("i", "s", "s"))
-    return _create_shvit('shvit_s3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_shvit('shvit_s3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def shvit_s4(pretrained: bool = False, **kwargs: Any) -> SHViT:
     model_args = dict(
         embed_dim=(224, 336, 448), depth=(4, 7, 6), partial_dim=(48, 72, 96), types=("i", "s", "s"))
-    return _create_shvit('shvit_s4', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_shvit('shvit_s4', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

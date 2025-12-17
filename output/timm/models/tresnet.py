@@ -55,12 +55,12 @@ class BasicBlock(msnn.Cell):
             act_layer=act_layer,
             aa_layer=aa_layer,
             **dd,
-        )
-        self.conv2 = ConvNormAct(planes, planes, kernel_size=3, stride=1, apply_act=False, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2 = ConvNormAct(planes, planes, kernel_size=3, stride=1, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         rd_chs = max(planes * self.expansion // 4, 64)
-        self.se = SEModule(planes * self.expansion, rd_channels=rd_chs, **dd) if use_se else None
+        self.se = SEModule(planes * self.expansion, rd_channels=rd_chs, **dd) if use_se else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
 
     def construct(self, x):
@@ -99,7 +99,7 @@ class Bottleneck(msnn.Cell):
         self.stride = stride
         act_layer = act_layer or partial(nn.LeakyReLU, negative_slope=1e-3)
 
-        self.conv1 = ConvNormAct(inplanes, planes, kernel_size=1, stride=1, act_layer=act_layer, **dd)
+        self.conv1 = ConvNormAct(inplanes, planes, kernel_size=1, stride=1, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = ConvNormAct(
             planes,
             planes,
@@ -108,12 +108,12 @@ class Bottleneck(msnn.Cell):
             act_layer=act_layer,
             aa_layer=aa_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         reduction_chs = max(planes * self.expansion // 8, 64)
-        self.se = SEModule(planes, rd_channels=reduction_chs, **dd) if use_se else None
+        self.se = SEModule(planes, rd_channels=reduction_chs, **dd) if use_se else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv3 = ConvNormAct(planes, planes * self.expansion, kernel_size=1, stride=1, apply_act=False, **dd)
+        self.conv3 = ConvNormAct(planes, planes * self.expansion, kernel_size=1, stride=1, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
         self.act = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
@@ -164,19 +164,19 @@ class TResNet(msnn.Cell):
             self.planes = self.planes // 8 * 8
 
         dpr = calculate_drop_path_rates(drop_path_rate, layers, stagewise=True)
-        conv1 = ConvNormAct(in_chans * 16, self.planes, stride=1, kernel_size=3, act_layer=act_layer, **dd)
+        conv1 = ConvNormAct(in_chans * 16, self.planes, stride=1, kernel_size=3, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         layer1 = self._make_layer(
             Bottleneck if v2 else BasicBlock,
-            self.planes, layers[0], stride=1, use_se=True, aa_layer=aa_layer, drop_path_rate=dpr[0], **dd)
+            self.planes, layers[0], stride=1, use_se=True, aa_layer=aa_layer, drop_path_rate=dpr[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         layer2 = self._make_layer(
             Bottleneck if v2 else BasicBlock,
-            self.planes * 2, layers[1], stride=2, use_se=True, aa_layer=aa_layer, drop_path_rate=dpr[1], **dd)
+            self.planes * 2, layers[1], stride=2, use_se=True, aa_layer=aa_layer, drop_path_rate=dpr[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         layer3 = self._make_layer(
             Bottleneck,
-            self.planes * 4, layers[2], stride=2, use_se=True, aa_layer=aa_layer, drop_path_rate=dpr[2], **dd)
+            self.planes * 4, layers[2], stride=2, use_se=True, aa_layer=aa_layer, drop_path_rate=dpr[2], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         layer4 = self._make_layer(
             Bottleneck,
-            self.planes * 8, layers[3], stride=2, use_se=False, aa_layer=aa_layer, drop_path_rate=dpr[3], **dd)
+            self.planes * 8, layers[3], stride=2, use_se=False, aa_layer=aa_layer, drop_path_rate=dpr[3], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # body
         self.body = msnn.SequentialCell(OrderedDict([
@@ -198,7 +198,7 @@ class TResNet(msnn.Cell):
 
         # head
         self.num_features = self.head_hidden_size = (self.planes * 8) * Bottleneck.expansion
-        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)
+        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # model initialization
         for m in self.modules():
@@ -235,8 +235,8 @@ class TResNet(msnn.Cell):
                 # avg pooling before 1x1 conv
                 layers.append(nn.AvgPool2d(kernel_size = 2, stride = 2, ceil_mode = True, count_include_pad = False))
             layers += [ConvNormAct(
-                self.inplanes, planes * block.expansion, kernel_size=1, stride=1, apply_act=False, **dd)]
-            downsample = msnn.SequentialCell(*layers)
+                self.inplanes, planes * block.expansion, kernel_size=1, stride=1, apply_act=False, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            downsample = msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         layers = []
         for i in range(blocks):
@@ -249,20 +249,20 @@ class TResNet(msnn.Cell):
                 aa_layer=aa_layer,
                 drop_path_rate=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.inplanes = planes * block.expansion
-        return msnn.SequentialCell(*layers)
+        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(stem=r'^body\.conv1', blocks=r'^body\.layer(\d+)' if coarse else r'^body\.layer(\d+)\.(\d+)')
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -385,7 +385,7 @@ def _create_tresnet(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(1, 2, 3, 4), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -423,25 +423,25 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def tresnet_m(pretrained=False, **kwargs) -> TResNet:
     model_args = dict(layers=[3, 4, 11, 3])
-    return _create_tresnet('tresnet_m', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_tresnet('tresnet_m', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def tresnet_l(pretrained=False, **kwargs) -> TResNet:
     model_args = dict(layers=[4, 5, 18, 3], width_factor=1.2)
-    return _create_tresnet('tresnet_l', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_tresnet('tresnet_l', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def tresnet_xl(pretrained=False, **kwargs) -> TResNet:
     model_args = dict(layers=[4, 5, 24, 3], width_factor=1.3)
-    return _create_tresnet('tresnet_xl', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_tresnet('tresnet_xl', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def tresnet_v2_l(pretrained=False, **kwargs) -> TResNet:
     model_args = dict(layers=[3, 4, 23, 3], width_factor=1.0, v2=True)
-    return _create_tresnet('tresnet_v2_l', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_tresnet('tresnet_v2_l', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 register_model_deprecations(__name__, {

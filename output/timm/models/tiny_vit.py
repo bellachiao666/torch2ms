@@ -47,11 +47,12 @@ class ConvNorm(msnn.SequentialCell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)
-        self.bn = nn.BatchNorm2d(out_chs, **dd)
+        self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn = nn.BatchNorm2d(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         torch.nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         c, bn = self.conv, self.bn
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -77,9 +78,9 @@ class PatchEmbed(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.stride = 4
-        self.conv1 = ConvNorm(in_chs, out_chs // 2, 3, 2, 1, **dd)
+        self.conv1 = ConvNorm(in_chs, out_chs // 2, 3, 2, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
-        self.conv2 = ConvNorm(out_chs // 2, out_chs, 3, 2, 1, **dd)
+        self.conv2 = ConvNorm(out_chs // 2, out_chs, 3, 2, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv1(x)
@@ -102,11 +103,11 @@ class MBConv(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         mid_chs = int(in_chs * expand_ratio)
-        self.conv1 = ConvNorm(in_chs, mid_chs, ks=1, **dd)
+        self.conv1 = ConvNorm(in_chs, mid_chs, ks=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer()
-        self.conv2 = ConvNorm(mid_chs, mid_chs, ks=3, stride=1, pad=1, groups=mid_chs, **dd)
+        self.conv2 = ConvNorm(mid_chs, mid_chs, ks=3, stride=1, pad=1, groups=mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act2 = act_layer()
-        self.conv3 = ConvNorm(mid_chs, out_chs, ks=1, bn_weight_init=0.0, **dd)
+        self.conv3 = ConvNorm(mid_chs, out_chs, ks=1, bn_weight_init=0.0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act3 = act_layer()
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
@@ -134,11 +135,11 @@ class PatchMerging(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv1 = ConvNorm(dim, out_dim, 1, 1, 0, **dd)
+        self.conv1 = ConvNorm(dim, out_dim, 1, 1, 0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer()
-        self.conv2 = ConvNorm(out_dim, out_dim, 3, 2, 1, groups=out_dim, **dd)
+        self.conv2 = ConvNorm(out_dim, out_dim, 3, 2, 1, groups=out_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act2 = act_layer()
-        self.conv3 = ConvNorm(out_dim, out_dim, 1, 1, 0, **dd)
+        self.conv3 = ConvNorm(out_dim, out_dim, 1, 1, 0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv1(x)
@@ -174,7 +175,7 @@ class ConvLayer(msnn.Cell):
                 **dd,
             )
             for i in range(depth)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.blocks(x)
@@ -197,11 +198,11 @@ class NormMlp(msnn.Cell):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.norm = norm_layer(in_features, **dd)
-        self.fc1 = nn.Linear(in_features, hidden_features, **dd)
+        self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc1 = nn.Linear(in_features, hidden_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop)
-        self.fc2 = nn.Linear(hidden_features, out_features, **dd)
+        self.fc2 = nn.Linear(hidden_features, out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop2 = nn.Dropout(drop)
 
     def construct(self, x):
@@ -215,7 +216,7 @@ class NormMlp(msnn.Cell):
 
 
 class Attention(msnn.Cell):
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     attention_bias_cache: Dict[str, ms.Tensor]
 
     def __init__(
@@ -240,9 +241,9 @@ class Attention(msnn.Cell):
         self.resolution = resolution
         self.fused_attn = use_fused_attn()
 
-        self.norm = nn.LayerNorm(dim, **dd)
-        self.qkv = nn.Linear(dim, num_heads * (self.val_dim + 2 * key_dim), **dd)
-        self.proj = nn.Linear(self.out_dim, dim, **dd)
+        self.norm = nn.LayerNorm(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.qkv = nn.Linear(dim, num_heads * (self.val_dim + 2 * key_dim), **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(self.out_dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         points = list(itertools.product(range(resolution[0]), range(resolution[1])))
         N = len(points)
@@ -254,7 +255,7 @@ class Attention(msnn.Cell):
                 if offset not in attention_offsets:
                     attention_offsets[offset] = len(attention_offsets)
                 idxs.append(attention_offsets[offset])
-        self.attention_biases = ms.Parameter(mint.zeros(num_heads, len(attention_offsets), **dd))
+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, len(attention_offsets), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.register_buffer(
             'attention_bias_idxs',
             ms.Tensor(idxs, device=device, dtype=ms.int64).view(N, N),
@@ -262,13 +263,12 @@ class Attention(msnn.Cell):
         )
         self.attention_bias_cache = {}
 
+    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -351,7 +351,7 @@ class TinyVitBlock(msnn.Cell):
             attn_ratio=1,
             resolution=window_resolution,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         self.mlp = NormMlp(
@@ -360,11 +360,11 @@ class TinyVitBlock(msnn.Cell):
             act_layer=act_layer,
             drop=drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         pad = local_conv_size // 2
-        self.local_conv = ConvNorm(dim, dim, ks=local_conv_size, stride=1, pad=pad, groups=dim, **dd)
+        self.local_conv = ConvNorm(dim, dim, ks=local_conv_size, stride=1, pad=pad, groups=dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         B, H, W, C = x.shape
@@ -459,7 +459,7 @@ class TinyVitStage(msnn.Cell):
                 out_dim=out_dim,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.downsample = msnn.Identity()
             assert dim == out_dim
@@ -477,7 +477,7 @@ class TinyVitStage(msnn.Cell):
                 act_layer=act_layer,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -524,7 +524,7 @@ class TinyVit(msnn.Cell):
             out_chs=embed_dims[0],
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # stochastic depth rate rule
         dpr = calculate_drop_path_rates(drop_path_rate, sum(depths))
@@ -543,7 +543,7 @@ class TinyVit(msnn.Cell):
                     drop_path=dpr[:depths[stage_idx]],
                     conv_expand_ratio=mbconv_expand_ratio,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 out_dim = embed_dims[stage_idx]
                 drop_path_rate = dpr[sum(depths[:stage_idx]):sum(depths[:stage_idx + 1])]
@@ -560,7 +560,7 @@ class TinyVit(msnn.Cell):
                     downsample=PatchMerging,
                     act_layer=act_layer,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 prev_dim = out_dim
                 stride *= 2
             self.stages.append(stage)
@@ -576,7 +576,7 @@ class TinyVit(msnn.Cell):
             pool_type=global_pool,
             norm_layer=norm_layer_cf,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # init weights
         self.apply(self._init_weights)
@@ -587,15 +587,15 @@ class TinyVit(msnn.Cell):
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay_keywords(self):
         return {'attention_biases'}
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {x for x in self.state_dict().keys() if 'attention_biases' in x}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^patch_embed',
@@ -606,11 +606,11 @@ class TinyVit(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -788,7 +788,7 @@ def _create_tiny_vit(variant, pretrained=False, **kwargs):
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         pretrained_filter_fn=checkpoint_filter_fn,
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -802,7 +802,7 @@ def tiny_vit_5m_224(pretrained=False, **kwargs):
         drop_path_rate=0.0,
     )
     model_kwargs.update(kwargs)
-    return _create_tiny_vit('tiny_vit_5m_224', pretrained, **model_kwargs)
+    return _create_tiny_vit('tiny_vit_5m_224', pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -815,7 +815,7 @@ def tiny_vit_11m_224(pretrained=False, **kwargs):
         drop_path_rate=0.1,
     )
     model_kwargs.update(kwargs)
-    return _create_tiny_vit('tiny_vit_11m_224', pretrained, **model_kwargs)
+    return _create_tiny_vit('tiny_vit_11m_224', pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -828,7 +828,7 @@ def tiny_vit_21m_224(pretrained=False, **kwargs):
         drop_path_rate=0.2,
     )
     model_kwargs.update(kwargs)
-    return _create_tiny_vit('tiny_vit_21m_224', pretrained, **model_kwargs)
+    return _create_tiny_vit('tiny_vit_21m_224', pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -841,7 +841,7 @@ def tiny_vit_21m_384(pretrained=False, **kwargs):
         drop_path_rate=0.1,
     )
     model_kwargs.update(kwargs)
-    return _create_tiny_vit('tiny_vit_21m_384', pretrained, **model_kwargs)
+    return _create_tiny_vit('tiny_vit_21m_384', pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -854,4 +854,4 @@ def tiny_vit_21m_512(pretrained=False, **kwargs):
         drop_path_rate=0.1,
     )
     model_kwargs.update(kwargs)
-    return _create_tiny_vit('tiny_vit_21m_512', pretrained, **model_kwargs)
+    return _create_tiny_vit('tiny_vit_21m_512', pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

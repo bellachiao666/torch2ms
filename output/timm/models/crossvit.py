@@ -71,7 +71,7 @@ class PatchEmbed(msnn.Cell):
                     nn.Conv2d(embed_dim // 4, embed_dim // 2, kernel_size=3, stride=3, padding=0, **dd),
                     nn.ReLU(),
                     nn.Conv2d(embed_dim // 2, embed_dim, kernel_size=3, stride=1, padding=1, **dd),
-                )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
             elif patch_size[0] == 16:
                 self.proj = msnn.SequentialCell(
                     nn.Conv2d(in_chans, embed_dim // 4, kernel_size=7, stride=4, padding=3, **dd),
@@ -79,9 +79,9 @@ class PatchEmbed(msnn.Cell):
                     nn.Conv2d(embed_dim // 4, embed_dim // 2, kernel_size=3, stride=2, padding=1, **dd),
                     nn.ReLU(),
                     nn.Conv2d(embed_dim // 2, embed_dim, kernel_size=3, stride=2, padding=1, **dd),
-                )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         else:
-            self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
+            self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         B, C, H, W = x.shape
@@ -112,11 +112,11 @@ class CrossAttention(msnn.Cell):
         # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
         self.scale = head_dim ** -0.5
 
-        self.wq = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.wk = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.wv = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+        self.wq = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.wk = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.wv = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x):
@@ -156,7 +156,7 @@ class CrossAttentionBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = CrossAttention(
             dim,
             num_heads=num_heads,
@@ -164,7 +164,7 @@ class CrossAttentionBlock(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
@@ -210,9 +210,9 @@ class MultiScaleBlock(msnn.Cell):
                     drop_path=drop_path[i],
                     norm_layer=norm_layer,
                     **dd,
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if len(tmp) != 0:
-                self.blocks.append(msnn.SequentialCell(*tmp))
+                self.blocks.append(msnn.SequentialCell(*tmp))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if len(self.blocks) == 0:
             self.blocks = None
@@ -222,8 +222,8 @@ class MultiScaleBlock(msnn.Cell):
             if dim[d] == dim[(d + 1) % num_branches] and False:
                 tmp = [msnn.Identity()]
             else:
-                tmp = [norm_layer(dim[d], **dd), act_layer(), nn.Linear(dim[d], dim[(d + 1) % num_branches], **dd)]
-            self.projs.append(msnn.SequentialCell(*tmp))
+                tmp = [norm_layer(dim[d], **dd), act_layer(), nn.Linear(dim[d], dim[(d + 1) % num_branches], **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
+            self.projs.append(msnn.SequentialCell(*tmp))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.fusion = msnn.CellList()
         for d in range(num_branches):
@@ -241,7 +241,7 @@ class MultiScaleBlock(msnn.Cell):
                         drop_path=drop_path[-1],
                         norm_layer=norm_layer,
                         **dd,
-                    ))
+                    ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 tmp = []
                 for _ in range(depth[-1]):
@@ -255,8 +255,8 @@ class MultiScaleBlock(msnn.Cell):
                         drop_path=drop_path[-1],
                         norm_layer=norm_layer,
                         **dd,
-                    ))
-                self.fusion.append(msnn.SequentialCell(*tmp))
+                    ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                self.fusion.append(msnn.SequentialCell(*tmp))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.revert_projs = msnn.CellList()
         for d in range(num_branches):
@@ -264,8 +264,8 @@ class MultiScaleBlock(msnn.Cell):
                 tmp = [msnn.Identity()]
             else:
                 tmp = [norm_layer(dim[(d + 1) % num_branches], **dd), act_layer(),
-                       nn.Linear(dim[(d + 1) % num_branches], dim[d], **dd)]
-            self.revert_projs.append(msnn.SequentialCell(*tmp))
+                       nn.Linear(dim[(d + 1) % num_branches], dim[d], **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
+            self.revert_projs.append(msnn.SequentialCell(*tmp))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: List[ms.Tensor]) -> List[ms.Tensor]:
 
@@ -360,8 +360,8 @@ class CrossVit(msnn.Cell):
 
         # hard-coded for torch jit script
         for i in range(self.num_branches):
-            setattr(self, f'pos_embed_{i}', ms.Parameter(mint.zeros(1, 1 + num_patches[i], embed_dim[i], **dd)))
-            setattr(self, f'cls_token_{i}', ms.Parameter(mint.zeros(1, 1, embed_dim[i], **dd)))
+            setattr(self, f'pos_embed_{i}', ms.Parameter(mint.zeros(1, 1 + num_patches[i], embed_dim[i], **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            setattr(self, f'cls_token_{i}', ms.Parameter(mint.zeros(1, 1, embed_dim[i], **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         for im_s, p, d in zip(self.img_size_scaled, patch_size, embed_dim):
             self.patch_embed.append(
@@ -372,7 +372,7 @@ class CrossVit(msnn.Cell):
                     embed_dim=d,
                     multi_conv=multi_conv,
                     **dd,
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
 
@@ -395,15 +395,15 @@ class CrossVit(msnn.Cell):
                 drop_path=dpr_,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             dpr_ptr += curr_depth
             self.blocks.append(blk)
 
-        self.norm = msnn.CellList([norm_layer(embed_dim[i], **dd) for i in range(self.num_branches)])
+        self.norm = msnn.CellList([norm_layer(embed_dim[i], **dd) for i in range(self.num_branches)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
         self.head = msnn.CellList([
             nn.Linear(embed_dim[i], num_classes, **dd) if num_classes > 0 else msnn.Identity()
-            for i in range(self.num_branches)])
+            for i in range(self.num_branches)])  # 存在 *args/**kwargs，需手动确认参数映射;
 
         for i in range(self.num_branches):
             trunc_normal_(getattr(self, f'pos_embed_{i}'), std=.02)
@@ -420,7 +420,7 @@ class CrossVit(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         out = set()
         for i in range(self.num_branches):
@@ -430,18 +430,18 @@ class CrossVit(msnn.Cell):
                 out.add(f'pos_embed_{i}')
         return out
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^cls_token|pos_embed|patch_embed',  # stem and embed
             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -456,7 +456,7 @@ class CrossVit(msnn.Cell):
         self.head = msnn.CellList([
             nn.Linear(self.embed_dim[i], num_classes, **dd) if num_classes > 0 else msnn.Identity()
             for i in range(self.num_branches)
-        ])
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def forward_features(self, x) -> List[ms.Tensor]:
         B = x.shape[0]
@@ -514,7 +514,7 @@ def _create_crossvit(variant, pretrained=False, **kwargs):
         pretrained,
         pretrained_filter_fn=pretrained_filter_fn,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -564,7 +564,7 @@ def crossvit_tiny_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[96, 192], depth=[[1, 4, 0], [1, 4, 0], [1, 4, 0]],
         num_heads=[3, 3], mlp_ratio=[4, 4, 1])
-    model = _create_crossvit(variant='crossvit_tiny_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_tiny_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -573,7 +573,7 @@ def crossvit_small_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 4, 0], [1, 4, 0], [1, 4, 0]],
         num_heads=[6, 6], mlp_ratio=[4, 4, 1])
-    model = _create_crossvit(variant='crossvit_small_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_small_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -582,7 +582,7 @@ def crossvit_base_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[384, 768], depth=[[1, 4, 0], [1, 4, 0], [1, 4, 0]],
         num_heads=[12, 12], mlp_ratio=[4, 4, 1])
-    model = _create_crossvit(variant='crossvit_base_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_base_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -591,7 +591,7 @@ def crossvit_9_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[128, 256], depth=[[1, 3, 0], [1, 3, 0], [1, 3, 0]],
         num_heads=[4, 4], mlp_ratio=[3, 3, 1])
-    model = _create_crossvit(variant='crossvit_9_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_9_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -600,7 +600,7 @@ def crossvit_15_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 5, 0], [1, 5, 0], [1, 5, 0]],
         num_heads=[6, 6], mlp_ratio=[3, 3, 1])
-    model = _create_crossvit(variant='crossvit_15_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_15_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -608,8 +608,8 @@ def crossvit_15_240(pretrained=False, **kwargs) -> CrossVit:
 def crossvit_18_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224 / 240), patch_size=[12, 16], embed_dim=[224, 448], depth=[[1, 6, 0], [1, 6, 0], [1, 6, 0]],
-        num_heads=[7, 7], mlp_ratio=[3, 3, 1], **kwargs)
-    model = _create_crossvit(variant='crossvit_18_240', pretrained=pretrained, **dict(model_args, **kwargs))
+        num_heads=[7, 7], mlp_ratio=[3, 3, 1], **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_crossvit(variant='crossvit_18_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -618,7 +618,7 @@ def crossvit_9_dagger_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224 / 240), patch_size=[12, 16], embed_dim=[128, 256], depth=[[1, 3, 0], [1, 3, 0], [1, 3, 0]],
         num_heads=[4, 4], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_9_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_9_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -627,7 +627,7 @@ def crossvit_15_dagger_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 5, 0], [1, 5, 0], [1, 5, 0]],
         num_heads=[6, 6], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_15_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_15_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -636,7 +636,7 @@ def crossvit_15_dagger_408(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 384/408), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 5, 0], [1, 5, 0], [1, 5, 0]],
         num_heads=[6, 6], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_15_dagger_408', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_15_dagger_408', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -645,7 +645,7 @@ def crossvit_18_dagger_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[224, 448], depth=[[1, 6, 0], [1, 6, 0], [1, 6, 0]],
         num_heads=[7, 7], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_18_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_18_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -654,5 +654,5 @@ def crossvit_18_dagger_408(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
         img_scale=(1.0, 384/408), patch_size=[12, 16], embed_dim=[224, 448], depth=[[1, 6, 0], [1, 6, 0], [1, 6, 0]],
         num_heads=[7, 7], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_18_dagger_408', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_crossvit(variant='crossvit_18_dagger_408', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

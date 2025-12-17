@@ -53,8 +53,8 @@ class Bottle2neck(msnn.Cell):
         outplanes = planes * self.expansion
         first_dilation = first_dilation or dilation
 
-        self.conv1 = nn.Conv2d(inplanes, width * scale, kernel_size=1, bias=False, **dd)
-        self.bn1 = norm_layer(width * scale, **dd)
+        self.conv1 = nn.Conv2d(inplanes, width * scale, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = norm_layer(width * scale, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         convs = []
         bns = []
@@ -69,8 +69,8 @@ class Bottle2neck(msnn.Cell):
                 groups=cardinality,
                 bias=False,
                 **dd,
-            ))
-            bns.append(norm_layer(width, **dd))
+            ))  # 存在 *args/**kwargs，需手动确认参数映射;
+            bns.append(norm_layer(width, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.convs = msnn.CellList(convs)
         self.bns = msnn.CellList(bns)
         if self.is_first:
@@ -79,9 +79,9 @@ class Bottle2neck(msnn.Cell):
         else:
             self.pool = None
 
-        self.conv3 = nn.Conv2d(width * scale, outplanes, kernel_size=1, bias=False, **dd)
-        self.bn3 = norm_layer(outplanes, **dd)
-        self.se = attn_layer(outplanes, **dd) if attn_layer is not None else None
+        self.conv3 = nn.Conv2d(width * scale, outplanes, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = norm_layer(outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.se = attn_layer(outplanes, **dd) if attn_layer is not None else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.relu = act_layer(inplace=True)
         self.downsample = downsample
@@ -132,7 +132,7 @@ class Bottle2neck(msnn.Cell):
 
 
 def _create_res2net(variant, pretrained=False, **kwargs):
-    return build_model_with_cfg(ResNet, variant, pretrained, **kwargs)
+    return build_model_with_cfg(ResNet, variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -166,7 +166,7 @@ def res2net50_26w_4s(pretrained=False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 6, 3], base_width=26, block_args=dict(scale=4))
-    return _create_res2net('res2net50_26w_4s', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net50_26w_4s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -175,7 +175,7 @@ def res2net101_26w_4s(pretrained=False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 23, 3], base_width=26, block_args=dict(scale=4))
-    return _create_res2net('res2net101_26w_4s', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net101_26w_4s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -184,7 +184,7 @@ def res2net50_26w_6s(pretrained=False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 6, 3], base_width=26, block_args=dict(scale=6))
-    return _create_res2net('res2net50_26w_6s', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net50_26w_6s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -193,7 +193,7 @@ def res2net50_26w_8s(pretrained=False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 6, 3], base_width=26, block_args=dict(scale=8))
-    return _create_res2net('res2net50_26w_8s', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net50_26w_8s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -202,7 +202,7 @@ def res2net50_48w_2s(pretrained=False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 6, 3], base_width=48, block_args=dict(scale=2))
-    return _create_res2net('res2net50_48w_2s', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net50_48w_2s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -211,7 +211,7 @@ def res2net50_14w_8s(pretrained=False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 6, 3], base_width=14, block_args=dict(scale=8))
-    return _create_res2net('res2net50_14w_8s', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net50_14w_8s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -220,7 +220,7 @@ def res2next50(pretrained=False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 6, 3], base_width=4, cardinality=8, block_args=dict(scale=4))
-    return _create_res2net('res2next50', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2next50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -230,7 +230,7 @@ def res2net50d(pretrained=False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 6, 3], base_width=26, stem_type='deep',
         avg_down=True, stem_width=32, block_args=dict(scale=4))
-    return _create_res2net('res2net50d', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -240,4 +240,4 @@ def res2net101d(pretrained=False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottle2neck, layers=[3, 4, 23, 3], base_width=26, stem_type='deep',
         avg_down=True, stem_width=32, block_args=dict(scale=4))
-    return _create_res2net('res2net101d', pretrained, **dict(model_args, **kwargs))
+    return _create_res2net('res2net101d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

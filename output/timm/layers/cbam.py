@@ -39,9 +39,9 @@ class ChannelAttn(msnn.Cell):
         super().__init__()
         if not rd_channels:
             rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
-        self.fc1 = nn.Conv2d(channels, rd_channels, 1, bias=mlp_bias, **dd)
+        self.fc1 = nn.Conv2d(channels, rd_channels, 1, bias=mlp_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer(inplace=True)
-        self.fc2 = nn.Conv2d(rd_channels, channels, 1, bias=mlp_bias, **dd)
+        self.fc2 = nn.Conv2d(rd_channels, channels, 1, bias=mlp_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):
@@ -139,8 +139,8 @@ class CbamModule(msnn.Cell):
             gate_layer=gate_layer,
             mlp_bias=mlp_bias,
             **dd,
-        )
-        self.spatial = SpatialAttn(spatial_kernel_size, gate_layer=gate_layer, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.spatial = SpatialAttn(spatial_kernel_size, gate_layer=gate_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.channel(x)
@@ -173,8 +173,8 @@ class LightCbamModule(msnn.Cell):
             gate_layer=gate_layer,
             mlp_bias=mlp_bias,
             **dd,
-        )
-        self.spatial = LightSpatialAttn(spatial_kernel_size, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.spatial = LightSpatialAttn(spatial_kernel_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.channel(x)

@@ -6,3 +6,11 @@
  """ Summary utilities
  
  Hacked together by / Copyright 2020 Ross Wightman
+@@ -12,7 +17,7 @@ 
+ 
+ def get_outdir(path, *paths, inc=False):
+-    outdir = os.path.join(path, *paths)
++    outdir = os.path.join(path, *paths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     if not os.path.exists(outdir):
+         os.makedirs(outdir)
+     elif inc:

@@ -16,15 +16,30 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, use_fused_attn
-@@ -24,7 +29,7 @@ __all__ = ['Cait', 'ClassAttn', 'LayerScaleBlockClassAttn', 'LayerScaleBlock', 'TalkingHeadAttn']
+@@ -24,10 +29,10 @@ __all__ = ['Cait', 'ClassAttn', 'LayerScaleBlockClassAttn', 'LayerScaleBlock', 'TalkingHeadAttn']
  
  
 -class ClassAttn(nn.Module):
 +class ClassAttn(msnn.Cell):
      # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
      # with slight modifications to do CA
-     fused_attn: torch.jit.Final[bool]
-@@ -53,7 +58,7 @@         self.proj = nn.Linear(dim, dim, **dd)
+-    fused_attn: torch.jit.Final[bool]
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
+@@ -46,14 +51,14 @@         self.scale = head_dim ** -0.5
+         self.fused_attn = use_fused_attn()
+ 
+-        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+-        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+-        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)
++        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.attn_drop = nn.Dropout(attn_drop)
+-        self.proj = nn.Linear(dim, dim, **dd)
++        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.proj_drop = nn.Dropout(proj_drop)
  
 -    def forward(self, x):
@@ -48,7 +63,7 @@
      # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
      # with slight modifications to add CA and LayerScale
      def __init__(
-@@ -90,10 +95,10 @@             proj_drop: float = 0.,
+@@ -90,17 +95,17 @@             proj_drop: float = 0.,
              attn_drop: float = 0.,
              drop_path: float = 0.,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -62,24 +77,38 @@
              init_values: float = 1e-4,
              device=None,
              dtype=None,
-@@ -109,7 +114,7 @@             proj_drop=proj_drop,
+     ):
+         super().__init__()
+         dd = {'device': device, 'dtype': dtype}
+-        self.norm1 = norm_layer(dim, **dd)
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = attn_block(
+             dim,
+             num_heads=num_heads,
+@@ -108,9 +113,9 @@             attn_drop=attn_drop,
+             proj_drop=proj_drop,
              **dd,
-         )
+-        )
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-        self.norm2 = norm_layer(dim, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-         self.norm2 = norm_layer(dim, **dd)
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          mlp_hidden_dim = int(dim * mlp_ratio)
          self.mlp = mlp_block(
-@@ -119,17 +124,17 @@             drop=proj_drop,
+             in_features=dim,
+@@ -118,18 +123,18 @@             act_layer=act_layer,
+             drop=proj_drop,
              **dd,
-         )
+-        )
 -        self.gamma_1 = nn.Parameter(init_values * torch.ones(dim, **dd))
 -        self.gamma_2 = nn.Parameter(init_values * torch.ones(dim, **dd))
 -
 -    def forward(self, x, x_cls):
 -        u = torch.cat((x_cls, x), dim=1)
-+        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))
-+        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x, x_cls):
 +        u = mint.cat((x_cls, x), dim=1)
@@ -93,7 +122,22 @@
      # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
      # with slight modifications to add Talking Heads Attention (https://arxiv.org/pdf/2003.02436v1.pdf)
      def __init__(
-@@ -161,7 +166,7 @@ 
+@@ -151,17 +156,17 @@ 
+         self.scale = head_dim ** -0.5
+ 
+-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
++        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.attn_drop = nn.Dropout(attn_drop)
+ 
+-        self.proj = nn.Linear(dim, dim, **dd)
+-
+-        self.proj_l = nn.Linear(num_heads, num_heads, **dd)
+-        self.proj_w = nn.Linear(num_heads, num_heads, **dd)
++        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++        self.proj_l = nn.Linear(num_heads, num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.proj_w = nn.Linear(num_heads, num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
          self.proj_drop = nn.Dropout(proj_drop)
  
 -    def forward(self, x):
@@ -109,7 +153,7 @@
      # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
      # with slight modifications to add layerScale
      def __init__(
-@@ -193,10 +198,10 @@             proj_drop: float = 0.,
+@@ -193,17 +198,17 @@             proj_drop: float = 0.,
              attn_drop: float = 0.,
              drop_path: float = 0.,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -123,23 +167,37 @@
              init_values: float = 1e-4,
              device=None,
              dtype=None,
-@@ -212,7 +217,7 @@             proj_drop=proj_drop,
+     ):
+         super().__init__()
+         dd = {'device': device, 'dtype': dtype}
+-        self.norm1 = norm_layer(dim, **dd)
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = attn_block(
+             dim,
+             num_heads=num_heads,
+@@ -211,9 +216,9 @@             attn_drop=attn_drop,
+             proj_drop=proj_drop,
              **dd,
-         )
+-        )
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-        self.norm2 = norm_layer(dim, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-         self.norm2 = norm_layer(dim, **dd)
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          mlp_hidden_dim = int(dim * mlp_ratio)
          self.mlp = mlp_block(
-@@ -222,16 +227,16 @@             drop=proj_drop,
+             in_features=dim,
+@@ -221,17 +226,17 @@             act_layer=act_layer,
+             drop=proj_drop,
              **dd,
-         )
+-        )
 -        self.gamma_1 = nn.Parameter(init_values * torch.ones(dim, **dd))
 -        self.gamma_2 = nn.Parameter(init_values * torch.ones(dim, **dd))
 -
 -    def forward(self, x):
-+        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))
-+        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x)))
@@ -177,14 +235,19 @@
              depth_token_only: int = 2,
              mlp_ratio_token_only: float = 4.0,
              device=None,
-@@ -285,12 +290,12 @@         num_patches = self.patch_embed.num_patches
+@@ -281,16 +286,16 @@             in_chans=in_chans,
+             embed_dim=embed_dim,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         num_patches = self.patch_embed.num_patches
          r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
  
 -        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd))
 -        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim, **dd))
 -        self.pos_drop = nn.Dropout(p=pos_drop_rate)
-+        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))
-+        self.pos_embed = ms.Parameter(mint.zeros(1, num_patches, embed_dim, **dd))
++        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.pos_embed = ms.Parameter(mint.zeros(1, num_patches, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.pos_drop = nn.Dropout(p = pos_drop_rate)
  
          dpr = [drop_path_rate for i in range(depth)]
@@ -193,7 +256,11 @@
              dim=embed_dim,
              num_heads=num_heads,
              mlp_ratio=mlp_ratio,
-@@ -307,7 +312,7 @@         ) for i in range(depth)])
+@@ -304,10 +309,10 @@             mlp_block=mlp_block,
+             init_values=init_values,
+             **dd,
+-        ) for i in range(depth)])
++        ) for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.feature_info = [dict(num_chs=embed_dim, reduction=r, module=f'blocks.{i}') for i in range(depth)]
  
 -        self.blocks_token_only = nn.ModuleList([block_layers_token(
@@ -201,15 +268,23 @@
              dim=embed_dim,
              num_heads=num_heads,
              mlp_ratio=mlp_ratio_token_only,
-@@ -323,7 +328,7 @@         self.norm = norm_layer(embed_dim, **dd)
+@@ -318,12 +323,12 @@             mlp_block=mlp_block_token_only,
+             init_values=init_values,
+             **dd,
+-        ) for _ in range(depth_token_only)])
+-
+-        self.norm = norm_layer(embed_dim, **dd)
++        ) for _ in range(depth_token_only)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.head_drop = nn.Dropout(drop_rate)
 -        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
-+        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
++        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
  
          trunc_normal_(self.pos_embed, std=.02)
          trunc_normal_(self.cls_token, std=.02)
-@@ -333,10 +338,10 @@         if isinstance(m, nn.Linear):
+@@ -333,20 +338,20 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -217,15 +292,31 @@
          elif isinstance(m, nn.LayerNorm):
 -            nn.init.constant_(m.bias, 0)
 -            nn.init.constant_(m.weight, 1.0)
+-
+-    @torch.jit.ignore
 +            nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +            nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.jit.ignore
++
++    @ms.jit
      def no_weight_decay(self):
-@@ -364,7 +369,7 @@         return _matcher
+         return {'pos_embed', 'cls_token'}
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         def _matcher(name):
+             if any([name.startswith(n) for n in ('cls_token', 'pos_embed', 'patch_embed')]):
+@@ -363,8 +368,8 @@                 return float('inf')
+         return _matcher
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head
  
@@ -285,3 +376,90 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
+@@ -497,7 +502,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -564,68 +569,68 @@ @register_model
+ def cait_xxs24_224(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=192, depth=24, num_heads=4, init_values=1e-5)
+-    model = _create_cait('cait_xxs24_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_xxs24_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_xxs24_384(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=192, depth=24, num_heads=4, init_values=1e-5)
+-    model = _create_cait('cait_xxs24_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_xxs24_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_xxs36_224(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=192, depth=36, num_heads=4, init_values=1e-5)
+-    model = _create_cait('cait_xxs36_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_xxs36_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_xxs36_384(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=192, depth=36, num_heads=4, init_values=1e-5)
+-    model = _create_cait('cait_xxs36_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_xxs36_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_xs24_384(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=288, depth=24, num_heads=6, init_values=1e-5)
+-    model = _create_cait('cait_xs24_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_xs24_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_s24_224(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=384, depth=24, num_heads=8, init_values=1e-5)
+-    model = _create_cait('cait_s24_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_s24_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_s24_384(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=384, depth=24, num_heads=8, init_values=1e-5)
+-    model = _create_cait('cait_s24_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_s24_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_s36_384(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=384, depth=36, num_heads=8, init_values=1e-6)
+-    model = _create_cait('cait_s36_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_s36_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_m36_384(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=768, depth=36, num_heads=16, init_values=1e-6)
+-    model = _create_cait('cait_m36_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_cait('cait_m36_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def cait_m48_448(pretrained=False, **kwargs) -> Cait:
+     model_args = dict(patch_size=16, embed_dim=768, depth=48, num_heads=16, init_values=1e-6)
+-    model = _create_cait('cait_m48_448', pretrained=pretrained, **dict(model_args, **kwargs))
+-    return model
++    model = _create_cait('cait_m48_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    return model

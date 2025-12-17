@@ -66,12 +66,12 @@ class CoordAttn(msnn.Cell):
         if not rd_channels:
             rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
 
-        self.conv1 = nn.Conv2d(channels, rd_channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
-        self.bn1 = norm_layer(rd_channels, **dd) if norm_layer is not None else msnn.Identity()
+        self.conv1 = nn.Conv2d(channels, rd_channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = norm_layer(rd_channels, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
 
-        self.conv_h = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
-        self.conv_w = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
+        self.conv_h = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv_w = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):
@@ -147,10 +147,10 @@ class SimpleCoordAttn(msnn.Cell):
         if not rd_channels:
             rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
 
-        self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)
+        self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.fc_h = nn.Linear(rd_channels, channels, bias=bias, **dd)
-        self.fc_w = nn.Linear(rd_channels, channels, bias=bias, **dd)
+        self.fc_h = nn.Linear(rd_channels, channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.fc_w = nn.Linear(rd_channels, channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.gate = create_act_layer(gate_layer)
 
@@ -222,7 +222,7 @@ class EfficientLocalAttn(msnn.Cell):
             groups=channels,
             bias=bias,
             **dd
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.conv_w = nn.Conv2d(
             channels, channels,
             kernel_size=(1, kernel_size),
@@ -231,10 +231,10 @@ class EfficientLocalAttn(msnn.Cell):
             groups=channels,
             bias=bias,
             **dd
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         if norm_layer is not None:
-            self.norm_h = norm_layer(channels, **dd)
-            self.norm_w = norm_layer(channels, **dd)
+            self.norm_h = norm_layer(channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.norm_w = norm_layer(channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.norm_h = msnn.Identity()
             self.norm_w = msnn.Identity()
@@ -306,7 +306,7 @@ class StripAttn(msnn.Cell):
                 groups=channels,
                 bias=bias,
                 **dd
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
             self.conv_w = nn.Conv2d(
                 channels, channels,
                 kernel_size=(1, kernel_size),
@@ -315,7 +315,7 @@ class StripAttn(msnn.Cell):
                 groups=channels,
                 bias=bias,
                 **dd
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.conv_h = msnn.Identity()
             self.conv_w = msnn.Identity()

@@ -18,7 +18,7 @@ from .weight_init import trunc_normal_tf_
 class AttentionPoolLatent(msnn.Cell):
     """ Attention pooling w/ latent query
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -54,28 +54,28 @@ class AttentionPoolLatent(msnn.Cell):
 
         if pos_embed == 'abs':
             assert feat_size is not None
-            self.pos_embed = ms.Parameter(mint.zeros(feat_size, in_features, **dd))
+            self.pos_embed = ms.Parameter(mint.zeros(feat_size, in_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.pos_embed = None
 
         self.latent_dim = latent_dim or embed_dim
         self.latent_len = latent_len
-        self.latent = ms.Parameter(mint.zeros(1, self.latent_len, embed_dim, **dd))
+        self.latent = ms.Parameter(mint.zeros(1, self.latent_len, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.q = nn.Linear(embed_dim, embed_dim, bias=qkv_bias, **dd)
-        self.kv = nn.Linear(embed_dim, embed_dim * 2, bias=qkv_bias, **dd)
+        self.q = nn.Linear(embed_dim, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.kv = nn.Linear(embed_dim, embed_dim * 2, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if qk_norm:
             qk_norm_layer = norm_layer or nn.LayerNorm
-            self.q_norm = qk_norm_layer(self.head_dim, **dd)
-            self.k_norm = qk_norm_layer(self.head_dim, **dd)
+            self.q_norm = qk_norm_layer(self.head_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.k_norm = qk_norm_layer(self.head_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.q_norm = msnn.Identity()
             self.k_norm = msnn.Identity()
-        self.proj = nn.Linear(embed_dim, embed_dim, **dd)
+        self.proj = nn.Linear(embed_dim, embed_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(drop)
 
-        self.norm = norm_layer(out_features, **dd) if norm_layer is not None else msnn.Identity()
-        self.mlp = Mlp(embed_dim, int(embed_dim * mlp_ratio), act_layer=act_layer, **dd)
+        self.norm = norm_layer(out_features, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.mlp = Mlp(embed_dim, int(embed_dim * mlp_ratio), act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.init_weights()
 

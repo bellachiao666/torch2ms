@@ -32,7 +32,7 @@ __all__ = ['Cait', 'ClassAttn', 'LayerScaleBlockClassAttn', 'LayerScaleBlock', '
 class ClassAttn(msnn.Cell):
     # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
     # with slight modifications to do CA
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -51,11 +51,11 @@ class ClassAttn(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.k = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x):
@@ -105,7 +105,7 @@ class LayerScaleBlockClassAttn(msnn.Cell):
     ):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = attn_block(
             dim,
             num_heads=num_heads,
@@ -113,9 +113,9 @@ class LayerScaleBlockClassAttn(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = mlp_block(
             in_features=dim,
@@ -123,9 +123,9 @@ class LayerScaleBlockClassAttn(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
-        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))
-        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x, x_cls):
         u = mint.cat((x_cls, x), dim=1)
@@ -156,13 +156,13 @@ class TalkingHeadAttn(msnn.Cell):
 
         self.scale = head_dim ** -0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
 
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
-        self.proj_l = nn.Linear(num_heads, num_heads, **dd)
-        self.proj_w = nn.Linear(num_heads, num_heads, **dd)
+        self.proj_l = nn.Linear(num_heads, num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj_w = nn.Linear(num_heads, num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.proj_drop = nn.Dropout(proj_drop)
 
@@ -208,7 +208,7 @@ class LayerScaleBlock(msnn.Cell):
     ):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = attn_block(
             dim,
             num_heads=num_heads,
@@ -216,9 +216,9 @@ class LayerScaleBlock(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = mlp_block(
             in_features=dim,
@@ -226,9 +226,9 @@ class LayerScaleBlock(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
-        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))
-        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x)))
@@ -286,12 +286,12 @@ class Cait(msnn.Cell):
             in_chans=in_chans,
             embed_dim=embed_dim,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         num_patches = self.patch_embed.num_patches
         r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
 
-        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))
-        self.pos_embed = ms.Parameter(mint.zeros(1, num_patches, embed_dim, **dd))
+        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pos_embed = ms.Parameter(mint.zeros(1, num_patches, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
 
         dpr = [drop_path_rate for i in range(depth)]
@@ -309,7 +309,7 @@ class Cait(msnn.Cell):
             mlp_block=mlp_block,
             init_values=init_values,
             **dd,
-        ) for i in range(depth)])
+        ) for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [dict(num_chs=embed_dim, reduction=r, module=f'blocks.{i}') for i in range(depth)]
 
         self.blocks_token_only = msnn.CellList([block_layers_token(
@@ -323,12 +323,12 @@ class Cait(msnn.Cell):
             mlp_block=mlp_block_token_only,
             init_values=init_values,
             **dd,
-        ) for _ in range(depth_token_only)])
+        ) for _ in range(depth_token_only)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.norm = norm_layer(embed_dim, **dd)
+        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         trunc_normal_(self.pos_embed, std=.02)
         trunc_normal_(self.cls_token, std=.02)
@@ -343,15 +343,15 @@ class Cait(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token'}
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         def _matcher(name):
             if any([name.startswith(n) for n in ('cls_token', 'pos_embed', 'patch_embed')]):
@@ -368,7 +368,7 @@ class Cait(msnn.Cell):
                 return float('inf')
         return _matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -502,7 +502,7 @@ def _create_cait(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -569,68 +569,68 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def cait_xxs24_224(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=192, depth=24, num_heads=4, init_values=1e-5)
-    model = _create_cait('cait_xxs24_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_xxs24_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_xxs24_384(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=192, depth=24, num_heads=4, init_values=1e-5)
-    model = _create_cait('cait_xxs24_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_xxs24_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_xxs36_224(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=192, depth=36, num_heads=4, init_values=1e-5)
-    model = _create_cait('cait_xxs36_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_xxs36_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_xxs36_384(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=192, depth=36, num_heads=4, init_values=1e-5)
-    model = _create_cait('cait_xxs36_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_xxs36_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_xs24_384(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=288, depth=24, num_heads=6, init_values=1e-5)
-    model = _create_cait('cait_xs24_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_xs24_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_s24_224(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=384, depth=24, num_heads=8, init_values=1e-5)
-    model = _create_cait('cait_s24_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_s24_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_s24_384(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=384, depth=24, num_heads=8, init_values=1e-5)
-    model = _create_cait('cait_s24_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_s24_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_s36_384(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=384, depth=36, num_heads=8, init_values=1e-6)
-    model = _create_cait('cait_s36_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_s36_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_m36_384(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=768, depth=36, num_heads=16, init_values=1e-6)
-    model = _create_cait('cait_m36_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_m36_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def cait_m48_448(pretrained=False, **kwargs) -> Cait:
     model_args = dict(patch_size=16, embed_dim=768, depth=48, num_heads=16, init_values=1e-6)
-    model = _create_cait('cait_m48_448', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_cait('cait_m48_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

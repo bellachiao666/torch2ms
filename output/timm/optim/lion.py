@@ -84,6 +84,7 @@ class Lion(Optimizer):
             group.setdefault('maximize', False)
             group.setdefault('foreach', None)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

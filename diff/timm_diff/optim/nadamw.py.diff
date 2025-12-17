@@ -22,7 +22,7 @@
  class NAdamW(torch.optim.Optimizer):
      """ Implements NAdamW algorithm.
  
-@@ -78,15 +84,14 @@     def __setstate__(self, state):
+@@ -78,10 +84,10 @@     def __setstate__(self, state):
          super().__setstate__(state)
          state_values = list(self.state.values())
 -        step_is_tensor = (len(state_values) != 0) and torch.is_tensor(state_values[0]['step'])
@@ -34,12 +34,7 @@
          for group in self.param_groups:
              group.setdefault('caution', False)
              group.setdefault('corrected_weight_decay', False)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
- 
-@@ -121,11 +126,11 @@ 
+@@ -121,11 +127,11 @@ 
                  # State initialization
                  if len(state) == 0:
 -                    state['step'] = torch.tensor(0.)
@@ -53,7 +48,7 @@
  
                  exp_avgs.append(state['exp_avg'])
                  exp_avg_sqs.append(state['exp_avg_sq'])
-@@ -152,11 +157,11 @@ 
+@@ -152,11 +158,11 @@ 
  
  def nadamw(
 -        params: List[Tensor],
@@ -69,7 +64,7 @@
          foreach: Optional[bool] = None,
          capturable: bool = False,
          *,
-@@ -173,7 +178,7 @@       See NAdamW class for details.
+@@ -173,7 +179,7 @@       See NAdamW class for details.
      """
  
 -    if not all(isinstance(t, torch.Tensor) for t in state_steps):
@@ -77,7 +72,7 @@
          raise RuntimeError(
              'API has changed, `state_steps` argument must contain a list of' +
              ' singleton tensors')
-@@ -181,7 +186,7 @@     if foreach is None:
+@@ -181,7 +187,7 @@     if foreach is None:
          try:
              # cannot do foreach if this overload doesn't exist when caution enabled
 -            foreach = not caution or 'Scalar' in torch.ops.aten._foreach_maximum_.overloads()
@@ -85,7 +80,7 @@
          except:
              foreach = False
  
-@@ -209,11 +214,11 @@ 
+@@ -209,11 +215,11 @@ 
  
  def _single_tensor_nadamw(
 -        params: List[Tensor],
@@ -101,7 +96,7 @@
          *,
          beta1: float,
          beta2: float,
-@@ -248,8 +253,8 @@ 
+@@ -248,8 +254,8 @@ 
              # 1 - beta1 ** step can't be captured in a CUDA graph, even if step is a CUDA tensor
              # (incurs "RuntimeError: CUDA error: operation not permitted when stream is capturing")
 -            bias_correction1 = 1 - torch.pow(beta1, step)
@@ -111,7 +106,7 @@
  
              step_size = lr / bias_correction1
              step_size_neg = step_size.neg()
-@@ -292,11 +297,11 @@ 
+@@ -292,11 +298,11 @@ 
  
  def _multi_tensor_nadamw(
 -        params: List[Tensor],
@@ -127,7 +122,7 @@
          *,
          beta1: float,
          beta2: float,
-@@ -317,69 +322,69 @@         ), "If capturable=True, params and state_steps must be CUDA tensors."
+@@ -317,69 +323,69 @@         ), "If capturable=True, params and state_steps must be CUDA tensors."
  
      if maximize:
 -        grads = torch._foreach_neg(tuple(grads))  # type: ignore[assignment]
@@ -234,7 +229,7 @@
      else:
          bias_correction1 = [1 - beta1 ** step.item() for step in state_steps]
          bias_correction2 = [1 - beta2 ** step.item() for step in state_steps]
-@@ -390,21 +395,21 @@ 
+@@ -390,21 +396,21 @@ 
          # Apply Nesterov. Only difference between NAdamW and AdamW in this implementation.
          # The official PyTorch implementation of NAdam uses a different algorithm.
 -        exp_avgs = torch._foreach_mul(exp_avgs, beta1)

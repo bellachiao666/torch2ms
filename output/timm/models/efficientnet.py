@@ -138,8 +138,8 @@ class EfficientNet(msnn.Cell):
         # Stem
         if not fix_stem:
             stem_size = round_chs_fn(stem_size)
-        self.conv_stem = create_conv2d(in_chans, stem_size, stem_kernel_size, stride=2, padding=pad_type, **dd)
-        self.bn1 = norm_act_layer(stem_size, inplace=True, **dd)
+        self.conv_stem = create_conv2d(in_chans, stem_size, stem_kernel_size, stride=2, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_act_layer(stem_size, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Middle stages (IR/ER/DS Blocks)
         builder = EfficientNetBuilder(
@@ -152,16 +152,16 @@ class EfficientNet(msnn.Cell):
             se_layer=se_layer,
             drop_path_rate=drop_path_rate,
             **dd,
-        )
-        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = builder.features
         self.stage_ends = [f['stage'] for f in self.feature_info]
         head_chs = builder.in_chs
 
         # Head + Pooling
         if num_features > 0:
-            self.conv_head = create_conv2d(head_chs, num_features, 1, padding=pad_type, **dd)
-            self.bn2 = norm_act_layer(num_features, inplace=True, **dd)
+            self.conv_head = create_conv2d(head_chs, num_features, 1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.bn2 = norm_act_layer(num_features, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = self.head_hidden_size = num_features
         else:
             self.conv_head = msnn.Identity()
@@ -173,7 +173,7 @@ class EfficientNet(msnn.Cell):
             self.num_classes,
             pool_type=global_pool,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         efficientnet_init_weights(self)
 
@@ -183,9 +183,9 @@ class EfficientNet(msnn.Cell):
         layers.extend(self.blocks)
         layers.extend([self.conv_head, self.bn2, self.global_pool])
         layers.extend([nn.Dropout(self.drop_rate), self.classifier])
-        return msnn.SequentialCell(*layers)
+        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Union[str, List]]:
         """Create regex patterns for parameter groups.
 
@@ -203,7 +203,7 @@ class EfficientNet(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -212,7 +212,7 @@ class EfficientNet(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier module."""
         return self.classifier
@@ -393,8 +393,8 @@ class EfficientNetFeatures(msnn.Cell):
         # Stem
         if not fix_stem:
             stem_size = round_chs_fn(stem_size)
-        self.conv_stem = create_conv2d(in_chans, stem_size, stem_kernel_size, stride=2, padding=pad_type, **dd)
-        self.bn1 = norm_act_layer(stem_size, inplace=True, **dd)
+        self.conv_stem = create_conv2d(in_chans, stem_size, stem_kernel_size, stride=2, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_act_layer(stem_size, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Middle stages (IR/ER/DS Blocks)
         builder = EfficientNetBuilder(
@@ -408,8 +408,8 @@ class EfficientNetFeatures(msnn.Cell):
             drop_path_rate=drop_path_rate,
             feature_location=feature_location,
             **dd,
-        )
-        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = FeatureInfo(builder.features, out_indices)
         self._stage_out_idx = {f['stage']: f['index'] for f in self.feature_info.get_dicts()}
 
@@ -421,7 +421,7 @@ class EfficientNetFeatures(msnn.Cell):
             hooks = self.feature_info.get_dicts(keys=('module', 'hook_type'))
             self.feature_hooks = FeatureHooks(hooks, self.named_modules())
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -472,7 +472,7 @@ def _create_effnet(variant, pretrained=False, **kwargs):
         pretrained_strict=pretrained_strict and features_mode != 'cls',
         kwargs_filter=kwargs_filter,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if features_mode == 'cls':
         model.pretrained_cfg = model.default_cfg = pretrained_cfg_for_features(model.pretrained_cfg)
     return model
@@ -509,8 +509,8 @@ def _gen_mnasnet_a1(variant, channel_multiplier=1.0, pretrained=False, **kwargs)
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -545,8 +545,8 @@ def _gen_mnasnet_b1(variant, channel_multiplier=1.0, pretrained=False, **kwargs)
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -574,8 +574,8 @@ def _gen_mnasnet_small(variant, channel_multiplier=1.0, pretrained=False, **kwar
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -610,8 +610,8 @@ def _gen_mobilenet_v1(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'relu6'),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -647,8 +647,8 @@ def _gen_mobilenet_v2(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'relu6'),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -677,8 +677,8 @@ def _gen_fbnetc(variant, channel_multiplier=1.0, pretrained=False, **kwargs):
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -712,8 +712,8 @@ def _gen_spnasnet(variant, channel_multiplier=1.0, pretrained=False, **kwargs):
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -762,8 +762,8 @@ def _gen_efficientnet(
         act_layer=resolve_act_layer(kwargs, 'swish'),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -794,8 +794,8 @@ def _gen_efficientnet_edge(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'relu'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -826,8 +826,8 @@ def _gen_efficientnet_condconv(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'swish'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -867,8 +867,8 @@ def _gen_efficientnet_lite(variant, channel_multiplier=1.0, depth_multiplier=1.0
         act_layer=resolve_act_layer(kwargs, 'relu6'),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -897,8 +897,8 @@ def _gen_efficientnetv2_base(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'silu'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -937,8 +937,8 @@ def _gen_efficientnetv2_s(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'silu'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -969,8 +969,8 @@ def _gen_efficientnetv2_m(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'silu'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1001,8 +1001,8 @@ def _gen_efficientnetv2_l(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'silu'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1033,8 +1033,8 @@ def _gen_efficientnetv2_xl(
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'silu'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1116,8 +1116,8 @@ def _gen_efficientnet_x(
         act_layer=resolve_act_layer(kwargs, 'silu'),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1149,8 +1149,8 @@ def _gen_mixnet_s(variant, channel_multiplier=1.0, pretrained=False, **kwargs):
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1182,8 +1182,8 @@ def _gen_mixnet_m(variant, channel_multiplier=1.0, depth_multiplier=1.0, pretrai
         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1205,8 +1205,8 @@ def _gen_tinynet(variant, model_width=1.0, depth_multiplier=1.0, pretrained=Fals
         act_layer=resolve_act_layer(kwargs, 'swish'),
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1294,8 +1294,8 @@ def _gen_mobilenet_edgetpu(variant, channel_multiplier=1.0, depth_multiplier=1.0
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=act_layer,
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1318,8 +1318,8 @@ def _gen_test_efficientnet(variant, channel_multiplier=1.0, depth_multiplier=1.0
         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
         act_layer=resolve_act_layer(kwargs, 'silu'),
         **kwargs,
-    )
-    model = _create_effnet(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1924,119 +1924,119 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def mnasnet_050(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet B1, depth multiplier of 0.5. """
-    model = _gen_mnasnet_b1('mnasnet_050', 0.5, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_b1('mnasnet_050', 0.5, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mnasnet_075(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet B1, depth multiplier of 0.75. """
-    model = _gen_mnasnet_b1('mnasnet_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_b1('mnasnet_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mnasnet_100(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet B1, depth multiplier of 1.0. """
-    model = _gen_mnasnet_b1('mnasnet_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_b1('mnasnet_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mnasnet_140(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet B1,  depth multiplier of 1.4 """
-    model = _gen_mnasnet_b1('mnasnet_140', 1.4, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_b1('mnasnet_140', 1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def semnasnet_050(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet A1 (w/ SE), depth multiplier of 0.5 """
-    model = _gen_mnasnet_a1('semnasnet_050', 0.5, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_a1('semnasnet_050', 0.5, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def semnasnet_075(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet A1 (w/ SE),  depth multiplier of 0.75. """
-    model = _gen_mnasnet_a1('semnasnet_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_a1('semnasnet_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def semnasnet_100(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet A1 (w/ SE), depth multiplier of 1.0. """
-    model = _gen_mnasnet_a1('semnasnet_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_a1('semnasnet_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def semnasnet_140(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet A1 (w/ SE), depth multiplier of 1.4. """
-    model = _gen_mnasnet_a1('semnasnet_140', 1.4, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_a1('semnasnet_140', 1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mnasnet_small(pretrained=False, **kwargs) -> EfficientNet:
     """ MNASNet Small,  depth multiplier of 1.0. """
-    model = _gen_mnasnet_small('mnasnet_small', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mnasnet_small('mnasnet_small', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv1_100(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V1 """
-    model = _gen_mobilenet_v1('mobilenetv1_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v1('mobilenetv1_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv1_100h(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V1 """
-    model = _gen_mobilenet_v1('mobilenetv1_100h', 1.0, head_conv=True, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v1('mobilenetv1_100h', 1.0, head_conv=True, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv1_125(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V1 """
-    model = _gen_mobilenet_v1('mobilenetv1_125', 1.25, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v1('mobilenetv1_125', 1.25, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv2_035(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V2 w/ 0.35 channel multiplier """
-    model = _gen_mobilenet_v2('mobilenetv2_035', 0.35, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v2('mobilenetv2_035', 0.35, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv2_050(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V2 w/ 0.5 channel multiplier """
-    model = _gen_mobilenet_v2('mobilenetv2_050', 0.5, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v2('mobilenetv2_050', 0.5, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv2_075(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V2 w/ 0.75 channel multiplier """
-    model = _gen_mobilenet_v2('mobilenetv2_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v2('mobilenetv2_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv2_100(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V2 w/ 1.0 channel multiplier """
-    model = _gen_mobilenet_v2('mobilenetv2_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v2('mobilenetv2_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv2_140(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V2 w/ 1.4 channel multiplier """
-    model = _gen_mobilenet_v2('mobilenetv2_140', 1.4, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v2('mobilenetv2_140', 1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2044,7 +2044,7 @@ def mobilenetv2_140(pretrained=False, **kwargs) -> EfficientNet:
 def mobilenetv2_110d(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V2 w/ 1.1 channel, 1.2 depth multipliers"""
     model = _gen_mobilenet_v2(
-        'mobilenetv2_110d', 1.1, depth_multiplier=1.2, fix_stem_head=True, pretrained=pretrained, **kwargs)
+        'mobilenetv2_110d', 1.1, depth_multiplier=1.2, fix_stem_head=True, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2052,7 +2052,7 @@ def mobilenetv2_110d(pretrained=False, **kwargs) -> EfficientNet:
 def mobilenetv2_120d(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet V2 w/ 1.2 channel, 1.4 depth multipliers """
     model = _gen_mobilenet_v2(
-        'mobilenetv2_120d', 1.2, depth_multiplier=1.4, fix_stem_head=True, pretrained=pretrained, **kwargs)
+        'mobilenetv2_120d', 1.2, depth_multiplier=1.4, fix_stem_head=True, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2062,14 +2062,14 @@ def fbnetc_100(pretrained=False, **kwargs) -> EfficientNet:
     if pretrained:
         # pretrained model trained with non-default BN epsilon
         kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
-    model = _gen_fbnetc('fbnetc_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_fbnetc('fbnetc_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def spnasnet_100(pretrained=False, **kwargs) -> EfficientNet:
     """ Single-Path NAS Pixel1"""
-    model = _gen_spnasnet('spnasnet_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_spnasnet('spnasnet_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2078,7 +2078,7 @@ def efficientnet_b0(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B0 """
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'efficientnet_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2087,7 +2087,7 @@ def efficientnet_b1(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B1 """
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
+        'efficientnet_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2096,7 +2096,7 @@ def efficientnet_b2(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B2 """
     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
+        'efficientnet_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2105,7 +2105,7 @@ def efficientnet_b3(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B3 """
     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'efficientnet_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2114,7 +2114,7 @@ def efficientnet_b4(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B4 """
     # NOTE for train, drop_rate should be 0.4, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
+        'efficientnet_b4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2123,7 +2123,7 @@ def efficientnet_b5(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B5 """
     # NOTE for train, drop_rate should be 0.4, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)
+        'efficientnet_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2132,7 +2132,7 @@ def efficientnet_b6(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B6 """
     # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b6', channel_multiplier=1.8, depth_multiplier=2.6, pretrained=pretrained, **kwargs)
+        'efficientnet_b6', channel_multiplier=1.8, depth_multiplier=2.6, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2141,7 +2141,7 @@ def efficientnet_b7(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B7 """
     # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b7', channel_multiplier=2.0, depth_multiplier=3.1, pretrained=pretrained, **kwargs)
+        'efficientnet_b7', channel_multiplier=2.0, depth_multiplier=3.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2150,7 +2150,7 @@ def efficientnet_b8(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B8 """
     # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_b8', channel_multiplier=2.2, depth_multiplier=3.6, pretrained=pretrained, **kwargs)
+        'efficientnet_b8', channel_multiplier=2.2, depth_multiplier=3.6, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2159,7 +2159,7 @@ def efficientnet_l2(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-L2."""
     # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
     model = _gen_efficientnet(
-        'efficientnet_l2', channel_multiplier=4.3, depth_multiplier=5.3, pretrained=pretrained, **kwargs)
+        'efficientnet_l2', channel_multiplier=4.3, depth_multiplier=5.3, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2168,7 +2168,7 @@ def efficientnet_l2(pretrained=False, **kwargs) -> EfficientNet:
 def efficientnet_b0_gn(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B0 + GroupNorm"""
     model = _gen_efficientnet(
-        'efficientnet_b0_gn', norm_layer=partial(GroupNormAct, group_size=8), pretrained=pretrained, **kwargs)
+        'efficientnet_b0_gn', norm_layer=partial(GroupNormAct, group_size=8), pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2177,7 +2177,7 @@ def efficientnet_b0_g8_gn(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B0 w/ group conv + GroupNorm"""
     model = _gen_efficientnet(
         'efficientnet_b0_g8_gn', group_size=8, norm_layer=partial(GroupNormAct, group_size=8),
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2186,7 +2186,7 @@ def efficientnet_b0_g16_evos(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B0 w/ group 16 conv + EvoNorm"""
     model = _gen_efficientnet(
         'efficientnet_b0_g16_evos', group_size=16, channel_divisor=16,
-        pretrained=pretrained, **kwargs) #norm_layer=partial(EvoNorm2dS0, group_size=16),
+        pretrained=pretrained, **kwargs)  # norm_layer=partial(EvoNorm2dS0, group_size=16),; 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2196,7 +2196,7 @@ def efficientnet_b3_gn(pretrained=False, **kwargs) -> EfficientNet:
     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
     model = _gen_efficientnet(
         'efficientnet_b3_gn', channel_multiplier=1.2, depth_multiplier=1.4, channel_divisor=16,
-        norm_layer=partial(GroupNormAct, group_size=16), pretrained=pretrained, **kwargs)
+        norm_layer=partial(GroupNormAct, group_size=16), pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2206,7 +2206,7 @@ def efficientnet_b3_g8_gn(pretrained=False, **kwargs) -> EfficientNet:
     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
     model = _gen_efficientnet(
         'efficientnet_b3_g8_gn', channel_multiplier=1.2, depth_multiplier=1.4, group_size=8, channel_divisor=16,
-        norm_layer=partial(GroupNormAct, group_size=16), pretrained=pretrained, **kwargs)
+        norm_layer=partial(GroupNormAct, group_size=16), pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2217,7 +2217,7 @@ def efficientnet_blur_b0(pretrained=False, **kwargs) -> EfficientNet:
     model = _gen_efficientnet(
         'efficientnet_blur_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained,
         aa_layer='blurpc', **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2225,7 +2225,7 @@ def efficientnet_blur_b0(pretrained=False, **kwargs) -> EfficientNet:
 def efficientnet_es(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Edge Small. """
     model = _gen_efficientnet_edge(
-        'efficientnet_es', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'efficientnet_es', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2233,14 +2233,14 @@ def efficientnet_es(pretrained=False, **kwargs) -> EfficientNet:
 def efficientnet_es_pruned(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Edge Small Pruned. For more info: https://github.com/DeGirum/pruned-models/releases/tag/efficientnet_v1.0"""
     model = _gen_efficientnet_edge(
-        'efficientnet_es_pruned', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'efficientnet_es_pruned', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 @register_model
 def efficientnet_em(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Edge-Medium. """
     model = _gen_efficientnet_edge(
-        'efficientnet_em', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
+        'efficientnet_em', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2248,14 +2248,14 @@ def efficientnet_em(pretrained=False, **kwargs) -> EfficientNet:
 def efficientnet_el(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Edge-Large. """
     model = _gen_efficientnet_edge(
-        'efficientnet_el', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'efficientnet_el', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 @register_model
 def efficientnet_el_pruned(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Edge-Large pruned. For more info: https://github.com/DeGirum/pruned-models/releases/tag/efficientnet_v1.0"""
     model = _gen_efficientnet_edge(
-        'efficientnet_el_pruned', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'efficientnet_el_pruned', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 @register_model
@@ -2263,7 +2263,7 @@ def efficientnet_cc_b0_4e(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-CondConv-B0 w/ 8 Experts """
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet_condconv(
-        'efficientnet_cc_b0_4e', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'efficientnet_cc_b0_4e', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2273,7 +2273,7 @@ def efficientnet_cc_b0_8e(pretrained=False, **kwargs) -> EfficientNet:
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet_condconv(
         'efficientnet_cc_b0_8e', channel_multiplier=1.0, depth_multiplier=1.0, experts_multiplier=2,
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2283,7 +2283,7 @@ def efficientnet_cc_b1_8e(pretrained=False, **kwargs) -> EfficientNet:
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet_condconv(
         'efficientnet_cc_b1_8e', channel_multiplier=1.0, depth_multiplier=1.1, experts_multiplier=2,
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2292,7 +2292,7 @@ def efficientnet_lite0(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Lite0 """
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet_lite(
-        'efficientnet_lite0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'efficientnet_lite0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2301,7 +2301,7 @@ def efficientnet_lite1(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Lite1 """
     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
     model = _gen_efficientnet_lite(
-        'efficientnet_lite1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
+        'efficientnet_lite1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2310,7 +2310,7 @@ def efficientnet_lite2(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Lite2 """
     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
     model = _gen_efficientnet_lite(
-        'efficientnet_lite2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
+        'efficientnet_lite2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2319,7 +2319,7 @@ def efficientnet_lite3(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Lite3 """
     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
     model = _gen_efficientnet_lite(
-        'efficientnet_lite3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'efficientnet_lite3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2328,7 +2328,7 @@ def efficientnet_lite4(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-Lite4 """
     # NOTE for train, drop_rate should be 0.4, drop_path_rate should be 0.2
     model = _gen_efficientnet_lite(
-        'efficientnet_lite4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
+        'efficientnet_lite4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2339,7 +2339,7 @@ def efficientnet_b1_pruned(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('pad_type', 'same')
     variant = 'efficientnet_b1_pruned'
     model = _gen_efficientnet(
-        variant, channel_multiplier=1.0, depth_multiplier=1.1, pruned=True, pretrained=pretrained, **kwargs)
+        variant, channel_multiplier=1.0, depth_multiplier=1.1, pruned=True, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2350,7 +2350,7 @@ def efficientnet_b2_pruned(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
         'efficientnet_b2_pruned', channel_multiplier=1.1, depth_multiplier=1.2, pruned=True,
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2361,7 +2361,7 @@ def efficientnet_b3_pruned(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
         'efficientnet_b3_pruned', channel_multiplier=1.2, depth_multiplier=1.4, pruned=True,
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2369,7 +2369,7 @@ def efficientnet_b3_pruned(pretrained=False, **kwargs) -> EfficientNet:
 def efficientnetv2_rw_t(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Tiny (Custom variant, tiny not in paper). """
     model = _gen_efficientnetv2_s(
-        'efficientnetv2_rw_t', channel_multiplier=0.8, depth_multiplier=0.9, rw=False, pretrained=pretrained, **kwargs)
+        'efficientnetv2_rw_t', channel_multiplier=0.8, depth_multiplier=0.9, rw=False, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2378,7 +2378,7 @@ def gc_efficientnetv2_rw_t(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Tiny w/ Global Context Attn (Custom variant, tiny not in paper). """
     model = _gen_efficientnetv2_s(
         'gc_efficientnetv2_rw_t', channel_multiplier=0.8, depth_multiplier=0.9,
-        rw=False, se_layer='gc', pretrained=pretrained, **kwargs)
+        rw=False, se_layer='gc', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2388,7 +2388,7 @@ def efficientnetv2_rw_s(pretrained=False, **kwargs) -> EfficientNet:
     NOTE: This is my initial (pre official code release) w/ some differences.
     See efficientnetv2_s and tf_efficientnetv2_s for versions that match the official w/ PyTorch vs TF padding
     """
-    model = _gen_efficientnetv2_s('efficientnetv2_rw_s', rw=True, pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_s('efficientnetv2_rw_s', rw=True, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2398,35 +2398,35 @@ def efficientnetv2_rw_m(pretrained=False, **kwargs) -> EfficientNet:
     """
     model = _gen_efficientnetv2_s(
         'efficientnetv2_rw_m', channel_multiplier=1.2, depth_multiplier=(1.2,) * 4 + (1.6,) * 2, rw=True,
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def efficientnetv2_s(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Small. """
-    model = _gen_efficientnetv2_s('efficientnetv2_s', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_s('efficientnetv2_s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def efficientnetv2_m(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Medium. """
-    model = _gen_efficientnetv2_m('efficientnetv2_m', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_m('efficientnetv2_m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def efficientnetv2_l(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Large. """
-    model = _gen_efficientnetv2_l('efficientnetv2_l', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_l('efficientnetv2_l', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def efficientnetv2_xl(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Xtra-Large. """
-    model = _gen_efficientnetv2_xl('efficientnetv2_xl', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_xl('efficientnetv2_xl', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2436,7 +2436,7 @@ def tf_efficientnet_b0(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2446,7 +2446,7 @@ def tf_efficientnet_b1(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2456,7 +2456,7 @@ def tf_efficientnet_b2(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2466,7 +2466,7 @@ def tf_efficientnet_b3(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2476,7 +2476,7 @@ def tf_efficientnet_b4(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2486,7 +2486,7 @@ def tf_efficientnet_b5(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2497,7 +2497,7 @@ def tf_efficientnet_b6(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b6', channel_multiplier=1.8, depth_multiplier=2.6, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b6', channel_multiplier=1.8, depth_multiplier=2.6, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2508,7 +2508,7 @@ def tf_efficientnet_b7(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b7', channel_multiplier=2.0, depth_multiplier=3.1, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b7', channel_multiplier=2.0, depth_multiplier=3.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2519,7 +2519,7 @@ def tf_efficientnet_b8(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_b8', channel_multiplier=2.2, depth_multiplier=3.6, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_b8', channel_multiplier=2.2, depth_multiplier=3.6, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2530,7 +2530,7 @@ def tf_efficientnet_l2(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet(
-        'tf_efficientnet_l2', channel_multiplier=4.3, depth_multiplier=5.3, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_l2', channel_multiplier=4.3, depth_multiplier=5.3, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2540,7 +2540,7 @@ def tf_efficientnet_es(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_edge(
-        'tf_efficientnet_es', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_es', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2550,7 +2550,7 @@ def tf_efficientnet_em(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_edge(
-        'tf_efficientnet_em', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_em', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2560,7 +2560,7 @@ def tf_efficientnet_el(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_edge(
-        'tf_efficientnet_el', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_el', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2571,7 +2571,7 @@ def tf_efficientnet_cc_b0_4e(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_condconv(
-        'tf_efficientnet_cc_b0_4e', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_cc_b0_4e', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2583,7 +2583,7 @@ def tf_efficientnet_cc_b0_8e(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_condconv(
         'tf_efficientnet_cc_b0_8e', channel_multiplier=1.0, depth_multiplier=1.0, experts_multiplier=2,
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2595,7 +2595,7 @@ def tf_efficientnet_cc_b1_8e(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_condconv(
         'tf_efficientnet_cc_b1_8e', channel_multiplier=1.0, depth_multiplier=1.1, experts_multiplier=2,
-        pretrained=pretrained, **kwargs)
+        pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2606,7 +2606,7 @@ def tf_efficientnet_lite0(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_lite(
-        'tf_efficientnet_lite0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_lite0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2617,7 +2617,7 @@ def tf_efficientnet_lite1(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_lite(
-        'tf_efficientnet_lite1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_lite1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2628,7 +2628,7 @@ def tf_efficientnet_lite2(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_lite(
-        'tf_efficientnet_lite2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_lite2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2639,7 +2639,7 @@ def tf_efficientnet_lite3(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_lite(
-        'tf_efficientnet_lite3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_lite3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2650,7 +2650,7 @@ def tf_efficientnet_lite4(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnet_lite(
-        'tf_efficientnet_lite4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
+        'tf_efficientnet_lite4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2659,7 +2659,7 @@ def tf_efficientnetv2_s(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Small. Tensorflow compatible variant  """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_efficientnetv2_s('tf_efficientnetv2_s', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_s('tf_efficientnetv2_s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2668,7 +2668,7 @@ def tf_efficientnetv2_m(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Medium. Tensorflow compatible variant  """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_efficientnetv2_m('tf_efficientnetv2_m', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_m('tf_efficientnetv2_m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2677,7 +2677,7 @@ def tf_efficientnetv2_l(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2 Large. Tensorflow compatible variant  """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_efficientnetv2_l('tf_efficientnetv2_l', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_l('tf_efficientnetv2_l', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2687,7 +2687,7 @@ def tf_efficientnetv2_xl(pretrained=False, **kwargs) -> EfficientNet:
     """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_efficientnetv2_xl('tf_efficientnetv2_xl', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_xl('tf_efficientnetv2_xl', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2696,7 +2696,7 @@ def tf_efficientnetv2_b0(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-V2-B0. Tensorflow compatible variant  """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_efficientnetv2_base('tf_efficientnetv2_b0', pretrained=pretrained, **kwargs)
+    model = _gen_efficientnetv2_base('tf_efficientnetv2_b0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2706,7 +2706,7 @@ def tf_efficientnetv2_b1(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnetv2_base(
-        'tf_efficientnetv2_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
+        'tf_efficientnetv2_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2716,7 +2716,7 @@ def tf_efficientnetv2_b2(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnetv2_base(
-        'tf_efficientnetv2_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
+        'tf_efficientnetv2_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2726,7 +2726,7 @@ def tf_efficientnetv2_b3(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_efficientnetv2_base(
-        'tf_efficientnetv2_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'tf_efficientnetv2_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2735,7 +2735,7 @@ def efficientnet_x_b3(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B3 """
     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
     model = _gen_efficientnet_x(
-        'efficientnet_x_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
+        'efficientnet_x_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2743,7 +2743,7 @@ def efficientnet_x_b3(pretrained=False, **kwargs) -> EfficientNet:
 def efficientnet_x_b5(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B5 """
     model = _gen_efficientnet_x(
-        'efficientnet_x_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)
+        'efficientnet_x_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2751,7 +2751,7 @@ def efficientnet_x_b5(pretrained=False, **kwargs) -> EfficientNet:
 def efficientnet_h_b5(pretrained=False, **kwargs) -> EfficientNet:
     """ EfficientNet-B5 """
     model = _gen_efficientnet_x(
-        'efficientnet_h_b5', channel_multiplier=1.92, depth_multiplier=2.2, version=2, pretrained=pretrained, **kwargs)
+        'efficientnet_h_b5', channel_multiplier=1.92, depth_multiplier=2.2, version=2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2760,7 +2760,7 @@ def mixnet_s(pretrained=False, **kwargs) -> EfficientNet:
     """Creates a MixNet Small model.
     """
     model = _gen_mixnet_s(
-        'mixnet_s', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'mixnet_s', channel_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2769,7 +2769,7 @@ def mixnet_m(pretrained=False, **kwargs) -> EfficientNet:
     """Creates a MixNet Medium model.
     """
     model = _gen_mixnet_m(
-        'mixnet_m', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'mixnet_m', channel_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2778,7 +2778,7 @@ def mixnet_l(pretrained=False, **kwargs) -> EfficientNet:
     """Creates a MixNet Large model.
     """
     model = _gen_mixnet_m(
-        'mixnet_l', channel_multiplier=1.3, pretrained=pretrained, **kwargs)
+        'mixnet_l', channel_multiplier=1.3, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2788,7 +2788,7 @@ def mixnet_xl(pretrained=False, **kwargs) -> EfficientNet:
     Not a paper spec, experimental def by RW w/ depth scaling.
     """
     model = _gen_mixnet_m(
-        'mixnet_xl', channel_multiplier=1.6, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
+        'mixnet_xl', channel_multiplier=1.6, depth_multiplier=1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2798,7 +2798,7 @@ def mixnet_xxl(pretrained=False, **kwargs) -> EfficientNet:
     Not a paper spec, experimental def by RW w/ depth scaling.
     """
     model = _gen_mixnet_m(
-        'mixnet_xxl', channel_multiplier=2.4, depth_multiplier=1.3, pretrained=pretrained, **kwargs)
+        'mixnet_xxl', channel_multiplier=2.4, depth_multiplier=1.3, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2809,7 +2809,7 @@ def tf_mixnet_s(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_mixnet_s(
-        'tf_mixnet_s', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'tf_mixnet_s', channel_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2820,7 +2820,7 @@ def tf_mixnet_m(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_mixnet_m(
-        'tf_mixnet_m', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
+        'tf_mixnet_m', channel_multiplier=1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2831,78 +2831,78 @@ def tf_mixnet_l(pretrained=False, **kwargs) -> EfficientNet:
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
     model = _gen_mixnet_m(
-        'tf_mixnet_l', channel_multiplier=1.3, pretrained=pretrained, **kwargs)
+        'tf_mixnet_l', channel_multiplier=1.3, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def tinynet_a(pretrained=False, **kwargs) -> EfficientNet:
-    model = _gen_tinynet('tinynet_a', 1.0, 1.2, pretrained=pretrained, **kwargs)
+    model = _gen_tinynet('tinynet_a', 1.0, 1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def tinynet_b(pretrained=False, **kwargs) -> EfficientNet:
-    model = _gen_tinynet('tinynet_b', 0.75, 1.1, pretrained=pretrained, **kwargs)
+    model = _gen_tinynet('tinynet_b', 0.75, 1.1, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def tinynet_c(pretrained=False, **kwargs) -> EfficientNet:
-    model = _gen_tinynet('tinynet_c', 0.54, 0.85, pretrained=pretrained, **kwargs)
+    model = _gen_tinynet('tinynet_c', 0.54, 0.85, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def tinynet_d(pretrained=False, **kwargs) -> EfficientNet:
-    model = _gen_tinynet('tinynet_d', 0.54, 0.695, pretrained=pretrained, **kwargs)
+    model = _gen_tinynet('tinynet_d', 0.54, 0.695, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def tinynet_e(pretrained=False, **kwargs) -> EfficientNet:
-    model = _gen_tinynet('tinynet_e', 0.51, 0.6, pretrained=pretrained, **kwargs)
+    model = _gen_tinynet('tinynet_e', 0.51, 0.6, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenet_edgetpu_100(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet-EdgeTPU-v1 100. """
-    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_100', pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_100', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenet_edgetpu_v2_xs(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet-EdgeTPU-v2 Extra Small. """
-    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_xs', pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_xs', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenet_edgetpu_v2_s(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet-EdgeTPU-v2 Small. """
-    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_s', pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenet_edgetpu_v2_m(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet-EdgeTPU-v2 Medium. """
-    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_m', pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenet_edgetpu_v2_l(pretrained=False, **kwargs) -> EfficientNet:
     """ MobileNet-EdgeTPU-v2 Large. """
-    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_l', pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_edgetpu('mobilenet_edgetpu_v2_l', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def test_efficientnet(pretrained=False, **kwargs) -> EfficientNet:
-    model = _gen_test_efficientnet('test_efficientnet', pretrained=pretrained, **kwargs)
+    model = _gen_test_efficientnet('test_efficientnet', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2914,7 +2914,7 @@ def test_efficientnet_gn(pretrained=False, **kwargs) -> EfficientNet:
         pretrained=pretrained,
         norm_layer=kwargs.pop('norm_layer', partial(GroupNormAct, group_size=8)),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2925,7 +2925,7 @@ def test_efficientnet_ln(pretrained=False, **kwargs) -> EfficientNet:
         pretrained=pretrained,
         norm_layer=kwargs.pop('norm_layer', LayerNormAct2d),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -2936,7 +2936,7 @@ def test_efficientnet_evos(pretrained=False, **kwargs) -> EfficientNet:
         pretrained=pretrained,
         norm_layer=kwargs.pop('norm_layer', partial(EvoNorm2dS0, group_size=8)),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

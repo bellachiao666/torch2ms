@@ -47,7 +47,7 @@ class ImageDataset(data.Dataset):
                 class_map=class_map,
                 additional_features=additional_features,
                 **kwargs,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.reader = reader
         self.load_bytes = load_bytes
         self.input_img_mode = input_img_mode
@@ -134,7 +134,7 @@ class IterableImageDataset(data.IterableDataset):
                 target_key=target_key,
                 max_steps=max_steps,
                 **kwargs,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.reader = reader
         self.transform = transform

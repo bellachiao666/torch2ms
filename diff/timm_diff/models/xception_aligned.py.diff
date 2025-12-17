@@ -34,18 +34,24 @@
              device=None,
              dtype=None,
      ):
-@@ -52,14 +57,14 @@             **dd,
-         )
-         self.bn_dw = norm_layer(in_chs, **dd)
+@@ -50,16 +55,16 @@             dilation=dilation,
+             depthwise=True,
+             **dd,
+-        )
+-        self.bn_dw = norm_layer(in_chs, **dd)
 -        self.act_dw = act_layer(inplace=True) if act_layer is not None else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn_dw = norm_layer(in_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.act_dw = act_layer(inplace=True) if act_layer is not None else msnn.Identity()
  
          # pointwise convolution
-         self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)
-         self.bn_pw = norm_layer(out_chs, **dd)
+-        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)
+-        self.bn_pw = norm_layer(out_chs, **dd)
 -        self.act_pw = act_layer(inplace=True) if act_layer is not None else nn.Identity()
 -
 -    def forward(self, x):
++        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn_pw = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.act_pw = act_layer(inplace=True) if act_layer is not None else msnn.Identity()
 +
 +    def construct(self, x):
@@ -74,14 +80,22 @@
          self.dilation = dilation
  
 -        self.norm = norm_act_layer(in_chs, inplace=True, **dd) if first_act else nn.Identity()
-+        self.norm = norm_act_layer(in_chs, inplace=True, **dd) if first_act else msnn.Identity()
++        self.norm = norm_act_layer(in_chs, inplace=True, **dd) if first_act else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          # depthwise convolution
          self.conv_dw = create_conv2d(
              in_chs,
-@@ -106,14 +111,14 @@         # pointwise convolution
-         self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)
+@@ -101,19 +106,19 @@             dilation=dilation,
+             depthwise=True,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
+         # pointwise convolution
+-        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)
+-
 -    def forward(self, x):
++        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.norm(x)
          x = self.conv_dw(x)
@@ -106,7 +120,13 @@
              device=None,
              dtype=None,
      ):
-@@ -149,7 +154,7 @@             self.shortcut = None
+@@ -144,12 +149,12 @@                 norm_layer=norm_layer,
+                 apply_act=False,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.shortcut = None
  
          separable_act_layer = None if start_with_relu else act_layer
 -        self.stack = nn.Sequential()
@@ -114,7 +134,13 @@
          for i in range(3):
              if start_with_relu:
                  self.stack.add_module(f'act{i + 1}', act_layer(inplace=i > 0))
-@@ -168,7 +173,7 @@ 
+@@ -163,12 +168,12 @@                 act_layer=separable_act_layer,
+                 norm_layer=norm_layer,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             in_chs = out_chs[i]
+ 
          self.drop_path = drop_path
  
 -    def forward(self, x):
@@ -142,19 +168,30 @@
              device=None,
              dtype=None,
      ):
-@@ -204,10 +209,10 @@         if not no_skip and (self.out_channels != self.in_channels or stride != 1):
-             self.shortcut = create_conv2d(in_chs, self.out_channels, 1, stride=stride, **dd)
+@@ -202,12 +207,12 @@         self.out_channels = out_chs[-1]
+         self.no_skip = no_skip
+         if not no_skip and (self.out_channels != self.in_channels or stride != 1):
+-            self.shortcut = create_conv2d(in_chs, self.out_channels, 1, stride=stride, **dd)
++            self.shortcut = create_conv2d(in_chs, self.out_channels, 1, stride=stride, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
 -            self.shortcut = nn.Identity()
-+            self.shortcut = msnn.Identity()
- 
-         self.norm = get_norm_act_layer(norm_layer, act_layer=act_layer)(in_chs, inplace=True, **dd)
+-
+-        self.norm = get_norm_act_layer(norm_layer, act_layer=act_layer)(in_chs, inplace=True, **dd)
 -        self.stack = nn.Sequential()
++            self.shortcut = msnn.Identity()
++
++        self.norm = get_norm_act_layer(norm_layer, act_layer=act_layer)(in_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.stack = msnn.SequentialCell()
          for i in range(3):
              self.stack.add_module(f'conv{i + 1}', PreSeparableConv2d(
                  in_chs,
-@@ -225,7 +230,7 @@ 
+@@ -220,12 +225,12 @@                 norm_layer=norm_layer,
+                 first_act=i > 0,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             in_chs = out_chs[i]
+ 
          self.drop_path = drop_path
  
 -    def forward(self, x):
@@ -180,15 +217,20 @@
              drop_rate: float = 0.,
              drop_path_rate: float = 0.,
              global_pool: str = 'avg',
-@@ -263,7 +268,7 @@         self.grad_checkpointing = False
+@@ -262,17 +267,17 @@         self.drop_rate = drop_rate
+         self.grad_checkpointing = False
  
-         layer_args = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)
+-        layer_args = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)
 -        self.stem = nn.Sequential(*[
++        layer_args = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.stem = msnn.SequentialCell(*[
              ConvNormAct(in_chans, 32, kernel_size=3, stride=2, **layer_args),
              create_conv2d(32, 64, kernel_size=3, stride=1, **dd) if preact else
              ConvNormAct(32, 64, kernel_size=3, stride=1, **layer_args)
-@@ -272,7 +277,7 @@         curr_dilation = 1
+-        ])
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         curr_dilation = 1
          curr_stride = 2
          self.feature_info = []
 -        self.blocks = nn.Sequential()
@@ -196,7 +238,14 @@
          module_fn = PreXceptionModule if preact else XceptionModule
          net_num_blocks = len(block_cfg)
          net_block_idx = 0
-@@ -295,7 +300,7 @@ 
+@@ -289,13 +294,13 @@                     b['stride'] = 1
+                 else:
+                     curr_stride = next_stride
+-            self.blocks.add_module(str(i), module_fn(**b, **layer_args))
++            self.blocks.add_module(str(i), module_fn(**b, **layer_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             self.num_features = self.blocks[-1].out_channels
+             net_block_idx += 1
+ 
          self.feature_info += [dict(
              num_chs=self.num_features, reduction=curr_stride, module='blocks.' + str(len(self.blocks) - 1))]
 -        self.act = act_layer(inplace=True) if preact else nn.Identity()
@@ -204,10 +253,29 @@
          self.head_hidden_size = self.num_features
          self.head = ClassifierHead(
              in_features=self.num_features,
-@@ -317,7 +322,7 @@         self.grad_checkpointing = enable
+@@ -303,21 +308,21 @@             pool_type=global_pool,
+             drop_rate=drop_rate,
+             **dd,
+-        )
+-
+-    @torch.jit.ignore
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         return dict(
+             stem=r'^stem',
+             blocks=r'^blocks\.(\d+)',
+         )
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
  
@@ -220,3 +288,48 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
+@@ -349,7 +354,7 @@         pretrained,
+         feature_cfg=dict(flatten_sequential=True, feature_cls='hook'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _cfg(url='', **kwargs):
+@@ -400,7 +405,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
+     ]
+     model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
+-    return _xception('xception41', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _xception('xception41', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -419,7 +424,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
+     ]
+     model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
+-    return _xception('xception65', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _xception('xception65', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -440,7 +445,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
+     ]
+     model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
+-    return _xception('xception71', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _xception('xception71', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -459,7 +464,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), no_skip=True, stride=1),
+     ]
+     model_args = dict(block_cfg=block_cfg, preact=True, norm_layer=nn.BatchNorm2d)
+-    return _xception('xception41p', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _xception('xception41p', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -479,4 +484,4 @@     ]
+     model_args = dict(
+         block_cfg=block_cfg, preact=True, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
+-    return _xception('xception65p', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _xception('xception65p', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -93,9 +93,9 @@ class Stem(msnn.Cell):
         norm_act_layer = partial(get_norm_act_layer(norm_layer, act_layer), eps=norm_eps)
         self.out_chs = out_chs
 
-        self.conv1 = create_conv2d(in_chs, out_chs, 3, stride=2, bias=bias, **dd)
-        self.norm1 = norm_act_layer(out_chs, **dd)
-        self.conv2 = create_conv2d(out_chs, out_chs, 3, stride=1, bias=bias, **dd)
+        self.conv1 = create_conv2d(in_chs, out_chs, 3, stride=2, bias=bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_act_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2 = create_conv2d(out_chs, out_chs, 3, stride=1, bias=bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         named_apply(_init_conv, self)
 
@@ -121,7 +121,7 @@ class Downsample2d(msnn.Cell):
         self.pool = nn.AvgPool2d(kernel_size = 3, stride = 2, padding = 1, count_include_pad = False)
 
         if dim != dim_out:
-            self.expand = nn.Conv2d(dim, dim_out, 1, bias=bias, **dd) # 1x1 conv
+            self.expand = nn.Conv2d(dim, dim_out, 1, bias=bias, **dd)  # 1x1 conv; 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.expand = msnn.Identity()
 
@@ -148,8 +148,8 @@ class StridedConv(msnn.Cell):
         super().__init__()
         norm_layer = partial(get_norm_layer('layernorm2d'), eps=1e-6)
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
-        self.norm = norm_layer(in_chans, **dd) # affine over C
+        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=kernel_size, stride=stride, padding=padding, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(in_chans, **dd)  # affine over C; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.norm(x)
@@ -181,20 +181,20 @@ class MbConvLNBlock(msnn.Cell):
         prenorm_act_layer = partial(get_norm_act_layer(norm_layer, act_layer), eps=norm_eps)
 
         if stride == 2:
-            self.shortcut = Downsample2d(in_chs, out_chs, pool_type='avg', bias=True, **dd)
+            self.shortcut = Downsample2d(in_chs, out_chs, pool_type='avg', bias=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif in_chs != out_chs:
-            self.shortcut = nn.Conv2d(in_chs, out_chs, 1, bias=True, **dd)
+            self.shortcut = nn.Conv2d(in_chs, out_chs, 1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.shortcut = msnn.Identity()
 
-        self.pre_norm = prenorm_act_layer(in_chs, apply_act=False, **dd)
+        self.pre_norm = prenorm_act_layer(in_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.down = msnn.Identity()
-        self.conv1_1x1 = create_conv2d(in_chs, mid_chs, 1, stride=1, bias=True, **dd)
+        self.conv1_1x1 = create_conv2d(in_chs, mid_chs, 1, stride=1, bias=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = create_act_layer(act_layer, inplace=True)
         self.conv2_kxk = create_conv2d(
-            mid_chs, mid_chs, kernel_size, stride=stride, dilation=1, groups=mid_chs, bias=True, **dd)
+            mid_chs, mid_chs, kernel_size, stride=stride, dilation=1, groups=mid_chs, bias=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act2 = create_act_layer(act_layer, inplace=True)
-        self.conv3_1x1 = create_conv2d(mid_chs, out_chs, 1, bias=True, **dd)
+        self.conv3_1x1 = create_conv2d(mid_chs, out_chs, 1, bias=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
 
@@ -241,7 +241,7 @@ class MbConvStages(msnn.Cell):
             in_chs=in_chans,
             out_chs=cfg.stem_width,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         stages = []
         self.num_stages = len(cfg.embed_dim)
@@ -255,16 +255,16 @@ class MbConvStages(msnn.Cell):
                     **dd,
                 )
                 for d in range(cfg.depths[s])
-            ]
-            stages += [msnn.SequentialCell(*blocks)]
-        self.stages = msnn.SequentialCell(*stages)
+            ]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            stages += [msnn.SequentialCell(*blocks)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.pool = StridedConv(
             stride=2,
             in_chans=cfg.embed_dim[1],
             embed_dim=cfg.embed_dim[2],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.stem(x)
@@ -292,11 +292,11 @@ class GeGluMlp(msnn.Cell):
         super().__init__()
         norm_layer = partial(get_norm_layer(norm_layer or 'layernorm'), eps=1e-6)
 
-        self.norm = norm_layer(in_features, **dd)
-        self.w0 = nn.Linear(in_features, hidden_features, bias=bias, **dd)
+        self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.w0 = nn.Linear(in_features, hidden_features, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = create_act_layer(act_layer)
-        self.w1 = nn.Linear(in_features, hidden_features, bias=bias, **dd)
-        self.w2 = nn.Linear(hidden_features, in_features, bias=bias, **dd)
+        self.w1 = nn.Linear(in_features, hidden_features, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.w2 = nn.Linear(hidden_features, in_features, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.norm(x)
@@ -309,7 +309,7 @@ def _create_vitamin(variant, pretrained=False, embed_cfg=None, **kwargs):
     out_indices = kwargs.pop('out_indices', 3)
     assert embed_cfg is not None
     dd = {'device': kwargs.get('device', None), 'dtype': kwargs.get('dtype', None)}
-    backbone = MbConvStages(cfg=embed_cfg, in_chans=kwargs.get('in_chans', 3), **dd)
+    backbone = MbConvStages(cfg=embed_cfg, in_chans=kwargs.get('in_chans', 3), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     kwargs['embed_layer'] = partial(HybridEmbed, backbone=backbone, proj=False)
     kwargs.setdefault('patch_size', 1)  # default patch size for hybrid models if not set
 
@@ -320,7 +320,7 @@ def _create_vitamin(variant, pretrained=False, embed_cfg=None, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -394,7 +394,7 @@ def vitamin_small_224(pretrained=False, **kwargs) -> VisionTransformer:
         embed_dim=384, depth=14, num_heads=6, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg
     )
-    model = _create_vitamin('vitamin_small_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_small_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -413,7 +413,7 @@ def vitamin_base_224(pretrained=False, **kwargs) -> VisionTransformer:
     model_args = dict(
         embed_dim=768, depth=14, num_heads=12, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg)
-    model = _create_vitamin('vitamin_base_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_base_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -433,7 +433,7 @@ def vitamin_large_224(pretrained=False, **kwargs) -> VisionTransformer:
         embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg,
     )
-    model = _create_vitamin('vitamin_large_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -452,7 +452,7 @@ def vitamin_large_256(pretrained=False, **kwargs) -> VisionTransformer:
     model_args = dict(
         img_size=256, embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg)
-    model = _create_vitamin('vitamin_large_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -472,7 +472,7 @@ def vitamin_large_336(pretrained=False, **kwargs) -> VisionTransformer:
         img_size=336, embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg
     )
-    model = _create_vitamin('vitamin_large_336', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -491,7 +491,7 @@ def vitamin_large_384(pretrained=False, **kwargs) -> VisionTransformer:
     model_args = dict(
         img_size=384, embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg)
-    model = _create_vitamin('vitamin_large_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -511,7 +511,7 @@ def vitamin_large2_224(pretrained=False, **kwargs) -> VisionTransformer:
         embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg,
     )
-    model = _create_vitamin('vitamin_large2_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large2_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -530,7 +530,7 @@ def vitamin_large2_256(pretrained=False, **kwargs) -> VisionTransformer:
     model_args = dict(
         img_size=256, embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg)
-    model = _create_vitamin('vitamin_large2_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large2_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -550,7 +550,7 @@ def vitamin_large2_336(pretrained=False, **kwargs) -> VisionTransformer:
         img_size=336, embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg
     )
-    model = _create_vitamin('vitamin_large2_336', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large2_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -569,7 +569,7 @@ def vitamin_large2_384(pretrained=False, **kwargs) -> VisionTransformer:
     model_args = dict(
         img_size=384, embed_dim=1024, depth=31, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', embed_cfg=embed_cfg)
-    model = _create_vitamin('vitamin_large2_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_large2_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -589,7 +589,7 @@ def vitamin_xlarge_256(pretrained=False, **kwargs) -> VisionTransformer:
         img_size=256, embed_dim=1152, depth=32, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', pos_embed='none', embed_cfg=embed_cfg)
     model = _create_vitamin(
-        'vitamin_xlarge_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vitamin_xlarge_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -608,7 +608,7 @@ def vitamin_xlarge_336(pretrained=False, **kwargs) -> VisionTransformer:
     model_args = dict(
         img_size=336, embed_dim=1152, depth=32, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', pos_embed='none', embed_cfg=embed_cfg)
-    model = _create_vitamin('vitamin_xlarge_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_xlarge_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -627,5 +627,5 @@ def vitamin_xlarge_384(pretrained=False, **kwargs) -> VisionTransformer:
     model_args = dict(
         img_size=384, embed_dim=1152, depth=32, num_heads=16, mlp_layer=GeGluMlp, mlp_ratio=2.,
         class_token=False, global_pool='avg', pos_embed='none', embed_cfg=embed_cfg)
-    model = _create_vitamin('vitamin_xlarge_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_vitamin('vitamin_xlarge_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

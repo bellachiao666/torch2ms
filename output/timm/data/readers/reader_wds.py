@@ -404,7 +404,7 @@ class ReaderWds(Reader):
             ),
             wds.rename(image=self.input_key, target=self.target_key)
         ])
-        self.ds = wds.DataPipeline(*pipeline)
+        self.ds = wds.DataPipeline(*pipeline)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _split_by_node_and_worker(self, src):
         if self.global_num_workers > 1:

@@ -99,11 +99,11 @@ class BasicBlock(msnn.Cell):
             dilation=first_dilation,
             bias=False,
             **dd,
-        )
-        self.bn1 = norm_layer(first_planes, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = norm_layer(first_planes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_block = drop_block() if drop_block is not None else msnn.Identity()
         self.act1 = act_layer(inplace=True)
-        self.aa = create_aa(aa_layer, channels=first_planes, stride=stride, enable=use_aa, **dd)
+        self.aa = create_aa(aa_layer, channels=first_planes, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.conv2 = nn.Conv2d(
             first_planes,
@@ -113,10 +113,10 @@ class BasicBlock(msnn.Cell):
             dilation=dilation,
             bias=False,
             **dd,
-        )
-        self.bn2 = norm_layer(outplanes, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = norm_layer(outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.se = create_attn(attn_layer, outplanes, **dd)
+        self.se = create_attn(attn_layer, outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.act2 = act_layer(inplace=True)
         self.downsample = downsample
@@ -209,8 +209,8 @@ class Bottleneck(msnn.Cell):
         first_dilation = first_dilation or dilation
         use_aa = aa_layer is not None and (stride == 2 or first_dilation != dilation)
 
-        self.conv1 = nn.Conv2d(inplanes, first_planes, kernel_size=1, bias=False, **dd)
-        self.bn1 = norm_layer(first_planes, **dd)
+        self.conv1 = nn.Conv2d(inplanes, first_planes, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = norm_layer(first_planes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer(inplace=True)
 
         self.conv2 = nn.Conv2d(
@@ -223,16 +223,16 @@ class Bottleneck(msnn.Cell):
             groups=cardinality,
             bias=False,
             **dd,
-        )
-        self.bn2 = norm_layer(width, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn2 = norm_layer(width, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_block = drop_block() if drop_block is not None else msnn.Identity()
         self.act2 = act_layer(inplace=True)
-        self.aa = create_aa(aa_layer, channels=width, stride=stride, enable=use_aa, **dd)
+        self.aa = create_aa(aa_layer, channels=width, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv3 = nn.Conv2d(width, outplanes, kernel_size=1, bias=False, **dd)
-        self.bn3 = norm_layer(outplanes, **dd)
+        self.conv3 = nn.Conv2d(width, outplanes, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = norm_layer(outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.se = create_attn(attn_layer, outplanes, **dd)
+        self.se = create_attn(attn_layer, outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.act3 = act_layer(inplace=True)
         self.downsample = downsample
@@ -304,7 +304,7 @@ def downsample_conv(
             **dd
         ),
         norm_layer(out_channels, **dd)
-    ])
+    ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def downsample_avg(
@@ -331,7 +331,7 @@ def downsample_avg(
         pool,
         nn.Conv2d(in_channels, out_channels, 1, stride=1, padding=0, bias=False, **dd),
         norm_layer(out_channels, **dd)
-    ])
+    ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def drop_blocks(drop_prob: float = 0.) -> List[Optional[partial]]:
@@ -409,10 +409,10 @@ def make_blocks(
                 first_dilation=prev_dilation,
                 norm_layer=kwargs.get('norm_layer'),
                 **dd,
-            )
-            downsample = downsample_avg(**down_kwargs) if avg_down else downsample_conv(**down_kwargs)
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            downsample = downsample_avg(**down_kwargs) if avg_down else downsample_conv(**down_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        block_kwargs = dict(reduce_first=reduce_first, dilation=dilation, drop_block=db, **kwargs)
+        block_kwargs = dict(reduce_first=reduce_first, dilation=dilation, drop_block=db, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         blocks = []
         for block_idx in range(num_blocks):
             downsample = downsample if block_idx == 0 else None
@@ -427,12 +427,12 @@ def make_blocks(
                 drop_path=DropPath(block_dpr) if block_dpr > 0. else None,
                 **block_kwargs,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_dilation = dilation
             inplanes = planes * block_fn.expansion
             net_block_idx += 1
 
-        stages.append((stage_name, msnn.SequentialCell(*blocks)))
+        stages.append((stage_name, msnn.SequentialCell(*blocks)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         feature_info.append(dict(num_chs=inplanes, reduction=net_stride, module=stage_name))
 
     return stages, feature_info
@@ -553,10 +553,10 @@ class ResNet(msnn.Cell):
                 nn.Conv2d(stem_chs[0], stem_chs[1], 3, stride=1, padding=1, bias=False, **dd),
                 norm_layer(stem_chs[1], **dd),
                 act_layer(inplace=True),
-                nn.Conv2d(stem_chs[1], inplanes, 3, stride=1, padding=1, bias=False, **dd)])
+                nn.Conv2d(stem_chs[1], inplanes, 3, stride=1, padding=1, bias=False, **dd)])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.conv1 = nn.Conv2d(in_chans, inplanes, kernel_size=7, stride=2, padding=3, bias=False, **dd)
-        self.bn1 = norm_layer(inplanes, **dd)
+            self.conv1 = nn.Conv2d(in_chans, inplanes, kernel_size=7, stride=2, padding=3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = norm_layer(inplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer(inplace=True)
         self.feature_info = [dict(num_chs=inplanes, reduction=2, module='act1')]
 
@@ -567,7 +567,7 @@ class ResNet(msnn.Cell):
                 create_aa(aa_layer, channels=inplanes, stride=2, **dd) if aa_layer is not None else None,
                 norm_layer(inplanes, **dd),
                 act_layer(inplace=True),
-            ]))
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             if aa_layer is not None:
                 if issubclass(aa_layer, nn.AvgPool2d):
@@ -575,7 +575,7 @@ class ResNet(msnn.Cell):
                 else:
                     self.maxpool = msnn.SequentialCell(*[
                         nn.MaxPool2d(kernel_size = 3, stride = 1, padding = 1),
-                        aa_layer(channels=inplanes, stride=2, **dd)])
+                        aa_layer(channels=inplanes, stride=2, **dd)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.maxpool = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
 
@@ -599,18 +599,18 @@ class ResNet(msnn.Cell):
             drop_path_rate=drop_path_rate,
             **block_args,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         for stage in stage_modules:
-            self.add_module(*stage)  # layer1, layer2, etc
+            self.add_module(*stage)  # layer1, layer2, etc; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info.extend(stage_feature_info)
 
         # Head (Pooling and Classifier)
         self.num_features = self.head_hidden_size = channels[-1] * block_fns[-1].expansion
-        self.global_pool, self.fc = create_classifier(self.num_features, self.num_classes, pool_type=global_pool, **dd)
+        self.global_pool, self.fc = create_classifier(self.num_features, self.num_classes, pool_type=global_pool, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.init_weights(zero_init_last=zero_init_last)
 
-    @torch.jit.ignore
+    @ms.jit
     def init_weights(self, zero_init_last: bool = True) -> None:
         """Initialize model weights.
 
@@ -625,7 +625,7 @@ class ResNet(msnn.Cell):
                 if hasattr(m, 'zero_init_last'):
                     m.zero_init_last()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, str]:
         """Create regex patterns for parameter grouping.
 
@@ -638,7 +638,7 @@ class ResNet(msnn.Cell):
         matcher = dict(stem=r'^conv1|bn1|maxpool', blocks=r'^layer(\d+)' if coarse else r'^layer(\d+)\.(\d+)')
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -647,7 +647,7 @@ class ResNet(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self, name_only: bool = False) -> Union[str, msnn.Cell]:
         """Get the classifier module.
 
@@ -792,7 +792,7 @@ def _create_resnet(variant: str, pretrained: bool = False, **kwargs) -> ResNet:
     Returns:
         ResNet model instance.
     """
-    return build_model_with_cfg(ResNet, variant, pretrained, **kwargs)
+    return build_model_with_cfg(ResNet, variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -810,7 +810,7 @@ def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
 
 def _tcfg(url: str = '', **kwargs) -> Dict[str, Any]:
     """Create a configuration with bicubic interpolation."""
-    return _cfg(url=url, **dict({'interpolation': 'bicubic'}, **kwargs))
+    return _cfg(url=url, **dict({'interpolation': 'bicubic'}, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _ttcfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -818,7 +818,7 @@ def _ttcfg(url: str = '', **kwargs) -> Dict[str, Any]:
     return _cfg(url=url, **dict({
         'interpolation': 'bicubic', 'test_input_size': (3, 288, 288), 'test_crop_pct': 0.95,
         'origin_url': 'https://github.com/huggingface/pytorch-image-models',
-    }, **kwargs))
+    }, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _rcfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -826,7 +826,7 @@ def _rcfg(url: str = '', **kwargs) -> Dict[str, Any]:
     return _cfg(url=url, **dict({
         'interpolation': 'bicubic', 'crop_pct': 0.95, 'test_input_size': (3, 288, 288), 'test_crop_pct': 1.0,
         'origin_url': 'https://github.com/huggingface/pytorch-image-models', 'paper_ids': 'arXiv:2110.00476'
-    }, **kwargs))
+    }, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _r3cfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -835,7 +835,7 @@ def _r3cfg(url: str = '', **kwargs) -> Dict[str, Any]:
         'interpolation': 'bicubic', 'input_size': (3, 160, 160), 'pool_size': (5, 5),
         'crop_pct': 0.95, 'test_input_size': (3, 224, 224), 'test_crop_pct': 0.95,
         'origin_url': 'https://github.com/huggingface/pytorch-image-models', 'paper_ids': 'arXiv:2110.00476',
-    }, **kwargs))
+    }, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _gcfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -843,7 +843,7 @@ def _gcfg(url: str = '', **kwargs) -> Dict[str, Any]:
     return _cfg(url=url, **dict({
         'interpolation': 'bicubic',
         'origin_url': 'https://cv.gluon.ai/model_zoo/classification.html',
-    }, **kwargs))
+    }, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 default_cfgs = generate_default_cfgs({
@@ -1481,7 +1481,7 @@ def resnet10t(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-10-T model.
     """
     model_args = dict(block=BasicBlock, layers=(1, 1, 1, 1), stem_width=32, stem_type='deep_tiered', avg_down=True)
-    return _create_resnet('resnet10t', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet10t', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1489,7 +1489,7 @@ def resnet14t(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-14-T model.
     """
     model_args = dict(block=Bottleneck, layers=(1, 1, 1, 1), stem_width=32, stem_type='deep_tiered', avg_down=True)
-    return _create_resnet('resnet14t', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet14t', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1497,7 +1497,7 @@ def resnet18(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-18 model.
     """
     model_args = dict(block=BasicBlock, layers=(2, 2, 2, 2))
-    return _create_resnet('resnet18', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet18', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1505,7 +1505,7 @@ def resnet18d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-18-D model.
     """
     model_args = dict(block=BasicBlock, layers=(2, 2, 2, 2), stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnet18d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet18d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1513,7 +1513,7 @@ def resnet34(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-34 model.
     """
     model_args = dict(block=BasicBlock, layers=(3, 4, 6, 3))
-    return _create_resnet('resnet34', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet34', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1521,7 +1521,7 @@ def resnet34d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-34-D model.
     """
     model_args = dict(block=BasicBlock, layers=(3, 4, 6, 3), stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnet34d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet34d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1529,7 +1529,7 @@ def resnet26(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-26 model.
     """
     model_args = dict(block=Bottleneck, layers=(2, 2, 2, 2))
-    return _create_resnet('resnet26', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet26', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1537,7 +1537,7 @@ def resnet26t(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-26-T model.
     """
     model_args = dict(block=Bottleneck, layers=(2, 2, 2, 2), stem_width=32, stem_type='deep_tiered', avg_down=True)
-    return _create_resnet('resnet26t', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet26t', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1545,7 +1545,7 @@ def resnet26d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-26-D model.
     """
     model_args = dict(block=Bottleneck, layers=(2, 2, 2, 2), stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnet26d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet26d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1553,7 +1553,7 @@ def resnet50(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50 model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3))
-    return _create_resnet('resnet50', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1561,7 +1561,7 @@ def resnet50c(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50-C model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), stem_width=32, stem_type='deep')
-    return _create_resnet('resnet50c', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet50c', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1569,7 +1569,7 @@ def resnet50d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50-D model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnet50d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1577,7 +1577,7 @@ def resnet50s(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50-S model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), stem_width=64, stem_type='deep')
-    return _create_resnet('resnet50s', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet50s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1585,7 +1585,7 @@ def resnet50t(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50-T model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), stem_width=32, stem_type='deep_tiered', avg_down=True)
-    return _create_resnet('resnet50t', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet50t', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1593,7 +1593,7 @@ def resnet101(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-101 model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3))
-    return _create_resnet('resnet101', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet101', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1601,7 +1601,7 @@ def resnet101c(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-101-C model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), stem_width=32, stem_type='deep')
-    return _create_resnet('resnet101c', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet101c', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1609,7 +1609,7 @@ def resnet101d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-101-D model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnet101d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet101d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1617,7 +1617,7 @@ def resnet101s(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-101-S model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), stem_width=64, stem_type='deep')
-    return _create_resnet('resnet101s', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet101s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1625,7 +1625,7 @@ def resnet152(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-152 model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 8, 36, 3))
-    return _create_resnet('resnet152', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet152', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1633,7 +1633,7 @@ def resnet152c(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-152-C model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 8, 36, 3), stem_width=32, stem_type='deep')
-    return _create_resnet('resnet152c', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet152c', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1641,7 +1641,7 @@ def resnet152d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-152-D model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 8, 36, 3), stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnet152d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet152d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1649,7 +1649,7 @@ def resnet152s(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-152-S model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 8, 36, 3), stem_width=64, stem_type='deep')
-    return _create_resnet('resnet152s', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet152s', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1657,7 +1657,7 @@ def resnet200(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-200 model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 24, 36, 3))
-    return _create_resnet('resnet200', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet200', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1665,7 +1665,7 @@ def resnet200d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-200-D model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 24, 36, 3), stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnet200d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet200d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1677,7 +1677,7 @@ def wide_resnet50_2(pretrained: bool = False, **kwargs) -> ResNet:
     channels, and in Wide ResNet-50-2 has 2048-1024-2048.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), base_width=128)
-    return _create_resnet('wide_resnet50_2', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('wide_resnet50_2', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1688,7 +1688,7 @@ def wide_resnet101_2(pretrained: bool = False, **kwargs) -> ResNet:
     convolutions is the same.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), base_width=128)
-    return _create_resnet('wide_resnet101_2', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('wide_resnet101_2', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1696,7 +1696,7 @@ def resnet50_gn(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50 model w/ GroupNorm
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), norm_layer='groupnorm')
-    return _create_resnet('resnet50_gn', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnet50_gn', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1704,7 +1704,7 @@ def resnext50_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNeXt50-32x4d model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), cardinality=32, base_width=4)
-    return _create_resnet('resnext50_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnext50_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1714,7 +1714,7 @@ def resnext50d_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3),  cardinality=32, base_width=4,
         stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnext50d_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnext50d_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1722,7 +1722,7 @@ def resnext101_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNeXt-101 32x4d model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=4)
-    return _create_resnet('resnext101_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnext101_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1730,7 +1730,7 @@ def resnext101_32x8d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNeXt-101 32x8d model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=8)
-    return _create_resnet('resnext101_32x8d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnext101_32x8d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1738,7 +1738,7 @@ def resnext101_32x16d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNeXt-101 32x16d model
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=16)
-    return _create_resnet('resnext101_32x16d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnext101_32x16d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1746,7 +1746,7 @@ def resnext101_32x32d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNeXt-101 32x32d model
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=32)
-    return _create_resnet('resnext101_32x32d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnext101_32x32d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1754,7 +1754,7 @@ def resnext101_64x4d(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNeXt101-64x4d model.
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), cardinality=64, base_width=4)
-    return _create_resnet('resnext101_64x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnext101_64x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1766,7 +1766,7 @@ def ecaresnet26t(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(2, 2, 2, 2), stem_width=32,
         stem_type='deep_tiered', avg_down=True, block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet26t', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet26t', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1776,7 +1776,7 @@ def ecaresnet50d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet50d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1787,7 +1787,7 @@ def ecaresnet50d_pruned(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet50d_pruned', pretrained, pruned=True, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet50d_pruned', pretrained, pruned=True, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1798,7 +1798,7 @@ def ecaresnet50t(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), stem_width=32,
         stem_type='deep_tiered', avg_down=True, block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet50t', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet50t', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1808,7 +1808,7 @@ def ecaresnetlight(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(1, 1, 11, 3), stem_width=32, avg_down=True,
         block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnetlight', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnetlight', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1818,7 +1818,7 @@ def ecaresnet101d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet101d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet101d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1829,7 +1829,7 @@ def ecaresnet101d_pruned(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet101d_pruned', pretrained, pruned=True, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet101d_pruned', pretrained, pruned=True, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1839,7 +1839,7 @@ def ecaresnet200d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 24, 36, 3), stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet200d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet200d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1849,7 +1849,7 @@ def ecaresnet269d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 30, 48, 8), stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnet269d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnet269d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1861,7 +1861,7 @@ def ecaresnext26t_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(2, 2, 2, 2), cardinality=32, base_width=4, stem_width=32,
         stem_type='deep_tiered', avg_down=True, block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnext26t_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnext26t_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1873,25 +1873,25 @@ def ecaresnext50t_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(2, 2, 2, 2), cardinality=32, base_width=4, stem_width=32,
         stem_type='deep_tiered', avg_down=True, block_args=dict(attn_layer='eca'))
-    return _create_resnet('ecaresnext50t_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('ecaresnext50t_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def seresnet18(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(block=BasicBlock, layers=(2, 2, 2, 2), block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet18', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet18', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def seresnet34(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(block=BasicBlock, layers=(3, 4, 6, 3), block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet34', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet34', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def seresnet50(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet50', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1899,19 +1899,19 @@ def seresnet50t(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3),  stem_width=32, stem_type='deep_tiered',
         avg_down=True, block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet50t', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet50t', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def seresnet101(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(block=Bottleneck, layers=(3, 4, 23, 3), block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet101', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet101', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def seresnet152(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(block=Bottleneck, layers=(3, 8, 36, 3), block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet152', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet152', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1919,7 +1919,7 @@ def seresnet152d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 8, 36, 3), stem_width=32, stem_type='deep',
         avg_down=True, block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet152d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet152d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1929,7 +1929,7 @@ def seresnet200d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 24, 36, 3), stem_width=32, stem_type='deep',
         avg_down=True, block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet200d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet200d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1939,7 +1939,7 @@ def seresnet269d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 30, 48, 8), stem_width=32, stem_type='deep',
         avg_down=True, block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnet269d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnet269d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1951,7 +1951,7 @@ def seresnext26d_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(2, 2, 2, 2), cardinality=32, base_width=4, stem_width=32,
         stem_type='deep', avg_down=True, block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnext26d_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnext26d_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1963,7 +1963,7 @@ def seresnext26t_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(2, 2, 2, 2), cardinality=32, base_width=4, stem_width=32,
         stem_type='deep_tiered', avg_down=True, block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnext26t_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnext26t_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1971,7 +1971,7 @@ def seresnext50_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), cardinality=32, base_width=4,
         block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnext50_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnext50_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1979,7 +1979,7 @@ def seresnext101_32x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=4,
         block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnext101_32x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnext101_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1987,7 +1987,7 @@ def seresnext101_32x8d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=8,
         block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnext101_32x8d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnext101_32x8d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1996,7 +1996,7 @@ def seresnext101d_32x8d(pretrained: bool = False, **kwargs) -> ResNet:
         block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=8,
         stem_width=32, stem_type='deep', avg_down=True,
         block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnext101d_32x8d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnext101d_32x8d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2004,7 +2004,7 @@ def seresnext101_64x4d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), cardinality=64, base_width=4,
         block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnext101_64x4d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnext101_64x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2012,7 +2012,7 @@ def senet154(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 8, 36, 3), cardinality=64, base_width=4, stem_type='deep',
         down_kernel_size=3, block_reduce_first=2, block_args=dict(attn_layer='se'))
-    return _create_resnet('senet154', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('senet154', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2020,7 +2020,7 @@ def resnetblur18(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-18 model with blur anti-aliasing
     """
     model_args = dict(block=BasicBlock, layers=(2, 2, 2, 2), aa_layer=BlurPool2d)
-    return _create_resnet('resnetblur18', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetblur18', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2028,7 +2028,7 @@ def resnetblur50(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50 model with blur anti-aliasing
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), aa_layer=BlurPool2d)
-    return _create_resnet('resnetblur50', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetblur50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2038,7 +2038,7 @@ def resnetblur50d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), aa_layer=BlurPool2d,
         stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnetblur50d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetblur50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2048,7 +2048,7 @@ def resnetblur101d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), aa_layer=BlurPool2d,
         stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnetblur101d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetblur101d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2057,7 +2057,7 @@ def resnetaa34d(pretrained: bool = False, **kwargs) -> ResNet:
     """
     model_args = dict(
         block=BasicBlock, layers=(3, 4, 6, 3),  aa_layer=nn.AvgPool2d, stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnetaa34d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetaa34d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2065,7 +2065,7 @@ def resnetaa50(pretrained: bool = False, **kwargs) -> ResNet:
     """Constructs a ResNet-50 model with avgpool anti-aliasing
     """
     model_args = dict(block=Bottleneck, layers=(3, 4, 6, 3), aa_layer=nn.AvgPool2d)
-    return _create_resnet('resnetaa50', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetaa50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2075,7 +2075,7 @@ def resnetaa50d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), aa_layer=nn.AvgPool2d,
         stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnetaa50d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetaa50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2085,7 +2085,7 @@ def resnetaa101d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), aa_layer=nn.AvgPool2d,
         stem_width=32, stem_type='deep', avg_down=True)
-    return _create_resnet('resnetaa101d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetaa101d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2095,7 +2095,7 @@ def seresnetaa50d(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), aa_layer=nn.AvgPool2d,
         stem_width=32, stem_type='deep', avg_down=True, block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnetaa50d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnetaa50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2106,7 +2106,7 @@ def seresnextaa101d_32x8d(pretrained: bool = False, **kwargs) -> ResNet:
         block=Bottleneck, layers=(3, 4, 23, 3), cardinality=32, base_width=8,
         stem_width=32, stem_type='deep', avg_down=True, aa_layer=nn.AvgPool2d,
         block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnextaa101d_32x8d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnextaa101d_32x8d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2117,7 +2117,7 @@ def seresnextaa201d_32x8d(pretrained: bool = False, **kwargs):
         block=Bottleneck, layers=(3, 24, 36, 4), cardinality=32, base_width=8,
         stem_width=64, stem_type='deep', avg_down=True, aa_layer=nn.AvgPool2d,
         block_args=dict(attn_layer='se'))
-    return _create_resnet('seresnextaa201d_32x8d', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('seresnextaa201d_32x8d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2130,7 +2130,7 @@ def resnetrs50(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 6, 3), stem_width=32, stem_type='deep', replace_stem_pool=True,
         avg_down=True,  block_args=dict(attn_layer=attn_layer))
-    return _create_resnet('resnetrs50', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetrs50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2143,7 +2143,7 @@ def resnetrs101(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 4, 23, 3), stem_width=32, stem_type='deep', replace_stem_pool=True,
         avg_down=True,  block_args=dict(attn_layer=attn_layer))
-    return _create_resnet('resnetrs101', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetrs101', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2156,7 +2156,7 @@ def resnetrs152(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 8, 36, 3), stem_width=32, stem_type='deep', replace_stem_pool=True,
         avg_down=True,  block_args=dict(attn_layer=attn_layer))
-    return _create_resnet('resnetrs152', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetrs152', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2169,7 +2169,7 @@ def resnetrs200(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(3, 24, 36, 3), stem_width=32, stem_type='deep', replace_stem_pool=True,
         avg_down=True,  block_args=dict(attn_layer=attn_layer))
-    return _create_resnet('resnetrs200', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetrs200', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2182,7 +2182,7 @@ def resnetrs270(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(4, 29, 53, 4), stem_width=32, stem_type='deep', replace_stem_pool=True,
         avg_down=True,  block_args=dict(attn_layer=attn_layer))
-    return _create_resnet('resnetrs270', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetrs270', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 
@@ -2196,7 +2196,7 @@ def resnetrs350(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(4, 36, 72, 4), stem_width=32, stem_type='deep', replace_stem_pool=True,
         avg_down=True,  block_args=dict(attn_layer=attn_layer))
-    return _create_resnet('resnetrs350', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetrs350', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2209,7 +2209,7 @@ def resnetrs420(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=Bottleneck, layers=(4, 44, 87, 4), stem_width=32, stem_type='deep', replace_stem_pool=True,
         avg_down=True,  block_args=dict(attn_layer=attn_layer))
-    return _create_resnet('resnetrs420', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('resnetrs420', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2219,7 +2219,7 @@ def test_resnet(pretrained: bool = False, **kwargs) -> ResNet:
     model_args = dict(
         block=[BasicBlock, BasicBlock, Bottleneck, BasicBlock], layers=(1, 1, 1, 1),
         stem_width=16, stem_type='deep', avg_down=True, channels=(32, 48, 48, 96))
-    return _create_resnet('test_resnet', pretrained, **dict(model_args, **kwargs))
+    return _create_resnet('test_resnet', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 register_model_deprecations(__name__, {

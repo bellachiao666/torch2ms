@@ -19751,6 +19751,21 @@
       "pytorch": "torch.complex128",
       "mindspore": "mindspore.complex128",
       "params": []
+    },
+    "torch.jit.ignore": {
+      "pytorch": "torch.jit.ignore",
+      "mindspore": "mindspore.jit",
+      "params": []
+    },
+    "torch.jit.script": {
+      "pytorch": "torch.jit.script",
+      "mindspore": "mindspore.jit",
+      "params": []
+    },
+    "torch.jit.export": {
+      "pytorch": "torch.jit.export",
+      "mindspore": "mindspore.jit",
+      "params": []
     }
   }
 }

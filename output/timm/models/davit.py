@@ -56,7 +56,7 @@ class ConvPosEnc(msnn.Cell):
             padding=k // 2,
             groups=dim,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = nn.GELU() if act else msnn.Identity()
 
     def construct(self, x: ms.Tensor):
@@ -93,8 +93,8 @@ class Stem(msnn.Cell):
             stride=stride,
             padding=3,
             **dd,
-        )
-        self.norm = norm_layer(out_chs, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor):
         B, C, H, W = x.shape
@@ -121,7 +121,7 @@ class Downsample(msnn.Cell):
         self.in_chs = in_chs
         self.out_chs = out_chs
 
-        self.norm = norm_layer(in_chs, **dd)
+        self.norm = norm_layer(in_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.even_k = kernel_size % 2 == 0
         self.conv = nn.Conv2d(
             in_chs,
@@ -130,7 +130,7 @@ class Downsample(msnn.Cell):
             stride=2,
             padding=0 if self.even_k else kernel_size // 2,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor):
         B, C, H, W = x.shape
@@ -161,8 +161,8 @@ class ChannelAttentionV2(msnn.Cell):
         self.head_dim = dim // num_heads
         self.dynamic_scale = dynamic_scale
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         B, N, C = x.shape
@@ -200,8 +200,8 @@ class ChannelAttention(msnn.Cell):
         head_dim = dim // num_heads
         self.scale = head_dim ** -0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor):
         B, N, C = x.shape
@@ -238,27 +238,27 @@ class ChannelBlock(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
 
-        self.cpe1 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)
+        self.cpe1 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.ffn = ffn
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         attn_layer = ChannelAttentionV2 if v2 else ChannelAttention
         self.attn = attn_layer(
             dim,
             num_heads=num_heads,
             qkv_bias=qkv_bias,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.cpe2 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)
+        self.cpe2 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if self.ffn:
-            self.norm2 = norm_layer(dim, **dd)
+            self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.mlp = Mlp(
                 in_features=dim,
                 hidden_features=int(dim * mlp_ratio),
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
         else:
             self.norm2 = None
@@ -324,7 +324,7 @@ class WindowAttention(msnn.Cell):
         num_heads (int): Number of attention heads.
         qkv_bias (bool, optional):  If True, add a learnable bias to query, key, value. Default: True
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -344,8 +344,8 @@ class WindowAttention(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.softmax = nn.Softmax(dim = -1)
 
@@ -404,27 +404,27 @@ class SpatialBlock(msnn.Cell):
         self.window_size = to_2tuple(window_size)
         self.mlp_ratio = mlp_ratio
 
-        self.cpe1 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)
-        self.norm1 = norm_layer(dim, **dd)
+        self.cpe1 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = WindowAttention(
             dim,
             self.window_size,
             num_heads=num_heads,
             qkv_bias=qkv_bias,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.cpe2 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)
+        self.cpe2 = ConvPosEnc(dim=dim, k=3, act=cpe_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if self.ffn:
-            self.norm2 = norm_layer(dim, **dd)
+            self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             mlp_hidden_dim = int(dim * mlp_ratio)
             self.mlp = Mlp(
                 in_features=dim,
                 hidden_features=mlp_hidden_dim,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
         else:
             self.norm2 = None
@@ -501,7 +501,7 @@ class DaVitStage(msnn.Cell):
 
         # downsample embedding layer at the beginning of each stage
         if downsample:
-            self.downsample = Downsample(in_chs, out_chs, kernel_size=down_kernel_size, norm_layer=norm_layer, **dd)
+            self.downsample = Downsample(in_chs, out_chs, kernel_size=down_kernel_size, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.downsample = msnn.Identity()
 
@@ -529,7 +529,7 @@ class DaVitStage(msnn.Cell):
                         cpe_act=cpe_act,
                         window_size=window_size,
                         **dd,
-                    )))
+                    )))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 elif attn_type == 'channel':
                     dual_attention_block.append(('channel_block', ChannelBlock(
                         dim=out_chs,
@@ -542,14 +542,14 @@ class DaVitStage(msnn.Cell):
                         cpe_act=cpe_act,
                         v2=channel_attn_v2,
                         **dd,
-                    )))
+                    )))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if named_blocks:
                 stage_blocks.append(msnn.SequentialCell(OrderedDict(dual_attention_block)))
             else:
-                stage_blocks.append(msnn.SequentialCell(*[b[1] for b in dual_attention_block]))
-        self.blocks = msnn.SequentialCell(*stage_blocks)
+                stage_blocks.append(msnn.SequentialCell(*[b[1] for b in dual_attention_block]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*stage_blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
@@ -618,7 +618,7 @@ class DaVit(msnn.Cell):
         self.grad_checkpointing = False
         self.feature_info = []
 
-        self.stem = Stem(in_chans, embed_dims[0], norm_layer=norm_layer, **dd)
+        self.stem = Stem(in_chans, embed_dims[0], norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = embed_dims[0]
 
         dpr = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
@@ -644,25 +644,25 @@ class DaVit(msnn.Cell):
                 channel_attn_v2=channel_attn_v2,
                 named_blocks=named_blocks,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs
             stages.append(stage)
             self.feature_info += [dict(num_chs=out_chs, reduction=2**(i+2), module=f'stages.{i}')]
 
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # if head_norm_first == true, norm -> global pool -> fc ordering, like most other nets
         # otherwise pool -> norm -> fc, the default DaViT order, similar to ConvNeXt
         # FIXME generalize this structure to ClassifierHead
         if head_norm_first:
-            self.norm_pre = norm_layer(self.num_features, **dd)
+            self.norm_pre = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head = ClassifierHead(
                 self.num_features,
                 num_classes,
                 pool_type=global_pool,
                 drop_rate=self.drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.norm_pre = msnn.Identity()
             self.head = NormMlpClassifierHead(
@@ -672,7 +672,7 @@ class DaVit(msnn.Cell):
                 drop_rate=self.drop_rate,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -681,7 +681,7 @@ class DaVit(msnn.Cell):
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',  # stem and embed
@@ -692,13 +692,13 @@ class DaVit(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
         for stage in self.stages:
             stage.set_grad_checkpointing(enable=enable)
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -863,7 +863,7 @@ def _create_davit(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         pretrained_strict=strict,
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return model
 
@@ -904,37 +904,37 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def davit_tiny(pretrained=False, **kwargs) -> DaVit:
     model_args = dict(depths=(1, 1, 3, 1), embed_dims=(96, 192, 384, 768), num_heads=(3, 6, 12, 24))
-    return _create_davit('davit_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def davit_small(pretrained=False, **kwargs) -> DaVit:
     model_args = dict(depths=(1, 1, 9, 1), embed_dims=(96, 192, 384, 768), num_heads=(3, 6, 12, 24))
-    return _create_davit('davit_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def davit_base(pretrained=False, **kwargs) -> DaVit:
     model_args = dict(depths=(1, 1, 9, 1), embed_dims=(128, 256, 512, 1024), num_heads=(4, 8, 16, 32))
-    return _create_davit('davit_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def davit_large(pretrained=False, **kwargs) -> DaVit:
     model_args = dict(depths=(1, 1, 9, 1), embed_dims=(192, 384, 768, 1536), num_heads=(6, 12, 24, 48))
-    return _create_davit('davit_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def davit_huge(pretrained=False, **kwargs) -> DaVit:
     model_args = dict(depths=(1, 1, 9, 1), embed_dims=(256, 512, 1024, 2048), num_heads=(8, 16, 32, 64))
-    return _create_davit('davit_huge', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_huge', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def davit_giant(pretrained=False, **kwargs) -> DaVit:
     model_args = dict(depths=(1, 1, 12, 3), embed_dims=(384, 768, 1536, 3072), num_heads=(12, 24, 48, 96))
-    return _create_davit('davit_giant', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_giant', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 
@@ -944,7 +944,7 @@ def davit_base_fl(pretrained=False, **kwargs) -> DaVit:
         depths=(1, 1, 9, 1), embed_dims=(128, 256, 512, 1024), num_heads=(4, 8, 16, 32),
         window_size=12, down_kernel_size=3, channel_attn_v2=True, named_blocks=True,
     )
-    return _create_davit('davit_base_fl', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_base_fl', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -954,4 +954,4 @@ def davit_huge_fl(pretrained=False, **kwargs) -> DaVit:
         depths=(1, 1, 9, 1), embed_dims=(256, 512, 1024, 2048), num_heads=(8, 16, 32, 64),
         window_size=12, down_kernel_size=3, channel_attn_v2=True, named_blocks=True,
     )
-    return _create_davit('davit_huge_fl', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_davit('davit_huge_fl', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

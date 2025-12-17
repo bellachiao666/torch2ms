@@ -31,14 +31,16 @@
              bias: Union[bool, Tuple[bool, bool]] = True,
              drop: Union[float, Tuple[float, float]] = 0.,
              use_conv: bool = False,
-@@ -40,21 +45,21 @@         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
-         self.act = act_layer()
-         self.drop1 = nn.Dropout(drop_probs[0])
--        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else nn.Identity()
-+        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()
-         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)
-         self.drop2 = nn.Dropout(drop_probs[1])
+@@ -37,24 +42,24 @@         drop_probs = to_2tuple(drop)
+         linear_layer = partial(nn.Conv2d, kernel_size=1) if use_conv else nn.Linear
  
+-        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
+-        self.act = act_layer()
+-        self.drop1 = nn.Dropout(drop_probs[0])
+-        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else nn.Identity()
+-        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)
+-        self.drop2 = nn.Dropout(drop_probs[1])
+-
 -    def forward(self, x):
 -        x = self.fc1(x)
 -        x = self.act(x)
@@ -50,6 +52,13 @@
 -
 -
 -class GluMlp(nn.Module):
++        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.act = act_layer()
++        self.drop1 = nn.Dropout(drop_probs[0])
++        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop2 = nn.Dropout(drop_probs[1])
++
 +    def construct(self, x):
 +        x = self.fc1(x)
 +        x = self.act(x)
@@ -74,12 +83,19 @@
              bias: Union[bool, Tuple[bool, bool]] = True,
              drop: Union[float, Tuple[float, float]] = 0.,
              use_conv: bool = False,
-@@ -88,17 +93,17 @@         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
-         self.act = act_layer()
-         self.drop1 = nn.Dropout(drop_probs[0])
+@@ -85,20 +90,20 @@         self.chunk_dim = 1 if use_conv else -1
+         self.gate_last = gate_last  # use second half of width for gate
+ 
+-        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
+-        self.act = act_layer()
+-        self.drop1 = nn.Dropout(drop_probs[0])
 -        self.norm = norm_layer(hidden_features // 2, **dd) if norm_layer is not None else nn.Identity()
-+        self.norm = norm_layer(hidden_features // 2, **dd) if norm_layer is not None else msnn.Identity()
-         self.fc2 = linear_layer(hidden_features // 2, out_features, bias=bias[1], **dd)
+-        self.fc2 = linear_layer(hidden_features // 2, out_features, bias=bias[1], **dd)
++        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.act = act_layer()
++        self.drop1 = nn.Dropout(drop_probs[0])
++        self.norm = norm_layer(hidden_features // 2, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.fc2 = linear_layer(hidden_features // 2, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.drop2 = nn.Dropout(drop_probs[1])
  
      def init_weights(self):
@@ -114,12 +130,21 @@
              bias: Union[bool, Tuple[bool, bool]] = True,
              drop: Union[float, Tuple[float, float]] = 0.,
              align_to: int = 0,
-@@ -144,17 +149,17 @@         self.fc1_x = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
-         self.act = act_layer()
-         self.drop1 = nn.Dropout(drop_probs[0])
+@@ -140,21 +145,21 @@         if align_to:
+             hidden_features = hidden_features + (-hidden_features % align_to)
+ 
+-        self.fc1_g = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
+-        self.fc1_x = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
+-        self.act = act_layer()
+-        self.drop1 = nn.Dropout(drop_probs[0])
 -        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else nn.Identity()
-+        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()
-         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)
+-        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)
++        self.fc1_g = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.fc1_x = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.act = act_layer()
++        self.drop1 = nn.Dropout(drop_probs[0])
++        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.drop2 = nn.Dropout(drop_probs[1])
  
      def init_weights(self):
@@ -144,29 +169,60 @@
      """ MLP as used in gMLP
      """
      def __init__(
-@@ -173,9 +178,9 @@             in_features: int,
+@@ -173,35 +178,35 @@             in_features: int,
              hidden_features: Optional[int] = None,
              out_features: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
 -            norm_layer: Optional[Type[nn.Module]] = None,
 -            gate_layer: Optional[Type[nn.Module]] = None,
+-            bias: Union[bool, Tuple[bool, bool]] = True,
+-            drop: Union[float, Tuple[float, float]] = 0.,
+-            device=None,
+-            dtype=None,
+-    ):
+-        dd = {'device': device, 'dtype': dtype}
+-        super().__init__()
+-        out_features = out_features or in_features
+-        hidden_features = hidden_features or in_features
+-        bias = to_2tuple(bias)
+-        drop_probs = to_2tuple(drop)
+-
+-        self.fc1 = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)
 +            act_layer: Type[msnn.Cell] = nn.GELU,
 +            norm_layer: Optional[Type[msnn.Cell]] = None,
 +            gate_layer: Optional[Type[msnn.Cell]] = None,
-             bias: Union[bool, Tuple[bool, bool]] = True,
-             drop: Union[float, Tuple[float, float]] = 0.,
-             device=None,
-@@ -196,12 +201,12 @@             self.gate = gate_layer(hidden_features, **dd)
++            bias: Union[bool, Tuple[bool, bool]] = True,
++            drop: Union[float, Tuple[float, float]] = 0.,
++            device=None,
++            dtype=None,
++    ):
++        dd = {'device': device, 'dtype': dtype}
++        super().__init__()
++        out_features = out_features or in_features
++        hidden_features = hidden_features or in_features
++        bias = to_2tuple(bias)
++        drop_probs = to_2tuple(drop)
++
++        self.fc1 = nn.Linear(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.act = act_layer()
+         self.drop1 = nn.Dropout(drop_probs[0])
+         if gate_layer is not None:
+             assert hidden_features % 2 == 0
+-            self.gate = gate_layer(hidden_features, **dd)
++            self.gate = gate_layer(hidden_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              hidden_features = hidden_features // 2  # FIXME base reduction on gate property?
          else:
 -            self.gate = nn.Identity()
 -        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else nn.Identity()
-+            self.gate = msnn.Identity()
-+        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()
-         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)
-         self.drop2 = nn.Dropout(drop_probs[1])
- 
+-        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)
+-        self.drop2 = nn.Dropout(drop_probs[1])
+-
 -    def forward(self, x):
++            self.gate = msnn.Identity()
++        self.norm = norm_layer(hidden_features, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.drop2 = nn.Dropout(drop_probs[1])
++
 +    def construct(self, x):
          x = self.fc1(x)
          x = self.act(x)
@@ -189,16 +245,20 @@
              bias: Union[bool, Tuple[bool, bool]] = True,
              drop: float = 0.,
              device=None,
-@@ -234,12 +239,12 @@         bias = to_2tuple(bias)
+@@ -233,13 +238,13 @@         hidden_features = hidden_features or in_features
+         bias = to_2tuple(bias)
  
-         self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)
+-        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)
 -        self.norm = norm_layer(hidden_features, **dd) if norm_layer else nn.Identity()
-+        self.norm = norm_layer(hidden_features, **dd) if norm_layer else msnn.Identity()
++        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.norm = norm_layer(hidden_features, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.act = act_layer()
          self.drop = nn.Dropout(drop)
-         self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1], **dd)
- 
+-        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1], **dd)
+-
 -    def forward(self, x):
++        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.fc1(x)
          x = self.norm(x)
@@ -219,10 +279,24 @@
              bias: Union[bool, Tuple[bool, bool]] = True,
              drop: Union[float, Tuple[float, float]] = 0.,
              use_conv: bool = False,
-@@ -280,7 +285,7 @@         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)
-         self.drop2 = nn.Dropout(drop_probs[1])
+@@ -273,14 +278,14 @@         drop_probs = to_2tuple(drop)
+         linear_layer = partial(nn.Conv2d, kernel_size=1) if use_conv else nn.Linear
  
+-        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)
+-        self.act = act_layer()
+-        self.drop1 = nn.Dropout(drop_probs[0])
+-        self.grn = GlobalResponseNorm(hidden_features, channels_last=not use_conv, **dd)
+-        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)
+-        self.drop2 = nn.Dropout(drop_probs[1])
+-
 -    def forward(self, x):
++        self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.act = act_layer()
++        self.drop1 = nn.Dropout(drop_probs[0])
++        self.grn = GlobalResponseNorm(hidden_features, channels_last=not use_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop2 = nn.Dropout(drop_probs[1])
++
 +    def construct(self, x):
          x = self.fc1(x)
          x = self.act(x)

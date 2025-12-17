@@ -61,7 +61,7 @@ class Attention(msnn.Cell):
     This is much like `.vision_transformer.Attention` but uses *localised* self attention by accepting an input with
      an extra "image block" dim
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -80,9 +80,9 @@ class Attention(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, 3*dim, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, 3*dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x):
@@ -132,7 +132,7 @@ class TransformerLayer(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = Attention(
             dim,
             num_heads=num_heads,
@@ -140,9 +140,9 @@ class TransformerLayer(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(
             in_features=dim,
@@ -150,7 +150,7 @@ class TransformerLayer(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -172,8 +172,8 @@ class ConvPool(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv = create_conv2d(in_channels, out_channels, kernel_size=3, padding=pad_type, bias=True, **dd)
-        self.norm = norm_layer(out_channels, **dd)
+        self.conv = create_conv2d(in_channels, out_channels, kernel_size=3, padding=pad_type, bias=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(out_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pool = create_pool2d('max', kernel_size=3, stride=2, padding=pad_type)
 
     def construct(self, x):
@@ -248,10 +248,10 @@ class NestLevel(msnn.Cell):
         self.block_size = block_size
         self.grad_checkpointing = False
 
-        self.pos_embed = ms.Parameter(mint.zeros(1, num_blocks, seq_length, embed_dim, **dd))
+        self.pos_embed = ms.Parameter(mint.zeros(1, num_blocks, seq_length, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if prev_embed_dim is not None:
-            self.pool = ConvPool(prev_embed_dim, embed_dim, norm_layer=norm_layer, pad_type=pad_type, **dd)
+            self.pool = ConvPool(prev_embed_dim, embed_dim, norm_layer=norm_layer, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.pool = msnn.Identity()
 
@@ -271,7 +271,7 @@ class NestLevel(msnn.Cell):
                 act_layer=act_layer,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         """
@@ -389,7 +389,7 @@ class Nest(msnn.Cell):
             embed_dim=embed_dims[0],
             flatten=False,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_patches = self.patch_embed.num_patches
         self.seq_length = self.num_patches // self.num_blocks[0]
 
@@ -417,24 +417,24 @@ class Nest(msnn.Cell):
                 act_layer=act_layer,
                 pad_type=pad_type,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.feature_info += [dict(num_chs=dim, reduction=curr_stride, module=f'levels.{i}')]
             prev_dim = dim
             curr_stride *= 2
-        self.levels = msnn.SequentialCell(*levels)
+        self.levels = msnn.SequentialCell(*levels)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Final normalization layer
-        self.norm = norm_layer(embed_dims[-1], **dd)
+        self.norm = norm_layer(embed_dims[-1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier
-        global_pool, head = create_classifier(self.num_features, self.num_classes, pool_type=global_pool, **dd)
+        global_pool, head = create_classifier(self.num_features, self.num_classes, pool_type=global_pool, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.global_pool = global_pool
         self.head_drop = nn.Dropout(drop_rate)
         self.head = head
 
         self.init_weights(weight_init)
 
-    @torch.jit.ignore
+    @ms.jit
     def init_weights(self, mode=''):
         assert mode in ('nlhb', '')
         head_bias = -math.log(self.num_classes) if 'nlhb' in mode else 0.
@@ -442,11 +442,11 @@ class Nest(msnn.Cell):
             trunc_normal_(level.pos_embed, std=.02, a=-2, b=2)
         named_apply(partial(_init_nest_weights, head_bias=head_bias), self)
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {f'level.{i}.pos_embed' for i in range(len(self.levels))}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^patch_embed',  # stem and embed
@@ -458,12 +458,12 @@ class Nest(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for l in self.levels:
             l.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -609,7 +609,7 @@ def _create_nest(variant, pretrained=False, **kwargs):
         feature_cfg=dict(out_indices=(0, 1, 2), flatten_sequential=True),
         pretrained_filter_fn=checkpoint_filter_fn,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return model
 
@@ -642,8 +642,8 @@ def nest_base(pretrained=False, **kwargs) -> Nest:
     """ Nest-B @ 224x224
     """
     model_kwargs = dict(
-        embed_dims=(128, 256, 512), num_heads=(4, 8, 16), depths=(2, 2, 20), **kwargs)
-    model = _create_nest('nest_base', pretrained=pretrained, **model_kwargs)
+        embed_dims=(128, 256, 512), num_heads=(4, 8, 16), depths=(2, 2, 20), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_nest('nest_base', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -651,8 +651,8 @@ def nest_base(pretrained=False, **kwargs) -> Nest:
 def nest_small(pretrained=False, **kwargs) -> Nest:
     """ Nest-S @ 224x224
     """
-    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 20), **kwargs)
-    model = _create_nest('nest_small', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 20), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_nest('nest_small', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -660,8 +660,8 @@ def nest_small(pretrained=False, **kwargs) -> Nest:
 def nest_tiny(pretrained=False, **kwargs) -> Nest:
     """ Nest-T @ 224x224
     """
-    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 8), **kwargs)
-    model = _create_nest('nest_tiny', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 8), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_nest('nest_tiny', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -671,8 +671,8 @@ def nest_base_jx(pretrained=False, **kwargs) -> Nest:
     """
     kwargs.setdefault('pad_type', 'same')
     model_kwargs = dict(
-        embed_dims=(128, 256, 512), num_heads=(4, 8, 16), depths=(2, 2, 20), **kwargs)
-    model = _create_nest('nest_base_jx', pretrained=pretrained, **model_kwargs)
+        embed_dims=(128, 256, 512), num_heads=(4, 8, 16), depths=(2, 2, 20), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_nest('nest_base_jx', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -681,8 +681,8 @@ def nest_small_jx(pretrained=False, **kwargs) -> Nest:
     """ Nest-S @ 224x224
     """
     kwargs.setdefault('pad_type', 'same')
-    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 20), **kwargs)
-    model = _create_nest('nest_small_jx', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 20), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_nest('nest_small_jx', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -691,8 +691,8 @@ def nest_tiny_jx(pretrained=False, **kwargs) -> Nest:
     """ Nest-T @ 224x224
     """
     kwargs.setdefault('pad_type', 'same')
-    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 8), **kwargs)
-    model = _create_nest('nest_tiny_jx', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 8), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_nest('nest_tiny_jx', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

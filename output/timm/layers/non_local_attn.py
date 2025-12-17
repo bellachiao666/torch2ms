@@ -42,11 +42,11 @@ class NonLocalAttn(msnn.Cell):
         if rd_channels is None:
             rd_channels = make_divisible(in_channels * rd_ratio, divisor=rd_divisor)
         self.scale = in_channels ** -0.5 if use_scale else 1.0
-        self.t = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)
-        self.p = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)
-        self.g = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)
-        self.z = nn.Conv2d(rd_channels, in_channels, kernel_size=1, stride=1, bias=True, **dd)
-        self.norm = nn.BatchNorm2d(in_channels, **dd)
+        self.t = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.p = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.g = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.z = nn.Conv2d(rd_channels, in_channels, kernel_size=1, stride=1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = nn.BatchNorm2d(in_channels, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.reset_parameters()
 
     def construct(self, x):
@@ -101,10 +101,10 @@ class BilinearAttnTransform(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv1 = ConvNormAct(in_channels, groups, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)
-        self.conv_p = nn.Conv2d(groups, block_size * block_size * groups, kernel_size=(block_size, 1), **dd)
-        self.conv_q = nn.Conv2d(groups, block_size * block_size * groups, kernel_size=(1, block_size), **dd)
-        self.conv2 = ConvNormAct(in_channels, in_channels, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)
+        self.conv1 = ConvNormAct(in_channels, groups, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv_p = nn.Conv2d(groups, block_size * block_size * groups, kernel_size=(block_size, 1), **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv_q = nn.Conv2d(groups, block_size * block_size * groups, kernel_size=(1, block_size), **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv2 = ConvNormAct(in_channels, in_channels, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.block_size = block_size
         self.groups = groups
         self.in_channels = in_channels
@@ -172,7 +172,7 @@ class BatNonLocalAttn(msnn.Cell):
         super().__init__()
         if rd_channels is None:
             rd_channels = make_divisible(in_channels * rd_ratio, divisor=rd_divisor)
-        self.conv1 = ConvNormAct(in_channels, rd_channels, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)
+        self.conv1 = ConvNormAct(in_channels, rd_channels, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.ba = BilinearAttnTransform(
             rd_channels,
             block_size,
@@ -180,8 +180,8 @@ class BatNonLocalAttn(msnn.Cell):
             act_layer=act_layer,
             norm_layer=norm_layer,
             **dd,
-        )
-        self.conv2 = ConvNormAct(rd_channels, in_channels, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2 = ConvNormAct(rd_channels, in_channels, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.dropout = nn.Dropout2d(p = drop_rate)
 
     def construct(self, x):

@@ -139,7 +139,7 @@ def create_aa(
 
     # Try (channels, stride, [device, dtype]) first; fall back to (stride) only
     try:
-        return aa_layer(**call_kwargs)
+        return aa_layer(**call_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     except TypeError:
         # Some layers (e.g., AvgPool2d) may not accept 'channels' and need stride passed as kernel
         return aa_layer(stride)

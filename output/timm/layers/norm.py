@@ -34,7 +34,7 @@ except ImportError:
 
 
 class GroupNorm(nn.GroupNorm):
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -45,7 +45,7 @@ class GroupNorm(nn.GroupNorm):
             **kwargs,
     ):
         # NOTE num_channels is swapped to first arg for consistency in swapping norm layers with BN
-        super().__init__(num_groups, num_channels, eps=eps, affine=affine, **kwargs)
+        super().__init__(num_groups, num_channels, eps=eps, affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
     def forward(self, x):
@@ -59,10 +59,10 @@ class GroupNorm1(nn.GroupNorm):
     """ Group Normalization with 1 group.
     Input: tensor in shape [B, C, *]
     """
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(self, num_channels: int, **kwargs):
-        super().__init__(1, num_channels, **kwargs)
+        super().__init__(1, num_channels, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
     def forward(self, x: ms.Tensor) -> ms.Tensor:
@@ -75,7 +75,7 @@ class GroupNorm1(nn.GroupNorm):
 class LayerNorm(nn.LayerNorm):
     """ LayerNorm w/ fast norm option
     """
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -84,7 +84,7 @@ class LayerNorm(nn.LayerNorm):
             affine: bool = True,
             **kwargs,
     ):
-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
     def forward(self, x: ms.Tensor) -> ms.Tensor:
@@ -106,7 +106,7 @@ class LayerNormFp32(nn.LayerNorm):
             affine: bool = True,
             **kwargs,
     ):
-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def forward(self, x: ms.Tensor) -> ms.Tensor:
         weight = self.weight.float() if self.weight is not None else None
@@ -117,7 +117,7 @@ class LayerNormFp32(nn.LayerNorm):
 
 class LayerNorm2d(nn.LayerNorm):
     """ LayerNorm for channels of '2D' spatial NCHW tensors """
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -126,7 +126,7 @@ class LayerNorm2d(nn.LayerNorm):
             affine: bool = True,
             **kwargs,
     ):
-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
     def forward(self, x: ms.Tensor) -> ms.Tensor:
@@ -149,7 +149,7 @@ class LayerNorm2dFp32(nn.LayerNorm):
             affine: bool = True,
             **kwargs,
     ):
-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def forward(self, x: ms.Tensor) -> ms.Tensor:
         x = x.permute(0, 2, 3, 1)
@@ -232,7 +232,7 @@ class RmsNorm(msnn.Cell):
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 
@@ -279,7 +279,7 @@ class RmsNormFp32(msnn.Cell):
         self.elementwise_affine = affine
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 
@@ -328,7 +328,7 @@ class RmsNorm2d(msnn.Cell):
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 
@@ -379,7 +379,7 @@ class RmsNorm2dFp32(msnn.Cell):
         self.elementwise_affine = affine
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 
@@ -424,7 +424,7 @@ class SimpleNorm(msnn.Cell):
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 
@@ -469,7 +469,7 @@ class SimpleNormFp32(msnn.Cell):
         self.elementwise_affine = affine
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 
@@ -514,7 +514,7 @@ class SimpleNorm2d(msnn.Cell):
         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 
@@ -561,7 +561,7 @@ class SimpleNorm2dFp32(msnn.Cell):
         self.elementwise_affine = affine
 
         if self.elementwise_affine:
-            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('weight', None)
 

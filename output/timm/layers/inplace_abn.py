@@ -17,7 +17,7 @@ except ImportError:
             "Please install InplaceABN:'pip install git+https://github.com/mapillary/inplace_abn.git@v1.0.12'")
 
     def inplace_abn_sync(**kwargs):
-        inplace_abn(**kwargs)
+        inplace_abn(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 from ._fx import register_notrace_module
 

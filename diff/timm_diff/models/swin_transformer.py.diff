@@ -58,7 +58,7 @@
      relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
      relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # Wh*Ww, Wh*Ww, 2
      relative_coords[:, :, 0] += win_h - 1  # shift to start from 0
-@@ -101,7 +106,7 @@     return relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
+@@ -101,12 +106,12 @@     return relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
  
  
 -class WindowAttention(nn.Module):
@@ -66,17 +66,31 @@
      """Window based multi-head self attention (W-MSA) module with relative position bias.
  
      Supports both shifted and non-shifted windows.
+     """
+-    fused_attn: torch.jit.Final[bool]
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
 @@ -143,8 +148,8 @@         self.fused_attn = use_fused_attn(experimental=True)  # NOTE not tested for prime-time yet
  
          # define a parameter table of relative position bias, shape: 2*Wh-1 * 2*Ww-1, nH
 -        self.relative_position_bias_table = nn.Parameter(
 -            torch.zeros((2 * win_h - 1) * (2 * win_w - 1), num_heads, **dd))
 +        self.relative_position_bias_table = ms.Parameter(
-+            mint.zeros((2 * win_h - 1) * (2 * win_w - 1), num_heads, **dd))
++            mint.zeros((2 * win_h - 1) * (2 * win_w - 1), num_heads, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # get pair-wise relative position index for each token inside the window
          self.register_buffer(
-@@ -159,7 +164,7 @@         self.proj_drop = nn.Dropout(proj_drop)
+@@ -153,13 +158,13 @@             persistent=False,
+         )
+ 
+-        self.qkv = nn.Linear(dim, attn_dim * 3, bias=qkv_bias, **dd)
++        self.qkv = nn.Linear(dim, attn_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.attn_drop = nn.Dropout(attn_drop)
+-        self.proj = nn.Linear(attn_dim, dim, **dd)
++        self.proj = nn.Linear(attn_dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.proj_drop = nn.Dropout(proj_drop)
  
          trunc_normal_(self.relative_position_bias_table, std=.02)
 -        self.softmax = nn.Softmax(dim=-1)
@@ -133,28 +147,43 @@
              device=None,
              dtype=None,
      ):
-@@ -300,7 +305,7 @@             proj_drop=proj_drop,
-             **dd,
-         )
--        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-+        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+@@ -289,7 +294,7 @@         self.window_area = self.window_size[0] * self.window_size[1]
+         self.mlp_ratio = mlp_ratio
  
-         self.norm2 = norm_layer(dim, **dd)
-         self.mlp = Mlp(
-@@ -310,7 +315,7 @@             drop=proj_drop,
+-        self.norm1 = norm_layer(dim, **dd)
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = WindowAttention(
+             dim,
+             num_heads=num_heads,
+@@ -299,31 +304,31 @@             attn_drop=attn_drop,
+             proj_drop=proj_drop,
              **dd,
-         )
+-        )
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-        self.norm2 = norm_layer(dim, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp = Mlp(
+             in_features=dim,
+             hidden_features=int(dim * mlp_ratio),
+             act_layer=act_layer,
+             drop=proj_drop,
+             **dd,
+-        )
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
  
          self.register_buffer(
              "attn_mask",
-@@ -318,12 +323,15 @@             persistent=False,
-         )
+             None if self.dynamic_mask else self.get_attn_mask(**dd),
+             persistent=False,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
-+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def get_attn_mask(
              self,
 -            x: Optional[torch.Tensor] = None,
@@ -166,7 +195,7 @@
          if any(self.shift_size):
              # calculate attention mask for SW-MSA
              if x is not None:
-@@ -336,7 +344,7 @@                 dtype = dtype
+@@ -336,7 +341,7 @@                 dtype = dtype
              H = math.ceil(H / self.window_size[0]) * self.window_size[0]
              W = math.ceil(W / self.window_size[1]) * self.window_size[1]
 -            img_mask = torch.zeros((1, H, W, 1), dtype=dtype, device=device)  # 1 H W 1
@@ -174,7 +203,7 @@
              cnt = 0
              for h in (
                      (0, -self.window_size[0]),
-@@ -411,14 +419,14 @@         # cyclic shift
+@@ -411,14 +416,14 @@         # cyclic shift
          has_shift = any(self.shift_size)
          if has_shift:
 -            shifted_x = torch.roll(x, shifts=(-self.shift_size[0], -self.shift_size[1]), dims=(1, 2))
@@ -190,7 +219,7 @@
          _, Hp, Wp, _ = shifted_x.shape
  
          # partition windows
-@@ -439,12 +447,12 @@ 
+@@ -439,12 +444,12 @@ 
          # reverse cyclic shift
          if has_shift:
 -            x = torch.roll(shifted_x, shifts=self.shift_size, dims=(1, 2))
@@ -204,7 +233,7 @@
          """Forward pass.
  
          Args:
-@@ -461,7 +469,7 @@         return x
+@@ -461,7 +466,7 @@         return x
  
  
 -class PatchMerging(nn.Module):
@@ -212,7 +241,7 @@
      """Patch Merging Layer.
  
      Downsample features by merging 2x2 neighboring patches.
-@@ -471,7 +479,7 @@             self,
+@@ -471,7 +476,7 @@             self,
              dim: int,
              out_dim: Optional[int] = None,
 -            norm_layer: Type[nn.Module] = nn.LayerNorm,
@@ -220,15 +249,21 @@
              device=None,
              dtype=None,
      ):
-@@ -488,7 +496,7 @@         self.norm = norm_layer(4 * dim, **dd)
-         self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)
- 
+@@ -485,10 +490,10 @@         super().__init__()
+         self.dim = dim
+         self.out_dim = out_dim or 2 * dim
+-        self.norm = norm_layer(4 * dim, **dd)
+-        self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.norm = norm_layer(4 * dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          """Forward pass.
  
          Args:
-@@ -509,7 +517,7 @@         return x
+@@ -509,7 +514,7 @@         return x
  
  
 -class SwinTransformerStage(nn.Module):
@@ -236,7 +271,7 @@
      """A basic Swin Transformer layer for one stage.
  
      Contains multiple Swin Transformer blocks and optional downsampling.
-@@ -532,7 +540,7 @@             proj_drop: float = 0.,
+@@ -532,7 +537,7 @@             proj_drop: float = 0.,
              attn_drop: float = 0.,
              drop_path: Union[List[float], float] = 0.,
 -            norm_layer: Type[nn.Module] = nn.LayerNorm,
@@ -244,7 +279,11 @@
              device=None,
              dtype=None,
      ):
-@@ -573,10 +581,10 @@             )
+@@ -570,13 +575,13 @@                 out_dim=out_dim,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              assert dim == out_dim
 -            self.downsample = nn.Identity()
@@ -256,7 +295,15 @@
              SwinTransformerBlock(
                  dim=out_dim,
                  input_resolution=self.output_resolution,
-@@ -610,7 +618,7 @@             always_partition: Always partition / shift the window
+@@ -594,7 +599,7 @@                 norm_layer=norm_layer,
+                 **dd,
+             )
+-            for i in range(depth)])
++            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def set_input_size(
+             self,
+@@ -610,7 +615,7 @@             always_partition: Always partition / shift the window
          """
          self.input_resolution = feat_size
 -        if isinstance(self.downsample, nn.Identity):
@@ -264,7 +311,7 @@
              self.output_resolution = feat_size
          else:
              self.output_resolution = tuple(i // 2 for i in feat_size)
-@@ -621,7 +629,7 @@                 always_partition=always_partition,
+@@ -621,7 +626,7 @@                 always_partition=always_partition,
              )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -272,7 +319,7 @@
          """Forward pass.
  
          Args:
-@@ -639,7 +647,7 @@         return x
+@@ -639,7 +644,7 @@         return x
  
  
 -class SwinTransformer(nn.Module):
@@ -280,7 +327,7 @@
      """Swin Transformer.
  
      A PyTorch impl of : `Swin Transformer: Hierarchical Vision Transformer using Shifted Windows`  -
-@@ -666,8 +674,8 @@             proj_drop_rate: float = 0.,
+@@ -666,8 +671,8 @@             proj_drop_rate: float = 0.,
              attn_drop_rate: float = 0.,
              drop_path_rate: float = 0.1,
 -            embed_layer: Type[nn.Module] = PatchEmbed,
@@ -290,23 +337,79 @@
              weight_init: str = '',
              device=None,
              dtype=None,
-@@ -760,7 +768,7 @@             if i > 0:
+@@ -717,7 +722,7 @@             strict_img_size=strict_img_size,
+             output_fmt='NHWC',
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         patch_grid = self.patch_embed.grid_size
+ 
+         # build layers
+@@ -755,14 +760,14 @@                 drop_path=dpr[i],
+                 norm_layer=norm_layer,
+                 **dd,
+-            )]
++            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             in_dim = out_dim
+             if i > 0:
                  scale *= 2
              self.feature_info += [dict(num_chs=out_dim, reduction=patch_size * scale, module=f'layers.{i}')]
 -        self.layers = nn.Sequential(*layers)
-+        self.layers = msnn.SequentialCell(*layers)
- 
-         self.norm = norm_layer(self.num_features, **dd)
+-
+-        self.norm = norm_layer(self.num_features, **dd)
++        self.layers = msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.norm = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.head = ClassifierHead(
-@@ -845,7 +853,7 @@             l.grad_checkpointing = enable
+             self.num_features,
+             num_classes,
+@@ -770,11 +775,11 @@             drop_rate=drop_rate,
+             input_fmt=self.output_fmt,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if weight_init != 'skip':
+             self.init_weights(weight_init)
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def init_weights(self, mode: str = '') -> None:
+         """Initialize model weights.
+ 
+@@ -785,7 +790,7 @@         head_bias = -math.log(self.num_classes) if 'nlhb' in mode else 0.
+         named_apply(get_init_weights_vit(mode, head_bias=head_bias), self)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def no_weight_decay(self) -> Set[str]:
+         """Parameters that should not use weight decay."""
+         nwd = set()
+@@ -826,7 +831,7 @@                 always_partition=always_partition,
+             )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+         """Group parameters for optimization."""
+         return dict(
+@@ -838,14 +843,14 @@             ]
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True) -> None:
+         """Enable or disable gradient checkpointing."""
+         for l in self.layers:
+             l.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
          return self.head.fc
  
-@@ -861,13 +869,13 @@ 
+@@ -861,13 +866,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -321,7 +424,7 @@
          """Forward features that returns intermediates.
  
          Args:
-@@ -929,19 +937,19 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
+@@ -929,19 +934,19 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
          self.layers = self.layers[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -343,7 +446,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -953,7 +961,7 @@         """
+@@ -953,7 +958,7 @@         """
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -351,7 +454,7 @@
          """Forward pass.
  
          Args:
-@@ -967,7 +975,7 @@         return x
+@@ -967,7 +972,7 @@         return x
  
  
 -def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> Dict[str, torch.Tensor]:
@@ -359,3 +462,83 @@
      """Convert patch embedding weight from manual patchify + linear proj to conv.
  
      Args:
+@@ -1034,7 +1039,7 @@         SwinTransformer, variant, pretrained,
+         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+-        **kwargs)
++        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     return model
+ 
+@@ -1132,7 +1137,7 @@     """
+     model_args = dict(patch_size=4, window_size=7, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24))
+     return _create_swin_transformer(
+-        'swin_tiny_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'swin_tiny_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1141,7 +1146,7 @@     """
+     model_args = dict(patch_size=4, window_size=7, embed_dim=96, depths=(2, 2, 18, 2), num_heads=(3, 6, 12, 24))
+     return _create_swin_transformer(
+-        'swin_small_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'swin_small_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1150,7 +1155,7 @@     """
+     model_args = dict(patch_size=4, window_size=7, embed_dim=128, depths=(2, 2, 18, 2), num_heads=(4, 8, 16, 32))
+     return _create_swin_transformer(
+-        'swin_base_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'swin_base_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1159,7 +1164,7 @@     """
+     model_args = dict(patch_size=4, window_size=12, embed_dim=128, depths=(2, 2, 18, 2), num_heads=(4, 8, 16, 32))
+     return _create_swin_transformer(
+-        'swin_base_patch4_window12_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'swin_base_patch4_window12_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1168,7 +1173,7 @@     """
+     model_args = dict(patch_size=4, window_size=7, embed_dim=192, depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48))
+     return _create_swin_transformer(
+-        'swin_large_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'swin_large_patch4_window7_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1177,7 +1182,7 @@     """
+     model_args = dict(patch_size=4, window_size=12, embed_dim=192, depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48))
+     return _create_swin_transformer(
+-        'swin_large_patch4_window12_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'swin_large_patch4_window12_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1186,7 +1191,7 @@     """
+     model_args = dict(
+         patch_size=4, window_size=(7, 7, 14, 7), embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24))
+-    return _create_swin_transformer('swin_s3_tiny_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_swin_transformer('swin_s3_tiny_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1195,7 +1200,7 @@     """
+     model_args = dict(
+         patch_size=4, window_size=(14, 14, 14, 7), embed_dim=96, depths=(2, 2, 18, 2), num_heads=(3, 6, 12, 24))
+-    return _create_swin_transformer('swin_s3_small_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_swin_transformer('swin_s3_small_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1204,7 +1209,7 @@     """
+     model_args = dict(
+         patch_size=4, window_size=(7, 7, 14, 7), embed_dim=96, depths=(2, 2, 30, 2), num_heads=(3, 6, 12, 24))
+-    return _create_swin_transformer('swin_s3_base_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_swin_transformer('swin_s3_base_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ register_model_deprecations(__name__, {

@@ -210,7 +210,7 @@ def checkpoint(
         *args,
         use_reentrant=use_reentrant,
         **kwargs,
-    )  # 'torch.utils.checkpoint.checkpoint' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    )  # 'torch.utils.checkpoint.checkpoint' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def checkpoint_seq(

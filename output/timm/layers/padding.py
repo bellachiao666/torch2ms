@@ -17,7 +17,7 @@ from .helpers import to_2tuple
 def get_padding(kernel_size: int, stride: int = 1, dilation: int = 1, **_) -> Union[int, List[int]]:
     if any([isinstance(v, (tuple, list)) for v in [kernel_size, stride, dilation]]):
         kernel_size, stride, dilation = to_2tuple(kernel_size), to_2tuple(stride), to_2tuple(dilation)
-        return [get_padding(*a) for a in zip(kernel_size, stride, dilation)]
+        return [get_padding(*a) for a in zip(kernel_size, stride, dilation)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     padding = ((stride - 1) + dilation * (kernel_size - 1)) // 2
     return padding
 
@@ -34,7 +34,7 @@ def get_same_padding(x: int, kernel_size: int, stride: int, dilation: int):
 def is_static_pad(kernel_size: int, stride: int = 1, dilation: int = 1, **_):
     if any([isinstance(v, (tuple, list)) for v in [kernel_size, stride, dilation]]):
         kernel_size, stride, dilation = to_2tuple(kernel_size), to_2tuple(stride), to_2tuple(dilation)
-        return all([is_static_pad(*a) for a in zip(kernel_size, stride, dilation)])
+        return all([is_static_pad(*a) for a in zip(kernel_size, stride, dilation)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return stride == 1 and (dilation * (kernel_size - 1)) % 2 == 0
 
 
@@ -75,7 +75,7 @@ def get_padding_value(padding, kernel_size, **kwargs) -> Tuple[Tuple, bool]:
             # TF compatible 'SAME' padding, has a performance and GPU memory allocation impact
             if is_static_pad(kernel_size, **kwargs):
                 # static case, no extra overhead
-                padding = get_padding(kernel_size, **kwargs)
+                padding = get_padding(kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 # dynamic 'SAME' padding, has runtime/GPU memory overhead
                 padding = 0
@@ -85,5 +85,5 @@ def get_padding_value(padding, kernel_size, **kwargs) -> Tuple[Tuple, bool]:
             padding = 0
         else:
             # Default to PyTorch style 'same'-ish symmetric padding
-            padding = get_padding(kernel_size, **kwargs)
+            padding = get_padding(kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return padding, dynamic

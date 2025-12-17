@@ -99,8 +99,8 @@ class ConvNormAct(msnn.Cell):
             groups=groups,
             bias=False,
             **dd,
-        )
-        self.norm = norm_layer(out_chs, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
 
     def construct(self, x):
@@ -134,12 +134,12 @@ class PatchEmbed(msnn.Cell):
         super().__init__()
         if stride == 2:
             self.pool = nn.AvgPool2d((2, 2), stride = 2, ceil_mode = True, count_include_pad = False)
-            self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=1, stride=1, bias=False, **dd)
-            self.norm = norm_layer(out_chs, **dd)
+            self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=1, stride=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif in_chs != out_chs:
             self.pool = msnn.Identity()
-            self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=1, stride=1, bias=False, **dd)
-            self.norm = norm_layer(out_chs, **dd)
+            self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=1, stride=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.pool = msnn.Identity()
             self.conv = msnn.Identity()
@@ -174,10 +174,10 @@ class ConvAttention(msnn.Cell):
             groups=out_chs // head_dim,
             bias=False,
             **dd,
-        )
-        self.norm = norm_layer(out_chs, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
-        self.projection = nn.Conv2d(out_chs, out_chs, kernel_size=1, bias=False, **dd)
+        self.projection = nn.Conv2d(out_chs, out_chs, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         out = self.group_conv3x3(x)
@@ -211,17 +211,17 @@ class NextConvBlock(msnn.Cell):
         self.out_chs = out_chs
         assert out_chs % head_dim == 0
 
-        self.patch_embed = PatchEmbed(in_chs, out_chs, stride, norm_layer=norm_layer, **dd)
+        self.patch_embed = PatchEmbed(in_chs, out_chs, stride, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mhca = ConvAttention(
             out_chs,
             head_dim,
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop_path = DropPath(drop_path)
 
-        self.norm = norm_layer(out_chs, **dd)
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = ConvMlp(
             out_chs,
             hidden_features=int(out_chs * mlp_ratio),
@@ -229,10 +229,11 @@ class NextConvBlock(msnn.Cell):
             bias=True,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp_drop_path = DropPath(drop_path)
         self.is_fused = False
 
+    @torch.no_grad()
     def reparameterize(self):
         if not self.is_fused:
             merge_pre_bn(self.mlp.fc1, self.norm)
@@ -252,7 +253,7 @@ class EfficientAttention(msnn.Cell):
     """
     Efficient Multi-Head Self Attention
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -276,10 +277,10 @@ class EfficientAttention(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.q = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)
-        self.k = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)
-        self.v = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)
-        self.proj = nn.Linear(self.dim, self.out_dim, **dd)
+        self.q = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.k = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.v = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(self.dim, self.out_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj_drop = nn.Dropout(proj_drop)
 
@@ -287,7 +288,7 @@ class EfficientAttention(msnn.Cell):
         self.N_ratio = sr_ratio ** 2
         if sr_ratio > 1:
             self.sr = nn.AvgPool1d(kernel_size=self.N_ratio, stride=self.N_ratio)  # 'torch.nn.AvgPool1d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-            self.norm = norm_layer(dim, **dd)
+            self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.sr = None
             self.norm = None
@@ -352,8 +353,8 @@ class NextTransformerBlock(msnn.Cell):
         self.mhsa_out_chs = _make_divisible(int(out_chs * mix_block_ratio), 32)
         self.mhca_out_chs = out_chs - self.mhsa_out_chs
 
-        self.patch_embed = PatchEmbed(in_chs, self.mhsa_out_chs, stride, **dd)
-        self.norm1 = norm_layer(self.mhsa_out_chs, **dd)
+        self.patch_embed = PatchEmbed(in_chs, self.mhsa_out_chs, stride, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_layer(self.mhsa_out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.e_mhsa = EfficientAttention(
             self.mhsa_out_chs,
             head_dim=head_dim,
@@ -361,7 +362,7 @@ class NextTransformerBlock(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mhsa_drop_path = DropPath(drop_path * mix_block_ratio)
 
         self.projection = PatchEmbed(
@@ -370,27 +371,28 @@ class NextTransformerBlock(msnn.Cell):
             stride=1,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mhca = ConvAttention(
             self.mhca_out_chs,
             head_dim=head_dim,
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mhca_drop_path = DropPath(drop_path * (1 - mix_block_ratio))
 
-        self.norm2 = norm_layer(out_chs, **dd)
+        self.norm2 = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = ConvMlp(
             out_chs,
             hidden_features=int(out_chs * mlp_ratio),
             act_layer=act_layer,
             drop=drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp_drop_path = DropPath(drop_path)
         self.is_fused = False
 
+    @torch.no_grad()
     def reparameterize(self):
         if not self.is_fused:
             merge_pre_bn(self.e_mhsa.q, self.norm1)
@@ -465,7 +467,7 @@ class NextStage(msnn.Cell):
                     norm_layer=norm_layer,
                     act_layer=act_layer,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 blocks.append(layer)
             elif block_type is NextTransformerBlock:
                 layer = NextTransformerBlock(
@@ -481,13 +483,13 @@ class NextStage(msnn.Cell):
                     norm_layer=norm_layer,
                     act_layer=act_layer,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 blocks.append(layer)
             in_chs = out_chs
 
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
@@ -557,7 +559,7 @@ class NextViT(msnn.Cell):
                 stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
             ConvNormAct(
                 stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = out_chs = stem_chs[-1]
         stages = []
         idx = 0
@@ -577,14 +579,14 @@ class NextViT(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs = self.stage_out_chs[stage_idx][-1]
             stages += [stage]
             idx += depths[stage_idx]
         self.num_features = self.head_hidden_size = out_chs
-        self.stages = msnn.SequentialCell(*stages)
-        self.norm = norm_layer(out_chs, **dd)
-        self.head = ClassifierHead(pool_type=global_pool, in_features=out_chs, num_classes=num_classes, **dd)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.head = ClassifierHead(pool_type=global_pool, in_features=out_chs, num_classes=num_classes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.stage_out_idx = [sum(depths[:idx + 1]) - 1 for idx in range(len(depths))]
         self._initialize_weights()
@@ -600,7 +602,7 @@ class NextViT(msnn.Cell):
                 if hasattr(m, 'bias') and m.bias is not None:
                     nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',  # stem and embed
@@ -610,13 +612,13 @@ class NextViT(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
         for stage in self.stages:
             stage.set_grad_checkpointing(enable=enable)
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -735,7 +737,7 @@ def _create_nextvit(variant, pretrained=False, **kwargs):
         pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return model
 
@@ -803,7 +805,7 @@ default_cfgs = generate_default_cfgs({
 def nextvit_small(pretrained=False, **kwargs):
     model_args = dict(depths=(3, 4, 10, 3), drop_path_rate=0.1)
     model = _create_nextvit(
-        'nextvit_small', pretrained=pretrained, **dict(model_args, **kwargs))
+        'nextvit_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -811,7 +813,7 @@ def nextvit_small(pretrained=False, **kwargs):
 def nextvit_base(pretrained=False, **kwargs):
     model_args = dict(depths=(3, 4, 20, 3), drop_path_rate=0.2)
     model = _create_nextvit(
-        'nextvit_base', pretrained=pretrained, **dict(model_args, **kwargs))
+        'nextvit_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -819,5 +821,5 @@ def nextvit_base(pretrained=False, **kwargs):
 def nextvit_large(pretrained=False, **kwargs):
     model_args = dict(depths=(3, 4, 30, 3), drop_path_rate=0.2)
     model = _create_nextvit(
-        'nextvit_large', pretrained=pretrained, **dict(model_args, **kwargs))
+        'nextvit_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

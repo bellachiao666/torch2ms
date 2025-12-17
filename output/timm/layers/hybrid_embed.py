@@ -27,7 +27,7 @@ class HybridEmbed(msnn.Cell):
     Extract feature map from CNN, flatten, project to embedding dim.
     """
     output_fmt: Format
-    dynamic_img_pad: torch.jit.Final[bool]
+    dynamic_img_pad: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -66,7 +66,7 @@ class HybridEmbed(msnn.Cell):
             feature_size=feature_size,
             feature_ratio=feature_ratio,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if output_fmt is not None:
             self.flatten = False
@@ -88,7 +88,7 @@ class HybridEmbed(msnn.Cell):
                 stride=patch_size,
                 bias=bias,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             assert self.feature_dim == embed_dim, \
                 f'The feature dim ({self.feature_dim} must match embed dim ({embed_dim}) when projection disabled.'
@@ -194,7 +194,7 @@ class HybridEmbed(msnn.Cell):
         else:
             return feat_size[0] // self.patch_size[0], feat_size[1] // self.patch_size[1]
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True):
         if hasattr(self.backbone, 'set_grad_checkpointing'):
             self.backbone.set_grad_checkpointing(enable=enable)
@@ -250,7 +250,7 @@ class HybridEmbedWithSize(HybridEmbed):
             dtype=dtype,
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True):
         if hasattr(self.backbone, 'set_grad_checkpointing'):
             self.backbone.set_grad_checkpointing(enable=enable)

@@ -21,14 +21,7 @@
  class RMSpropTF(Optimizer):
      """Implements RMSprop algorithm (TensorFlow style epsilon)
  
-@@ -95,7 +101,6 @@             group.setdefault('caution', False)
-             group.setdefault('corrected_weight_decay', False)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
- 
-@@ -120,11 +125,11 @@                 # State initialization
+@@ -120,11 +126,11 @@                 # State initialization
                  if len(state) == 0:
                      state['step'] = 0
 -                    state['square_avg'] = torch.ones_like(p)  # PyTorch inits to zero

@@ -278,7 +278,7 @@ class RelPosBias(msnn.Cell):
         self.bias_shape = (self.window_area + prefix_tokens,) * 2 + (num_heads,)
 
         num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3 * prefix_tokens
-        self.relative_position_bias_table = ms.Parameter(mint.empty(num_relative_distance, num_heads, **dd))
+        self.relative_position_bias_table = ms.Parameter(mint.empty(num_relative_distance, num_heads, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.register_buffer(
             "relative_position_index",
             gen_relative_position_index(self.window_size, class_token=prefix_tokens > 0, device=device).view(-1),
@@ -372,7 +372,7 @@ class RelPosMlp(msnn.Cell):
             bias=mlp_bias,
             drop=(0.125, 0.),
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.register_buffer(
             "relative_position_index",
@@ -385,7 +385,7 @@ class RelPosMlp(msnn.Cell):
             "rel_coords_log",
             gen_relative_log_coords(window_size, pretrained_window_size, mode=mode, **dd),
             persistent=False,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def get_bias(self) -> ms.Tensor:
         relative_position_bias = self.mlp(self.rel_coords_log)
@@ -487,9 +487,9 @@ class RelPosBiasTf(msnn.Cell):
         vocab_height = 2 * window_size[0] - 1
         vocab_width = 2 * window_size[1] - 1
         self.bias_shape = (self.num_heads, vocab_height, vocab_width)
-        self.relative_position_bias_table = ms.Parameter(mint.empty(self.bias_shape, **dd))
-        self.register_buffer('height_lookup', generate_lookup_tensor(window_size[0], **dd), persistent=False)
-        self.register_buffer('width_lookup', generate_lookup_tensor(window_size[1], **dd), persistent=False)
+        self.relative_position_bias_table = ms.Parameter(mint.empty(self.bias_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer('height_lookup', generate_lookup_tensor(window_size[0], **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer('width_lookup', generate_lookup_tensor(window_size[1], **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.init_weights()
 
     def init_weights(self):

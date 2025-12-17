@@ -78,8 +78,8 @@ class ConvNormAct(msnn.Cell):
             groups=groups,
             bias=bias,
             **dd,
-        )
-        self.norm = norm_layer(num_features=out_channels, **dd) if norm_layer else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(num_features=out_channels, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer(inplace=True) if act_layer is not None else msnn.Identity()
 
     def construct(self, x):
@@ -119,7 +119,7 @@ class DSConv(msnn.Cell):
             act_layer=act_layer[0],
             bias=use_bias[0],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.point_conv = ConvNormAct(
             in_channels,
             out_channels,
@@ -128,7 +128,7 @@ class DSConv(msnn.Cell):
             act_layer=act_layer[1],
             bias=use_bias[1],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.depth_conv(x)
@@ -167,7 +167,7 @@ class ConvBlock(msnn.Cell):
             act_layer=act_layer[0],
             bias=use_bias[0],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = ConvNormAct(
             mid_channels,
             out_channels,
@@ -177,7 +177,7 @@ class ConvBlock(msnn.Cell):
             act_layer=act_layer[1],
             bias=use_bias[1],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv1(x)
@@ -216,7 +216,7 @@ class MBConv(msnn.Cell):
             act_layer=act_layer[0],
             bias=use_bias[0],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.depth_conv = ConvNormAct(
             mid_channels,
             mid_channels,
@@ -227,7 +227,7 @@ class MBConv(msnn.Cell):
             act_layer=act_layer[1],
             bias=use_bias[1],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.point_conv = ConvNormAct(
             mid_channels,
             out_channels,
@@ -236,7 +236,7 @@ class MBConv(msnn.Cell):
             act_layer=act_layer[2],
             bias=use_bias[2],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.inverted_conv(x)
@@ -278,7 +278,7 @@ class FusedMBConv(msnn.Cell):
             act_layer=act_layer[0],
             bias=use_bias[0],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.point_conv = ConvNormAct(
             mid_channels,
             out_channels,
@@ -287,7 +287,7 @@ class FusedMBConv(msnn.Cell):
             act_layer=act_layer[1],
             bias=use_bias[1],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.spatial_conv(x)
@@ -332,7 +332,7 @@ class LiteMLA(msnn.Cell):
             norm_layer=norm_layer[0],
             act_layer=act_layer[0],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.aggreg = msnn.CellList([
             msnn.SequentialCell(
                 nn.Conv2d(
@@ -347,7 +347,7 @@ class LiteMLA(msnn.Cell):
                 nn.Conv2d(3 * total_dim, 3 * total_dim, 1, groups=3 * heads, bias=use_bias[0], **dd),
             )
             for scale in scales
-        ])
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
         self.kernel_func = kernel_func(inplace=False)
 
         self.proj = ConvNormAct(
@@ -358,7 +358,7 @@ class LiteMLA(msnn.Cell):
             norm_layer=norm_layer[1],
             act_layer=act_layer[1],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _attn(self, q, k, v):
         dtype = v.dtype
@@ -424,7 +424,7 @@ class EfficientVitBlock(msnn.Cell):
                 **dd,
             ),
             msnn.Identity(),
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.local_module = ResidualBlock(
             MBConv(
                 in_channels=in_channels,
@@ -436,7 +436,7 @@ class EfficientVitBlock(msnn.Cell):
                 **dd,
             ),
             msnn.Identity(),
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.context_module(x)
@@ -487,7 +487,7 @@ def build_local_block(
                 norm_layer=(None, norm_layer) if fewer_norm else norm_layer,
                 act_layer=(act_layer, None),
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             block = ConvBlock(
                 in_channels=in_channels,
@@ -497,7 +497,7 @@ def build_local_block(
                 norm_layer=(None, norm_layer) if fewer_norm else norm_layer,
                 act_layer=(act_layer, None),
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         if block_type == "default":
             block = MBConv(
@@ -509,7 +509,7 @@ def build_local_block(
                 norm_layer=(None, None, norm_layer) if fewer_norm else norm_layer,
                 act_layer=(act_layer, act_layer, None),
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             block = FusedMBConv(
                 in_channels=in_channels,
@@ -520,7 +520,7 @@ def build_local_block(
                 norm_layer=(None, norm_layer) if fewer_norm else norm_layer,
                 act_layer=(act_layer, None),
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return block
 
 
@@ -551,7 +551,7 @@ class Stem(msnn.SequentialCell):
                 act_layer=act_layer,
                 **dd,
             )
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stem_block = 0
         for _ in range(depth):
             self.add_module(f'res{stem_block}', ResidualBlock(
@@ -566,7 +566,7 @@ class Stem(msnn.SequentialCell):
                     **dd,
                 ),
                 msnn.Identity(),
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stem_block += 1
 
 
@@ -598,7 +598,7 @@ class EfficientVitStage(msnn.Cell):
                 **dd,
             ),
             None,
-        )]
+        )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = out_chs
 
         if vit_stage:
@@ -613,7 +613,7 @@ class EfficientVitStage(msnn.Cell):
                         act_layer=act_layer,
                         **dd,
                     )
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             # for stage 1, 2
             for i in range(1, depth):
@@ -628,9 +628,9 @@ class EfficientVitStage(msnn.Cell):
                         **dd,
                     ),
                     msnn.Identity(),
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.blocks(x)
@@ -665,7 +665,7 @@ class EfficientVitLargeStage(msnn.Cell):
                 **dd,
             ),
             None,
-        )]
+        )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = out_chs
 
         if vit_stage:
@@ -680,7 +680,7 @@ class EfficientVitLargeStage(msnn.Cell):
                         act_layer=act_layer,
                         **dd,
                     )
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             # for stage 1, 2, 3
             for i in range(depth):
@@ -697,9 +697,9 @@ class EfficientVitLargeStage(msnn.Cell):
                         **dd,
                     ),
                     msnn.Identity(),
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.blocks(x)
@@ -725,7 +725,7 @@ class ClassifierHead(msnn.Cell):
         self.num_features = widths[-1]
 
         assert pool_type, 'Cannot disable pooling'
-        self.in_conv = ConvNormAct(in_channels, widths[0], 1, norm_layer=norm_layer, act_layer=act_layer, **dd)
+        self.in_conv = ConvNormAct(in_channels, widths[0], 1, norm_layer=norm_layer, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.global_pool = SelectAdaptivePool2d(pool_type=pool_type, flatten=True)
         self.classifier = msnn.SequentialCell(
             nn.Linear(widths[0], widths[1], bias=False, **dd),
@@ -733,7 +733,7 @@ class ClassifierHead(msnn.Cell):
             act_layer(inplace=True) if act_layer is not None else msnn.Identity(),
             nn.Dropout(dropout, inplace = False),
             nn.Linear(widths[1], num_classes, bias=True, **dd) if num_classes > 0 else msnn.Identity(),
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def reset(self, num_classes: int, pool_type: Optional[str] = None):
         if pool_type is not None:
@@ -782,7 +782,7 @@ class EfficientVit(msnn.Cell):
         self.num_classes = num_classes
 
         # input stem
-        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, **dd)
+        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stride = self.stem.stride
 
         # stages
@@ -800,7 +800,7 @@ class EfficientVit(msnn.Cell):
                 head_dim=head_dim,
                 vit_stage=i >= 2,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stride *= 2
             in_channels = w
             self.feature_info += [dict(num_chs=in_channels, reduction=stride, module=f'stages.{i}')]
@@ -813,10 +813,10 @@ class EfficientVit(msnn.Cell):
             dropout=drop_rate,
             pool_type=self.global_pool,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_hidden_size = self.head.num_features
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^stem',
@@ -827,11 +827,11 @@ class EfficientVit(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.classifier[-1]
 
@@ -942,7 +942,7 @@ class EfficientVitLarge(msnn.Cell):
         norm_layer = partial(norm_layer, eps=self.norm_eps)
 
         # input stem
-        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, block_type='large', **dd)
+        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, block_type='large', **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stride = self.stem.stride
 
         # stages
@@ -960,7 +960,7 @@ class EfficientVitLarge(msnn.Cell):
                 vit_stage=i >= 3,
                 fewer_norm=i >= 2,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stride *= 2
             in_channels = w
             self.feature_info += [dict(num_chs=in_channels, reduction=stride, module=f'stages.{i}')]
@@ -975,10 +975,10 @@ class EfficientVitLarge(msnn.Cell):
             act_layer=act_layer,
             norm_eps=self.norm_eps,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_hidden_size = self.head.num_features
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^stem',
@@ -989,11 +989,11 @@ class EfficientVitLarge(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.classifier[-1]
 
@@ -1193,7 +1193,7 @@ def _create_efficientvit(variant, pretrained=False, **kwargs):
         pretrained,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1205,7 +1205,7 @@ def _create_efficientvit_large(variant, pretrained=False, **kwargs):
         pretrained,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1213,49 +1213,49 @@ def _create_efficientvit_large(variant, pretrained=False, **kwargs):
 def efficientvit_b0(pretrained=False, **kwargs):
     model_args = dict(
         widths=(8, 16, 32, 64, 128), depths=(1, 2, 2, 2, 2), head_dim=16, head_widths=(1024, 1280))
-    return _create_efficientvit('efficientvit_b0', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit('efficientvit_b0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def efficientvit_b1(pretrained=False, **kwargs):
     model_args = dict(
         widths=(16, 32, 64, 128, 256), depths=(1, 2, 3, 3, 4), head_dim=16, head_widths=(1536, 1600))
-    return _create_efficientvit('efficientvit_b1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit('efficientvit_b1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def efficientvit_b2(pretrained=False, **kwargs):
     model_args = dict(
         widths=(24, 48, 96, 192, 384), depths=(1, 3, 4, 4, 6), head_dim=32, head_widths=(2304, 2560))
-    return _create_efficientvit('efficientvit_b2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit('efficientvit_b2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def efficientvit_b3(pretrained=False, **kwargs):
     model_args = dict(
         widths=(32, 64, 128, 256, 512), depths=(1, 4, 6, 6, 9), head_dim=32, head_widths=(2304, 2560))
-    return _create_efficientvit('efficientvit_b3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit('efficientvit_b3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def efficientvit_l1(pretrained=False, **kwargs):
     model_args = dict(
         widths=(32, 64, 128, 256, 512), depths=(1, 1, 1, 6, 6), head_dim=32, head_widths=(3072, 3200))
-    return _create_efficientvit_large('efficientvit_l1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_large('efficientvit_l1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def efficientvit_l2(pretrained=False, **kwargs):
     model_args = dict(
         widths=(32, 64, 128, 256, 512), depths=(1, 2, 2, 8, 8), head_dim=32, head_widths=(3072, 3200))
-    return _create_efficientvit_large('efficientvit_l2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_large('efficientvit_l2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def efficientvit_l3(pretrained=False, **kwargs):
     model_args = dict(
         widths=(64, 128, 256, 512, 1024), depths=(1, 2, 2, 8, 8), head_dim=32, head_widths=(6144, 6400))
-    return _create_efficientvit_large('efficientvit_l3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_large('efficientvit_l3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 # FIXME will wait for v2 SAM models which are pending

@@ -63,7 +63,7 @@ class Transformer(msnn.Cell):
         embed_dim = base_dim * heads
 
         self.pool = pool
-        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()
+        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.blocks = msnn.SequentialCell(*[
             Block(
                 dim=embed_dim,
@@ -76,7 +76,7 @@ class Transformer(msnn.Cell):
                 norm_layer=partial(nn.LayerNorm, eps=1e-6),
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
         x, cls_tokens = x
@@ -120,8 +120,8 @@ class Pooling(msnn.Cell):
             padding_mode=padding_mode,
             groups=in_feature,
             **dd,
-        )
-        self.fc = nn.Linear(in_feature, out_feature, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.fc = nn.Linear(in_feature, out_feature, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x, cls_token) -> Tuple[ms.Tensor, ms.Tensor]:
         x = self.conv(x)
@@ -158,7 +158,7 @@ class ConvEmbedding(msnn.Cell):
             padding=padding,
             bias=True,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv(x)
@@ -205,9 +205,9 @@ class PoolingVisionTransformer(msnn.Cell):
         self.num_tokens = 2 if distilled else 1
         self.feature_info = []
 
-        self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)
-        self.pos_embed = ms.Parameter(mint.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))
-        self.cls_token = ms.Parameter(mint.randn(1, self.num_tokens, embed_dim, **dd))
+        self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pos_embed = ms.Parameter(mint.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.cls_token = ms.Parameter(mint.randn(1, self.num_tokens, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_drop = nn.Dropout(p = pos_drop_drate)
 
         transformers = []
@@ -223,7 +223,7 @@ class PoolingVisionTransformer(msnn.Cell):
                     embed_dim,
                     stride=2,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             transformers += [Transformer(
                 base_dims[i],
                 depth[i],
@@ -234,20 +234,20 @@ class PoolingVisionTransformer(msnn.Cell):
                 attn_drop=attn_drop_rate,
                 drop_path_prob=dpr[i],
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_dim = embed_dim
             self.feature_info += [dict(num_chs=prev_dim, reduction=(stride - 1) * 2**i, module=f'transformers.{i}')]
 
-        self.transformers = SequentialTuple(*transformers)
-        self.norm = nn.LayerNorm(base_dims[-1] * heads[-1], eps=1e-6, **dd)
+        self.transformers = SequentialTuple(*transformers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = nn.LayerNorm(base_dims[-1] * heads[-1], eps=1e-6, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.num_features = self.head_hidden_size = self.embed_dim = embed_dim
 
         # Classifier head
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
         self.head_dist = None
         if distilled:
-            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()
+            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
         self.distilled_training = False  # must set this True to train w/ distillation token
 
         trunc_normal_(self.pos_embed, std=.02)
@@ -259,15 +259,15 @@ class PoolingVisionTransformer(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token'}
 
-    @torch.jit.ignore
+    @ms.jit
     def set_distilled_training(self, enable=True):
         self.distilled_training = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
@@ -414,7 +414,7 @@ def _create_pit(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(feature_cls='hook', out_indices=out_indices),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -461,7 +461,7 @@ def pit_b_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
         heads=[4, 8, 16],
         mlp_ratio=4,
     )
-    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -474,7 +474,7 @@ def pit_s_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
         heads=[3, 6, 12],
         mlp_ratio=4,
     )
-    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -487,7 +487,7 @@ def pit_xs_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
         heads=[2, 4, 8],
         mlp_ratio=4,
     )
-    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -500,7 +500,7 @@ def pit_ti_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
         heads=[2, 4, 8],
         mlp_ratio=4,
     )
-    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -514,7 +514,7 @@ def pit_b_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
         mlp_ratio=4,
         distilled=True,
     )
-    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -528,7 +528,7 @@ def pit_s_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
         mlp_ratio=4,
         distilled=True,
     )
-    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -542,7 +542,7 @@ def pit_xs_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer
         mlp_ratio=4,
         distilled=True,
     )
-    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -556,4 +556,4 @@ def pit_ti_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer
         mlp_ratio=4,
         distilled=True,
     )
-    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))
+    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

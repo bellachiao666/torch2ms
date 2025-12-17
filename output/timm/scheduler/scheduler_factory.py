@@ -53,7 +53,6 @@ def scheduler_kwargs(cfg, decreasing_metric: Optional[bool] = None):
     return kwargs
 
 
-# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_scheduler(
         args,
         optimizer: Optimizer,
@@ -63,10 +62,9 @@ def create_scheduler(
         optimizer=optimizer,
         **scheduler_kwargs(args),
         updates_per_epoch=updates_per_epoch,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
-# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_scheduler_v2(
         optimizer: Optimizer,
         sched: str = 'cosine',
@@ -147,7 +145,7 @@ def create_scheduler_v2(
             **warmup_args,
             **noise_args,
             k_decay=k_decay,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif sched == 'tanh':
         lr_scheduler = TanhLRScheduler(
             optimizer,
@@ -157,7 +155,7 @@ def create_scheduler_v2(
             **cycle_args,
             **warmup_args,
             **noise_args,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif sched == 'step':
         lr_scheduler = StepLRScheduler(
             optimizer,
@@ -166,7 +164,7 @@ def create_scheduler_v2(
             t_in_epochs=step_on_epochs,
             **warmup_args,
             **noise_args,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif sched == 'multistep':
         lr_scheduler = MultiStepLRScheduler(
             optimizer,
@@ -175,7 +173,7 @@ def create_scheduler_v2(
             t_in_epochs=step_on_epochs,
             **warmup_args,
             **noise_args,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif sched == 'plateau':
         assert step_on_epochs, 'Plateau LR only supports step per epoch.'
         warmup_args.pop('warmup_prefix', False)
@@ -188,7 +186,7 @@ def create_scheduler_v2(
             lr_min=min_lr,
             mode=plateau_mode,
             **noise_args,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif sched == 'poly':
         lr_scheduler = PolyLRScheduler(
             optimizer,
@@ -200,7 +198,7 @@ def create_scheduler_v2(
             **cycle_args,
             **warmup_args,
             **noise_args,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     if hasattr(lr_scheduler, 'get_cycle_length'):
         # For cycle based schedulers (cosine, tanh, poly) recalculate total epochs w/ cycles & cooldown

@@ -90,8 +90,8 @@ class PosEmbedRel(msnn.Cell):
         self.dim_head = dim_head
         self.scale = scale
 
-        self.height_rel = ms.Parameter(mint.empty(win_size * 2 - 1, dim_head, **dd))
-        self.width_rel = ms.Parameter(mint.empty(win_size * 2 - 1, dim_head, **dd))
+        self.height_rel = ms.Parameter(mint.empty(win_size * 2 - 1, dim_head, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.width_rel = ms.Parameter(mint.empty(win_size * 2 - 1, dim_head, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -185,8 +185,8 @@ class HaloAttn(msnn.Cell):
         # FIXME not clear if this stride behaviour is what the paper intended
         # Also, the paper mentions using a 3D conv for dealing with the blocking/gather, and leaving
         # data in unfolded block form. I haven't wrapped my head around how that'd look.
-        self.q = nn.Conv2d(dim, self.dim_out_qk, 1, stride=self.block_stride, bias=qkv_bias, **dd)
-        self.kv = nn.Conv2d(dim, self.dim_out_qk + self.dim_out_v, 1, bias=qkv_bias, **dd)
+        self.q = nn.Conv2d(dim, self.dim_out_qk, 1, stride=self.block_stride, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.kv = nn.Conv2d(dim, self.dim_out_qk + self.dim_out_v, 1, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.pos_embed = PosEmbedRel(
             block_size=self.block_size_ds,
@@ -194,7 +194,7 @@ class HaloAttn(msnn.Cell):
             dim_head=self.dim_head_qk,
             scale=self.scale,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.pool = nn.AvgPool2d(2, 2) if use_avg_pool else msnn.Identity()
 

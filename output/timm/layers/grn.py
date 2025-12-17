@@ -42,8 +42,8 @@ class GlobalResponseNorm(msnn.Cell):
             self.channel_dim = 1
             self.wb_shape = (1, -1, 1, 1)
 
-        self.weight = ms.Parameter(mint.zeros(dim, **dd))
-        self.bias = ms.Parameter(mint.zeros(dim, **dd))
+        self.weight = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x_g = x.norm(p=2, dim=self.spatial_dim, keepdim=True)

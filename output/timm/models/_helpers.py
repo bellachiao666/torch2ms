@@ -46,8 +46,6 @@ def clean_state_dict(state_dict: Dict[str, Any]) -> Dict[str, Any]:
     return cleaned_state_dict
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def load_state_dict(
         checkpoint_path: str,
         use_ema: bool = True,
@@ -94,8 +92,6 @@ def load_state_dict(
         raise FileNotFoundError()
 
 
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def load_checkpoint(
         model: msnn.Cell,
         checkpoint_path: str,
@@ -167,9 +163,6 @@ def remap_state_dict(
     return out_dict
 
 
-# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def resume_checkpoint(
         model: msnn.Cell,
         checkpoint_path: str,

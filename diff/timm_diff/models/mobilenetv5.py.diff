@@ -22,10 +22,18 @@
    """Multi-layer fusion token adapter.
  
    Args:
-@@ -89,17 +93,17 @@ 
-     self.norm = norm_layer(self.out_channels, **dd)
- 
+@@ -85,21 +89,21 @@         noskip=self.noskip,
+         layer_scale_init_value=self.layer_scale_init_value,
+         **dd,
+-    )
+-
+-    self.norm = norm_layer(self.out_channels, **dd)
+-
 -  def forward(self, inputs: List[torch.Tensor]) -> torch.Tensor:
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    self.norm = norm_layer(self.out_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +  def construct(self, inputs: List[ms.Tensor]) -> ms.Tensor:
      # Inputs list of [B, C, H, W] tensors
      high_resolution = inputs[0].shape[-2:]  # Assuming the first input is the highest resolution.
@@ -68,38 +76,73 @@
      """ MobiletNet-V5
      """
  
-@@ -215,7 +216,7 @@             layer_scale_init_value=layer_scale_init_value,
+@@ -199,7 +200,7 @@             norm_layer=norm_layer,
+             act_layer=act_layer,
              **dd,
-         )
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Middle stages (IR/ER/DS Blocks)
+         builder = EfficientNetBuilder(
+@@ -214,8 +215,8 @@             drop_path_rate=drop_path_rate,
+             layer_scale_init_value=layer_scale_init_value,
+             **dd,
+-        )
 -        self.blocks = nn.Sequential(*builder(stem_size, block_args))
-+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.feature_info = builder.features
          self.stage_ends = [f['stage'] for f in self.feature_info]
          self.num_features = builder.in_chs  # features of last stage, output of forward_features()
-@@ -248,8 +249,8 @@             self.conv_head = create_conv2d(num_pooled_chs, self.head_hidden_size, 1, padding=pad_type, **dd)
-             self.norm_head = norm_act_layer(self.head_hidden_size, **dd)
- 
+@@ -234,7 +235,7 @@                 norm_layer=norm_layer,
+                 act_layer=act_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
+             self.conv_head = None
+             self.norm_head = None
+@@ -245,11 +246,11 @@             self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
+             num_pooled_chs = self.num_features * self.global_pool.feat_mult()
+             # mobilenet-v4 style post-pooling PW conv is followed by a norm+act layer
+-            self.conv_head = create_conv2d(num_pooled_chs, self.head_hidden_size, 1, padding=pad_type, **dd)
+-            self.norm_head = norm_act_layer(self.head_hidden_size, **dd)
+-
 -        self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
 -        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else nn.Identity()
++            self.conv_head = create_conv2d(num_pooled_chs, self.head_hidden_size, 1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.norm_head = norm_act_layer(self.head_hidden_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +        self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-+        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()
++        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          efficientnet_init_weights(self)
  
-@@ -261,8 +262,8 @@             layers.append(self.conv_head)
+@@ -261,41 +262,41 @@             layers.append(self.conv_head)
          if self.norm_head is not None:
              layers.append(self.norm_head)
 -        layers.extend([nn.Flatten(), nn.Dropout(self.drop_rate), self.classifier])
 -        return nn.Sequential(*layers)
+-
+-    @torch.jit.ignore
 +        layers.extend([mint.flatten(), nn.Dropout(self.drop_rate), self.classifier])
-+        return msnn.SequentialCell(*layers)
- 
-     @torch.jit.ignore
++        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    @ms.jit
      def group_matcher(self, coarse: bool = False):
-@@ -276,26 +277,26 @@         self.grad_checkpointing = enable
+         return dict(
+             stem=r'^conv_stem|bn1',
+             blocks=r'^blocks\.(\d+)' if coarse else r'^blocks\.(\d+)\.(\d+)'
+         )
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True):
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.classifier
  
@@ -164,15 +207,32 @@
      """MobileNetV5 Vision Encoder"""
  
      def __init__(
-@@ -476,7 +477,7 @@             layer_scale_init_value=layer_scale_init_value,
+@@ -461,7 +462,7 @@             norm_layer=norm_layer,
+             act_layer=act_layer,
              **dd,
-         )
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         builder = EfficientNetBuilder(
+             output_stride=32,
+@@ -475,8 +476,8 @@             drop_path_rate=drop_path_rate,
+             layer_scale_init_value=layer_scale_init_value,
+             **dd,
+-        )
 -        self.blocks = nn.Sequential(*builder(stem_size, block_args))
-+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.feature_info = builder.features
          self.stage_ends = [f['stage'] for f in self.feature_info]
  
-@@ -499,14 +500,14 @@ 
+@@ -493,20 +494,20 @@             norm_layer=norm_layer,
+             act_layer=act_layer,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         efficientnet_init_weights(self)
+ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -217,3 +277,53 @@
      """ convert weights from gemma encoders """
      state_dict = state_dict.get('model', state_dict)
      state_dict = state_dict.get('state_dict', state_dict)
+@@ -623,7 +624,7 @@         feature_cfg=feature_cfg,
+         kwargs_filter=kwargs_filter,
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -637,7 +638,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=feature_cfg,
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -812,11 +813,11 @@         act_layer=_GELU,
+         layer_scale_init_value=1e-5,
+     )
+-    model_kwargs = dict(model_kwargs, **kwargs)
++    model_kwargs = dict(model_kwargs, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     if encoder:
+-        model = _create_mnv5_encoder(variant, pretrained, **model_kwargs)
++        model = _create_mnv5_encoder(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     else:
+-        model = _create_mnv5(variant, pretrained, **model_kwargs)
++        model = _create_mnv5(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -862,17 +863,17 @@         encoder=True,
+         pad_type=pad_type,
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def mobilenetv5_300m(pretrained: bool = False, **kwargs) -> MobileNetV5:
+-    model = _gen_mobilenet_v5('mobilenetv5_300m', pretrained=pretrained, **kwargs)
++    model = _gen_mobilenet_v5('mobilenetv5_300m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+ @register_model
+ def mobilenetv5_base(pretrained: bool = False, **kwargs) -> MobileNetV5:
+-    model = _gen_mobilenet_v5('mobilenetv5_base', pretrained=pretrained, **kwargs)
++    model = _gen_mobilenet_v5('mobilenetv5_base', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model

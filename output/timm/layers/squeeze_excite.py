@@ -51,10 +51,10 @@ class SEModule(msnn.Cell):
         self.add_maxpool = add_maxpool
         if not rd_channels:
             rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
-        self.fc1 = nn.Conv2d(channels, rd_channels, kernel_size=1, bias=bias, **dd)
-        self.bn = norm_layer(rd_channels, **dd) if norm_layer else msnn.Identity()
+        self.fc1 = nn.Conv2d(channels, rd_channels, kernel_size=1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn = norm_layer(rd_channels, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = create_act_layer(act_layer, inplace=True)
-        self.fc2 = nn.Conv2d(rd_channels, channels, kernel_size=1, bias=bias, **dd)
+        self.fc2 = nn.Conv2d(rd_channels, channels, kernel_size=1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):
@@ -127,9 +127,9 @@ class SqueezeExciteCl(msnn.Cell):
         super().__init__()
         if not rd_channels:
             rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
-        self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)
+        self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = create_act_layer(act_layer, inplace=True)
-        self.fc2 = nn.Linear(rd_channels, channels, bias=bias, **dd)
+        self.fc2 = nn.Linear(rd_channels, channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):

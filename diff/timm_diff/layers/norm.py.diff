@@ -18,7 +18,7 @@
  
  from .fast_norm import (
      is_fast_norm,
-@@ -23,7 +28,7 @@ )
+@@ -23,13 +28,13 @@ )
  
  try:
 -    from torch.nn.functional import rms_norm
@@ -26,7 +26,22 @@
  except ImportError:
      from .fast_norm import rms_norm
  
-@@ -47,7 +52,7 @@         if self._fast_norm:
+ 
+ class GroupNorm(nn.GroupNorm):
+-    _fast_norm: torch.jit.Final[bool]
++    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
+@@ -40,37 +45,37 @@             **kwargs,
+     ):
+         # NOTE num_channels is swapped to first arg for consistency in swapping norm layers with BN
+-        super().__init__(num_groups, num_channels, eps=eps, affine=affine, **kwargs)
++        super().__init__(num_groups, num_channels, eps=eps, affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+ 
+     def forward(self, x):
+         if self._fast_norm:
              return fast_group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
          else:
 -            return F.group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
@@ -34,10 +49,20 @@
  
  
  class GroupNorm1(nn.GroupNorm):
-@@ -60,11 +65,11 @@         super().__init__(1, num_channels, **kwargs)
-         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+     """ Group Normalization with 1 group.
+     Input: tensor in shape [B, C, *]
+     """
+-    _fast_norm: torch.jit.Final[bool]
++    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
+     def __init__(self, num_channels: int, **kwargs):
+-        super().__init__(1, num_channels, **kwargs)
+-        self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        super().__init__(1, num_channels, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
++
 +    def forward(self, x: ms.Tensor) -> ms.Tensor:
          if self._fast_norm:
              return fast_group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
@@ -47,10 +72,23 @@
  
  
  class LayerNorm(nn.LayerNorm):
-@@ -82,11 +87,11 @@         super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
-         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+     """ LayerNorm w/ fast norm option
+     """
+-    _fast_norm: torch.jit.Final[bool]
++    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
+     def __init__(
+             self,
+@@ -79,14 +84,14 @@             affine: bool = True,
+             **kwargs,
+     ):
+-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+-        self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
++
 +    def forward(self, x: ms.Tensor) -> ms.Tensor:
          if self._fast_norm:
              x = fast_layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
@@ -60,10 +98,14 @@
          return x
  
  
-@@ -103,10 +108,10 @@     ):
-         super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
- 
+@@ -101,18 +106,18 @@             affine: bool = True,
+             **kwargs,
+     ):
+-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def forward(self, x: ms.Tensor) -> ms.Tensor:
          weight = self.weight.float() if self.weight is not None else None
          bias = self.bias.float() if self.bias is not None else None
@@ -72,10 +114,23 @@
          return x
  
  
-@@ -124,12 +129,12 @@         super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
-         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+ class LayerNorm2d(nn.LayerNorm):
+     """ LayerNorm for channels of '2D' spatial NCHW tensors """
+-    _fast_norm: torch.jit.Final[bool]
++    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
+     def __init__(
+             self,
+@@ -121,15 +126,15 @@             affine: bool = True,
+             **kwargs,
+     ):
+-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+-        self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
++
 +    def forward(self, x: ms.Tensor) -> ms.Tensor:
          x = x.permute(0, 2, 3, 1)
          if self._fast_norm:
@@ -86,10 +141,14 @@
          x = x.permute(0, 3, 1, 2)
          return x
  
-@@ -146,16 +151,16 @@     ):
-         super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
- 
+@@ -144,18 +149,18 @@             affine: bool = True,
+             **kwargs,
+     ):
+-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def forward(self, x: ms.Tensor) -> ms.Tensor:
          x = x.permute(0, 2, 3, 1)
          weight = self.weight.float() if self.weight is not None else None
@@ -160,7 +219,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +
@@ -203,7 +262,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +
@@ -242,7 +301,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +
@@ -278,7 +337,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +
@@ -313,7 +372,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +
@@ -349,7 +408,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +
@@ -384,7 +443,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +
@@ -420,7 +479,7 @@
 -            nn.init.ones_(self.weight)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))
++            self.weight = ms.Parameter(mint.empty(self.normalized_shape, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        else:
 +            self.register_parameter('weight', None)
 +

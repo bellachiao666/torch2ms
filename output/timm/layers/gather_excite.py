@@ -57,18 +57,18 @@ class GatherExcite(msnn.Cell):
             if extent == 0:
                 assert feat_size is not None, 'spatial feature size must be specified for global extent w/ params'
                 self.gather.add_module(
-                    'conv1', create_conv2d(channels, channels, kernel_size=feat_size, stride=1, depthwise=True, *dd))
+                    'conv1', create_conv2d(channels, channels, kernel_size=feat_size, stride=1, depthwise=True, *dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 if norm_layer:
-                    self.gather.add_module(f'norm1', nn.BatchNorm2d(channels, *dd))
+                    self.gather.add_module(f'norm1', nn.BatchNorm2d(channels, *dd))  # 存在 *args/**kwargs，需手动确认参数映射;
             else:
                 assert extent % 2 == 0
                 num_conv = int(math.log2(extent))
                 for i in range(num_conv):
                     self.gather.add_module(
                         f'conv{i + 1}',
-                        create_conv2d(channels, channels, kernel_size=3, stride=2, depthwise=True, *dd))
+                        create_conv2d(channels, channels, kernel_size=3, stride=2, depthwise=True, *dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                     if norm_layer:
-                        self.gather.add_module(f'norm{i + 1}', nn.BatchNorm2d(channels, *dd))
+                        self.gather.add_module(f'norm{i + 1}', nn.BatchNorm2d(channels, *dd))  # 存在 *args/**kwargs，需手动确认参数映射;
                     if i != num_conv - 1:
                         self.gather.add_module(f'act{i + 1}', act_layer(inplace=True))
         else:
@@ -83,7 +83,7 @@ class GatherExcite(msnn.Cell):
 
         if not rd_channels:
             rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
-        self.mlp = ConvMlp(channels, rd_channels, act_layer=act_layer, *dd) if use_mlp else msnn.Identity()
+        self.mlp = ConvMlp(channels, rd_channels, act_layer=act_layer, *dd) if use_mlp else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):

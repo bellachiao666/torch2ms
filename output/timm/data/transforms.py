@@ -220,9 +220,9 @@ class RandomResizedCropAndInterpolation:
         area = img_w * img_h
 
         for attempt in range(10):
-            target_area = random.uniform(*scale) * area
+            target_area = random.uniform(*scale) * area  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             log_ratio = (math.log(ratio[0]), math.log(ratio[1]))
-            aspect_ratio = math.exp(random.uniform(*log_ratio))
+            aspect_ratio = math.exp(random.uniform(*log_ratio))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
             target_w = int(round(math.sqrt(target_area * aspect_ratio)))
             target_h = int(round(math.sqrt(target_area / aspect_ratio)))
@@ -522,7 +522,7 @@ class ResizeKeepRatio:
 
         if random_aspect_prob > 0 and random.random() < random_aspect_prob:
             log_aspect = (math.log(random_aspect_range[0]), math.log(random_aspect_range[1]))
-            aspect_factor = math.exp(random.uniform(*log_aspect))
+            aspect_factor = math.exp(random.uniform(*log_aspect))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             aspect_factor = math.sqrt(aspect_factor)
             # currently applying random aspect adjustment equally to both dims,
             # could change to keep output sizes above their target where possible

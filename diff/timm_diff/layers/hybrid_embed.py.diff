@@ -17,7 +17,7 @@
  
  from .format import Format, nchw_to
  from .helpers import to_2tuple
-@@ -18,7 +22,7 @@ _logger = logging.getLogger(__name__)
+@@ -18,16 +22,16 @@ _logger = logging.getLogger(__name__)
  
  
 -class HybridEmbed(nn.Module):
@@ -25,7 +25,10 @@
      """ CNN Feature Map Embedding
      Extract feature map from CNN, flatten, project to embedding dim.
      """
-@@ -27,7 +31,7 @@ 
+     output_fmt: Format
+-    dynamic_img_pad: torch.jit.Final[bool]
++    dynamic_img_pad: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
      def __init__(
              self,
 -            backbone: nn.Module,
@@ -41,7 +44,20 @@
          self.backbone = backbone
          self.in_chans = in_chans
          (
-@@ -88,7 +92,7 @@         else:
+@@ -62,7 +66,7 @@             feature_size=feature_size,
+             feature_ratio=feature_ratio,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         if output_fmt is not None:
+             self.flatten = False
+@@ -84,11 +88,11 @@                 stride=patch_size,
+                 bias=bias,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，需手动确认参数映射;
+         else:
              assert self.feature_dim == embed_dim, \
                  f'The feature dim ({self.feature_dim} must match embed dim ({embed_dim}) when projection disabled.'
 -            self.proj = nn.Identity()
@@ -72,7 +88,15 @@
                  new_proj.weight.copy_(resample_patch_embed(self.proj.weight, new_patch_size, verbose=True))
                  if self.proj.bias is not None:
                      new_proj.bias.copy_(self.proj.bias)
-@@ -204,7 +201,7 @@         elif hasattr(self.backbone, 'grad_checkpointing'):
+@@ -197,14 +194,14 @@         else:
+             return feat_size[0] // self.patch_size[0], feat_size[1] // self.patch_size[1]
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True):
+         if hasattr(self.backbone, 'set_grad_checkpointing'):
+             self.backbone.set_grad_checkpointing(enable=enable)
+         elif hasattr(self.backbone, 'grad_checkpointing'):
              self.backbone.grad_checkpointing = enable
  
 -    def forward(self, x):
@@ -96,7 +120,15 @@
              img_size: Union[int, Tuple[int, int]] = 224,
              patch_size: Union[int, Tuple[int, int]] = 1,
              feature_size: Optional[Union[int, Tuple[int, int]]] = None,
-@@ -260,7 +257,7 @@         elif hasattr(self.backbone, 'grad_checkpointing'):
+@@ -253,14 +250,14 @@             dtype=dtype,
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True):
+         if hasattr(self.backbone, 'set_grad_checkpointing'):
+             self.backbone.set_grad_checkpointing(enable=enable)
+         elif hasattr(self.backbone, 'grad_checkpointing'):
              self.backbone.grad_checkpointing = enable
  
 -    def forward(self, x) -> Tuple[torch.Tensor, List[int]]:

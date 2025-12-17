@@ -25,7 +25,14 @@
      def __init__(
              self,
              hidden_dim: int = 32,
-@@ -54,34 +58,34 @@         self.hidden_dim = hidden_dim
+@@ -48,40 +52,40 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)
++        self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.scale = 2 * math.pi
+         self.temperature = temperature
+         self.hidden_dim = hidden_dim
          self.dim = dim
  
 -    def forward(self, shape: Tuple[int, int, int]):
@@ -79,14 +86,25 @@
              drop_path: float = 0.,
              device=None,
              dtype=None,
-@@ -118,10 +122,10 @@             act_layer=act_layer,
+@@ -110,18 +114,18 @@             depthwise=True,
+             bias=conv_bias,
              **dd,
-         )
+-        )
+-        self.norm = norm_layer(dim_out, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp = Mlp(
+             dim_out,
+             int(expand_ratio * dim_out),
+             act_layer=act_layer,
+             **dd,
+-        )
 -        self.gamma = nn.Parameter(ls_init_value * torch.ones(dim_out, **dd)) if ls_init_value > 0 else None
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 -
 -    def forward(self, x):
-+        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim_out, **dd)) if ls_init_value > 0 else None
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim_out, **dd)) if ls_init_value > 0 else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
 +    def construct(self, x):
@@ -105,11 +123,14 @@
          super().__init__()
          self.num_heads = num_heads
 -        self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1, **dd))
-+        self.temperature = ms.Parameter(mint.ones(num_heads, 1, 1, **dd))
- 
-         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+-
+-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
++        self.temperature = ms.Parameter(mint.ones(num_heads, 1, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.attn_drop = nn.Dropout(attn_drop)
-         self.proj = nn.Linear(dim, dim, **dd)
+-        self.proj = nn.Linear(dim, dim, **dd)
++        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.proj_drop = nn.Dropout(proj_drop)
  
 -    def forward(self, x):
@@ -124,7 +145,13 @@
          attn = attn.softmax(dim=-1)
          attn = self.attn_drop(attn)
          x = (attn @ v)
-@@ -180,7 +184,7 @@         return {'temperature'}
+@@ -175,12 +179,12 @@         x = self.proj_drop(x)
+         return x
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def no_weight_decay(self):
+         return {'temperature'}
  
  
 -class SplitTransposeBlock(nn.Module):
@@ -142,29 +169,46 @@
              drop_path: float = 0.,
              attn_drop: float = 0.,
              proj_drop: float = 0.,
-@@ -208,13 +212,13 @@         convs = []
+@@ -207,14 +211,14 @@ 
+         convs = []
          for i in range(self.num_scales):
-             convs.append(create_conv2d(width, width, kernel_size=3, depthwise=True, bias=conv_bias, **dd))
+-            convs.append(create_conv2d(width, width, kernel_size=3, depthwise=True, bias=conv_bias, **dd))
 -        self.convs = nn.ModuleList(convs)
++            convs.append(create_conv2d(width, width, kernel_size=3, depthwise=True, bias=conv_bias, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.convs = msnn.CellList(convs)
  
          self.pos_embd = None
          if use_pos_emb:
-             self.pos_embd = PositionalEncodingFourier(dim=dim, **dd)
-         self.norm_xca = norm_layer(dim, **dd)
+-            self.pos_embd = PositionalEncodingFourier(dim=dim, **dd)
+-        self.norm_xca = norm_layer(dim, **dd)
 -        self.gamma_xca = nn.Parameter(ls_init_value * torch.ones(dim, **dd)) if ls_init_value > 0 else None
-+        self.gamma_xca = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None
++            self.pos_embd = PositionalEncodingFourier(dim=dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm_xca = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma_xca = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.xca = CrossCovarianceAttn(
              dim,
              num_heads=num_heads,
-@@ -231,10 +235,10 @@             act_layer=act_layer,
+@@ -222,19 +226,19 @@             attn_drop=attn_drop,
+             proj_drop=proj_drop,
              **dd,
-         )
+-        )
+-
+-        self.norm = norm_layer(dim, eps=1e-6, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.norm = norm_layer(dim, eps=1e-6, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp = Mlp(
+             dim,
+             int(expand_ratio * dim),
+             act_layer=act_layer,
+             **dd,
+-        )
 -        self.gamma = nn.Parameter(ls_init_value * torch.ones(dim, **dd)) if ls_init_value > 0 else None
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 -
 -    def forward(self, x):
-+        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value > 0 else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
 +    def construct(self, x):
@@ -199,7 +243,7 @@
              device=None,
              dtype=None,
      ):
-@@ -298,9 +302,9 @@         self.grad_checkpointing = False
+@@ -298,12 +302,12 @@         self.grad_checkpointing = False
  
          if downsample_block or stride == 1:
 -            self.downsample = nn.Identity()
@@ -209,14 +253,29 @@
 +            self.downsample = msnn.SequentialCell(
                  norm_layer(in_chs, **dd),
                  nn.Conv2d(in_chs, out_chs, kernel_size=2, stride=2, bias=conv_bias, **dd)
-             )
-@@ -341,9 +345,9 @@                     )
-                 )
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
+             in_chs = out_chs
+ 
+         stage_blocks = []
+@@ -323,7 +327,7 @@                         act_layer=act_layer,
+                         **dd,
+                     )
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             else:
+                 stage_blocks.append(
+                     SplitTransposeBlock(
+@@ -339,11 +343,11 @@                         act_layer=act_layer,
+                         **dd,
+                     )
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              in_chs = out_chs
 -        self.blocks = nn.Sequential(*stage_blocks)
 -
 -    def forward(self, x):
-+        self.blocks = msnn.SequentialCell(*stage_blocks)
++        self.blocks = msnn.SequentialCell(*stage_blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x = self.downsample(x)
@@ -238,40 +297,80 @@
              drop_path_rate: float = 0.,
              drop_rate: float = 0.,
              device=None,
-@@ -389,12 +393,12 @@ 
+@@ -389,15 +393,15 @@ 
          assert stem_type in ('patch', 'overlap')
          if stem_type == 'patch':
 -            self.stem = nn.Sequential(
 +            self.stem = msnn.SequentialCell(
                  nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4, bias=conv_bias, **dd,),
                  norm_layer(dims[0], **dd),
-             )
+-            )
++            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
 -            self.stem = nn.Sequential(
 +            self.stem = msnn.SequentialCell(
                  nn.Conv2d(in_chans, dims[0], kernel_size=9, stride=4, padding=9 // 2, bias=conv_bias, **dd),
                  norm_layer(dims[0], **dd),
-             )
-@@ -431,7 +435,7 @@             in_chs = dims[i]
+-            )
++            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         curr_stride = 4
+         stages = []
+@@ -426,25 +430,25 @@                 norm_layer_cl=norm_layer_cl,
+                 act_layer=act_layer,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             # NOTE feature_info use currently assumes stage 0 == stride 1, rest are stride 2
+             in_chs = dims[i]
              self.feature_info += [dict(num_chs=in_chs, reduction=curr_stride, module=f'stages.{i}')]
  
 -        self.stages = nn.Sequential(*stages)
-+        self.stages = msnn.SequentialCell(*stages)
++        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.num_features = self.head_hidden_size = dims[-1]
          if head_norm_first:
-@@ -444,7 +448,7 @@                 **dd,
-             )
+-            self.norm_pre = norm_layer(self.num_features, **dd)
++            self.norm_pre = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             self.head = ClassifierHead(
+                 self.num_features,
+                 num_classes,
+                 pool_type=global_pool,
+                 drop_rate=self.drop_rate,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
 -            self.norm_pre = nn.Identity()
 +            self.norm_pre = msnn.Identity()
              self.head = NormMlpClassifierHead(
                  self.num_features,
                  num_classes,
-@@ -473,7 +477,7 @@             s.grad_checkpointing = enable
+@@ -452,11 +456,11 @@                 drop_rate=self.drop_rate,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
-     @torch.jit.ignore
+         named_apply(partial(_init_weights, head_init_scale=head_init_scale), self)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         return dict(
+             stem=r'^stem',
+@@ -467,13 +471,13 @@             ]
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         for s in self.stages:
+             s.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
  
@@ -319,3 +418,50 @@
          if name and 'head.' in name:
              module.weight.data.mul_(head_init_scale)
              module.bias.data.mul_(head_init_scale)
+@@ -610,7 +614,7 @@         EdgeNeXt, variant, pretrained,
+         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
+-        **kwargs)
++        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -660,7 +664,7 @@     # Jetson FPS=51.66 versus 47.67 for MobileViT_XXS
+     # For A100: FPS @ BS=1: 212.13 & @ BS=256: 7042.06 versus FPS @ BS=1: 96.68 & @ BS=256: 4624.71 for MobileViT_XXS
+     model_args = dict(depths=(2, 2, 6, 2), dims=(24, 48, 88, 168), heads=(4, 4, 4, 4))
+-    return _create_edgenext('edgenext_xx_small', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_edgenext('edgenext_xx_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -671,7 +675,7 @@     # Jetson FPS=31.61 versus 28.49 for MobileViT_XS
+     # For A100: FPS @ BS=1: 179.55 & @ BS=256: 4404.95 versus FPS @ BS=1: 94.55 & @ BS=256: 2361.53 for MobileViT_XS
+     model_args = dict(depths=(3, 3, 9, 3), dims=(32, 64, 100, 192), heads=(4, 4, 4, 4))
+-    return _create_edgenext('edgenext_x_small', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_edgenext('edgenext_x_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -682,7 +686,7 @@     # Jetson FPS=20.47 versus 18.86 for MobileViT_S
+     # For A100: FPS @ BS=1: 172.33 & @ BS=256: 3010.25 versus FPS @ BS=1: 93.84 & @ BS=256: 1785.92 for MobileViT_S
+     model_args = dict(depths=(3, 3, 9, 3), dims=(48, 96, 160, 304))
+-    return _create_edgenext('edgenext_small', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_edgenext('edgenext_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -693,7 +697,7 @@     # Jetson FPS=xx.xx versus xx.xx for MobileViT_S
+     # For A100: FPS @ BS=1: xxx.xx & @ BS=256: xxxx.xx
+     model_args = dict(depths=[3, 3, 9, 3], dims=[80, 160, 288, 584])
+-    return _create_edgenext('edgenext_base', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_edgenext('edgenext_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -701,5 +705,5 @@     model_args = dict(
+         depths=(3, 3, 9, 3), dims=(48, 96, 192, 384),
+         downsample_block=True, conv_bias=False, stem_type='overlap')
+-    return _create_edgenext('edgenext_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+-
++    return _create_edgenext('edgenext_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++

@@ -124,15 +124,15 @@ class Conv2dSameExport(nn.Conv2d):
 def create_conv2d_pad(in_chs, out_chs, kernel_size, **kwargs):
     padding = kwargs.pop('padding', '')
     kwargs.setdefault('bias', False)
-    padding, is_dynamic = get_padding_value(padding, kernel_size, **kwargs)
+    padding, is_dynamic = get_padding_value(padding, kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if is_dynamic:
         if _USE_EXPORT_CONV and is_exportable():
             # older PyTorch ver needed this to export same padding reasonably
             assert not is_scriptable()  # Conv2DSameExport does not work with jit
-            return Conv2dSameExport(in_chs, out_chs, kernel_size, **kwargs)
+            return Conv2dSameExport(in_chs, out_chs, kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            return Conv2dSame(in_chs, out_chs, kernel_size, **kwargs)
+            return Conv2dSame(in_chs, out_chs, kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
-        return nn.Conv2d(in_chs, out_chs, kernel_size, padding=padding, **kwargs)
+        return nn.Conv2d(in_chs, out_chs, kernel_size, padding=padding, **kwargs)  # 存在 *args/**kwargs，需手动确认参数映射;
 
 

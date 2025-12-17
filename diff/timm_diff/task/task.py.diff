@@ -19,16 +19,7 @@
      """Base class for training tasks.
  
      A training task encapsulates a complete forward pass including loss computation.
-@@ -38,6 +42,9 @@         >>> result['loss'].backward()
-     """
- 
-+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-     def __init__(
-             self,
-             device: Optional[torch.device] = None,
-@@ -45,13 +52,13 @@             verbose: bool = True,
+@@ -45,16 +49,16 @@             verbose: bool = True,
      ):
          super().__init__()
 -        self.device = device if device is not None else torch.device('cpu')
@@ -40,11 +31,15 @@
      def to(self, *args, **kwargs):
          """Move task to device/dtype, keeping self.device and self.dtype in sync."""
 -        dummy = torch.empty(0).to(*args, **kwargs)
-+        dummy = mint.empty(0).to(*args, **kwargs)
++        dummy = mint.empty(0).to(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.device = dummy.device
          self.dtype = dummy.dtype
-         return super().to(*args, **kwargs)
-@@ -83,11 +90,11 @@         # Default implementation - subclasses override if they need DDP
+-        return super().to(*args, **kwargs)
++        return super().to(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def prepare_distributed(
+             self,
+@@ -83,11 +87,11 @@         # Default implementation - subclasses override if they need DDP
          return self
  
 -    def forward(

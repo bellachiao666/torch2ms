@@ -43,16 +43,16 @@ class GlobalContext(msnn.Cell):
         super().__init__()
         act_layer = get_act_layer(act_layer)
 
-        self.conv_attn = nn.Conv2d(channels, 1, kernel_size=1, bias=True, **dd) if use_attn else None
+        self.conv_attn = nn.Conv2d(channels, 1, kernel_size=1, bias=True, **dd) if use_attn else None  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if rd_channels is None:
             rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
         if fuse_add:
-            self.mlp_add = ConvMlp(channels, rd_channels, act_layer=act_layer, norm_layer=LayerNorm2d, **dd)
+            self.mlp_add = ConvMlp(channels, rd_channels, act_layer=act_layer, norm_layer=LayerNorm2d, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.mlp_add = None
         if fuse_scale:
-            self.mlp_scale = ConvMlp(channels, rd_channels, act_layer=act_layer, norm_layer=LayerNorm2d, **dd)
+            self.mlp_scale = ConvMlp(channels, rd_channels, act_layer=act_layer, norm_layer=LayerNorm2d, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.mlp_scale = None
 

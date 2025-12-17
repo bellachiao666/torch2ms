@@ -108,7 +108,7 @@ class Downsample(msnn.Cell):
             self.pool = msnn.Identity()
 
         if in_chs != out_chs:
-            self.conv = create_conv2d(in_chs, out_chs, 1, stride=1, **dd)
+            self.conv = create_conv2d(in_chs, out_chs, 1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.conv = msnn.Identity()
 
@@ -184,17 +184,17 @@ class ConvNeXtBlock(msnn.Cell):
             depthwise=True,
             bias=conv_bias,
             **dd,
-        )
-        self.norm = norm_layer(out_chs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = mlp_layer(
             out_chs,
             int(mlp_ratio * out_chs),
             act_layer=act_layer,
             **dd,
-        )
-        self.gamma = ms.Parameter(ls_init_value * mint.ones(out_chs, **dd)) if ls_init_value is not None else None
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma = ms.Parameter(ls_init_value * mint.ones(out_chs, **dd)) if ls_init_value is not None else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if in_chs != out_chs or stride != 1 or dilation[0] != dilation[1]:
-            self.shortcut = Downsample(in_chs, out_chs, stride=stride, dilation=dilation[0], **dd)
+            self.shortcut = Downsample(in_chs, out_chs, stride=stride, dilation=dilation[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.shortcut = msnn.Identity()
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
@@ -277,7 +277,7 @@ class ConvNeXtStage(msnn.Cell):
                     bias=conv_bias,
                     **dd,
                 ),
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs
         else:
             self.downsample = msnn.Identity()
@@ -298,9 +298,9 @@ class ConvNeXtStage(msnn.Cell):
                 act_layer=act_layer,
                 norm_layer=norm_layer if conv_mlp else norm_layer_cl,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs
-        self.blocks = msnn.SequentialCell(*stage_blocks)
+        self.blocks = msnn.SequentialCell(*stage_blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """Forward pass."""
@@ -412,7 +412,7 @@ class ConvNeXt(msnn.Cell):
             self.stem = msnn.SequentialCell(
                 nn.Conv2d(in_chans, dims[0], kernel_size=patch_size, stride=patch_size, bias=conv_bias, **dd),
                 norm_layer(dims[0], **dd),
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stem_stride = patch_size
         else:
             mid_chs = make_divisible(dims[0] // 2) if 'tiered' in stem_type else dims[0]
@@ -421,7 +421,7 @@ class ConvNeXt(msnn.Cell):
                 act_layer() if 'act' in stem_type else None,
                 nn.Conv2d(mid_chs, dims[0], kernel_size=3, stride=2, padding=1, bias=conv_bias, **dd),
                 norm_layer(dims[0], **dd),
-            ]))
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stem_stride = 4
 
         self.stages = msnn.SequentialCell()
@@ -455,25 +455,25 @@ class ConvNeXt(msnn.Cell):
                 norm_layer=norm_layer,
                 norm_layer_cl=norm_layer_cl,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_chs = out_chs
             # NOTE feature_info use currently assumes stage 0 == stride 1, rest are stride 2
             self.feature_info += [dict(num_chs=prev_chs, reduction=curr_stride, module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_features = self.head_hidden_size = prev_chs
 
         # if head_norm_first == true, norm -> global pool -> fc ordering, like most other nets
         # otherwise pool -> norm -> fc, the default ConvNeXt ordering (pretrained FB weights)
         if head_norm_first:
             assert not head_hidden_size
-            self.norm_pre = norm_layer(self.num_features, **dd)
+            self.norm_pre = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head = ClassifierHead(
                 self.num_features,
                 num_classes,
                 pool_type=global_pool,
                 drop_rate=self.drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.norm_pre = msnn.Identity()
             self.head = NormMlpClassifierHead(
@@ -485,11 +485,11 @@ class ConvNeXt(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer='gelu',
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head_hidden_size = self.head.num_features
         named_apply(partial(_init_weights, head_init_scale=head_init_scale), self)
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Union[str, List]]:
         """Create regex patterns for parameter grouping.
 
@@ -508,7 +508,7 @@ class ConvNeXt(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -518,7 +518,7 @@ class ConvNeXt(msnn.Cell):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier module."""
         return self.head.fc
@@ -705,7 +705,7 @@ def _create_convnext(variant, pretrained=False, **kwargs):
         ConvNeXt, variant, pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1159,7 +1159,7 @@ default_cfgs = generate_default_cfgs({
 def convnext_zepto_rms(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
     model_args = dict(depths=(2, 2, 4, 2), dims=(32, 64, 128, 256), conv_mlp=True, norm_layer='simplenorm')
-    model = _create_convnext('convnext_zepto_rms', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_zepto_rms', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1168,7 +1168,7 @@ def convnext_zepto_rms_ols(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
     model_args = dict(
         depths=(2, 2, 4, 2), dims=(32, 64, 128, 256), conv_mlp=True, norm_layer='simplenorm', stem_type='overlap_act')
-    model = _create_convnext('convnext_zepto_rms_ols', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_zepto_rms_ols', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1176,7 +1176,7 @@ def convnext_zepto_rms_ols(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_atto(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
     model_args = dict(depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), conv_mlp=True)
-    model = _create_convnext('convnext_atto', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_atto', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1184,7 +1184,7 @@ def convnext_atto(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_atto_ols(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant with overlapping 3x3 conv stem, wider than non-ols femto above, current param count 3.7M
     model_args = dict(depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), conv_mlp=True, stem_type='overlap_tiered')
-    model = _create_convnext('convnext_atto_ols', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_atto_ols', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1192,7 +1192,7 @@ def convnext_atto_ols(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_atto_rms(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
     model_args = dict(depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), conv_mlp=True, norm_layer='rmsnorm2d')
-    model = _create_convnext('convnext_atto_rms', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_atto_rms', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1200,7 +1200,7 @@ def convnext_atto_rms(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_femto(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant
     model_args = dict(depths=(2, 2, 6, 2), dims=(48, 96, 192, 384), conv_mlp=True)
-    model = _create_convnext('convnext_femto', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_femto', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1208,7 +1208,7 @@ def convnext_femto(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_femto_ols(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant
     model_args = dict(depths=(2, 2, 6, 2), dims=(48, 96, 192, 384), conv_mlp=True, stem_type='overlap_tiered')
-    model = _create_convnext('convnext_femto_ols', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_femto_ols', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1216,7 +1216,7 @@ def convnext_femto_ols(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_pico(pretrained=False, **kwargs) -> ConvNeXt:
     # timm pico variant
     model_args = dict(depths=(2, 2, 6, 2), dims=(64, 128, 256, 512), conv_mlp=True)
-    model = _create_convnext('convnext_pico', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_pico', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1224,7 +1224,7 @@ def convnext_pico(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_pico_ols(pretrained=False, **kwargs) -> ConvNeXt:
     # timm nano variant with overlapping 3x3 conv stem
     model_args = dict(depths=(2, 2, 6, 2), dims=(64, 128, 256, 512), conv_mlp=True,  stem_type='overlap_tiered')
-    model = _create_convnext('convnext_pico_ols', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_pico_ols', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1232,7 +1232,7 @@ def convnext_pico_ols(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_nano(pretrained=False, **kwargs) -> ConvNeXt:
     # timm nano variant with standard stem and head
     model_args = dict(depths=(2, 2, 8, 2), dims=(80, 160, 320, 640), conv_mlp=True)
-    model = _create_convnext('convnext_nano', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_nano', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1240,7 +1240,7 @@ def convnext_nano(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_nano_ols(pretrained=False, **kwargs) -> ConvNeXt:
     # experimental nano variant with overlapping conv stem
     model_args = dict(depths=(2, 2, 8, 2), dims=(80, 160, 320, 640), conv_mlp=True, stem_type='overlap')
-    model = _create_convnext('convnext_nano_ols', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_nano_ols', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1248,56 +1248,56 @@ def convnext_nano_ols(pretrained=False, **kwargs) -> ConvNeXt:
 def convnext_tiny_hnf(pretrained=False, **kwargs) -> ConvNeXt:
     # experimental tiny variant with norm before pooling in head (head norm first)
     model_args = dict(depths=(3, 3, 9, 3), dims=(96, 192, 384, 768), head_norm_first=True, conv_mlp=True)
-    model = _create_convnext('convnext_tiny_hnf', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_tiny_hnf', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnext_tiny(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=(3, 3, 9, 3), dims=(96, 192, 384, 768))
-    model = _create_convnext('convnext_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnext_small(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[96, 192, 384, 768])
-    model = _create_convnext('convnext_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnext_base(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024])
-    model = _create_convnext('convnext_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnext_large(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[192, 384, 768, 1536])
-    model = _create_convnext('convnext_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnext_large_mlp(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[192, 384, 768, 1536], head_hidden_size=1536)
-    model = _create_convnext('convnext_large_mlp', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_large_mlp', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnext_xlarge(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[256, 512, 1024, 2048])
-    model = _create_convnext('convnext_xlarge', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_xlarge', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnext_xxlarge(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 4, 30, 3], dims=[384, 768, 1536, 3072], norm_eps=kwargs.pop('norm_eps', 1e-5))
-    model = _create_convnext('convnext_xxlarge', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnext_xxlarge', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1306,7 +1306,7 @@ def convnextv2_atto(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
     model_args = dict(
         depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), use_grn=True, ls_init_value=None, conv_mlp=True)
-    model = _create_convnext('convnextv2_atto', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_atto', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1315,7 +1315,7 @@ def convnextv2_femto(pretrained=False, **kwargs) -> ConvNeXt:
     # timm femto variant
     model_args = dict(
         depths=(2, 2, 6, 2), dims=(48, 96, 192, 384), use_grn=True, ls_init_value=None, conv_mlp=True)
-    model = _create_convnext('convnextv2_femto', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_femto', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1324,7 +1324,7 @@ def convnextv2_pico(pretrained=False, **kwargs) -> ConvNeXt:
     # timm pico variant
     model_args = dict(
         depths=(2, 2, 6, 2), dims=(64, 128, 256, 512), use_grn=True, ls_init_value=None, conv_mlp=True)
-    model = _create_convnext('convnextv2_pico', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_pico', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1333,56 +1333,56 @@ def convnextv2_nano(pretrained=False, **kwargs) -> ConvNeXt:
     # timm nano variant with standard stem and head
     model_args = dict(
         depths=(2, 2, 8, 2), dims=(80, 160, 320, 640), use_grn=True, ls_init_value=None, conv_mlp=True)
-    model = _create_convnext('convnextv2_nano', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_nano', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnextv2_tiny(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=(3, 3, 9, 3), dims=(96, 192, 384, 768), use_grn=True, ls_init_value=None)
-    model = _create_convnext('convnextv2_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnextv2_small(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[96, 192, 384, 768], use_grn=True, ls_init_value=None)
-    model = _create_convnext('convnextv2_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnextv2_base(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024], use_grn=True, ls_init_value=None)
-    model = _create_convnext('convnextv2_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnextv2_large(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[192, 384, 768, 1536], use_grn=True, ls_init_value=None)
-    model = _create_convnext('convnextv2_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def convnextv2_huge(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[3, 3, 27, 3], dims=[352, 704, 1408, 2816], use_grn=True, ls_init_value=None)
-    model = _create_convnext('convnextv2_huge', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('convnextv2_huge', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def test_convnext(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[1, 2, 4, 2], dims=[24, 32, 48, 64], norm_eps=kwargs.pop('norm_eps', 1e-5), act_layer='gelu_tanh')
-    model = _create_convnext('test_convnext', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('test_convnext', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def test_convnext2(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(depths=[1, 1, 1, 1], dims=[32, 64, 96, 128], norm_eps=kwargs.pop('norm_eps', 1e-5), act_layer='gelu_tanh')
-    model = _create_convnext('test_convnext2', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('test_convnext2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1390,7 +1390,7 @@ def test_convnext2(pretrained=False, **kwargs) -> ConvNeXt:
 def test_convnext3(pretrained=False, **kwargs) -> ConvNeXt:
     model_args = dict(
         depths=[1, 1, 1, 1], dims=[32, 64, 96, 128], norm_eps=kwargs.pop('norm_eps', 1e-5), kernel_sizes=(7, 5, 5, 3), act_layer='silu')
-    model = _create_convnext('test_convnext3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convnext('test_convnext3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

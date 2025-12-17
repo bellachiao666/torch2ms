@@ -58,7 +58,7 @@ _NORM_TYPES = {m for n, m in _NORM_MAP.items()}
 
 def create_norm_layer(layer_name, num_features, **kwargs):
     layer = get_norm_layer(layer_name)
-    layer_instance = layer(num_features, **kwargs)
+    layer_instance = layer(num_features, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return layer_instance
 
 
@@ -82,5 +82,5 @@ def get_norm_layer(norm_layer):
         norm_layer = norm_layer
 
     if norm_kwargs:
-        norm_layer = functools.partial(norm_layer, **norm_kwargs)  # bind/rebind args
+        norm_layer = functools.partial(norm_layer, **norm_kwargs)  # bind/rebind args; 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return norm_layer

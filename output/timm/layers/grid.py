@@ -23,11 +23,11 @@ def ndgrid(*tensors) -> Tuple[ms.Tensor, ...]:
 
     """
     try:
-        return mint.meshgrid(*tensors, indexing='ij')
+        return mint.meshgrid(*tensors, indexing='ij')  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     except TypeError:
         # old PyTorch < 1.10 will follow this path as it does not have indexing arg,
         # the old behaviour of meshgrid was 'ij'
-        return mint.meshgrid(*tensors)
+        return mint.meshgrid(*tensors)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def meshgrid(*tensors) -> Tuple[ms.Tensor, ...]:
@@ -48,5 +48,5 @@ def meshgrid(*tensors) -> Tuple[ms.Tensor, ...]:
 
     # NOTE: this will throw in PyTorch < 1.10 as meshgrid did not support indexing arg or have
     # capability of generating grid in xy order before then.
-    return mint.meshgrid(*tensors, indexing='xy')
+    return mint.meshgrid(*tensors, indexing='xy')  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

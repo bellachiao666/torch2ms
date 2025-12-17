@@ -34,7 +34,7 @@ __all__ = ['VovNet']  # model_registry will add each entrypoint fn to this
 
 class SequentialAppendList(msnn.SequentialCell):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args)
+        super().__init__(*args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def forward(self, x: ms.Tensor, concat_list: List[ms.Tensor]) -> ms.Tensor:
         for i, module in enumerate(self):
@@ -68,30 +68,30 @@ class OsaBlock(msnn.Cell):
 
         self.residual = residual
         self.depthwise = depthwise
-        conv_kwargs = dict(norm_layer=norm_layer, act_layer=act_layer, **dd)
+        conv_kwargs = dict(norm_layer=norm_layer, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         next_in_chs = in_chs
         if self.depthwise and next_in_chs != mid_chs:
             assert not residual
-            self.conv_reduction = ConvNormAct(next_in_chs, mid_chs, 1, **conv_kwargs)
+            self.conv_reduction = ConvNormAct(next_in_chs, mid_chs, 1, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.conv_reduction = None
 
         mid_convs = []
         for i in range(layer_per_block):
             if self.depthwise:
-                conv = SeparableConvNormAct(mid_chs, mid_chs, **conv_kwargs)
+                conv = SeparableConvNormAct(mid_chs, mid_chs, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
-                conv = ConvNormAct(next_in_chs, mid_chs, 3, **conv_kwargs)
+                conv = ConvNormAct(next_in_chs, mid_chs, 3, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             next_in_chs = mid_chs
             mid_convs.append(conv)
-        self.conv_mid = SequentialAppendList(*mid_convs)
+        self.conv_mid = SequentialAppendList(*mid_convs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # feature aggregation
         next_in_chs = in_chs + layer_per_block * mid_chs
-        self.conv_concat = ConvNormAct(next_in_chs, out_chs, **conv_kwargs)
+        self.conv_concat = ConvNormAct(next_in_chs, out_chs, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.attn = create_attn(attn, out_chs, **dd) if attn else None
+        self.attn = create_attn(attn, out_chs, **dd) if attn else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.drop_path = drop_path
 
@@ -157,9 +157,9 @@ class OsaStage(msnn.Cell):
                 act_layer=act_layer,
                 drop_path=drop_path,
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         if self.pool is not None:
@@ -207,14 +207,14 @@ class VovNet(msnn.Cell):
         self.drop_rate = drop_rate
         assert output_stride == 32  # FIXME support dilation
 
-        cfg = dict(cfg, **kwargs)
+        cfg = dict(cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stem_stride = cfg.get("stem_stride", 4)
         stem_chs = cfg["stem_chs"]
         stage_conv_chs = cfg["stage_conv_chs"]
         stage_out_chs = cfg["stage_out_chs"]
         block_per_stage = cfg["block_per_stage"]
         layer_per_block = cfg["layer_per_block"]
-        conv_kwargs = dict(norm_layer=norm_layer, act_layer=act_layer, **dd)
+        conv_kwargs = dict(norm_layer=norm_layer, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Stem module
         last_stem_stride = stem_stride // 2
@@ -223,7 +223,7 @@ class VovNet(msnn.Cell):
             ConvNormAct(in_chans, stem_chs[0], 3, stride=2, **conv_kwargs),
             conv_type(stem_chs[0], stem_chs[1], 3, stride=1, **conv_kwargs),
             conv_type(stem_chs[1], stem_chs[2], 3, stride=last_stem_stride, **conv_kwargs),
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [dict(
             num_chs=stem_chs[1], reduction=2, module=f'stem.{1 if stem_stride == 4 else 2}')]
         current_stride = stem_stride
@@ -231,7 +231,7 @@ class VovNet(msnn.Cell):
         # OSA stages
         stage_dpr = calculate_drop_path_rates(drop_path_rate, block_per_stage, stagewise=True)
         in_ch_list = stem_chs[-1:] + stage_out_chs[:-1]
-        stage_args = dict(residual=cfg["residual"], depthwise=cfg["depthwise"], attn=cfg["attn"], **conv_kwargs)
+        stage_args = dict(residual=cfg["residual"], depthwise=cfg["depthwise"], attn=cfg["attn"], **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stages = []
         for i in range(4):  # num_stages
             downsample = stem_stride == 2 or i > 0  # first stage has no stride/downsample if stem_stride is 4
@@ -244,15 +244,15 @@ class VovNet(msnn.Cell):
                 downsample=downsample,
                 drop_path_rates=stage_dpr[i],
                 **stage_args,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = stage_out_chs[i]
             current_stride *= 2 if downsample else 1
             self.feature_info += [dict(num_chs=self.num_features, reduction=current_stride, module=f'stages.{i}')]
 
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.head_hidden_size = self.num_features
-        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)
+        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         for n, m in self.named_modules():
             if isinstance(m, nn.Conv2d):
@@ -260,19 +260,19 @@ class VovNet(msnn.Cell):
             elif isinstance(m, nn.Linear):
                 nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
             blocks=r'^stages\.(\d+)' if coarse else r'^stages\.(\d+).blocks\.(\d+)',
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -473,7 +473,7 @@ def _create_vovnet(variant, pretrained=False, **kwargs):
         model_cfg=model_cfgs[variant],
         feature_cfg=dict(flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -511,47 +511,47 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def vovnet39a(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('vovnet39a', pretrained=pretrained, **kwargs)
+    return _create_vovnet('vovnet39a', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def vovnet57a(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('vovnet57a', pretrained=pretrained, **kwargs)
+    return _create_vovnet('vovnet57a', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def ese_vovnet19b_slim_dw(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet19b_slim_dw', pretrained=pretrained, **kwargs)
+    return _create_vovnet('ese_vovnet19b_slim_dw', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def ese_vovnet19b_dw(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet19b_dw', pretrained=pretrained, **kwargs)
+    return _create_vovnet('ese_vovnet19b_dw', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def ese_vovnet19b_slim(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet19b_slim', pretrained=pretrained, **kwargs)
+    return _create_vovnet('ese_vovnet19b_slim', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def ese_vovnet39b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet39b', pretrained=pretrained, **kwargs)
+    return _create_vovnet('ese_vovnet39b', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def ese_vovnet57b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet57b', pretrained=pretrained, **kwargs)
+    return _create_vovnet('ese_vovnet57b', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def ese_vovnet99b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet99b', pretrained=pretrained, **kwargs)
+    return _create_vovnet('ese_vovnet99b', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def eca_vovnet39b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('eca_vovnet39b', pretrained=pretrained, **kwargs)
+    return _create_vovnet('eca_vovnet39b', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 # Experimental Models
@@ -559,5 +559,5 @@ def eca_vovnet39b(pretrained=False, **kwargs) -> VovNet:
 @register_model
 def ese_vovnet39b_evos(pretrained=False, **kwargs) -> VovNet:
     def norm_act_fn(num_features, **nkwargs):
-        return create_norm_act_layer('evonorms0', num_features, jit=False, **nkwargs)
-    return _create_vovnet('ese_vovnet39b_evos', pretrained=pretrained, norm_layer=norm_act_fn, **kwargs)
+        return create_norm_act_layer('evonorms0', num_features, jit=False, **nkwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_vovnet('ese_vovnet39b_evos', pretrained=pretrained, norm_layer=norm_act_fn, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

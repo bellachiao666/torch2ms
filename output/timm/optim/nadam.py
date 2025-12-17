@@ -55,6 +55,7 @@ class NAdamLegacy(Optimizer):
         )
         super(NAdamLegacy, self).__init__(params, defaults)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

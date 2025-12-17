@@ -21,14 +21,7 @@
  class LaProp(Optimizer):
      """ LaProp Optimizer
  
-@@ -63,7 +69,6 @@             group.setdefault('caution', False)
-             group.setdefault('corrected_weight_decay', False)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
- 
-@@ -90,12 +95,12 @@                 if len(state) == 0:
+@@ -90,12 +96,12 @@                 if len(state) == 0:
                      state['step'] = 0
                      # Exponential moving average of gradient values
 -                    state['exp_avg'] = torch.zeros_like(p)

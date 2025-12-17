@@ -78,11 +78,11 @@ class CondConv2d(msnn.Cell):
         weight_num_param = 1
         for wd in self.weight_shape:
             weight_num_param *= wd
-        self.weight = ms.Parameter(mint.empty(self.num_experts, weight_num_param, **dd))
+        self.weight = ms.Parameter(mint.empty(self.num_experts, weight_num_param, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if bias:
             self.bias_shape = (self.out_channels,)
-            self.bias = ms.Parameter(mint.empty(self.num_experts, self.out_channels, **dd))
+            self.bias = ms.Parameter(mint.empty(self.num_experts, self.out_channels, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.register_parameter('bias', None)
 

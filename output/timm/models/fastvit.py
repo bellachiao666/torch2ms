@@ -99,7 +99,7 @@ class MobileOneBlock(msnn.Cell):
         self.num_conv_branches = num_conv_branches
 
         # Check if SE-ReLU is requested
-        self.se = SqueezeExcite(out_chs, rd_divisor=1, **dd) if use_se else msnn.Identity()
+        self.se = SqueezeExcite(out_chs, rd_divisor=1, **dd) if use_se else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if inference_mode:
             self.reparam_conv = create_conv2d(
@@ -111,7 +111,7 @@ class MobileOneBlock(msnn.Cell):
                 groups=self.groups,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             # Re-parameterizable skip connection
             self.reparam_conv = None
@@ -120,7 +120,7 @@ class MobileOneBlock(msnn.Cell):
                 nn.BatchNorm2d(num_features=in_chs, **dd)
                 if out_chs == in_chs and stride == 1
                 else None
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
 
             # Re-parameterizable conv branches
             if num_conv_branches > 0:
@@ -134,7 +134,7 @@ class MobileOneBlock(msnn.Cell):
                         apply_act=False,
                         **dd,
                     ) for _ in range(self.num_conv_branches)
-                ])
+                ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.conv_kxk = None
 
@@ -149,7 +149,7 @@ class MobileOneBlock(msnn.Cell):
                     groups=self.groups,
                     apply_act=False,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.act = act_layer() if use_act else msnn.Identity()
 
@@ -347,7 +347,7 @@ class ReparamLargeKernelConv(msnn.Cell):
                 groups=self.groups,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.reparam_conv = None
             self.large_conv = ConvNormAct(
@@ -358,7 +358,7 @@ class ReparamLargeKernelConv(msnn.Cell):
                 groups=self.groups,
                 apply_act=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if small_kernel is not None:
                 assert (
                     small_kernel <= kernel_size
@@ -371,8 +371,8 @@ class ReparamLargeKernelConv(msnn.Cell):
                     groups=self.groups,
                     apply_act=False,
                     **dd,
-                )
-        self.se = SqueezeExcite(out_chs, rd_ratio=0.25, **dd) if use_se else msnn.Identity()
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.se = SqueezeExcite(out_chs, rd_ratio=0.25, **dd) if use_se else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # FIXME output of this act was not used in original impl, likely due to bug
         self.act = act_layer() if act_layer is not None else msnn.Identity()
 
@@ -502,7 +502,7 @@ def convolutional_stem(
             use_scale_branch=use_scale_branch,
             **dd,
         ),
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class Attention(msnn.Cell):
@@ -511,7 +511,7 @@ class Attention(msnn.Cell):
     Source modified from:
     https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -540,9 +540,9 @@ class Attention(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -626,7 +626,7 @@ class PatchEmbed(msnn.Cell):
                 inference_mode=inference_mode,
                 **dd,
             )
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.proj(x)
@@ -690,7 +690,7 @@ class RepMixer(msnn.Cell):
                 groups=self.dim,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.reparam_conv = None
             self.norm = MobileOneBlock(
@@ -702,7 +702,7 @@ class RepMixer(msnn.Cell):
                 use_scale_branch=False,
                 num_conv_branches=0,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.mixer = MobileOneBlock(
                 dim,
                 dim,
@@ -710,9 +710,9 @@ class RepMixer(msnn.Cell):
                 group_size=1,
                 use_act=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if layer_scale_init_value is not None:
-                self.layer_scale = LayerScale2d(dim, layer_scale_init_value, **dd)
+                self.layer_scale = LayerScale2d(dim, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.layer_scale = msnn.Identity()
 
@@ -801,10 +801,10 @@ class ConvMlp(msnn.Cell):
             groups=in_chs,
             apply_act=False,
             **dd,
-        )
-        self.fc1 = nn.Conv2d(in_chs, hidden_channels, kernel_size=1, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc1 = nn.Conv2d(in_chs, hidden_channels, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.fc2 = nn.Conv2d(hidden_channels, out_chs, kernel_size=1, **dd)
+        self.fc2 = nn.Conv2d(hidden_channels, out_chs, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop)
         self.apply(self._init_weights)
 
@@ -878,7 +878,7 @@ class RepConditionalPosEnc(msnn.Cell):
                 groups=self.groups,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.reparam_conv = None
             self.pos_enc = nn.Conv2d(
@@ -890,7 +890,7 @@ class RepConditionalPosEnc(msnn.Cell):
                 groups=self.groups,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         if self.reparam_conv is not None:
@@ -979,7 +979,7 @@ class RepMixerBlock(msnn.Cell):
             layer_scale_init_value=layer_scale_init_value,
             inference_mode=inference_mode,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.mlp = ConvMlp(
             in_chs=dim,
@@ -987,9 +987,9 @@ class RepMixerBlock(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if layer_scale_init_value is not None:
-            self.layer_scale = LayerScale2d(dim, layer_scale_init_value, **dd)
+            self.layer_scale = LayerScale2d(dim, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.layer_scale = msnn.Identity()
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
@@ -1033,10 +1033,10 @@ class AttentionBlock(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
 
-        self.norm = norm_layer(dim, **dd)
-        self.token_mixer = Attention(dim=dim, **dd)
+        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.token_mixer = Attention(dim=dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if layer_scale_init_value is not None:
-            self.layer_scale_1 = LayerScale2d(dim, layer_scale_init_value, **dd)
+            self.layer_scale_1 = LayerScale2d(dim, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.layer_scale_1 = msnn.Identity()
         self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
@@ -1047,9 +1047,9 @@ class AttentionBlock(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if layer_scale_init_value is not None:
-            self.layer_scale_2 = LayerScale2d(dim, layer_scale_init_value, **dd)
+            self.layer_scale_2 = LayerScale2d(dim, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.layer_scale_2 = msnn.Identity()
         self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
@@ -1114,13 +1114,13 @@ class FastVitStage(msnn.Cell):
                 lkc_use_act=lkc_use_act,
                 inference_mode=inference_mode,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert dim == dim_out
             self.downsample = msnn.Identity()
 
         if pos_emb_layer is not None:
-            self.pos_emb = pos_emb_layer(dim_out, inference_mode=inference_mode, **dd)
+            self.pos_emb = pos_emb_layer(dim_out, inference_mode=inference_mode, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.pos_emb = msnn.Identity()
 
@@ -1137,7 +1137,7 @@ class FastVitStage(msnn.Cell):
                     layer_scale_init_value=layer_scale_init_value,
                     inference_mode=inference_mode,
                     **dd,
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             elif token_mixer_type == "attention":
                 blocks.append(AttentionBlock(
                     dim_out,
@@ -1148,12 +1148,12 @@ class FastVitStage(msnn.Cell):
                     drop_path=drop_path_rate[block_idx],
                     layer_scale_init_value=layer_scale_init_value,
                     **dd,
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 raise ValueError(
                     "Token mixer type: {} not supported".format(token_mixer_type)
                 )
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -1166,7 +1166,7 @@ class FastVitStage(msnn.Cell):
 
 
 class FastVit(msnn.Cell):
-    fork_feat: torch.jit.Final[bool]
+    fork_feat: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     """
     This class implements `FastViT architecture <https://arxiv.org/pdf/2303.14189.pdf>`_
@@ -1216,7 +1216,7 @@ class FastVit(msnn.Cell):
             inference_mode,
             use_scale_branch=stem_use_scale_branch,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Build the main stages of the network architecture
         prev_dim = embed_dims[0]
@@ -1245,13 +1245,13 @@ class FastVit(msnn.Cell):
                 lkc_use_act=lkc_use_act,
                 inference_mode=inference_mode,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stages.append(stage)
             prev_dim = embed_dims[i]
             if downsample:
                 scale *= 2
             self.feature_info += [dict(num_chs=prev_dim, reduction=4 * scale, module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_stages = len(self.stages)
         self.num_features = self.head_hidden_size = prev_dim
 
@@ -1268,7 +1268,7 @@ class FastVit(msnn.Cell):
                     """
                     layer = msnn.Identity()
                 else:
-                    layer = norm_layer(embed_dims[i_emb], **dd)
+                    layer = norm_layer(embed_dims[i_emb], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 layer_name = f"norm{i_layer}"
                 self.add_module(layer_name, layer)
         else:
@@ -1285,14 +1285,14 @@ class FastVit(msnn.Cell):
                 act_layer=act_layer,
                 num_conv_branches=1,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head = ClassifierHead(
                 final_features,
                 num_classes,
                 pool_type=global_pool,
                 drop_rate=drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.apply(self._init_weights)
 
@@ -1303,11 +1303,11 @@ class FastVit(msnn.Cell):
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return set()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',  # stem and embed
@@ -1318,12 +1318,12 @@ class FastVit(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -1616,7 +1616,7 @@ def _create_fastvit(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1629,7 +1629,7 @@ def fastvit_t8(pretrained=False, **kwargs):
         mlp_ratios=(3, 3, 3, 3),
         token_mixers=("repmixer", "repmixer", "repmixer", "repmixer")
     )
-    return _create_fastvit('fastvit_t8', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_t8', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1641,7 +1641,7 @@ def fastvit_t12(pretrained=False, **kwargs):
         mlp_ratios=(3, 3, 3, 3),
         token_mixers=("repmixer", "repmixer", "repmixer", "repmixer"),
     )
-    return _create_fastvit('fastvit_t12', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_t12', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1653,7 +1653,7 @@ def fastvit_s12(pretrained=False, **kwargs):
         mlp_ratios=(4, 4, 4, 4),
         token_mixers=("repmixer", "repmixer", "repmixer", "repmixer"),
     )
-    return _create_fastvit('fastvit_s12', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_s12', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1666,7 +1666,7 @@ def fastvit_sa12(pretrained=False, **kwargs):
         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
     )
-    return _create_fastvit('fastvit_sa12', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_sa12', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1679,7 +1679,7 @@ def fastvit_sa24(pretrained=False, **kwargs):
         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
     )
-    return _create_fastvit('fastvit_sa24', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_sa24', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1692,7 +1692,7 @@ def fastvit_sa36(pretrained=False, **kwargs):
         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
     )
-    return _create_fastvit('fastvit_sa36', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_sa36', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1705,7 +1705,7 @@ def fastvit_ma36(pretrained=False, **kwargs):
         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
         token_mixers=("repmixer", "repmixer", "repmixer", "attention")
     )
-    return _create_fastvit('fastvit_ma36', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_ma36', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1720,7 +1720,7 @@ def fastvit_mci0(pretrained=False, **kwargs):
         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
         lkc_use_act=True,
     )
-    return _create_fastvit('fastvit_mci0', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_mci0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1735,7 +1735,7 @@ def fastvit_mci1(pretrained=False, **kwargs):
         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
         lkc_use_act=True,
     )
-    return _create_fastvit('fastvit_mci1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_mci1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1750,7 +1750,7 @@ def fastvit_mci2(pretrained=False, **kwargs):
         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
         lkc_use_act=True,
     )
-    return _create_fastvit('fastvit_mci2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fastvit('fastvit_mci2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1774,7 +1774,7 @@ def fastvit_mci3(pretrained=False, **kwargs):
         norm_layer=partial(LayerNorm2d, eps=1e-5),
         stem_use_scale_branch=False,
     )
-    model = _create_fastvit('fastvit_mci3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_fastvit('fastvit_mci3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1800,5 +1800,5 @@ def fastvit_mci4(pretrained=False, **kwargs):
         stem_use_scale_branch=False,
     )
 
-    model = _create_fastvit('fastvit_mci4', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_fastvit('fastvit_mci4', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

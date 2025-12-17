@@ -70,40 +70,40 @@ def _check_args_tf(kwargs):
 
 def shear_x(img, factor, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, factor, 0, 0, 1, 0), **kwargs)
+    return img.transform(img.size, Image.AFFINE, (1, factor, 0, 0, 1, 0), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def shear_y(img, factor, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, 0, factor, 1, 0), **kwargs)
+    return img.transform(img.size, Image.AFFINE, (1, 0, 0, factor, 1, 0), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def translate_x_rel(img, pct, **kwargs):
     pixels = pct * img.size[0]
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0), **kwargs)
+    return img.transform(img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def translate_y_rel(img, pct, **kwargs):
     pixels = pct * img.size[1]
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels), **kwargs)
+    return img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def translate_x_abs(img, pixels, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0), **kwargs)
+    return img.transform(img.size, Image.AFFINE, (1, 0, pixels, 0, 1, 0), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def translate_y_abs(img, pixels, **kwargs):
     _check_args_tf(kwargs)
-    return img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels), **kwargs)
+    return img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, pixels), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def rotate(img, degrees, **kwargs):
     _check_args_tf(kwargs)
     if _PIL_VER >= (5, 2):
-        return img.rotate(degrees, **kwargs)
+        return img.rotate(degrees, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if _PIL_VER >= (5, 0):
         w, h = img.size
         post_trans = (0, 0)
@@ -127,7 +127,7 @@ def rotate(img, degrees, **kwargs):
         )
         matrix[2] += rotn_center[0]
         matrix[5] += rotn_center[1]
-        return img.transform(img.size, Image.AFFINE, matrix, **kwargs)
+        return img.transform(img.size, Image.AFFINE, matrix, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return img.rotate(degrees, resample=kwargs['resample'])
 
 
@@ -398,7 +398,7 @@ class AugmentOp:
         upper_bound = self.magnitude_max or _LEVEL_DENOM
         magnitude = max(0., min(magnitude, upper_bound))
         level_args = self.level_fn(magnitude, self.hparams) if self.level_fn is not None else tuple()
-        return self.aug_fn(img, *level_args, **self.kwargs)
+        return self.aug_fn(img, *level_args, **self.kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def __repr__(self):
         fs = self.__class__.__name__ + f'(name={self.name}, p={self.prob}'
@@ -438,7 +438,7 @@ def auto_augment_policy_v0(hparams):
         [('Solarize', 0.6, 8), ('Equalize', 0.6, 1)],
         [('Color', 0.8, 6), ('Rotate', 0.4, 5)],
     ]
-    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]
+    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return pc
 
 
@@ -472,7 +472,7 @@ def auto_augment_policy_v0r(hparams):
         [('Solarize', 0.6, 8), ('Equalize', 0.6, 1)],
         [('Color', 0.8, 6), ('Rotate', 0.4, 5)],
     ]
-    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]
+    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return pc
 
 
@@ -505,7 +505,7 @@ def auto_augment_policy_original(hparams):
         [('Color', 0.6, 4), ('Contrast', 1.0, 8)],
         [('Equalize', 0.8, 8), ('Equalize', 0.6, 3)],
     ]
-    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]
+    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return pc
 
 
@@ -538,7 +538,7 @@ def auto_augment_policy_originalr(hparams):
         [('Color', 0.6, 4), ('Contrast', 1.0, 8)],
         [('Equalize', 0.8, 8), ('Equalize', 0.6, 3)],
     ]
-    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]
+    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return pc
 
 
@@ -548,7 +548,7 @@ def auto_augment_policy_3a(hparams):
         [('Desaturate', 1.0, 10)],  # grayscale at 10 magnitude
         [('GaussianBlurRand', 1.0, 10)],
     ]
-    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]
+    pc = [[AugmentOp(*a, hparams=hparams) for a in sp] for sp in policy]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return pc
 
 
@@ -710,7 +710,7 @@ _RAND_WEIGHTED_0 = {
 
 
 def _get_weighted_transforms(transforms: Dict):
-    transforms, probs = list(zip(*transforms.items()))
+    transforms, probs = list(zip(*transforms.items()))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     probs = np.array(probs)
     probs = probs / np.sum(probs)
     return transforms, probs

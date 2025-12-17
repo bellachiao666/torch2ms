@@ -178,7 +178,7 @@ def downsample_conv(
             stride=stride,
             dilation=dilation,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         return ConvNormAct(
             in_chs,
@@ -189,7 +189,7 @@ def downsample_conv(
             norm_layer=norm_layer,
             apply_act=False,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def downsample_avg(
@@ -227,10 +227,10 @@ def downsample_avg(
         avg_pool_fn = AvgPool2dSame if avg_stride == 1 and dilation > 1 else nn.AvgPool2d
         pool = avg_pool_fn(2, avg_stride, ceil_mode=True, count_include_pad=False)
     if preact:
-        conv = create_conv2d(in_chs, out_chs, 1, stride=1, **dd)
+        conv = create_conv2d(in_chs, out_chs, 1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
-        conv = ConvNormAct(in_chs, out_chs, 1, stride=1, norm_layer=norm_layer, apply_act=False, **dd)
-    return msnn.SequentialCell(*[pool, conv])
+        conv = ConvNormAct(in_chs, out_chs, 1, stride=1, norm_layer=norm_layer, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return msnn.SequentialCell(*[pool, conv])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def create_shortcut(
@@ -263,13 +263,13 @@ def create_shortcut(
     dd = {'device': device, 'dtype': dtype}
     assert downsample_type in ('avg', 'conv1x1', '', None)
     if in_chs != out_chs or stride != 1 or dilation[0] != dilation[1]:
-        dargs = dict(stride=stride, dilation=dilation[0], norm_layer=norm_layer, preact=preact, **dd)
+        dargs = dict(stride=stride, dilation=dilation[0], norm_layer=norm_layer, preact=preact, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if not downsample_type:
             return None  # no shortcut, no downsample
         elif downsample_type == 'avg':
-            return downsample_avg(in_chs, out_chs, **dargs)
+            return downsample_avg(in_chs, out_chs, **dargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            return downsample_conv(in_chs, out_chs, kernel_size=kernel_size, **dargs)
+            return downsample_conv(in_chs, out_chs, kernel_size=kernel_size, **dargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         return msnn.Identity()  # identity shortcut (no downsample)
 
@@ -323,7 +323,7 @@ class Bottleneck(msnn.Cell):
         groups = bottleneck_chs // group_size
 
         cargs = dict(act_layer=act_layer, norm_layer=norm_layer)
-        self.conv1 = ConvNormAct(in_chs, bottleneck_chs, kernel_size=1, **cargs, **dd)
+        self.conv1 = ConvNormAct(in_chs, bottleneck_chs, kernel_size=1, **cargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = ConvNormAct(
             bottleneck_chs,
             bottleneck_chs,
@@ -334,13 +334,13 @@ class Bottleneck(msnn.Cell):
             drop_layer=drop_block,
             **cargs,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if se_ratio:
             se_channels = int(round(in_chs * se_ratio))
-            self.se = SEModule(bottleneck_chs, rd_channels=se_channels, act_layer=act_layer, **dd)
+            self.se = SEModule(bottleneck_chs, rd_channels=se_channels, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.se = msnn.Identity()
-        self.conv3 = ConvNormAct(bottleneck_chs, out_chs, kernel_size=1, apply_act=False, **cargs, **dd)
+        self.conv3 = ConvNormAct(bottleneck_chs, out_chs, kernel_size=1, apply_act=False, **cargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act3 = msnn.Identity() if linear_out else act_layer()
         self.downsample = create_shortcut(
             downsample,
@@ -351,7 +351,7 @@ class Bottleneck(msnn.Cell):
             dilation=dilation,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
 
     def zero_init_last(self) -> None:
@@ -427,9 +427,9 @@ class PreBottleneck(msnn.Cell):
         bottleneck_chs = int(round(out_chs * bottle_ratio))
         groups = bottleneck_chs // group_size
 
-        self.norm1 = norm_act_layer(in_chs, **dd)
-        self.conv1 = create_conv2d(in_chs, bottleneck_chs, kernel_size=1, **dd)
-        self.norm2 = norm_act_layer(bottleneck_chs, **dd)
+        self.norm1 = norm_act_layer(in_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv1 = create_conv2d(in_chs, bottleneck_chs, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm2 = norm_act_layer(bottleneck_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = create_conv2d(
             bottleneck_chs,
             bottleneck_chs,
@@ -438,14 +438,14 @@ class PreBottleneck(msnn.Cell):
             dilation=dilation[0],
             groups=groups,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if se_ratio:
             se_channels = int(round(in_chs * se_ratio))
-            self.se = SEModule(bottleneck_chs, rd_channels=se_channels, act_layer=act_layer, **dd)
+            self.se = SEModule(bottleneck_chs, rd_channels=se_channels, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.se = msnn.Identity()
-        self.norm3 = norm_act_layer(bottleneck_chs, **dd)
-        self.conv3 = create_conv2d(bottleneck_chs, out_chs, kernel_size=1, **dd)
+        self.norm3 = norm_act_layer(bottleneck_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv3 = create_conv2d(bottleneck_chs, out_chs, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.downsample = create_shortcut(
             downsample,
             in_chs,
@@ -455,7 +455,7 @@ class PreBottleneck(msnn.Cell):
             dilation=dilation,
             preact=True,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
 
     def zero_init_last(self) -> None:
@@ -535,7 +535,7 @@ class RegStage(msnn.Cell):
                     drop_path_rate=dpr,
                     **block_kwargs,
                 )
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             first_dilation = dilation
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -594,15 +594,15 @@ class RegNet(msnn.Cell):
         self.num_classes = num_classes
         self.drop_rate = drop_rate
         assert output_stride in (8, 16, 32)
-        cfg = replace(cfg, **kwargs)  # update cfg with extra passed kwargs
+        cfg = replace(cfg, **kwargs)  # update cfg with extra passed kwargs; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Construct the stem
         stem_width = cfg.stem_width
         na_args = dict(act_layer=cfg.act_layer, norm_layer=cfg.norm_layer)
         if cfg.preact:
-            self.stem = create_conv2d(in_chans, stem_width, 3, stride=2, **dd)
+            self.stem = create_conv2d(in_chans, stem_width, 3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.stem = ConvNormAct(in_chans, stem_width, 3, stride=2, **na_args, **dd)
+            self.stem = ConvNormAct(in_chans, stem_width, 3, stride=2, **na_args, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [dict(num_chs=stem_width, reduction=2, module='stem')]
 
         # Construct the stages
@@ -626,14 +626,14 @@ class RegNet(msnn.Cell):
                     **common_args,
                     **dd,
                 )
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_width = stage_args['out_chs']
             curr_stride *= stage_args['stride']
             self.feature_info += [dict(num_chs=prev_width, reduction=curr_stride, module=stage_name)]
 
         # Construct the head
         if cfg.num_features:
-            self.final_conv = ConvNormAct(prev_width, cfg.num_features, kernel_size=1, **na_args, **dd)
+            self.final_conv = ConvNormAct(prev_width, cfg.num_features, kernel_size=1, **na_args, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = cfg.num_features
         else:
             final_act = cfg.linear_out or cfg.preact
@@ -646,7 +646,7 @@ class RegNet(msnn.Cell):
             pool_type=global_pool,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         named_apply(partial(_init_weights, zero_init_last=zero_init_last), self)
 
@@ -706,7 +706,7 @@ class RegNet(msnn.Cell):
         )
         return per_stage_args, common_args
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Group parameters for optimization."""
         return dict(
@@ -714,13 +714,13 @@ class RegNet(msnn.Cell):
             blocks=r'^s(\d+)' if coarse else r'^s(\d+)\.b(\d+)',
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing."""
         for s in list(self.children())[1:-1]:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.head.fc
@@ -1020,7 +1020,7 @@ def _create_regnet(variant: str, pretrained: bool, **kwargs) -> RegNet:
         RegNet, variant, pretrained,
         model_cfg=model_cfgs[variant],
         pretrained_filter_fn=_filter_fn,
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -1267,199 +1267,199 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def regnetx_002(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-200MF"""
-    return _create_regnet('regnetx_002', pretrained, **kwargs)
+    return _create_regnet('regnetx_002', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_004(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-400MF"""
-    return _create_regnet('regnetx_004', pretrained, **kwargs)
+    return _create_regnet('regnetx_004', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_004_tv(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-400MF w/ torchvision group rounding"""
-    return _create_regnet('regnetx_004_tv', pretrained, **kwargs)
+    return _create_regnet('regnetx_004_tv', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_006(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-600MF"""
-    return _create_regnet('regnetx_006', pretrained, **kwargs)
+    return _create_regnet('regnetx_006', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_008(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-800MF"""
-    return _create_regnet('regnetx_008', pretrained, **kwargs)
+    return _create_regnet('regnetx_008', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_016(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-1.6GF"""
-    return _create_regnet('regnetx_016', pretrained, **kwargs)
+    return _create_regnet('regnetx_016', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_032(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-3.2GF"""
-    return _create_regnet('regnetx_032', pretrained, **kwargs)
+    return _create_regnet('regnetx_032', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_040(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-4.0GF"""
-    return _create_regnet('regnetx_040', pretrained, **kwargs)
+    return _create_regnet('regnetx_040', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_064(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-6.4GF"""
-    return _create_regnet('regnetx_064', pretrained, **kwargs)
+    return _create_regnet('regnetx_064', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_080(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-8.0GF"""
-    return _create_regnet('regnetx_080', pretrained, **kwargs)
+    return _create_regnet('regnetx_080', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_120(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-12GF"""
-    return _create_regnet('regnetx_120', pretrained, **kwargs)
+    return _create_regnet('regnetx_120', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_160(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-16GF"""
-    return _create_regnet('regnetx_160', pretrained, **kwargs)
+    return _create_regnet('regnetx_160', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetx_320(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetX-32GF"""
-    return _create_regnet('regnetx_320', pretrained, **kwargs)
+    return _create_regnet('regnetx_320', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_002(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-200MF"""
-    return _create_regnet('regnety_002', pretrained, **kwargs)
+    return _create_regnet('regnety_002', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_004(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-400MF"""
-    return _create_regnet('regnety_004', pretrained, **kwargs)
+    return _create_regnet('regnety_004', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_006(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-600MF"""
-    return _create_regnet('regnety_006', pretrained, **kwargs)
+    return _create_regnet('regnety_006', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_008(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-800MF"""
-    return _create_regnet('regnety_008', pretrained, **kwargs)
+    return _create_regnet('regnety_008', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_008_tv(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-800MF w/ torchvision group rounding"""
-    return _create_regnet('regnety_008_tv', pretrained, **kwargs)
+    return _create_regnet('regnety_008_tv', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_016(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-1.6GF"""
-    return _create_regnet('regnety_016', pretrained, **kwargs)
+    return _create_regnet('regnety_016', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_032(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-3.2GF"""
-    return _create_regnet('regnety_032', pretrained, **kwargs)
+    return _create_regnet('regnety_032', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_040(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-4.0GF"""
-    return _create_regnet('regnety_040', pretrained, **kwargs)
+    return _create_regnet('regnety_040', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_064(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-6.4GF"""
-    return _create_regnet('regnety_064', pretrained, **kwargs)
+    return _create_regnet('regnety_064', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_080(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-8.0GF"""
-    return _create_regnet('regnety_080', pretrained, **kwargs)
+    return _create_regnet('regnety_080', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_080_tv(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-8.0GF w/ torchvision group rounding"""
-    return _create_regnet('regnety_080_tv', pretrained, **kwargs)
+    return _create_regnet('regnety_080_tv', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_120(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-12GF"""
-    return _create_regnet('regnety_120', pretrained, **kwargs)
+    return _create_regnet('regnety_120', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_160(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-16GF"""
-    return _create_regnet('regnety_160', pretrained, **kwargs)
+    return _create_regnet('regnety_160', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_320(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-32GF"""
-    return _create_regnet('regnety_320', pretrained, **kwargs)
+    return _create_regnet('regnety_320', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_640(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-64GF"""
-    return _create_regnet('regnety_640', pretrained, **kwargs)
+    return _create_regnet('regnety_640', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_1280(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-128GF"""
-    return _create_regnet('regnety_1280', pretrained, **kwargs)
+    return _create_regnet('regnety_1280', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_2560(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-256GF"""
-    return _create_regnet('regnety_2560', pretrained, **kwargs)
+    return _create_regnet('regnety_2560', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnety_040_sgn(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetY-4.0GF w/ GroupNorm """
-    return _create_regnet('regnety_040_sgn', pretrained, **kwargs)
+    return _create_regnet('regnety_040_sgn', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetv_040(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetV-4.0GF (pre-activation)"""
-    return _create_regnet('regnetv_040', pretrained, **kwargs)
+    return _create_regnet('regnetv_040', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetv_064(pretrained: bool = False, **kwargs) -> RegNet:
     """RegNetV-6.4GF (pre-activation)"""
-    return _create_regnet('regnetv_064', pretrained, **kwargs)
+    return _create_regnet('regnetv_064', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1468,7 +1468,7 @@ def regnetz_005(pretrained: bool = False, **kwargs) -> RegNet:
     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
     but it's not clear it is equivalent to paper model as not detailed in the paper.
     """
-    return _create_regnet('regnetz_005', pretrained, zero_init_last=False, **kwargs)
+    return _create_regnet('regnetz_005', pretrained, zero_init_last=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1477,7 +1477,7 @@ def regnetz_040(pretrained: bool = False, **kwargs) -> RegNet:
     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
     but it's not clear it is equivalent to paper model as not detailed in the paper.
     """
-    return _create_regnet('regnetz_040', pretrained, zero_init_last=False, **kwargs)
+    return _create_regnet('regnetz_040', pretrained, zero_init_last=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1486,7 +1486,7 @@ def regnetz_040_h(pretrained: bool = False, **kwargs) -> RegNet:
     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
     but it's not clear it is equivalent to paper model as not detailed in the paper.
     """
-    return _create_regnet('regnetz_040_h', pretrained, zero_init_last=False, **kwargs)
+    return _create_regnet('regnetz_040_h', pretrained, zero_init_last=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 register_model_deprecations(__name__, {

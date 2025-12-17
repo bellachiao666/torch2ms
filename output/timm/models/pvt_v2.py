@@ -53,11 +53,11 @@ class MlpWithDepthwiseConv(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.fc1 = nn.Linear(in_features, hidden_features, **dd)
+        self.fc1 = nn.Linear(in_features, hidden_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU() if extra_relu else msnn.Identity()
-        self.dwconv = nn.Conv2d(hidden_features, hidden_features, 3, 1, 1, bias=True, groups=hidden_features, **dd)
+        self.dwconv = nn.Conv2d(hidden_features, hidden_features, 3, 1, 1, bias=True, groups=hidden_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.fc2 = nn.Linear(hidden_features, out_features, **dd)
+        self.fc2 = nn.Linear(hidden_features, out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop)
 
     def construct(self, x, feat_size: List[int]):
@@ -75,7 +75,7 @@ class MlpWithDepthwiseConv(msnn.Cell):
 
 
 class Attention(msnn.Cell):
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -99,25 +99,25 @@ class Attention(msnn.Cell):
         self.scale = self.head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.kv = nn.Linear(dim, dim * 2, bias=qkv_bias, **dd)
+        self.q = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.kv = nn.Linear(dim, dim * 2, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
         if not linear_attn:
             self.pool = None
             if sr_ratio > 1:
-                self.sr = nn.Conv2d(dim, dim, kernel_size=sr_ratio, stride=sr_ratio, **dd)
-                self.norm = nn.LayerNorm(dim, **dd)
+                self.sr = nn.Conv2d(dim, dim, kernel_size=sr_ratio, stride=sr_ratio, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+                self.norm = nn.LayerNorm(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             else:
                 self.sr = None
                 self.norm = None
             self.act = None
         else:
             self.pool = nn.AdaptiveAvgPool2d(7)
-            self.sr = nn.Conv2d(dim, dim, kernel_size=1, stride=1, **dd)
-            self.norm = nn.LayerNorm(dim, **dd)
+            self.sr = nn.Conv2d(dim, dim, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.norm = nn.LayerNorm(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.act = nn.GELU()
 
     def construct(self, x, feat_size: List[int]):
@@ -176,7 +176,7 @@ class Block(msnn.Cell):
     ):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = Attention(
             dim,
             num_heads=num_heads,
@@ -186,10 +186,10 @@ class Block(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = MlpWithDepthwiseConv(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
@@ -197,7 +197,7 @@ class Block(msnn.Cell):
             drop=proj_drop,
             extra_relu=linear_attn,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x, feat_size: List[int]):
@@ -226,8 +226,8 @@ class OverlapPatchEmbed(msnn.Cell):
         self.patch_size = patch_size
         self.proj = nn.Conv2d(
             in_chans, embed_dim, patch_size,
-            stride=stride, padding=(patch_size[0] // 2, patch_size[1] // 2), **dd)
-        self.norm = nn.LayerNorm(embed_dim, **dd)
+            stride=stride, padding=(patch_size[0] // 2, patch_size[1] // 2), **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = nn.LayerNorm(embed_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.proj(x)
@@ -266,7 +266,7 @@ class PyramidVisionTransformerStage(msnn.Cell):
                 in_chans=dim,
                 embed_dim=dim_out,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert dim == dim_out
             self.downsample = None
@@ -283,9 +283,9 @@ class PyramidVisionTransformerStage(msnn.Cell):
             drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
             norm_layer=norm_layer,
             **dd,
-        ) for i in range(depth)])
+        ) for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.norm = norm_layer(dim_out, **dd)
+        self.norm = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         # x is either B, C, H, W (if downsample) or B, H, W, C if not
@@ -345,7 +345,7 @@ class PyramidVisionTransformerV2(msnn.Cell):
             in_chans=in_chans,
             embed_dim=embed_dims[0],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dpr = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
         cur = 0
@@ -367,16 +367,16 @@ class PyramidVisionTransformerV2(msnn.Cell):
                 drop_path=dpr[i],
                 norm_layer=norm_layer,
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_dim = embed_dims[i]
             cur += depths[i]
             self.feature_info += [dict(num_chs=prev_dim, reduction=4 * 2**i, module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # classification head
         self.num_features = self.head_hidden_size = embed_dims[-1]
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.apply(self._init_weights)
 
@@ -395,11 +395,11 @@ class PyramidVisionTransformerV2(msnn.Cell):
     def freeze_patch_emb(self):
         self.patch_embed.requires_grad = False
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^patch_embed',  # stem and embed
@@ -407,7 +407,7 @@ class PyramidVisionTransformerV2(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
@@ -527,7 +527,7 @@ def _create_pvt2(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -556,43 +556,43 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def pvt_v2_b0(pretrained=False, **kwargs) -> PyramidVisionTransformerV2:
     model_args = dict(depths=(2, 2, 2, 2), embed_dims=(32, 64, 160, 256), num_heads=(1, 2, 5, 8))
-    return _create_pvt2('pvt_v2_b0', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_pvt2('pvt_v2_b0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def pvt_v2_b1(pretrained=False, **kwargs) -> PyramidVisionTransformerV2:
     model_args = dict(depths=(2, 2, 2, 2), embed_dims=(64, 128, 320, 512), num_heads=(1, 2, 5, 8))
-    return _create_pvt2('pvt_v2_b1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_pvt2('pvt_v2_b1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def pvt_v2_b2(pretrained=False, **kwargs) -> PyramidVisionTransformerV2:
     model_args = dict(depths=(3, 4, 6, 3), embed_dims=(64, 128, 320, 512), num_heads=(1, 2, 5, 8))
-    return _create_pvt2('pvt_v2_b2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_pvt2('pvt_v2_b2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def pvt_v2_b3(pretrained=False, **kwargs) -> PyramidVisionTransformerV2:
     model_args = dict(depths=(3, 4, 18, 3), embed_dims=(64, 128, 320, 512), num_heads=(1, 2, 5, 8))
-    return _create_pvt2('pvt_v2_b3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_pvt2('pvt_v2_b3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def pvt_v2_b4(pretrained=False, **kwargs) -> PyramidVisionTransformerV2:
     model_args = dict(depths=(3, 8, 27, 3), embed_dims=(64, 128, 320, 512), num_heads=(1, 2, 5, 8))
-    return _create_pvt2('pvt_v2_b4', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_pvt2('pvt_v2_b4', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def pvt_v2_b5(pretrained=False, **kwargs) -> PyramidVisionTransformerV2:
     model_args = dict(
         depths=(3, 6, 40, 3), embed_dims=(64, 128, 320, 512), num_heads=(1, 2, 5, 8), mlp_ratios=(4, 4, 4, 4))
-    return _create_pvt2('pvt_v2_b5', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_pvt2('pvt_v2_b5', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def pvt_v2_b2_li(pretrained=False, **kwargs) -> PyramidVisionTransformerV2:
     model_args = dict(
         depths=(3, 4, 6, 3), embed_dims=(64, 128, 320, 512), num_heads=(1, 2, 5, 8), linear=True)
-    return _create_pvt2('pvt_v2_b2_li', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_pvt2('pvt_v2_b2_li', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

@@ -50,11 +50,12 @@ class ConvNorm(msnn.SequentialCell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.add_module('c', nn.Conv2d(in_dim, out_dim, ks, stride, pad, dilation, groups, bias=False, **dd))
-        self.add_module('bn', nn.BatchNorm2d(out_dim, **dd))
+        self.add_module('c', nn.Conv2d(in_dim, out_dim, ks, stride, pad, dilation, groups, bias=False, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.add_module('bn', nn.BatchNorm2d(out_dim, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         c, bn = self._modules.values()
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -79,12 +80,13 @@ class NormLinear(msnn.SequentialCell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.add_module('bn', nn.BatchNorm1d(in_dim, **dd))
-        self.add_module('l', nn.Linear(in_dim, out_dim, bias=bias, **dd))
+        self.add_module('bn', nn.BatchNorm1d(in_dim, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.add_module('l', nn.Linear(in_dim, out_dim, bias=bias, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
         trunc_normal_(self.l.weight, std=std)
         if bias:
             nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         bn, l = self._modules.values()
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -111,20 +113,21 @@ class RepVggDw(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv = ConvNorm(ed, ed, kernel_size, 1, (kernel_size - 1) // 2, groups=ed, **dd)
+        self.conv = ConvNorm(ed, ed, kernel_size, 1, (kernel_size - 1) // 2, groups=ed, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if legacy:
-            self.conv1 = ConvNorm(ed, ed, 1, 1, 0, groups=ed, **dd)
+            self.conv1 = ConvNorm(ed, ed, 1, 1, 0, groups=ed, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             # Make torchscript happy.
             self.bn = msnn.Identity()
         else:
-            self.conv1 = nn.Conv2d(ed, ed, 1, 1, 0, groups=ed, **dd)
-            self.bn = nn.BatchNorm2d(ed, **dd)
+            self.conv1 = nn.Conv2d(ed, ed, 1, 1, 0, groups=ed, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.bn = nn.BatchNorm2d(ed, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.dim = ed
         self.legacy = legacy
 
     def construct(self, x):
         return self.bn(self.conv(x) + self.conv1(x) + x)
 
+    @torch.no_grad()
     def fuse(self):
         conv = self.conv.fuse()
 
@@ -170,9 +173,9 @@ class RepVitMlp(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv1 = ConvNorm(in_dim, hidden_dim, 1, 1, 0, **dd)
+        self.conv1 = ConvNorm(in_dim, hidden_dim, 1, 1, 0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
-        self.conv2 = ConvNorm(hidden_dim, in_dim, 1, 1, 0, bn_weight_init=0, **dd)
+        self.conv2 = ConvNorm(hidden_dim, in_dim, 1, 1, 0, bn_weight_init=0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.conv2(self.act(self.conv1(x)))
@@ -192,9 +195,9 @@ class RepViTBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.token_mixer = RepVggDw(in_dim, kernel_size, legacy, **dd)
-        self.se = SqueezeExcite(in_dim, 0.25, **dd) if use_se else msnn.Identity()
-        self.channel_mixer = RepVitMlp(in_dim, in_dim * mlp_ratio, act_layer, **dd)
+        self.token_mixer = RepVggDw(in_dim, kernel_size, legacy, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.se = SqueezeExcite(in_dim, 0.25, **dd) if use_se else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.channel_mixer = RepVitMlp(in_dim, in_dim * mlp_ratio, act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.token_mixer(x)
@@ -215,9 +218,9 @@ class RepVitStem(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv1 = ConvNorm(in_chs, out_chs // 2, 3, 2, 1, **dd)
+        self.conv1 = ConvNorm(in_chs, out_chs // 2, 3, 2, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer()
-        self.conv2 = ConvNorm(out_chs // 2, out_chs, 3, 2, 1, **dd)
+        self.conv2 = ConvNorm(out_chs // 2, out_chs, 3, 2, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.stride = 4
 
     def construct(self, x):
@@ -246,7 +249,7 @@ class RepVitDownsample(msnn.Cell):
             act_layer=act_layer,
             legacy=legacy,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.spatial_downsample = ConvNorm(
             in_dim,
             in_dim,
@@ -255,9 +258,9 @@ class RepVitDownsample(msnn.Cell):
             pad=(kernel_size - 1) // 2,
             groups=in_dim,
             **dd,
-        )
-        self.channel_downsample = ConvNorm(in_dim, out_dim, 1, 1, **dd)
-        self.ffn = RepVitMlp(out_dim, out_dim * mlp_ratio, act_layer, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.channel_downsample = ConvNorm(in_dim, out_dim, 1, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ffn = RepVitMlp(out_dim, out_dim * mlp_ratio, act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.pre_block(x)
@@ -281,12 +284,12 @@ class RepVitClassifier(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.head_drop = nn.Dropout(drop)
-        self.head = NormLinear(dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = NormLinear(dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.distillation = distillation
         self.distilled_training = False
         self.num_classes = num_classes
         if distillation:
-            self.head_dist = NormLinear(dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+            self.head_dist = NormLinear(dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.head_drop(x)
@@ -300,6 +303,7 @@ class RepVitClassifier(msnn.Cell):
             x = self.head(x)
             return x
 
+    @torch.no_grad()
     def fuse(self):
         if not self.num_classes > 0:
             return msnn.Identity()
@@ -340,7 +344,7 @@ class RepVitStage(msnn.Cell):
                 act_layer=act_layer,
                 legacy=legacy,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert in_dim == out_dim
             self.downsample = msnn.Identity()
@@ -348,10 +352,10 @@ class RepVitStage(msnn.Cell):
         blocks = []
         use_se = True
         for _ in range(depth):
-            blocks.append(RepViTBlock(out_dim, mlp_ratio, kernel_size, use_se, act_layer, legacy, **dd))
+            blocks.append(RepViTBlock(out_dim, mlp_ratio, kernel_size, use_se, act_layer, legacy, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             use_se = not use_se
 
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -385,7 +389,7 @@ class RepVit(msnn.Cell):
         self.num_classes = num_classes
 
         in_dim = embed_dim[0]
-        self.stem = RepVitStem(in_chans, in_dim, act_layer, **dd)
+        self.stem = RepVitStem(in_chans, in_dim, act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stride = self.stem.stride
         resolution = tuple([i // p for i, p in zip(to_2tuple(img_size), to_2tuple(stride))])
 
@@ -408,28 +412,28 @@ class RepVit(msnn.Cell):
                     legacy=legacy,
                     **dd,
                 )
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stage_stride = 2 if downsample else 1
             stride *= stage_stride
             resolution = tuple([(r - 1) // stage_stride + 1 for r in resolution])
             self.feature_info += [dict(num_chs=embed_dim[i], reduction=stride, module=f'stages.{i}')]
             in_dim = embed_dim[i]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.num_features = self.head_hidden_size = embed_dim[-1]
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = RepVitClassifier(embed_dim[-1], num_classes, distillation, **dd)
+        self.head = RepVitClassifier(embed_dim[-1], num_classes, distillation, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(stem=r'^stem', blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))])  # stem and embed
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -438,9 +442,9 @@ class RepVit(msnn.Cell):
         if global_pool is not None:
             self.global_pool = global_pool
         dd = {'device': device, 'dtype': dtype}
-        self.head = RepVitClassifier(self.embed_dim[-1], num_classes, distillation, **dd)
+        self.head = RepVitClassifier(self.embed_dim[-1], num_classes, distillation, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def set_distilled_training(self, enable=True):
         self.head.distilled_training = enable
 
@@ -524,6 +528,7 @@ class RepVit(msnn.Cell):
         x = self.forward_head(x)
         return x
 
+    @torch.no_grad()
     def fuse(self):
         def fuse_children(net):
             for child_name, child in net.named_children():
@@ -607,7 +612,7 @@ def _create_repvit(variant, pretrained=False, **kwargs):
         pretrained,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -617,7 +622,7 @@ def repvit_m1(pretrained=False, **kwargs):
     Constructs a RepViT-M1 model
     """
     model_args = dict(embed_dim=(48, 96, 192, 384), depth=(2, 2, 14, 2), legacy=True)
-    return _create_repvit('repvit_m1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -626,7 +631,7 @@ def repvit_m2(pretrained=False, **kwargs):
     Constructs a RepViT-M2 model
     """
     model_args = dict(embed_dim=(64, 128, 256, 512), depth=(2, 2, 12, 2), legacy=True)
-    return _create_repvit('repvit_m2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -635,7 +640,7 @@ def repvit_m3(pretrained=False, **kwargs):
     Constructs a RepViT-M3 model
     """
     model_args = dict(embed_dim=(64, 128, 256, 512), depth=(4, 4, 18, 2), legacy=True)
-    return _create_repvit('repvit_m3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -644,7 +649,7 @@ def repvit_m0_9(pretrained=False, **kwargs):
     Constructs a RepViT-M0.9 model
     """
     model_args = dict(embed_dim=(48, 96, 192, 384), depth=(2, 2, 14, 2))
-    return _create_repvit('repvit_m0_9', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m0_9', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -653,7 +658,7 @@ def repvit_m1_0(pretrained=False, **kwargs):
     Constructs a RepViT-M1.0 model
     """
     model_args = dict(embed_dim=(56, 112, 224, 448), depth=(2, 2, 14, 2))
-    return _create_repvit('repvit_m1_0', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m1_0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -662,7 +667,7 @@ def repvit_m1_1(pretrained=False, **kwargs):
     Constructs a RepViT-M1.1 model
     """
     model_args = dict(embed_dim=(64, 128, 256, 512), depth=(2, 2, 12, 2))
-    return _create_repvit('repvit_m1_1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m1_1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -671,7 +676,7 @@ def repvit_m1_5(pretrained=False, **kwargs):
     Constructs a RepViT-M1.5 model
     """
     model_args = dict(embed_dim=(64, 128, 256, 512), depth=(4, 4, 24, 4))
-    return _create_repvit('repvit_m1_5', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m1_5', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -680,4 +685,4 @@ def repvit_m2_3(pretrained=False, **kwargs):
     Constructs a RepViT-M2.3 model
     """
     model_args = dict(embed_dim=(80, 160, 320, 640), depth=(6, 6, 34, 2))
-    return _create_repvit('repvit_m2_3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_repvit('repvit_m2_3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

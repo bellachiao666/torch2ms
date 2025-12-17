@@ -32,10 +32,16 @@
      if isinstance(attn_layer, str):
          attn_layer = ATTN_LAYERS.get(attn_layer, None)
          assert attn_layer is not None, f'Unknown attn_layer: {attn_layer}'
-@@ -123,7 +128,7 @@     )
- 
- 
+@@ -120,10 +125,10 @@         proj_drop=proj_drop,
+         norm_layer=norm_layer,
+         **kwargs,
+-    )
+-
+-
 -class Block(nn.Module):
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++
 +class Block(msnn.Cell):
      """Transformer block with pre-normalization."""
  
@@ -52,24 +58,40 @@
              attn_layer: LayerType = Attention,
              depth: int = 0,
              device=None,
-@@ -185,8 +190,8 @@             depth=depth,
+@@ -170,7 +175,7 @@         super().__init__()
+         dd = {'device': device, 'dtype': dtype}
+ 
+-        self.norm1 = norm_layer(dim, **dd)
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = _create_attn(
+             attn_layer,
+             dim,
+@@ -184,11 +189,11 @@             norm_layer=norm_layer,
+             depth=depth,
              **dd,
-         )
+-        )
 -        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
 -        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-+        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
+-
+-        self.norm2 = norm_layer(dim, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
- 
-         self.norm2 = norm_layer(dim, **dd)
++
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.mlp = mlp_layer(
-@@ -198,16 +203,16 @@             drop=proj_drop,
+             in_features=dim,
+             hidden_features=int(dim * mlp_ratio),
+@@ -197,17 +202,17 @@             bias=proj_bias,
+             drop=proj_drop,
              **dd,
-         )
+-        )
 -        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 -
 -    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
 +    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
@@ -95,18 +117,26 @@
              attn_layer: LayerType = Attention,
              depth: int = 0,
              device=None,
-@@ -249,7 +254,7 @@             **dd,
-         )
-         self.norm1 = norm_layer(dim, **dd)
+@@ -247,9 +252,9 @@             norm_layer=norm_layer,
+             depth=depth,
+             **dd,
+-        )
+-        self.norm1 = norm_layer(dim, **dd)
 -        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
  
          self.mlp = mlp_layer(
              in_features=dim,
-@@ -261,23 +266,23 @@             **dd,
-         )
-         self.norm2 = norm_layer(dim, **dd)
+@@ -259,30 +264,30 @@             bias=proj_bias,
+             drop=proj_drop,
+             **dd,
+-        )
+-        self.norm2 = norm_layer(dim, **dd)
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
  
          self.init_weights()
@@ -132,6 +162,12 @@
      """ Parallel ViT block (MLP & Attention in parallel)
      Based on:
        'Scaling Vision Transformers to 22 Billion Parameters` - https://arxiv.org/abs/2302.05442
+     """
+-    fused_attn: Final[bool]
++    fused_attn: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
 @@ -298,9 +303,9 @@             attn_drop: float = 0.,
              init_values: Optional[float] = None,
              drop_path: float = 0.,
@@ -144,7 +180,16 @@
              attn_layer: Optional[LayerType] = None,  # not used
              depth: int = 0,  # not used
              fuse_out_proj: bool = False,
-@@ -325,11 +330,11 @@             self.register_buffer('qkv_bias', None)
+@@ -318,18 +323,18 @@         mlp_hidden_dim = int(mlp_ratio * dim)
+         in_proj_out_dim = mlp_hidden_dim + 3 * dim
+ 
+-        self.in_norm = norm_layer(dim, **dd)
+-        self.in_proj = nn.Linear(dim, in_proj_out_dim, bias=qkv_bias, **dd)
++        self.in_norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.in_proj = nn.Linear(dim, in_proj_out_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.in_split = [mlp_hidden_dim] + [dim] * 3
+         if qkv_bias:
+             self.register_buffer('qkv_bias', None)
              self.register_parameter('mlp_bias', None)
          else:
 -            self.register_buffer('qkv_bias', torch.zeros(3 * dim, **dd), persistent=False)
@@ -152,22 +197,35 @@
 -
 -        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
 -        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
-+            self.register_buffer('qkv_bias', mint.zeros(3 * dim, **dd), persistent=False)
-+            self.mlp_bias = ms.Parameter(mint.zeros(mlp_hidden_dim, **dd))
++            self.register_buffer('qkv_bias', mint.zeros(3 * dim, **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.mlp_bias = ms.Parameter(mint.zeros(mlp_hidden_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
-+        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
-+        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
++        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.attn_drop = nn.Dropout(attn_drop)
  
          self.mlp_drop = nn.Dropout(proj_drop)
-@@ -346,10 +351,10 @@             self.attn_out_proj = nn.Linear(dim, dim, bias=proj_bias, **dd)
-             self.mlp_out_proj = nn.Linear(mlp_hidden_dim, dim, bias=proj_bias, **dd)
- 
+@@ -337,19 +342,19 @@ 
+         if fuse_out_proj:
+             # Fused output projection for both attention and MLP
+-            self.out_proj = nn.Linear(dim + mlp_hidden_dim, dim, bias=proj_bias, **dd)
++            self.out_proj = nn.Linear(dim + mlp_hidden_dim, dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+             self.attn_out_proj = None
+             self.mlp_out_proj = None
+         else:
+             # Separate output projections
+             self.out_proj = None
+-            self.attn_out_proj = nn.Linear(dim, dim, bias=proj_bias, **dd)
+-            self.mlp_out_proj = nn.Linear(mlp_hidden_dim, dim, bias=proj_bias, **dd)
+-
 -        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else nn.Identity()
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 -
 -    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-+        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
++            self.attn_out_proj = nn.Linear(dim, dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++            self.mlp_out_proj = nn.Linear(mlp_hidden_dim, dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
 +    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
@@ -202,7 +260,7 @@
          else:
              y = self.attn_out_proj(x_attn) + self.mlp_out_proj(x_mlp)
  
-@@ -397,7 +402,7 @@         return x
+@@ -397,14 +402,14 @@         return x
  
  
 -class DiffParallelScalingBlock(nn.Module):
@@ -210,6 +268,14 @@
      """ Parallel ViT block with Differential Attention (MLP & Attention in parallel).
  
      Combines the parallel MLP+Attention structure from 'Scaling Vision Transformers to
+     22 Billion Parameters' (https://arxiv.org/abs/2302.05442) with differential attention
+     from 'Differential Transformer' (https://arxiv.org/abs/2410.05258).
+     """
+-    fused_attn: Final[bool]
++    fused_attn: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
 @@ -420,9 +425,9 @@             attn_drop: float = 0.,
              init_values: Optional[float] = None,
              drop_path: float = 0.,
@@ -222,7 +288,16 @@
              attn_layer: Optional[LayerType] = None,
              depth: int = 0,
              dual_lambda: bool = False,
-@@ -447,11 +452,11 @@             self.register_buffer('qkv_bias', None)
+@@ -440,43 +445,43 @@         mlp_hidden_dim = int(mlp_ratio * dim)
+         in_proj_out_dim = mlp_hidden_dim + 3 * dim
+ 
+-        self.in_norm = norm_layer(dim, **dd)
+-        self.in_proj = nn.Linear(dim, in_proj_out_dim, bias=qkv_bias, **dd)
++        self.in_norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.in_proj = nn.Linear(dim, in_proj_out_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.in_split = [mlp_hidden_dim] + [dim] * 3
+         if qkv_bias:
+             self.register_buffer('qkv_bias', None)
              self.register_parameter('mlp_bias', None)
          else:
 -            self.register_buffer('qkv_bias', torch.zeros(3 * dim, **dd), persistent=False)
@@ -230,15 +305,17 @@
 -
 -        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
 -        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
-+            self.register_buffer('qkv_bias', mint.zeros(3 * dim, **dd), persistent=False)
-+            self.mlp_bias = ms.Parameter(mint.zeros(mlp_hidden_dim, **dd))
++            self.register_buffer('qkv_bias', mint.zeros(3 * dim, **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.mlp_bias = ms.Parameter(mint.zeros(mlp_hidden_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
-+        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
-+        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
++        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.attn_drop = nn.Dropout(attn_drop)
          self.attn_drop_p = attn_drop
  
-@@ -459,15 +464,15 @@         self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)
+         # Differential attention specific
+-        self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)
++        self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.dual_lambda = dual_lambda
          if dual_lambda:
 -            self.lambda_a = nn.Parameter(torch.empty((), dtype=torch.float32, device=device))
@@ -259,12 +336,15 @@
  
          self.mlp_drop = nn.Dropout(proj_drop)
          self.mlp_act = act_layer()
-@@ -475,8 +480,8 @@         # Fused output projection for both attention and MLP
-         self.out_proj = nn.Linear(dim + mlp_hidden_dim, dim, bias=proj_bias, **dd)
  
+         # Fused output projection for both attention and MLP
+-        self.out_proj = nn.Linear(dim + mlp_hidden_dim, dim, bias=proj_bias, **dd)
+-
 -        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else nn.Identity()
 -        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-+        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
++        self.out_proj = nn.Linear(dim + mlp_hidden_dim, dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++        self.ls = LayerScale(dim, init_values=init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
  
          self.lambda_init = 0.8
@@ -373,10 +453,11 @@
                  )),
 -                ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()),
 -                ('drop_path', DropPath(drop_path) if drop_path > 0. else nn.Identity())
+-            ])))
+-            self.ffns.append(nn.Sequential(OrderedDict([
 +                ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()),
 +                ('drop_path', DropPath(drop_path) if drop_path > 0. else msnn.Identity())
-             ])))
--            self.ffns.append(nn.Sequential(OrderedDict([
++            ])))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +            self.ffns.append(msnn.SequentialCell(OrderedDict([
                  ('norm', norm_layer(dim, **dd)),
                  ('mlp', mlp_layer(
@@ -386,11 +467,13 @@
                  )),
 -                ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()),
 -                ('drop_path', DropPath(drop_path) if drop_path > 0. else nn.Identity())
+-            ])))
+-
+-    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
 +                ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()),
 +                ('drop_path', DropPath(drop_path) if drop_path > 0. else msnn.Identity())
-             ])))
- 
--    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
++            ])))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
          if attn_mask is not None:
              attn_out = []
@@ -414,7 +497,7 @@
          pool_type: str = 'token',
          num_prefix_tokens: int = 1,
          reduce_include_prefix: bool = False,
-@@ -671,7 +676,7 @@     return x
+@@ -671,13 +676,13 @@     return x
  
  
 -class VisionTransformer(nn.Module):
@@ -422,6 +505,13 @@
      """ Vision Transformer
  
      A PyTorch impl of : `An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale`
+         - https://arxiv.org/abs/2010.11929
+     """
+-    dynamic_img_size: Final[bool]
++    dynamic_img_size: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
 @@ -718,8 +723,8 @@             embed_norm_layer: Optional[LayerType] = None,
              norm_layer: Optional[LayerType] = None,
              act_layer: Optional[LayerType] = None,
@@ -432,20 +522,25 @@
              attn_layer: LayerType = Attention,
              device=None,
              dtype=None,
-@@ -796,25 +801,25 @@         num_patches = self.patch_embed.num_patches
+@@ -792,29 +797,29 @@             dynamic_img_pad=dynamic_img_pad,
+             **embed_args,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         num_patches = self.patch_embed.num_patches
          reduction = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
  
 -        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd)) if class_token else None
 -        self.reg_token = nn.Parameter(torch.zeros(1, reg_tokens, embed_dim, **dd)) if reg_tokens else None
-+        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd)) if class_token else None
-+        self.reg_token = ms.Parameter(mint.zeros(1, reg_tokens, embed_dim, **dd)) if reg_tokens else None
++        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd)) if class_token else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.reg_token = ms.Parameter(mint.zeros(1, reg_tokens, embed_dim, **dd)) if reg_tokens else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          embed_len = num_patches if no_embed_class else num_patches + self.num_prefix_tokens
          if not pos_embed or pos_embed == 'none':
              self.pos_embed = None
          else:
 -            self.pos_embed = nn.Parameter(torch.randn(1, embed_len, embed_dim, **dd) * .02)
 -        self.pos_drop = nn.Dropout(p=pos_drop_rate)
-+            self.pos_embed = ms.Parameter(mint.randn(1, embed_len, embed_dim, **dd) * .02)
++            self.pos_embed = ms.Parameter(mint.randn(1, embed_len, embed_dim, **dd) * .02)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.pos_drop = nn.Dropout(p = pos_drop_rate)
          if patch_drop_rate > 0:
              self.patch_drop = PatchDropout(
@@ -456,7 +551,7 @@
 -            self.patch_drop = nn.Identity()
 -        self.norm_pre = norm_layer(embed_dim, **dd) if pre_norm else nn.Identity()
 +            self.patch_drop = msnn.Identity()
-+        self.norm_pre = norm_layer(embed_dim, **dd) if pre_norm else msnn.Identity()
++        self.norm_pre = norm_layer(embed_dim, **dd) if pre_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
 -        self.blocks = nn.Sequential(*[
@@ -464,26 +559,34 @@
              block_fn(
                  dim=embed_dim,
                  num_heads=num_heads,
-@@ -838,7 +843,7 @@             for i in range(depth)])
+@@ -835,10 +840,10 @@                 depth=i,
+                 **dd,
+             )
+-            for i in range(depth)])
++            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.feature_info = [
              dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=reduction) for i in range(depth)]
 -        self.norm = norm_layer(embed_dim, **dd) if final_norm and not use_fc_norm else nn.Identity()
-+        self.norm = norm_layer(embed_dim, **dd) if final_norm and not use_fc_norm else msnn.Identity()
++        self.norm = norm_layer(embed_dim, **dd) if final_norm and not use_fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Classifier Head
          if global_pool == 'map':
-@@ -852,9 +857,9 @@             )
+@@ -849,12 +854,12 @@                 norm_layer=norm_layer,
+                 act_layer=act_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              self.attn_pool = None
 -        self.fc_norm = norm_layer(embed_dim, **dd) if final_norm and use_fc_norm else nn.Identity()
-+        self.fc_norm = norm_layer(embed_dim, **dd) if final_norm and use_fc_norm else msnn.Identity()
++        self.fc_norm = norm_layer(embed_dim, **dd) if final_norm and use_fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.head_drop = nn.Dropout(drop_rate)
 -        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
-+        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
  
          if weight_init != 'skip':
              self.init_weights(weight_init)
-@@ -881,13 +886,13 @@         if self.pos_embed is not None:
+@@ -881,18 +886,18 @@         if self.pos_embed is not None:
              trunc_normal_(self.pos_embed, std=.02)
          if self.cls_token is not None:
 -            nn.init.normal_(self.cls_token, std=1e-6)
@@ -499,10 +602,40 @@
          """Initialize weights for a single module (compatibility method)."""
          # this fn left here for compat with downstream users
          init_weights_vit_timm(m)
-@@ -934,7 +939,7 @@             self.patch_embed.set_grad_checkpointing(enable)
  
-     @torch.jit.ignore
+-    @torch.jit.ignore()
++    @ms.jit()
+     def load_pretrained(self, checkpoint_path: str, prefix: str = '') -> None:
+         """Load pretrained weights.
+ 
+@@ -902,12 +907,12 @@         """
+         _load_weights(self, checkpoint_path, prefix)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def no_weight_decay(self) -> Set[str]:
+         """Set of parameters that should not use weight decay."""
+         return {'pos_embed', 'cls_token', 'dist_token'}
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict[str, Union[str, List]]:
+         """Create regex patterns for parameter grouping.
+ 
+@@ -922,7 +927,7 @@             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True) -> None:
+         """Enable or disable gradient checkpointing.
+ 
+@@ -933,8 +938,8 @@         if hasattr(self.patch_embed, 'set_grad_checkpointing'):
+             self.patch_embed.set_grad_checkpointing(enable)
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
          return self.head
@@ -699,14 +832,7 @@
      """ Rescale the grid of position embeddings when loading from state_dict.
      *DEPRECATED* This function is being deprecated in favour of using resample_abs_pos_embed
      """
-@@ -1328,7 +1333,6 @@     )
- 
- 
--@torch.no_grad()
- def _load_weights(model: VisionTransformer, checkpoint_path: str, prefix: str = '', load_bfloat16: bool = False) -> None:
-     """ Load weights from .npz checkpoints for official Google Brain Flax implementation
-     """
-@@ -1355,7 +1359,7 @@             elif _w.ndim == 2:
+@@ -1355,7 +1360,7 @@             elif _w.ndim == 2:
                  _w = _w.transpose([1, 0])
  
 -        _w = torch.from_numpy(_w)
@@ -714,7 +840,7 @@
          return _w
  
      if load_bfloat16:
-@@ -1443,9 +1447,9 @@         block_prefix = f'{prefix}MAPHead_0/'
+@@ -1443,9 +1448,9 @@         block_prefix = f'{prefix}MAPHead_0/'
          mha_prefix = block_prefix + f'MultiHeadDotProductAttention_0/'
          model.attn_pool.latent.copy_(_n2p(w[f'{block_prefix}probe'], t=False))
 -        model.attn_pool.kv.weight.copy_(torch.cat([
@@ -725,7 +851,7 @@
              _n2p(w[f'{mha_prefix}{n}/bias'], t=False).reshape(-1) for n in ('key', 'value')]))
          model.attn_pool.q.weight.copy_(_n2p(w[f'{mha_prefix}query/kernel'], t=False).flatten(1).T)
          model.attn_pool.q.bias.copy_(_n2p(w[f'{mha_prefix}query/bias'], t=False).reshape(-1))
-@@ -1468,9 +1472,9 @@         mha_prefix = block_prefix + f'MultiHeadDotProductAttention_{mha_sub}/'
+@@ -1468,9 +1473,9 @@         mha_prefix = block_prefix + f'MultiHeadDotProductAttention_{mha_sub}/'
          block.norm1.weight.copy_(_n2p(w[f'{block_prefix}LayerNorm_0/scale'], idx=idx))
          block.norm1.bias.copy_(_n2p(w[f'{block_prefix}LayerNorm_0/bias'], idx=idx))
 -        block.attn.qkv.weight.copy_(torch.cat([
@@ -736,7 +862,7 @@
              _n2p(w[f'{mha_prefix}{n}/bias'], t=False, idx=idx).reshape(-1) for n in ('query', 'key', 'value')]))
          block.attn.proj.weight.copy_(_n2p(w[f'{mha_prefix}out/kernel'], idx=idx).flatten(1))
          block.attn.proj.bias.copy_(_n2p(w[f'{mha_prefix}out/bias'], idx=idx))
-@@ -1484,10 +1488,10 @@ 
+@@ -1484,10 +1489,10 @@ 
  
  def _convert_openai_clip(
 -        state_dict: Dict[str, torch.Tensor],
@@ -748,7 +874,7 @@
      out_dict = {}
      swaps = [
          ('conv1', 'patch_embed.proj'),
-@@ -1511,7 +1515,7 @@         if k == 'proj':
+@@ -1511,7 +1516,7 @@         if k == 'proj':
              k = 'head.weight'
              v = v.transpose(0, 1)
 -            out_dict['head.bias'] = torch.zeros(v.shape[0])
@@ -756,7 +882,7 @@
          elif k == 'class_embedding':
              k = 'cls_token'
              v = v.unsqueeze(0).unsqueeze(1)
-@@ -1522,9 +1526,9 @@ 
+@@ -1522,9 +1527,9 @@ 
  
  def _convert_dinov2(
 -        state_dict: Dict[str, torch.Tensor],
@@ -767,7 +893,7 @@
      import re
      out_dict = {}
      state_dict.pop("mask_token", None)
-@@ -1545,9 +1549,9 @@ 
+@@ -1545,9 +1550,9 @@ 
  
  def _convert_aimv2(
 -        state_dict: Dict[str, torch.Tensor],
@@ -778,7 +904,7 @@
      out_dict = {}
      for k, v in state_dict.items():
          k = k.replace('norm_1', 'norm1')
-@@ -1615,7 +1619,7 @@         stash = buf.setdefault((blk, kind), {})  # Gather by block & param type
+@@ -1615,7 +1620,7 @@         stash = buf.setdefault((blk, kind), {})  # Gather by block & param type
          stash[which] = v
          if len(stash) == 3:  # Have q, k, v -> concatenate
 -            out[f"blocks.{blk}.attn.qkv.{kind}"] = torch.cat(
@@ -786,7 +912,7 @@
                  [stash['q'], stash['k'], stash['v']], dim=0
              )
  
-@@ -1623,12 +1627,12 @@ 
+@@ -1623,12 +1628,12 @@ 
  
  def checkpoint_filter_fn(
 -        state_dict: Dict[str, torch.Tensor],
@@ -800,7 +926,7 @@
      """ convert patch embedding weight from manual patchify + linear proj to conv"""
      import re
      out_dict = {}
-@@ -1655,7 +1659,7 @@         if 'visual.head.proj.weight' in state_dict and isinstance(model.head, nn.Linear):
+@@ -1655,7 +1660,7 @@         if 'visual.head.proj.weight' in state_dict and isinstance(model.head, nn.Linear):
              # remap final nn.Linear if it exists outside of the timm .trunk (ie in visual.head.proj)
              out_dict['head.weight'] = state_dict['visual.head.proj.weight']
 -            out_dict['head.bias'] = torch.zeros(state_dict['visual.head.proj.weight'].shape[0])
@@ -808,3 +934,1235 @@
      elif 'module.visual.trunk.pos_embed' in state_dict:
          prefix = 'module.visual.trunk.'
      elif 'preprocessor.patchifier.proj.weight' in state_dict:
+@@ -2955,7 +2960,7 @@     if use_naflex:
+         # Import here to avoid circular imports
+         from .naflexvit import _create_naflexvit_from_classic
+-        return _create_naflexvit_from_classic(variant, pretrained, **kwargs)
++        return _create_naflexvit_from_classic(variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     out_indices = kwargs.pop('out_indices', 3)
+     if 'flexi' in variant:
+@@ -2978,7 +2983,7 @@         pretrained_strict=strict,
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -2986,7 +2991,7 @@     """ ViT-Tiny (Vit-Ti/16)
+     """
+     model_args = dict(patch_size=16, embed_dim=192, depth=12, num_heads=3)
+-    model = _create_vision_transformer('vit_tiny_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_tiny_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -2995,7 +3000,7 @@     """ ViT-Tiny (Vit-Ti/16) @ 384x384.
+     """
+     model_args = dict(patch_size=16, embed_dim=192, depth=12, num_heads=3)
+-    model = _create_vision_transformer('vit_tiny_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_tiny_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3004,7 +3009,7 @@     """ ViT-Small (ViT-S/32)
+     """
+     model_args = dict(patch_size=32, embed_dim=384, depth=12, num_heads=6)
+-    model = _create_vision_transformer('vit_small_patch32_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_small_patch32_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3013,7 +3018,7 @@     """ ViT-Small (ViT-S/32) at 384x384.
+     """
+     model_args = dict(patch_size=32, embed_dim=384, depth=12, num_heads=6)
+-    model = _create_vision_transformer('vit_small_patch32_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_small_patch32_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3022,7 +3027,7 @@     """ ViT-Small (ViT-S/16)
+     """
+     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6)
+-    model = _create_vision_transformer('vit_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3031,7 +3036,7 @@     """ ViT-Small (ViT-S/16)
+     """
+     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6)
+-    model = _create_vision_transformer('vit_small_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_small_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3040,7 +3045,7 @@     """ ViT-Small (ViT-S/8)
+     """
+     model_args = dict(patch_size=8, embed_dim=384, depth=12, num_heads=6)
+-    model = _create_vision_transformer('vit_small_patch8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_small_patch8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3050,7 +3055,7 @@     ImageNet-1k weights fine-tuned from in21k, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=32, embed_dim=768, depth=12, num_heads=12)
+-    model = _create_vision_transformer('vit_base_patch32_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_base_patch32_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3060,7 +3065,7 @@     ImageNet-1k weights fine-tuned from in21k @ 384x384, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=32, embed_dim=768, depth=12, num_heads=12)
+-    model = _create_vision_transformer('vit_base_patch32_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_base_patch32_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3070,7 +3075,7 @@     ImageNet-1k weights fine-tuned from in21k @ 224x224, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12)
+-    model = _create_vision_transformer('vit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3080,7 +3085,7 @@     ImageNet-1k weights fine-tuned from in21k @ 384x384, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12)
+-    model = _create_vision_transformer('vit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3090,7 +3095,7 @@     ImageNet-1k weights fine-tuned from in21k @ 224x224, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=8, embed_dim=768, depth=12, num_heads=12)
+-    model = _create_vision_transformer('vit_base_patch8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_base_patch8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3099,7 +3104,7 @@     """ ViT-Large model (ViT-L/32) from original paper (https://arxiv.org/abs/2010.11929). No pretrained weights.
+     """
+     model_args = dict(patch_size=32, embed_dim=1024, depth=24, num_heads=16)
+-    model = _create_vision_transformer('vit_large_patch32_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_large_patch32_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3109,7 +3114,7 @@     ImageNet-1k weights fine-tuned from in21k @ 384x384, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=32, embed_dim=1024, depth=24, num_heads=16)
+-    model = _create_vision_transformer('vit_large_patch32_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_large_patch32_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3119,7 +3124,7 @@     ImageNet-1k weights fine-tuned from in21k @ 224x224, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=16, embed_dim=1024, depth=24, num_heads=16)
+-    model = _create_vision_transformer('vit_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3129,7 +3134,7 @@     ImageNet-1k weights fine-tuned from in21k @ 384x384, source https://github.com/google-research/vision_transformer.
+     """
+     model_args = dict(patch_size=16, embed_dim=1024, depth=24, num_heads=16)
+-    model = _create_vision_transformer('vit_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3138,7 +3143,7 @@     """ ViT-Large model (ViT-L/14)
+     """
+     model_args = dict(patch_size=14, embed_dim=1024, depth=24, num_heads=16)
+-    model = _create_vision_transformer('vit_large_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_large_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3147,7 +3152,7 @@     """ ViT-Huge model (ViT-H/14) from original paper (https://arxiv.org/abs/2010.11929).
+     """
+     model_args = dict(patch_size=14, embed_dim=1280, depth=32, num_heads=16)
+-    model = _create_vision_transformer('vit_huge_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_huge_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3156,7 +3161,7 @@     """ ViT-Giant (little-g) model (ViT-g/14) from `Scaling Vision Transformers` - https://arxiv.org/abs/2106.04560
+     """
+     model_args = dict(patch_size=14, embed_dim=1408, mlp_ratio=48/11, depth=40, num_heads=16)
+-    model = _create_vision_transformer('vit_giant_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('vit_giant_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3166,7 +3171,7 @@     """
+     model_args = dict(patch_size=14, embed_dim=1664, mlp_ratio=64/13, depth=48, num_heads=16)
+     model = _create_vision_transformer(
+-        'vit_gigantic_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_gigantic_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3177,7 +3182,7 @@     """
+     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, qkv_bias=False)
+     model = _create_vision_transformer(
+-        'vit_base_patch16_224_miil', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_224_miil', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3189,7 +3194,7 @@         patch_size=16, embed_dim=512, depth=12, num_heads=8, class_token=False,
+         global_pool='avg', qkv_bias=False, init_values=1e-6, fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_medium_patch16_gap_240', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_medium_patch16_gap_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3201,7 +3206,7 @@         patch_size=16, embed_dim=512, depth=12, num_heads=8, class_token=False,
+         global_pool='avg', qkv_bias=False, init_values=1e-6, fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_medium_patch16_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_medium_patch16_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3213,7 +3218,7 @@         patch_size=16, embed_dim=512, depth=12, num_heads=8, class_token=False,
+         global_pool='avg', qkv_bias=False, init_values=1e-6, fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_medium_patch16_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_medium_patch16_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3225,7 +3230,7 @@         patch_size=16, embed_dim=640, depth=12, num_heads=10, class_token=False,
+         global_pool='avg', qkv_bias=False, init_values=1e-6, fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_betwixt_patch16_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_betwixt_patch16_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3236,7 +3241,7 @@     model_args = dict(
+         patch_size=16, embed_dim=768, depth=12, num_heads=16, class_token=False, global_pool='avg', fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_base_patch16_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3247,7 +3252,7 @@     model_args = dict(
+         patch_size=14, embed_dim=1280, depth=32, num_heads=16, class_token=False, global_pool='avg', fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_huge_patch14_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch14_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3258,7 +3263,7 @@     model_args = dict(
+         patch_size=16, embed_dim=1280, depth=32, num_heads=16, class_token=False, global_pool='avg', fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_huge_patch16_gap_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch16_gap_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3270,7 +3275,7 @@         patch_size=16, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=48/11,
+         class_token=False, global_pool='avg', fc_norm=False)
+     model = _create_vision_transformer(
+-        'vit_giant_patch16_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giant_patch16_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3279,7 +3284,7 @@     # TinyCLIP 8M
+     model_args = dict(embed_dim=256, depth=10, num_heads=4, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_xsmall_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_xsmall_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3289,7 +3294,7 @@     model_args = dict(
+         patch_size=32, embed_dim=512, depth=12, num_heads=8, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_medium_patch32_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_medium_patch32_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3298,7 +3303,7 @@     # TinyCLIP 39M
+     model_args = dict(embed_dim=512, depth=12, num_heads=8, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_medium_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_medium_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3308,7 +3313,7 @@     model_args = dict(
+         patch_size=32, embed_dim=640, depth=12, num_heads=10, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_betwixt_patch32_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_betwixt_patch32_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3319,7 +3324,7 @@     model_args = dict(
+         patch_size=32, embed_dim=768, depth=12, num_heads=12, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_base_patch32_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3330,7 +3335,7 @@     model_args = dict(
+         patch_size=32, embed_dim=768, depth=12, num_heads=12, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_base_patch32_clip_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_clip_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3341,7 +3346,7 @@     model_args = dict(
+         patch_size=32, embed_dim=768, depth=12, num_heads=12, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_base_patch32_clip_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_clip_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3352,7 +3357,7 @@     model_args = dict(
+         patch_size=32, embed_dim=768, depth=12, num_heads=12, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_base_patch32_clip_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_clip_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3363,7 +3368,7 @@     model_args = dict(
+         patch_size=16, embed_dim=768, depth=12, num_heads=12, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_base_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3374,7 +3379,7 @@     model_args = dict(
+         patch_size=16, embed_dim=768, depth=12, num_heads=12, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_base_patch16_clip_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_clip_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3385,7 +3390,7 @@     model_args = dict(
+         patch_size=16, embed_dim=896, depth=12, num_heads=14, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_base_patch16_plus_clip_240', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_plus_clip_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3396,7 +3401,7 @@     model_args = dict(
+         patch_size=14, embed_dim=1024, depth=24, num_heads=16, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_large_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3407,7 +3412,7 @@     model_args = dict(
+         patch_size=14, embed_dim=1024, depth=24, num_heads=16, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_large_patch14_clip_336', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch14_clip_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3418,7 +3423,7 @@     model_args = dict(
+         patch_size=14, embed_dim=1280, depth=32, num_heads=16, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_huge_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3429,7 +3434,7 @@     model_args = dict(
+         patch_size=14, embed_dim=1280, depth=32, num_heads=16, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_huge_patch14_clip_336', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch14_clip_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3440,7 +3445,7 @@     model_args = dict(
+         patch_size=14, embed_dim=1280, depth=32, num_heads=16, pre_norm=True, norm_layer=partial(LayerNorm, eps=1e-5))
+     model = _create_vision_transformer(
+-        'vit_huge_patch14_clip_378', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch14_clip_378', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3454,7 +3459,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+     )
+     model = _create_vision_transformer(
+-        'vit_giant_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giant_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3468,7 +3473,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+     )
+     model = _create_vision_transformer(
+-        'vit_gigantic_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_gigantic_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3482,7 +3487,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+     )
+     model = _create_vision_transformer(
+-        'vit_gigantic_patch14_clip_378', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_gigantic_patch14_clip_378', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3495,7 +3500,7 @@         norm_layer=partial(LayerNorm, eps=1e-5), act_layer='quick_gelu'
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch32_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3508,7 +3513,7 @@         norm_layer=partial(LayerNorm, eps=1e-5), act_layer='quick_gelu'
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3521,7 +3526,7 @@         norm_layer=partial(LayerNorm, eps=1e-5), act_layer='quick_gelu'
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch14_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch14_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3534,7 +3539,7 @@         norm_layer=partial(LayerNorm, eps=1e-5), act_layer='quick_gelu'
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch14_clip_quickgelu_336', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch14_clip_quickgelu_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3547,7 +3552,7 @@         norm_layer=partial(LayerNorm, eps=1e-5), act_layer='quick_gelu'
+     )
+     model = _create_vision_transformer(
+-        'vit_huge_patch14_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch14_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3560,7 +3565,7 @@         norm_layer=partial(LayerNorm, eps=1e-5), act_layer='quick_gelu'
+     )
+     model = _create_vision_transformer(
+-        'vit_huge_patch14_clip_quickgelu_378', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch14_clip_quickgelu_378', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3573,7 +3578,7 @@         norm_layer=partial(LayerNorm, eps=1e-5), act_layer='quick_gelu'
+     )
+     model = _create_vision_transformer(
+-        'vit_gigantic_patch14_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_gigantic_patch14_clip_quickgelu_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3585,7 +3590,7 @@     """
+     model_args = dict(patch_size=32, embed_dim=896, depth=12, num_heads=14, init_values=1e-5)
+     model = _create_vision_transformer(
+-        'vit_base_patch32_plus_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_plus_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3595,7 +3600,7 @@     """
+     model_args = dict(patch_size=16, embed_dim=896, depth=12, num_heads=14, init_values=1e-5)
+     model = _create_vision_transformer(
+-        'vit_base_patch16_plus_240', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_plus_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3607,7 +3612,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, qkv_bias=False, init_values=1e-5,
+         class_token=False, block_fn=ResPostBlock, global_pool='avg')
+     model = _create_vision_transformer(
+-        'vit_base_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3619,7 +3624,7 @@     """
+     model_args = dict(patch_size=16, embed_dim=384, depth=36, num_heads=6, init_values=1e-5)
+     model = _create_vision_transformer(
+-        'vit_small_patch16_36x1_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_patch16_36x1_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3632,7 +3637,7 @@     model_args = dict(
+         patch_size=16, embed_dim=384, depth=18, num_heads=6, init_values=1e-5, block_fn=ParallelThingsBlock)
+     model = _create_vision_transformer(
+-        'vit_small_patch16_18x2_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_patch16_18x2_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3644,7 +3649,7 @@     model_args = dict(
+         patch_size=16, embed_dim=768, depth=18, num_heads=12, init_values=1e-5, block_fn=ParallelThingsBlock)
+     model = _create_vision_transformer(
+-        'vit_base_patch16_18x2_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_18x2_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3653,7 +3658,7 @@     """ EVA-large model https://arxiv.org/abs/2211.07636 /via MAE MIM pretrain"""
+     model_args = dict(patch_size=14, embed_dim=1024, depth=24, num_heads=16, global_pool='avg')
+     model = _create_vision_transformer(
+-        'eva_large_patch14_196', pretrained=pretrained, **dict(model_args, **kwargs))
++        'eva_large_patch14_196', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3661,7 +3666,7 @@ def eva_large_patch14_336(pretrained: bool = False, **kwargs) -> VisionTransformer:
+     """ EVA-large model https://arxiv.org/abs/2211.07636 via MAE MIM pretrain"""
+     model_args = dict(patch_size=14, embed_dim=1024, depth=24, num_heads=16, global_pool='avg')
+-    model = _create_vision_transformer('eva_large_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('eva_large_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3670,7 +3675,7 @@     """ FlexiViT-Small
+     """
+     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6, no_embed_class=True)
+-    model = _create_vision_transformer('flexivit_small', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('flexivit_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3679,7 +3684,7 @@     """ FlexiViT-Base
+     """
+     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, no_embed_class=True)
+-    model = _create_vision_transformer('flexivit_base', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('flexivit_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3688,7 +3693,7 @@     """ FlexiViT-Large
+     """
+     model_args = dict(patch_size=16, embed_dim=1024, depth=24, num_heads=16, no_embed_class=True)
+-    model = _create_vision_transformer('flexivit_large', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('flexivit_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3701,7 +3706,7 @@         norm_layer=RmsNorm, block_fn=ParallelScalingBlock, qkv_bias=False, qk_norm=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_xp_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_xp_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3714,7 +3719,7 @@         norm_layer=RmsNorm, block_fn=ParallelScalingBlock, qkv_bias=False, qk_norm=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch14_xp_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch14_xp_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3727,7 +3732,7 @@         norm_layer=RmsNorm, block_fn=ParallelScalingBlock, qkv_bias=False, qk_norm=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_huge_patch14_xp_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_huge_patch14_xp_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3737,7 +3742,7 @@     """
+     model_args = dict(patch_size=14, embed_dim=384, depth=12, num_heads=6, init_values=1e-5)
+     model = _create_vision_transformer(
+-        'vit_small_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3747,7 +3752,7 @@     """
+     model_args = dict(patch_size=14, embed_dim=768, depth=12, num_heads=12, init_values=1e-5)
+     model = _create_vision_transformer(
+-        'vit_base_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3757,7 +3762,7 @@     """
+     model_args = dict(patch_size=14, embed_dim=1024, depth=24, num_heads=16, init_values=1e-5)
+     model = _create_vision_transformer(
+-        'vit_large_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3774,7 +3779,7 @@         mlp_ratio=2.66667 * 2, mlp_layer=SwiGLUPacked, act_layer=nn.SiLU
+     )
+     model = _create_vision_transformer(
+-        'vit_giant_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giant_patch14_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3787,7 +3792,7 @@         reg_tokens=4, no_embed_class=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_small_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3800,7 +3805,7 @@         reg_tokens=4, no_embed_class=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3813,7 +3818,7 @@         reg_tokens=4, no_embed_class=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3830,7 +3835,7 @@         mlp_layer=SwiGLUPacked, act_layer=nn.SiLU, reg_tokens=4, no_embed_class=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_giant_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giant_patch14_reg4_dinov2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3841,7 +3846,7 @@         act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch32_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3851,7 +3856,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3861,7 +3866,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3871,7 +3876,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3881,7 +3886,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_512', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3891,7 +3896,7 @@         patch_size=16, embed_dim=1024, depth=24, num_heads=16, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3901,7 +3906,7 @@         patch_size=16, embed_dim=1024, depth=24, num_heads=16, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3912,7 +3917,7 @@         act_layer='gelu_tanh'
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch16_siglip_512', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch16_siglip_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3922,7 +3927,7 @@         patch_size=14, embed_dim=1152, depth=27, num_heads=16, mlp_ratio=3.7362, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3933,7 +3938,7 @@         patch_size=14, embed_dim=1152, depth=27, num_heads=16, mlp_ratio=3.7362, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_378', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_378', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3943,7 +3948,7 @@         patch_size=14, embed_dim=1152, depth=27, num_heads=16, mlp_ratio=3.7362, class_token=False, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3954,7 +3959,7 @@         act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3965,7 +3970,7 @@         act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3976,7 +3981,7 @@         act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch16_siglip_512', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch16_siglip_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3987,7 +3992,7 @@         act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_giantopt_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giantopt_patch16_siglip_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -3998,7 +4003,7 @@         act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_giantopt_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giantopt_patch16_siglip_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4009,7 +4014,7 @@         act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch32_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch32_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4020,7 +4025,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4031,7 +4036,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4042,7 +4047,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4053,7 +4058,7 @@         patch_size=16, embed_dim=768, depth=12, num_heads=12, class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_siglip_gap_512', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_siglip_gap_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4064,7 +4069,7 @@         patch_size=16, embed_dim=1024, depth=24, num_heads=16, class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4075,7 +4080,7 @@         patch_size=16, embed_dim=1024, depth=24, num_heads=16, class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4086,7 +4091,7 @@         global_pool='avg', fc_norm=False, act_layer='gelu_tanh'
+     )
+     model = _create_vision_transformer(
+-        'vit_large_patch16_siglip_gap_512', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_patch16_siglip_gap_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4098,7 +4103,7 @@         class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_gap_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4110,7 +4115,7 @@         class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_gap_378', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_gap_378', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4122,7 +4127,7 @@         class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4134,7 +4139,7 @@         class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_gap_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_gap_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4146,7 +4151,7 @@         class_token=False, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch14_siglip_gap_896', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch14_siglip_gap_896', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4158,7 +4163,7 @@         class_token=False, global_pool='avg', fc_norm=False, act_layer='gelu_tanh',
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4169,7 +4174,7 @@         global_pool='avg', fc_norm=False, act_layer='gelu_tanh'
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4180,7 +4185,7 @@         global_pool='avg', fc_norm=False, act_layer='gelu_tanh'
+     )
+     model = _create_vision_transformer(
+-        'vit_so400m_patch16_siglip_gap_512', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so400m_patch16_siglip_gap_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4191,7 +4196,7 @@         global_pool='avg', fc_norm=False, act_layer='gelu_tanh'
+     )
+     model = _create_vision_transformer(
+-        'vit_giantopt_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giantopt_patch16_siglip_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4202,7 +4207,7 @@         global_pool='avg', fc_norm=False, act_layer='gelu_tanh'
+     )
+     model = _create_vision_transformer(
+-        'vit_giantopt_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_giantopt_patch16_siglip_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4213,7 +4218,7 @@         class_token=False, no_embed_class=True, reg_tokens=1, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_wee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_wee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4224,7 +4229,7 @@         class_token=False, no_embed_class=True, reg_tokens=1, global_pool='avg', attn_layer='diff',
+     )
+     model = _create_vision_transformer(
+-        'vit_dwee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_dwee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4235,7 +4240,7 @@         class_token=False, no_embed_class=True, reg_tokens=1, global_pool='avg', block_fn=ParallelScalingBlock,
+     )
+     model = _create_vision_transformer(
+-        'vit_pwee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_pwee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4246,7 +4251,7 @@         class_token=False, no_embed_class=True, reg_tokens=1, global_pool='avg', block_fn=DiffParallelScalingBlock,
+     )
+     model = _create_vision_transformer(
+-        'vit_dpwee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_dpwee_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4257,7 +4262,7 @@         class_token=False, no_embed_class=True, reg_tokens=1, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_little_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_little_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4268,7 +4273,7 @@         class_token=False, no_embed_class=True, reg_tokens=4, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_little_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_little_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4279,7 +4284,7 @@         class_token=False, no_embed_class=True, reg_tokens=1, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_medium_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_medium_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4290,7 +4295,7 @@         class_token=False, no_embed_class=True, reg_tokens=4, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_medium_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_medium_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4301,7 +4306,7 @@         class_token=False, no_embed_class=True, reg_tokens=4, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_mediumd_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_mediumd_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4312,7 +4317,7 @@         class_token=False, no_embed_class=True, reg_tokens=4, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_mediumd_patch16_reg4_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_mediumd_patch16_reg4_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4323,7 +4328,7 @@         class_token=False, no_embed_class=True, reg_tokens=1, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_betwixt_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_betwixt_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4334,7 +4339,7 @@         class_token=False, no_embed_class=True, reg_tokens=4, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_betwixt_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_betwixt_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4345,7 +4350,7 @@         class_token=False, no_embed_class=True, reg_tokens=4, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_betwixt_patch16_reg4_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_betwixt_patch16_reg4_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4356,7 +4361,7 @@         no_embed_class=True, global_pool='avg', reg_tokens=4,
+     )
+     model = _create_vision_transformer(
+-        'vit_base_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4368,7 +4373,7 @@         class_token=False, reg_tokens=4, global_pool='map',
+     )
+     model = _create_vision_transformer(
+-        'vit_so150m_patch16_reg4_map_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so150m_patch16_reg4_map_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4380,7 +4385,7 @@         class_token=False, reg_tokens=4, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_so150m_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so150m_patch16_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4392,7 +4397,7 @@         class_token=False, reg_tokens=4, global_pool='avg', fc_norm=False,
+     )
+     model = _create_vision_transformer(
+-        'vit_so150m_patch16_reg4_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so150m_patch16_reg4_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4404,7 +4409,7 @@         qkv_bias=False, class_token=False, reg_tokens=1, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_so150m2_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so150m2_patch16_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4416,7 +4421,7 @@         qkv_bias=False, class_token=False, reg_tokens=1, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_so150m2_patch16_reg1_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so150m2_patch16_reg1_gap_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4428,7 +4433,7 @@         qkv_bias=False, class_token=False, reg_tokens=1, global_pool='avg',
+     )
+     model = _create_vision_transformer(
+-        'vit_so150m2_patch16_reg1_gap_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_so150m2_patch16_reg1_gap_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4439,7 +4444,7 @@         init_values=0.1, final_norm=False, dynamic_img_size=True,
+     )
+     model = _create_vision_transformer(
+-        'vit_intern300m_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_intern300m_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4453,7 +4458,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_large_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_large_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4468,7 +4473,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_huge_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_huge_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4482,7 +4487,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_1b_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_1b_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4496,7 +4501,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_3b_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_3b_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4510,7 +4515,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_large_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_large_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4524,7 +4529,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_huge_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_huge_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4538,7 +4543,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_1b_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_1b_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4552,7 +4557,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_3b_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_3b_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4566,7 +4571,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4580,7 +4585,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_huge_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_huge_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4594,7 +4599,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_1b_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_1b_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4608,7 +4613,7 @@         norm_layer=partial(RmsNorm, eps=1e-5), embed_norm_layer=partial(RmsNorm, eps=1e-5), mlp_layer=SwiGLU,
+     )
+     model = _create_vision_transformer(
+-        'aimv2_3b_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
++        'aimv2_3b_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4617,7 +4622,7 @@     """ ViT Test
+     """
+     model_args = dict(patch_size=16, embed_dim=64, depth=6, num_heads=2, mlp_ratio=3, dynamic_img_size=True)
+-    model = _create_vision_transformer('test_vit', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('test_vit', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4628,7 +4633,7 @@     model_args = dict(
+         patch_size=16, embed_dim=64, depth=8, num_heads=2, mlp_ratio=3,
+         class_token=False, reg_tokens=1, global_pool='avg', init_values=1e-5, dynamic_img_size=True)
+-    model = _create_vision_transformer('test_vit2', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('test_vit2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4639,7 +4644,7 @@     model_args = dict(
+         patch_size=16, embed_dim=96, depth=9, num_heads=3, mlp_ratio=2,
+         class_token=False, reg_tokens=1, global_pool='map', pool_include_prefix=True, init_values=1e-5)
+-    model = _create_vision_transformer('test_vit3', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('test_vit3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4652,7 +4657,7 @@         class_token=False, reg_tokens=1, global_pool='avg', init_values=1e-5, dynamic_img_size=True,
+         norm_layer='rmsnorm',
+     )
+-    model = _create_vision_transformer('test_vit4', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('test_vit4', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4666,7 +4671,7 @@         scale_attn_norm=True, scale_mlp_norm=True, class_token=True, global_pool='avg',
+         norm_layer=partial(LayerNorm, eps=1e-5)
+     )
+-    model = _create_vision_transformer('beit3_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('beit3_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4680,7 +4685,7 @@         scale_attn_norm=True, scale_mlp_norm=True, class_token=True, global_pool='avg',
+         norm_layer=partial(LayerNorm, eps=1e-5),
+     )
+-    model = _create_vision_transformer('beit3_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('beit3_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4694,7 +4699,7 @@         scale_attn_norm=True, scale_mlp_norm=True, class_token=True, global_pool='avg',
+         norm_layer=partial(LayerNorm, eps=1e-5),
+     )
+-    model = _create_vision_transformer('beit3_giant_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('beit3_giant_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -4708,7 +4713,7 @@         scale_attn_norm=True, scale_mlp_norm=True, class_token=True, global_pool='avg',
+         norm_layer=partial(LayerNorm, eps=1e-5),
+     )
+-    model = _create_vision_transformer('beit3_giant_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_vision_transformer('beit3_giant_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 

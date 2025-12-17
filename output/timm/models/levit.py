@@ -61,11 +61,12 @@ class ConvNorm(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.linear = nn.Conv2d(in_chs, out_chs, kernel_size, stride, padding, dilation, groups, bias=False, **dd)
-        self.bn = nn.BatchNorm2d(out_chs, **dd)
+        self.linear = nn.Conv2d(in_chs, out_chs, kernel_size, stride, padding, dilation, groups, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn = nn.BatchNorm2d(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         c, bn = self.linear, self.bn
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -92,11 +93,12 @@ class LinearNorm(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.linear = nn.Linear(in_features, out_features, bias=False, **dd)
-        self.bn = nn.BatchNorm1d(out_features, **dd)
+        self.linear = nn.Linear(in_features, out_features, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn = nn.BatchNorm1d(out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         l, bn = self.linear, self.bn
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -125,14 +127,15 @@ class NormLinear(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.bn = nn.BatchNorm1d(in_features, **dd)
+        self.bn = nn.BatchNorm1d(in_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop)
-        self.linear = nn.Linear(in_features, out_features, bias=bias, **dd)
+        self.linear = nn.Linear(in_features, out_features, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         trunc_normal_(self.linear.weight, std=std)
         if self.linear.bias is not None:
             nn.init.constant_(self.linear.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         bn, l = self.bn, self.linear
         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
@@ -164,11 +167,11 @@ class Stem8(msnn.SequentialCell):
         super().__init__()
         self.stride = 8
 
-        self.add_module('conv1', ConvNorm(in_chs, out_chs // 4, 3, stride=2, padding=1, **dd))
+        self.add_module('conv1', ConvNorm(in_chs, out_chs // 4, 3, stride=2, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('act1', act_layer())
-        self.add_module('conv2', ConvNorm(out_chs // 4, out_chs // 2, 3, stride=2, padding=1, **dd))
+        self.add_module('conv2', ConvNorm(out_chs // 4, out_chs // 2, 3, stride=2, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('act2', act_layer())
-        self.add_module('conv3', ConvNorm(out_chs // 2, out_chs, 3, stride=2, padding=1, **dd))
+        self.add_module('conv3', ConvNorm(out_chs // 2, out_chs, 3, stride=2, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class Stem16(msnn.SequentialCell):
@@ -184,13 +187,13 @@ class Stem16(msnn.SequentialCell):
         super().__init__()
         self.stride = 16
 
-        self.add_module('conv1', ConvNorm(in_chs, out_chs // 8, 3, stride=2, padding=1, **dd))
+        self.add_module('conv1', ConvNorm(in_chs, out_chs // 8, 3, stride=2, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('act1', act_layer())
-        self.add_module('conv2', ConvNorm(out_chs // 8, out_chs // 4, 3, stride=2, padding=1, **dd))
+        self.add_module('conv2', ConvNorm(out_chs // 8, out_chs // 4, 3, stride=2, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('act2', act_layer())
-        self.add_module('conv3', ConvNorm(out_chs // 4, out_chs // 2, 3, stride=2, padding=1, **dd))
+        self.add_module('conv3', ConvNorm(out_chs // 4, out_chs // 2, 3, stride=2, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('act3', act_layer())
-        self.add_module('conv4', ConvNorm(out_chs // 2, out_chs, 3, stride=2, padding=1, **dd))
+        self.add_module('conv4', ConvNorm(out_chs // 2, out_chs, 3, stride=2, padding=1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class Downsample(msnn.Cell):
@@ -245,13 +248,13 @@ class Attention(msnn.Cell):
         self.val_dim = int(attn_ratio * key_dim)
         self.val_attn_dim = int(attn_ratio * key_dim) * num_heads
 
-        self.qkv = ln_layer(dim, self.val_attn_dim + self.key_attn_dim * 2, **dd)
+        self.qkv = ln_layer(dim, self.val_attn_dim + self.key_attn_dim * 2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.proj = msnn.SequentialCell(OrderedDict([
             ('act', act_layer()),
             ('ln', ln_layer(self.val_attn_dim, dim, bn_weight_init=0, **dd))
-        ]))
+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.attention_biases = ms.Parameter(mint.zeros(num_heads, resolution[0] * resolution[1], **dd))
+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, resolution[0] * resolution[1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         pos = mint.stack(ndgrid(
             mint.arange(resolution[0], device=device, dtype=ms.int64),
             mint.arange(resolution[1], device=device, dtype=ms.int64),
@@ -261,13 +264,12 @@ class Attention(msnn.Cell):
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
         self.attention_bias_cache = {}
 
+    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -342,19 +344,19 @@ class AttentionDownsample(msnn.Cell):
                 kernel_size=3 if use_pool else 1, padding=1 if use_pool else 0, count_include_pad=False)
         else:
             ln_layer = LinearNorm
-            sub_layer = partial(Downsample, resolution=resolution, use_pool=use_pool, **dd)
+            sub_layer = partial(Downsample, resolution=resolution, use_pool=use_pool, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.kv = ln_layer(in_dim, self.val_attn_dim + self.key_attn_dim, **dd)
+        self.kv = ln_layer(in_dim, self.val_attn_dim + self.key_attn_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.q = msnn.SequentialCell(OrderedDict([
             ('down', sub_layer(stride=stride)),
             ('ln', ln_layer(in_dim, self.key_attn_dim, **dd))
-        ]))
+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.proj = msnn.SequentialCell(OrderedDict([
             ('act', act_layer()),
             ('ln', ln_layer(self.val_attn_dim, out_dim, **dd))
-        ]))
+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.attention_biases = ms.Parameter(mint.zeros(num_heads, resolution[0] * resolution[1], **dd))
+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, resolution[0] * resolution[1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         k_pos = mint.stack(ndgrid(
             mint.arange(resolution[0], device=device, dtype=ms.int64),
             mint.arange(resolution[1], device=device, dtype=ms.int64),
@@ -369,13 +371,12 @@ class AttentionDownsample(msnn.Cell):
 
         self.attention_bias_cache = {}  # per-device attention_biases cache
 
+    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -431,10 +432,10 @@ class LevitMlp(msnn.Cell):
         hidden_features = hidden_features or in_features
         ln_layer = ConvNorm if use_conv else LinearNorm
 
-        self.ln1 = ln_layer(in_features, hidden_features, **dd)
+        self.ln1 = ln_layer(in_features, hidden_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.drop = nn.Dropout(drop)
-        self.ln2 = ln_layer(hidden_features, out_features, bn_weight_init=0, **dd)
+        self.ln2 = ln_layer(hidden_features, out_features, bn_weight_init=0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.ln1(x)
@@ -477,7 +478,7 @@ class LevitDownsample(msnn.Cell):
             use_conv=use_conv,
             use_pool=use_pool,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.mlp = LevitMlp(
             out_dim,
@@ -485,7 +486,7 @@ class LevitDownsample(msnn.Cell):
             use_conv=use_conv,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -523,7 +524,7 @@ class LevitBlock(msnn.Cell):
             use_conv=use_conv,
             act_layer=attn_act_layer,
             **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         self.mlp = LevitMlp(
@@ -532,7 +533,7 @@ class LevitBlock(msnn.Cell):
             use_conv=use_conv,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -578,7 +579,7 @@ class LevitStage(msnn.Cell):
                 use_conv=use_conv,
                 drop_path=drop_path,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             resolution = [(r - 1) // 2 + 1 for r in resolution]
         else:
             assert in_dim == out_dim
@@ -598,8 +599,8 @@ class LevitStage(msnn.Cell):
                 use_conv=use_conv,
                 drop_path=drop_path,
                 **dd,
-            )]
-        self.blocks = msnn.SequentialCell(*blocks)
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -664,9 +665,9 @@ class Levit(msnn.Cell):
         else:
             assert stem_type in ('s16', 's8')
             if stem_type == 's16':
-                self.stem = Stem16(in_chans, embed_dim[0], act_layer=act_layer, **dd)
+                self.stem = Stem16(in_chans, embed_dim[0], act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
-                self.stem = Stem8(in_chans, embed_dim[0], act_layer=act_layer, **dd)
+                self.stem = Stem8(in_chans, embed_dim[0], act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stride = self.stem.stride
         resolution = tuple([i // p for i, p in zip(to_2tuple(img_size), to_2tuple(stride))])
 
@@ -689,21 +690,21 @@ class Levit(msnn.Cell):
                 downsample=down_op if stage_stride == 2 else '',
                 drop_path=drop_path_rate,
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stride *= stage_stride
             resolution = tuple([(r - 1) // stage_stride + 1 for r in resolution])
             self.feature_info += [dict(num_chs=embed_dim[i], reduction=stride, module=f'stages.{i}')]
             in_dim = embed_dim[i]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier head
-        self.head = NormLinear(embed_dim[-1], num_classes, drop=drop_rate, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = NormLinear(embed_dim[-1], num_classes, drop=drop_rate, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {x for x in self.state_dict().keys() if 'attention_biases' in x}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^cls_token|pos_embed|patch_embed',  # stem and embed
@@ -711,11 +712,11 @@ class Levit(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -816,12 +817,12 @@ class Levit(msnn.Cell):
 
 class LevitDistilled(Levit):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         dd = {'device': kwargs.get('device', None), 'dtype': kwargs.get('dtype', None)}
-        self.head_dist = NormLinear(self.num_features, self.num_classes, **dd) if self.num_classes > 0 else msnn.Identity()
+        self.head_dist = NormLinear(self.num_features, self.num_classes, **dd) if self.num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.distilled_training = False  # must set this True to train w/ distillation token
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head, self.head_dist
 
@@ -833,7 +834,7 @@ class LevitDistilled(Levit):
             self.num_features, num_classes, drop=self.drop_rate) if num_classes > 0 else msnn.Identity()
         self.head_dist = NormLinear(self.num_features, num_classes) if num_classes > 0 else msnn.Identity()
 
-    @torch.jit.ignore
+    @ms.jit
     def set_distilled_training(self, enable=True):
         self.distilled_training = enable
 
@@ -915,7 +916,7 @@ def create_levit(variant, cfg_variant=None, pretrained=False, distilled=True, **
         elif is_conv:
             cfg_variant = variant.replace('_conv', '')
 
-    model_cfg = dict(model_cfgs[cfg_variant], **kwargs)
+    model_cfg = dict(model_cfgs[cfg_variant], **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     model = build_model_with_cfg(
         LevitDistilled if distilled else Levit,
         variant,
@@ -923,7 +924,7 @@ def create_levit(variant, cfg_variant=None, pretrained=False, distilled=True, **
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **model_cfg,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -995,100 +996,100 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def levit_128s(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_128s', pretrained=pretrained, **kwargs)
+    return create_levit('levit_128s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_128(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_128', pretrained=pretrained, **kwargs)
+    return create_levit('levit_128', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_192(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_192', pretrained=pretrained, **kwargs)
+    return create_levit('levit_192', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_256(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_256', pretrained=pretrained, **kwargs)
+    return create_levit('levit_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_384(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_384', pretrained=pretrained, **kwargs)
+    return create_levit('levit_384', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_384_s8(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_384_s8', pretrained=pretrained, **kwargs)
+    return create_levit('levit_384_s8', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_512_s8(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_512_s8', pretrained=pretrained, distilled=False, **kwargs)
+    return create_levit('levit_512_s8', pretrained=pretrained, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_512(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_512', pretrained=pretrained, distilled=False, **kwargs)
+    return create_levit('levit_512', pretrained=pretrained, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_256d(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_256d', pretrained=pretrained, distilled=False, **kwargs)
+    return create_levit('levit_256d', pretrained=pretrained, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_512d(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_512d', pretrained=pretrained, distilled=False, **kwargs)
+    return create_levit('levit_512d', pretrained=pretrained, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_128s(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_128s', pretrained=pretrained, use_conv=True, **kwargs)
+    return create_levit('levit_conv_128s', pretrained=pretrained, use_conv=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_128(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_128', pretrained=pretrained, use_conv=True, **kwargs)
+    return create_levit('levit_conv_128', pretrained=pretrained, use_conv=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_192(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_192', pretrained=pretrained, use_conv=True, **kwargs)
+    return create_levit('levit_conv_192', pretrained=pretrained, use_conv=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_256(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_256', pretrained=pretrained, use_conv=True, **kwargs)
+    return create_levit('levit_conv_256', pretrained=pretrained, use_conv=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_384(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_384', pretrained=pretrained, use_conv=True, **kwargs)
+    return create_levit('levit_conv_384', pretrained=pretrained, use_conv=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_384_s8(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_384_s8', pretrained=pretrained, use_conv=True, **kwargs)
+    return create_levit('levit_conv_384_s8', pretrained=pretrained, use_conv=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_512_s8(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_512_s8', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)
+    return create_levit('levit_conv_512_s8', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_512(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_512', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)
+    return create_levit('levit_conv_512', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_256d(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_256d', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)
+    return create_levit('levit_conv_256d', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def levit_conv_512d(pretrained=False, **kwargs) -> Levit:
-    return create_levit('levit_conv_512d', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)
+    return create_levit('levit_conv_512d', pretrained=pretrained, use_conv=True, distilled=False, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

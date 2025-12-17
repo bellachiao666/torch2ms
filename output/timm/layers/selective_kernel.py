@@ -43,10 +43,10 @@ class SelectiveKernelAttn(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.num_paths = num_paths
-        self.fc_reduce = nn.Conv2d(channels, attn_channels, kernel_size=1, bias=False, **dd)
-        self.bn = norm_layer(attn_channels, **dd)
+        self.fc_reduce = nn.Conv2d(channels, attn_channels, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn = norm_layer(attn_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer(inplace=True)
-        self.fc_select = nn.Conv2d(attn_channels, channels * num_paths, kernel_size=1, bias=False, **dd)
+        self.fc_select = nn.Conv2d(attn_channels, channels * num_paths, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         _assert(x.shape[1] == self.num_paths, '')
@@ -131,13 +131,13 @@ class SelectiveKernel(msnn.Cell):
 
         conv_kwargs = dict(
             stride=stride, groups=groups, act_layer=act_layer, norm_layer=norm_layer,
-            aa_layer=aa_layer, drop_layer=drop_layer, **dd)
+            aa_layer=aa_layer, drop_layer=drop_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.paths = msnn.CellList([
             ConvNormAct(in_channels, out_channels, kernel_size=k, dilation=d, **conv_kwargs)
-            for k, d in zip(kernel_size, dilation)])
+            for k, d in zip(kernel_size, dilation)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         attn_channels = rd_channels or make_divisible(out_channels * rd_ratio, divisor=rd_divisor)
-        self.attn = SelectiveKernelAttn(out_channels, self.num_paths, attn_channels, **dd)
+        self.attn = SelectiveKernelAttn(out_channels, self.num_paths, attn_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         if self.split_input:

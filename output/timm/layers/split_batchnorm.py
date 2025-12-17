@@ -40,7 +40,7 @@ class SplitBatchNorm2d(nn.BatchNorm2d):
         self.aux_bn = msnn.CellList([
             nn.BatchNorm2d(num_features, eps, momentum, affine, track_running_stats, **dd)
             for _ in range(num_splits - 1)
-        ])
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def forward(self, input: ms.Tensor):
         if self.training:  # aux BN only relevant while training

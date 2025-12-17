@@ -72,9 +72,9 @@ class SqueezeExcite(msnn.Cell):
             rd_round_fn = rd_round_fn or round
             rd_channels = rd_round_fn(in_chs * rd_ratio)
         act_layer = force_act_layer or act_layer
-        self.conv_reduce = nn.Conv2d(in_chs, rd_channels, 1, bias=True, **dd)
+        self.conv_reduce = nn.Conv2d(in_chs, rd_channels, 1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act1 = create_act_layer(act_layer, inplace=True)
-        self.conv_expand = nn.Conv2d(rd_channels, in_chs, 1, bias=True, **dd)
+        self.conv_expand = nn.Conv2d(rd_channels, in_chs, 1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):
@@ -121,9 +121,9 @@ class ConvBnAct(msnn.Cell):
             groups=groups,
             padding=pad_type,
             **dd,
-        )
-        self.bn1 = norm_act_layer(out_chs, inplace=True, **dd)
-        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_act_layer(out_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
 
     def feature_info(self, location):
@@ -178,8 +178,8 @@ class DepthwiseSeparableConv(msnn.Cell):
         # Space to depth
         if s2d == 1:
             sd_chs = int(in_chs * 4)
-            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)
-            self.bn_s2d = norm_act_layer(sd_chs, **dd)
+            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.bn_s2d = norm_act_layer(sd_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             dw_kernel_size = (dw_kernel_size + 1) // 2
             dw_pad_type = 'same' if dw_kernel_size == 2 else pad_type
             in_chs = sd_chs
@@ -200,15 +200,15 @@ class DepthwiseSeparableConv(msnn.Cell):
             padding=dw_pad_type,
             groups=groups,
             **dd,
-        )
-        self.bn1 = norm_act_layer(in_chs, inplace=True, **dd)
-        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_act_layer(in_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Squeeze-and-excitation
-        self.se = se_layer(in_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
+        self.se = se_layer(in_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv_pw = create_conv2d(in_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)
-        self.bn2 = norm_act_layer(out_chs, inplace=True, apply_act=self.has_pw_act, **dd)
+        self.conv_pw = create_conv2d(in_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn2 = norm_act_layer(out_chs, inplace=True, apply_act=self.has_pw_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
 
     def feature_info(self, location):
@@ -276,8 +276,8 @@ class InvertedResidual(msnn.Cell):
         # Space to depth
         if s2d == 1:
             sd_chs = int(in_chs * 4)
-            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)
-            self.bn_s2d = norm_act_layer(sd_chs, **dd)
+            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.bn_s2d = norm_act_layer(sd_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             dw_kernel_size = (dw_kernel_size + 1) // 2
             dw_pad_type = 'same' if dw_kernel_size == 2 else pad_type
             in_chs = sd_chs
@@ -291,8 +291,8 @@ class InvertedResidual(msnn.Cell):
         groups = num_groups(group_size, mid_chs)
 
         # Point-wise expansion
-        self.conv_pw = create_conv2d(in_chs, mid_chs, exp_kernel_size, padding=pad_type, **conv_kwargs, **dd)
-        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)
+        self.conv_pw = create_conv2d(in_chs, mid_chs, exp_kernel_size, padding=pad_type, **conv_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Depth-wise convolution
         self.conv_dw = create_conv2d(
@@ -305,16 +305,16 @@ class InvertedResidual(msnn.Cell):
             padding=dw_pad_type,
             **conv_kwargs,
             **dd,
-        )
-        self.bn2 = norm_act_layer(mid_chs, inplace=True, **dd)
-        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn2 = norm_act_layer(mid_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Squeeze-and-excitation
-        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
+        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Point-wise linear projection
-        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **conv_kwargs, **dd)
-        self.bn3 = norm_act_layer(out_chs, apply_act=False, **dd)
+        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **conv_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn3 = norm_act_layer(out_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
 
     def feature_info(self, location):
@@ -394,7 +394,7 @@ class UniversalInvertedResidual(msnn.Cell):
                 aa_layer=aa_layer,
                 **conv_kwargs,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.dw_start = msnn.Identity()
 
@@ -407,7 +407,7 @@ class UniversalInvertedResidual(msnn.Cell):
             norm_layer=norm_layer,
             **conv_kwargs,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Middle depth-wise convolution
         if dw_kernel_size_mid:
@@ -423,13 +423,13 @@ class UniversalInvertedResidual(msnn.Cell):
                 aa_layer=aa_layer,
                 **conv_kwargs,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             # keeping mid as identity so it can be hooked more easily for features
             self.dw_mid = msnn.Identity()
 
         # Squeeze-and-excitation
-        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
+        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Point-wise linear projection
         self.pw_proj = ConvNormAct(
@@ -440,7 +440,7 @@ class UniversalInvertedResidual(msnn.Cell):
             norm_layer=norm_layer,
             **conv_kwargs,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if dw_kernel_size_end:
             dw_end_stride = stride if not dw_kernel_size_start and not dw_kernel_size_mid else 1
@@ -458,12 +458,12 @@ class UniversalInvertedResidual(msnn.Cell):
                 norm_layer=norm_layer,
                 **conv_kwargs,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.dw_end = msnn.Identity()
 
         if layer_scale_init_value is not None:
-            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)
+            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.layer_scale = msnn.Identity()
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
@@ -544,11 +544,11 @@ class MobileAttention(msnn.Cell):
                 depthwise=True,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.conv_cpe_dw = None
 
-        self.norm = norm_act_layer(in_chs, apply_act=False, **dd)
+        self.norm = norm_act_layer(in_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if num_heads is None:
             assert in_chs % key_dim == 0
@@ -571,7 +571,7 @@ class MobileAttention(msnn.Cell):
                 norm_layer=norm_layer,
                 # use_bias=use_bias, # why not here if used w/ mhsa?
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.attn = Attention2d(
                 in_chs,
@@ -581,10 +581,10 @@ class MobileAttention(msnn.Cell):
                 proj_drop=proj_drop,
                 bias=use_bias,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if layer_scale_init_value is not None:
-            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)
+            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.layer_scale = msnn.Identity()
 
@@ -658,8 +658,8 @@ class CondConvResidual(InvertedResidual):
             conv_kwargs=conv_kwargs,
             drop_path_rate=drop_path_rate,
             **dd,
-        )
-        self.routing_fn = nn.Linear(in_chs, self.num_experts, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.routing_fn = nn.Linear(in_chs, self.num_experts, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def forward(self, x):
         shortcut = x
@@ -731,17 +731,17 @@ class EdgeResidual(msnn.Cell):
             groups=groups,
             padding=pad_type,
             **dd,
-        )
-        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)
+        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Squeeze-and-excitation
-        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
+        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Point-wise linear projection
-        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)
-        self.bn2 = norm_act_layer(out_chs, apply_act=False, **dd)
+        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn2 = norm_act_layer(out_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
 
     def feature_info(self, location):

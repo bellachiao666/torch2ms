@@ -32,7 +32,14 @@
      """ Squeeze-and-Excitation w/ specific features for EfficientNet/MobileNet family
  
      Args:
-@@ -75,7 +77,7 @@         self.conv_expand = nn.Conv2d(rd_channels, in_chs, 1, bias=True, **dd)
+@@ -70,12 +72,12 @@             rd_round_fn = rd_round_fn or round
+             rd_channels = rd_round_fn(in_chs * rd_ratio)
+         act_layer = force_act_layer or act_layer
+-        self.conv_reduce = nn.Conv2d(in_chs, rd_channels, 1, bias=True, **dd)
++        self.conv_reduce = nn.Conv2d(in_chs, rd_channels, 1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.act1 = create_act_layer(act_layer, inplace=True)
+-        self.conv_expand = nn.Conv2d(rd_channels, in_chs, 1, bias=True, **dd)
++        self.conv_expand = nn.Conv2d(rd_channels, in_chs, 1, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.gate = create_act_layer(gate_layer)
  
 -    def forward(self, x):
@@ -48,10 +55,16 @@
      """ Conv + Norm Layer + Activation w/ optional skip connection
      """
      def __init__(
-@@ -122,7 +124,7 @@         )
-         self.bn1 = norm_act_layer(out_chs, inplace=True, **dd)
-         self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)
+@@ -119,10 +121,10 @@             groups=groups,
+             padding=pad_type,
+             **dd,
+-        )
+-        self.bn1 = norm_act_layer(out_chs, inplace=True, **dd)
+-        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn1 = norm_act_layer(out_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
  
      def feature_info(self, location):
@@ -72,15 +85,36 @@
      """ Depthwise-separable block
      Used for DS convs in MobileNet-V1 and in the place of IR blocks that have no expansion
      (factor of 1.0). This is an alternative to having a IR with an optional first pw conv.
-@@ -203,11 +205,11 @@         self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)
+@@ -176,8 +178,8 @@         # Space to depth
+         if s2d == 1:
+             sd_chs = int(in_chs * 4)
+-            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)
+-            self.bn_s2d = norm_act_layer(sd_chs, **dd)
++            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.bn_s2d = norm_act_layer(sd_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             dw_kernel_size = (dw_kernel_size + 1) // 2
+             dw_pad_type = 'same' if dw_kernel_size == 2 else pad_type
+             in_chs = sd_chs
+@@ -198,16 +200,16 @@             padding=dw_pad_type,
+             groups=groups,
+             **dd,
+-        )
+-        self.bn1 = norm_act_layer(in_chs, inplace=True, **dd)
+-        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn1 = norm_act_layer(in_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.aa = create_aa(aa_layer, channels=out_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Squeeze-and-excitation
 -        self.se = se_layer(in_chs, act_layer=act_layer, **dd) if se_layer else nn.Identity()
-+        self.se = se_layer(in_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
- 
-         self.conv_pw = create_conv2d(in_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)
-         self.bn2 = norm_act_layer(out_chs, inplace=True, apply_act=self.has_pw_act, **dd)
+-
+-        self.conv_pw = create_conv2d(in_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)
+-        self.bn2 = norm_act_layer(out_chs, inplace=True, apply_act=self.has_pw_act, **dd)
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else nn.Identity()
++        self.se = se_layer(in_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.conv_pw = create_conv2d(in_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn2 = norm_act_layer(out_chs, inplace=True, apply_act=self.has_pw_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
  
      def feature_info(self, location):
@@ -101,16 +135,46 @@
      """ Inverted residual block w/ optional SE
  
      Originally used in MobileNet-V2 - https://arxiv.org/abs/1801.04381v4, this layer is often
-@@ -308,12 +310,12 @@         self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)
+@@ -274,8 +276,8 @@         # Space to depth
+         if s2d == 1:
+             sd_chs = int(in_chs * 4)
+-            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)
+-            self.bn_s2d = norm_act_layer(sd_chs, **dd)
++            self.conv_s2d = create_conv2d(in_chs, sd_chs, kernel_size=2, stride=2, padding='same', **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.bn_s2d = norm_act_layer(sd_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             dw_kernel_size = (dw_kernel_size + 1) // 2
+             dw_pad_type = 'same' if dw_kernel_size == 2 else pad_type
+             in_chs = sd_chs
+@@ -289,8 +291,8 @@         groups = num_groups(group_size, mid_chs)
+ 
+         # Point-wise expansion
+-        self.conv_pw = create_conv2d(in_chs, mid_chs, exp_kernel_size, padding=pad_type, **conv_kwargs, **dd)
+-        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)
++        self.conv_pw = create_conv2d(in_chs, mid_chs, exp_kernel_size, padding=pad_type, **conv_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Depth-wise convolution
+         self.conv_dw = create_conv2d(
+@@ -303,17 +305,17 @@             padding=dw_pad_type,
+             **conv_kwargs,
+             **dd,
+-        )
+-        self.bn2 = norm_act_layer(mid_chs, inplace=True, **dd)
+-        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn2 = norm_act_layer(mid_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Squeeze-and-excitation
 -        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else nn.Identity()
-+        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
++        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Point-wise linear projection
-         self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **conv_kwargs, **dd)
-         self.bn3 = norm_act_layer(out_chs, apply_act=False, **dd)
+-        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **conv_kwargs, **dd)
+-        self.bn3 = norm_act_layer(out_chs, apply_act=False, **dd)
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else nn.Identity()
++        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **conv_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn3 = norm_act_layer(out_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
  
      def feature_info(self, location):
@@ -131,15 +195,31 @@
      """ Universal Inverted Residual Block (aka Universal Inverted Bottleneck, UIB)
  
      For MobileNetV4 - https://arxiv.org/abs/, referenced from
-@@ -394,7 +396,7 @@                 **dd,
-             )
-         else:
+@@ -392,9 +394,9 @@                 aa_layer=aa_layer,
+                 **conv_kwargs,
+                 **dd,
+-            )
+-        else:
 -            self.dw_start = nn.Identity()
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        else:
 +            self.dw_start = msnn.Identity()
  
          # Point-wise expansion
          mid_chs = make_divisible(in_chs * exp_ratio)
-@@ -424,10 +426,10 @@             )
+@@ -405,7 +407,7 @@             norm_layer=norm_layer,
+             **conv_kwargs,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Middle depth-wise convolution
+         if dw_kernel_size_mid:
+@@ -421,13 +423,13 @@                 aa_layer=aa_layer,
+                 **conv_kwargs,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              # keeping mid as identity so it can be hooked more easily for features
 -            self.dw_mid = nn.Identity()
@@ -147,21 +227,35 @@
  
          # Squeeze-and-excitation
 -        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else nn.Identity()
-+        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
++        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Point-wise linear projection
          self.pw_proj = ConvNormAct(
-@@ -458,13 +460,13 @@                 **dd,
-             )
-         else:
+@@ -438,7 +440,7 @@             norm_layer=norm_layer,
+             **conv_kwargs,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         if dw_kernel_size_end:
+             dw_end_stride = stride if not dw_kernel_size_start and not dw_kernel_size_mid else 1
+@@ -456,15 +458,15 @@                 norm_layer=norm_layer,
+                 **conv_kwargs,
+                 **dd,
+-            )
+-        else:
 -            self.dw_end = nn.Identity()
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        else:
 +            self.dw_end = msnn.Identity()
  
          if layer_scale_init_value is not None:
-             self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)
-         else:
+-            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)
+-        else:
 -            self.layer_scale = nn.Identity()
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else nn.Identity()
++            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        else:
 +            self.layer_scale = msnn.Identity()
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
  
@@ -183,12 +277,41 @@
      """ Mobile Attention Block
  
      For MobileNetV4 - https://arxiv.org/abs/, referenced from
-@@ -584,9 +586,9 @@         if layer_scale_init_value is not None:
-             self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)
+@@ -542,11 +544,11 @@                 depthwise=True,
+                 bias=True,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
+             self.conv_cpe_dw = None
+ 
+-        self.norm = norm_act_layer(in_chs, apply_act=False, **dd)
++        self.norm = norm_act_layer(in_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         if num_heads is None:
+             assert in_chs % key_dim == 0
+@@ -569,7 +571,7 @@                 norm_layer=norm_layer,
+                 # use_bias=use_bias, # why not here if used w/ mhsa?
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.attn = Attention2d(
+                 in_chs,
+@@ -579,14 +581,14 @@                 proj_drop=proj_drop,
+                 bias=use_bias,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         if layer_scale_init_value is not None:
+-            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)
+-        else:
 -            self.layer_scale = nn.Identity()
 -
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else nn.Identity()
++            self.layer_scale = LayerScale2d(out_chs, layer_scale_init_value, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        else:
 +            self.layer_scale = msnn.Identity()
 +
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
@@ -203,7 +326,14 @@
          if self.conv_cpe_dw is not None:
              x_cpe = self.conv_cpe_dw(x)
              x = x + x_cpe
-@@ -661,8 +663,8 @@ 
+@@ -656,13 +658,13 @@             conv_kwargs=conv_kwargs,
+             drop_path_rate=drop_path_rate,
+             **dd,
+-        )
+-        self.routing_fn = nn.Linear(in_chs, self.num_experts, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.routing_fn = nn.Linear(in_chs, self.num_experts, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
      def forward(self, x):
          shortcut = x
 -        pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  # CondConv routing
@@ -221,16 +351,28 @@
      """ Residual block with expansion convolution followed by pointwise-linear w/ stride
  
      Originally introduced in `EfficientNet-EdgeTPU: Creating Accelerator-Optimized Neural Networks with AutoML`
-@@ -735,12 +737,12 @@         self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)
+@@ -729,18 +731,18 @@             groups=groups,
+             padding=pad_type,
+             **dd,
+-        )
+-        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)
+-
+-        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn1 = norm_act_layer(mid_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.aa = create_aa(aa_layer, channels=mid_chs, stride=stride, enable=use_aa, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Squeeze-and-excitation
 -        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else nn.Identity()
-+        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()
++        self.se = se_layer(mid_chs, act_layer=act_layer, **dd) if se_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Point-wise linear projection
-         self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)
-         self.bn2 = norm_act_layer(out_chs, apply_act=False, **dd)
+-        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)
+-        self.bn2 = norm_act_layer(out_chs, apply_act=False, **dd)
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else nn.Identity()
++        self.conv_pwl = create_conv2d(mid_chs, out_chs, pw_kernel_size, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn2 = norm_act_layer(out_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate else msnn.Identity()
  
      def feature_info(self, location):

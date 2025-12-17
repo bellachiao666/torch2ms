@@ -28,14 +28,7 @@
  class SGDW(Optimizer):
      def __init__(
              self,
-@@ -91,7 +97,6 @@ 
-     # FIXME figure out how to make _use_grad_for_differentiable interchangeable with no_grad decorator
-     #   without args, for backwards compatibility with old pytorch
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
- 
-@@ -136,9 +141,9 @@ 
+@@ -136,9 +142,9 @@ 
  
  def sgdw(
 -        params: List[Tensor],
@@ -47,7 +40,7 @@
          # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
          # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
          has_sparse_grad: bool = None,
-@@ -162,7 +167,7 @@             # why must we be explicit about an if statement for torch.jit.is_scripting here?
+@@ -162,7 +168,7 @@             # why must we be explicit about an if statement for torch.jit.is_scripting here?
              # because JIT can't handle Optionals nor fancy conditionals when scripting
              if not torch.jit.is_scripting():
 -                _, foreach = _default_to_fused_or_foreach(params, differentiable=False, use_fused=False)
@@ -55,7 +48,7 @@
              else:
                  foreach = False
  
-@@ -193,9 +198,9 @@ 
+@@ -193,9 +199,9 @@ 
  
  def _single_tensor_sgdw(
 -        params: List[Tensor],
@@ -67,7 +60,7 @@
          *,
          weight_decay: float,
          momentum: float,
-@@ -217,7 +222,7 @@             buf = momentum_buffer_list[i]
+@@ -217,7 +223,7 @@             buf = momentum_buffer_list[i]
  
              if buf is None:
 -                buf = torch.clone(grad).detach()
@@ -75,7 +68,7 @@
                  momentum_buffer_list[i] = buf
              else:
                  buf.mul_(momentum).add_(grad, alpha=1 - dampening)
-@@ -239,9 +244,9 @@ 
+@@ -239,9 +245,9 @@ 
  
  def _multi_tensor_sgdw(
 -        params: List[Tensor],
@@ -87,7 +80,7 @@
          *,
          weight_decay: float,
          momentum: float,
-@@ -257,15 +262,15 @@         return
+@@ -257,15 +263,15 @@         return
  
      grouped_tensors = Optimizer._group_tensors_by_device_and_dtype(
 -        [params, grads, momentum_buffer_list], with_indices=True)
@@ -105,7 +98,7 @@
  
          if momentum != 0:
              bufs = []
-@@ -279,14 +284,14 @@                     bufs.append(device_momentum_buffer_list[i])
+@@ -279,14 +285,14 @@                     bufs.append(device_momentum_buffer_list[i])
  
              if all_states_with_momentum_buffer:
 -                torch._foreach_mul_(bufs, momentum)
@@ -122,7 +115,7 @@
                      else:
                          buf = device_momentum_buffer_list[i]
                          buf.mul_(momentum).add_(device_grads[i], alpha=1 - dampening)
-@@ -296,22 +301,22 @@             if caution:
+@@ -296,22 +302,22 @@             if caution:
                  if nesterov:
                      # Can't do nesterov in-place if we want to compare against orig grad for caution
 -                    bufs = torch._foreach_add(device_grads, bufs, alpha=momentum)

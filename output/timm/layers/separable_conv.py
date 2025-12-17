@@ -51,7 +51,7 @@ class SeparableConvNormAct(msnn.Cell):
             padding=padding,
             depthwise=True,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.conv_pw = create_conv2d(
             int(in_channels * channel_multiplier),
@@ -60,11 +60,11 @@ class SeparableConvNormAct(msnn.Cell):
             padding=padding,
             bias=bias,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         norm_act_layer = get_norm_act_layer(norm_layer, act_layer)
         norm_kwargs = dict(drop_layer=drop_layer) if drop_layer is not None else {}
-        self.bn = norm_act_layer(out_channels, apply_act=apply_act, **norm_kwargs, **dd)
+        self.bn = norm_act_layer(out_channels, apply_act=apply_act, **norm_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     @property
     def in_channels(self):
@@ -113,7 +113,7 @@ class SeparableConv2d(msnn.Cell):
             padding=padding,
             depthwise=True,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.conv_pw = create_conv2d(
             int(in_channels * channel_multiplier),
@@ -122,7 +122,7 @@ class SeparableConv2d(msnn.Cell):
             padding=padding,
             bias=bias,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     @property
     def in_channels(self):

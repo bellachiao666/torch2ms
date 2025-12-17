@@ -53,10 +53,10 @@ class Attention(msnn.Cell):
         self.head_dim = head_dim
         self.scale = head_dim ** -0.5
 
-        self.qk = nn.Linear(dim, hidden_dim * 2, bias=qkv_bias, **dd)
-        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+        self.qk = nn.Linear(dim, hidden_dim * 2, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop, inplace = True)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop, inplace = True)
 
     def construct(self, x):
@@ -100,7 +100,7 @@ class Block(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         # Inner transformer
-        self.norm_in = norm_layer(dim, **dd)
+        self.norm_in = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_in = Attention(
             dim,
             dim,
@@ -109,9 +109,9 @@ class Block(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.norm_mlp_in = norm_layer(dim, **dd)
+        self.norm_mlp_in = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp_in = Mlp(
             in_features=dim,
             hidden_features=int(dim * 4),
@@ -119,19 +119,19 @@ class Block(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.legacy = legacy
         if self.legacy:
-            self.norm1_proj = norm_layer(dim, **dd)
-            self.proj = nn.Linear(dim * num_pixel, dim_out, bias=True, **dd)
+            self.norm1_proj = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.proj = nn.Linear(dim * num_pixel, dim_out, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.norm2_proj = None
         else:
-            self.norm1_proj = norm_layer(dim * num_pixel, **dd)
-            self.proj = nn.Linear(dim * num_pixel, dim_out, bias=False, **dd)
-            self.norm2_proj = norm_layer(dim_out, **dd)
+            self.norm1_proj = norm_layer(dim * num_pixel, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.proj = nn.Linear(dim * num_pixel, dim_out, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.norm2_proj = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Outer transformer
-        self.norm_out = norm_layer(dim_out, **dd)
+        self.norm_out = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_out = Attention(
             dim_out,
             dim_out,
@@ -140,10 +140,10 @@ class Block(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm_mlp = norm_layer(dim_out, **dd)
+        self.norm_mlp = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim_out,
             hidden_features=int(dim_out * mlp_ratio),
@@ -151,7 +151,7 @@ class Block(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, pixel_embed, patch_embed):
         # inner
@@ -204,7 +204,7 @@ class PixelEmbed(msnn.Cell):
         new_patch_size = [math.ceil(ps / stride) for ps in patch_size]
         self.new_patch_size = new_patch_size
 
-        self.proj = nn.Conv2d(in_chans, self.in_dim, kernel_size=7, padding=3, stride=stride, **dd)
+        self.proj = nn.Conv2d(in_chans, self.in_dim, kernel_size=7, padding=3, stride=stride, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if self.legacy:
             self.unfold = nn.Unfold(kernel_size = new_patch_size, stride = new_patch_size)
         else:
@@ -287,20 +287,20 @@ class TNT(msnn.Cell):
             stride=first_stride,
             legacy=legacy,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         num_patches = self.pixel_embed.num_patches
         r = self.pixel_embed.feat_ratio() if hasattr(self.pixel_embed, 'feat_ratio') else patch_size
         self.num_patches = num_patches
         new_patch_size = self.pixel_embed.new_patch_size
         num_pixel = new_patch_size[0] * new_patch_size[1]
 
-        self.norm1_proj = norm_layer(num_pixel * inner_dim, **dd)
-        self.proj = nn.Linear(num_pixel * inner_dim, embed_dim, **dd)
-        self.norm2_proj = norm_layer(embed_dim, **dd)
+        self.norm1_proj = norm_layer(num_pixel * inner_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = nn.Linear(num_pixel * inner_dim, embed_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm2_proj = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))
-        self.patch_pos = ms.Parameter(mint.zeros(1, num_patches + 1, embed_dim, **dd))
-        self.pixel_pos = ms.Parameter(mint.zeros(1, inner_dim, new_patch_size[0], new_patch_size[1], **dd))
+        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.patch_pos = ms.Parameter(mint.zeros(1, num_patches + 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pixel_pos = ms.Parameter(mint.zeros(1, inner_dim, new_patch_size[0], new_patch_size[1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
 
         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
@@ -320,14 +320,14 @@ class TNT(msnn.Cell):
                 norm_layer=norm_layer,
                 legacy=legacy,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.blocks = msnn.CellList(blocks)
         self.feature_info = [
             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
 
-        self.norm = norm_layer(embed_dim, **dd)
+        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         trunc_normal_(self.cls_token, std=.02)
         trunc_normal_(self.patch_pos, std=.02)
@@ -343,11 +343,11 @@ class TNT(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'patch_pos', 'pixel_pos', 'cls_token'}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^cls_token|patch_pos|pixel_pos|pixel_embed|norm[12]_proj|proj',  # stem and embed / pos
@@ -358,11 +358,11 @@ class TNT(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -568,7 +568,7 @@ def _create_tnt(variant, pretrained=False, **kwargs):
         TNT, variant, pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -577,7 +577,7 @@ def tnt_s_legacy_patch16_224(pretrained=False, **kwargs) -> TNT:
     model_cfg = dict(
         patch_size=16, embed_dim=384, inner_dim=24, depth=12, num_heads_outer=6,
         qkv_bias=False, legacy=True)
-    model = _create_tnt('tnt_s_legacy_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_tnt('tnt_s_legacy_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -586,7 +586,7 @@ def tnt_s_patch16_224(pretrained=False, **kwargs) -> TNT:
     model_cfg = dict(
         patch_size=16, embed_dim=384, inner_dim=24, depth=12, num_heads_outer=6,
         qkv_bias=False)
-    model = _create_tnt('tnt_s_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_tnt('tnt_s_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -595,5 +595,5 @@ def tnt_b_patch16_224(pretrained=False, **kwargs) -> TNT:
     model_cfg = dict(
         patch_size=16, embed_dim=640, inner_dim=40, depth=12, num_heads_outer=10,
         qkv_bias=False)
-    model = _create_tnt('tnt_b_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_tnt('tnt_b_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

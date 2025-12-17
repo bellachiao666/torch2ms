@@ -42,9 +42,6 @@ class TrainingTask(msnn.Cell):
         >>> result['loss'].backward()
     """
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             device: Optional[torch.device] = None,
@@ -58,10 +55,10 @@ class TrainingTask(msnn.Cell):
 
     def to(self, *args, **kwargs):
         """Move task to device/dtype, keeping self.device and self.dtype in sync."""
-        dummy = mint.empty(0).to(*args, **kwargs)
+        dummy = mint.empty(0).to(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.device = dummy.device
         self.dtype = dummy.dtype
-        return super().to(*args, **kwargs)
+        return super().to(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def prepare_distributed(
             self,

@@ -78,11 +78,11 @@ class OutlookAttention(msnn.Cell):
         self.stride = stride
         self.scale = head_dim ** -0.5
 
-        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)
-        self.attn = nn.Linear(dim, kernel_size ** 4 * num_heads, **dd)
+        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.attn = nn.Linear(dim, kernel_size ** 4 * num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
         self.unfold = nn.Unfold(kernel_size = kernel_size, padding = padding, stride = stride)
@@ -159,7 +159,7 @@ class Outlooker(msnn.Cell):
         """
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = OutlookAttention(
             dim,
             num_heads,
@@ -169,16 +169,16 @@ class Outlooker(msnn.Cell):
             qkv_bias=qkv_bias,
             attn_drop=attn_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -197,7 +197,7 @@ class Outlooker(msnn.Cell):
 
 class Attention(msnn.Cell):
     """Multi-head self-attention module."""
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -225,9 +225,9 @@ class Attention(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -293,12 +293,12 @@ class Transformer(msnn.Cell):
         """
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
-        self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
-        self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -349,10 +349,10 @@ class ClassAttention(msnn.Cell):
             self.head_dim = head_dim
         self.scale = head_dim ** -0.5
 
-        self.kv = nn.Linear(dim, self.head_dim * self.num_heads * 2, bias=qkv_bias, **dd)
-        self.q = nn.Linear(dim, self.head_dim * self.num_heads, bias=qkv_bias, **dd)
+        self.kv = nn.Linear(dim, self.head_dim * self.num_heads * 2, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.q = nn.Linear(dim, self.head_dim * self.num_heads, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(self.head_dim * self.num_heads, dim, **dd)
+        self.proj = nn.Linear(self.head_dim * self.num_heads, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -414,7 +414,7 @@ class ClassBlock(msnn.Cell):
         """
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = ClassAttention(
             dim,
             num_heads=num_heads,
@@ -423,17 +423,17 @@ class ClassBlock(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
             act_layer=act_layer,
             drop=drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -462,7 +462,7 @@ def get_block(block_type: str, **kwargs: Any) -> msnn.Cell:
         The requested block module.
     """
     if block_type == 'ca':
-        return ClassBlock(**kwargs)
+        return ClassBlock(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         assert False, f'Invalid block type: {block_type}'
 
@@ -542,7 +542,7 @@ class PatchEmbed(msnn.Cell):
                 nn.Conv2d(hidden_dim, hidden_dim, kernel_size=3, stride=1, padding=1, bias=False, **dd),
                 nn.BatchNorm2d(hidden_dim, **dd),
                 nn.ReLU(),
-            )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         else:
             self.conv = None
 
@@ -552,7 +552,7 @@ class PatchEmbed(msnn.Cell):
             kernel_size=patch_size // stem_stride,
             stride=patch_size // stem_stride,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.num_patches = (img_size // patch_size) * (img_size // patch_size)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -590,7 +590,7 @@ class Downsample(msnn.Cell):
         """
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
-        self.proj = nn.Conv2d(in_embed_dim, out_embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
+        self.proj = nn.Conv2d(in_embed_dim, out_embed_dim, kernel_size=patch_size, stride=patch_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """Forward pass.
@@ -660,8 +660,8 @@ def outlooker_blocks(
             device=device,
             dtype=dtype,
             **kwargs,
-        ))
-    blocks = msnn.SequentialCell(*blocks)
+        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return blocks
 
 
@@ -705,8 +705,8 @@ def transformer_blocks(
             attn_drop=attn_drop,
             drop_path=block_dpr,
             **kwargs,
-        ))
-    blocks = msnn.SequentialCell(*blocks)
+        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return blocks
 
 
@@ -790,12 +790,12 @@ class VOLO(msnn.Cell):
             hidden_dim=stem_hidden_dim,
             embed_dim=embed_dims[0],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         r = patch_size
 
         # initial positional encoding, we add positional encoding after outlooker blocks
         patch_grid = (img_size[0] // patch_size // pooling_scale, img_size[1] // patch_size // pooling_scale)
-        self.pos_embed = ms.Parameter(mint.zeros(1, patch_grid[0], patch_grid[1], embed_dims[-1], **dd))
+        self.pos_embed = ms.Parameter(mint.zeros(1, patch_grid[0], patch_grid[1], embed_dims[-1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
 
         # set the main block in network
@@ -817,7 +817,7 @@ class VOLO(msnn.Cell):
                     attn_drop=attn_drop_rate,
                     norm_layer=norm_layer,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 # stage 2
                 stage = transformer_blocks(
@@ -832,14 +832,14 @@ class VOLO(msnn.Cell):
                     attn_drop=attn_drop_rate,
                     norm_layer=norm_layer,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             network.append(stage)
             self.stage_ends.append(block_idx)
             self.feature_info.append(dict(num_chs=embed_dims[i], reduction=r, module=f'network.{block_idx}'))
             block_idx += 1
             if downsamples[i]:
                 # downsampling between two stages
-                network.append(Downsample(embed_dims[i], embed_dims[i + 1], 2, **dd))
+                network.append(Downsample(embed_dims[i], embed_dims[i + 1], 2, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 r *= 2
                 block_idx += 1
 
@@ -861,20 +861,20 @@ class VOLO(msnn.Cell):
                     **dd,
                 )
                 for i in range(len(post_layers))
-            ])
-            self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dims[-1], **dd))
+            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dims[-1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             trunc_normal_(self.cls_token, std=.02)
 
         # set output type
         if use_aux_head:
-            self.aux_head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+            self.aux_head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.aux_head = None
-        self.norm = norm_layer(self.num_features, **dd)
+        self.norm = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier head
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         trunc_normal_(self.pos_embed, std=.02)
         self.apply(self._init_weights)
@@ -890,7 +890,7 @@ class VOLO(msnn.Cell):
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> set:
         """Get set of parameters that should not have weight decay.
 
@@ -899,7 +899,7 @@ class VOLO(msnn.Cell):
         """
         return {'pos_embed', 'cls_token'}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Get parameter grouping for optimizer.
 
@@ -922,7 +922,7 @@ class VOLO(msnn.Cell):
             ],
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Set gradient checkpointing.
 
@@ -931,7 +931,7 @@ class VOLO(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get classifier module.
 
@@ -1233,7 +1233,7 @@ def _create_volo(variant: str, pretrained: bool = False, **kwargs: Any) -> VOLO:
         pretrained,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
@@ -1308,64 +1308,64 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def volo_d1_224(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D1 model, Params: 27M."""
-    model_args = dict(layers=(4, 4, 8, 2), embed_dims=(192, 384, 384, 384), num_heads=(6, 12, 12, 12), **kwargs)
-    model = _create_volo('volo_d1_224', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(4, 4, 8, 2), embed_dims=(192, 384, 384, 384), num_heads=(6, 12, 12, 12), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d1_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def volo_d1_384(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D1 model, Params: 27M."""
-    model_args = dict(layers=(4, 4, 8, 2), embed_dims=(192, 384, 384, 384), num_heads=(6, 12, 12, 12), **kwargs)
-    model = _create_volo('volo_d1_384', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(4, 4, 8, 2), embed_dims=(192, 384, 384, 384), num_heads=(6, 12, 12, 12), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d1_384', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def volo_d2_224(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D2 model, Params: 59M."""
-    model_args = dict(layers=(6, 4, 10, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)
-    model = _create_volo('volo_d2_224', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(6, 4, 10, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d2_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def volo_d2_384(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D2 model, Params: 59M."""
-    model_args = dict(layers=(6, 4, 10, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)
-    model = _create_volo('volo_d2_384', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(6, 4, 10, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d2_384', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def volo_d3_224(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D3 model, Params: 86M."""
-    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)
-    model = _create_volo('volo_d3_224', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d3_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def volo_d3_448(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D3 model, Params: 86M."""
-    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)
-    model = _create_volo('volo_d3_448', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(256, 512, 512, 512), num_heads=(8, 16, 16, 16), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d3_448', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def volo_d4_224(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D4 model, Params: 193M."""
-    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16), **kwargs)
-    model = _create_volo('volo_d4_224', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d4_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def volo_d4_448(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """VOLO-D4 model, Params: 193M."""
-    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16), **kwargs)
-    model = _create_volo('volo_d4_448', pretrained=pretrained, **model_args)
+    model_args = dict(layers=(8, 8, 16, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d4_448', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1377,8 +1377,8 @@ def volo_d5_224(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """
     model_args = dict(
         layers=(12, 12, 20, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16),
-        mlp_ratio=4, stem_hidden_dim=128, **kwargs)
-    model = _create_volo('volo_d5_224', pretrained=pretrained, **model_args)
+        mlp_ratio=4, stem_hidden_dim=128, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d5_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1390,8 +1390,8 @@ def volo_d5_448(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """
     model_args = dict(
         layers=(12, 12, 20, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16),
-        mlp_ratio=4, stem_hidden_dim=128, **kwargs)
-    model = _create_volo('volo_d5_448', pretrained=pretrained, **model_args)
+        mlp_ratio=4, stem_hidden_dim=128, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d5_448', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1403,6 +1403,6 @@ def volo_d5_512(pretrained: bool = False, **kwargs: Any) -> VOLO:
     """
     model_args = dict(
         layers=(12, 12, 20, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16),
-        mlp_ratio=4, stem_hidden_dim=128, **kwargs)
-    model = _create_volo('volo_d5_512', pretrained=pretrained, **model_args)
+        mlp_ratio=4, stem_hidden_dim=128, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_volo('volo_d5_512', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

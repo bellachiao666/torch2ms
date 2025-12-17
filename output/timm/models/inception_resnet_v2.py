@@ -9,7 +9,6 @@ based upon Google's Tensorflow implementation and pretrained weights (Apache 2.0
 """
 from functools import partial
 from typing import Type, Optional
-# import torch
 # import torch.nn as nn
 
 from timm.data import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
@@ -32,23 +31,23 @@ class Mixed_5b(msnn.Cell):
         super().__init__()
         conv_block = conv_block or ConvNormAct
 
-        self.branch0 = conv_block(192, 96, kernel_size=1, stride=1, **dd)
+        self.branch0 = conv_block(192, 96, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
             conv_block(192, 48, kernel_size=1, stride=1, **dd),
             conv_block(48, 64, kernel_size=5, stride=1, padding=2, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
             conv_block(192, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(96, 96, kernel_size=3, stride=1, padding=1, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch3 = msnn.SequentialCell(
             nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
             conv_block(192, 64, kernel_size=1, stride=1, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x0 = self.branch0(x)
@@ -72,20 +71,20 @@ class Block35(msnn.Cell):
         self.scale = scale
         conv_block = conv_block or ConvNormAct
 
-        self.branch0 = conv_block(320, 32, kernel_size=1, stride=1, **dd)
+        self.branch0 = conv_block(320, 32, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
             conv_block(320, 32, kernel_size=1, stride=1, **dd),
             conv_block(32, 32, kernel_size=3, stride=1, padding=1, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
             conv_block(320, 32, kernel_size=1, stride=1, **dd),
             conv_block(32, 48, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(48, 64, kernel_size=3, stride=1, padding=1, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv2d = nn.Conv2d(128, 320, kernel_size=1, stride=1, **dd)
+        self.conv2d = nn.Conv2d(128, 320, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = nn.ReLU()
 
     def construct(self, x):
@@ -110,13 +109,13 @@ class Mixed_6a(msnn.Cell):
         super().__init__()
         conv_block = conv_block or ConvNormAct
 
-        self.branch0 = conv_block(320, 384, kernel_size=3, stride=2, **dd)
+        self.branch0 = conv_block(320, 384, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
             conv_block(320, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 256, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(256, 384, kernel_size=3, stride=2, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = nn.MaxPool2d(3, stride = 2)
 
@@ -141,15 +140,15 @@ class Block17(msnn.Cell):
         self.scale = scale
         conv_block = conv_block or ConvNormAct
 
-        self.branch0 = conv_block(1088, 192, kernel_size=1, stride=1, **dd)
+        self.branch0 = conv_block(1088, 192, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
             conv_block(1088, 128, kernel_size=1, stride=1, **dd),
             conv_block(128, 160, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(160, 192, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv2d = nn.Conv2d(384, 1088, kernel_size=1, stride=1, **dd)
+        self.conv2d = nn.Conv2d(384, 1088, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = nn.ReLU()
 
     def construct(self, x):
@@ -176,18 +175,18 @@ class Mixed_7a(msnn.Cell):
         self.branch0 = msnn.SequentialCell(
             conv_block(1088, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 384, kernel_size=3, stride=2, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
             conv_block(1088, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 288, kernel_size=3, stride=2, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
             conv_block(1088, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 288, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(288, 320, kernel_size=3, stride=2, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch3 = nn.MaxPool2d(3, stride = 2)
 
@@ -215,15 +214,15 @@ class Block8(msnn.Cell):
         self.scale = scale
         conv_block = conv_block or ConvNormAct
 
-        self.branch0 = conv_block(2080, 192, kernel_size=1, stride=1, **dd)
+        self.branch0 = conv_block(2080, 192, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
             conv_block(2080, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 224, kernel_size=(1, 3), stride=1, padding=(0, 1), **dd),
             conv_block(224, 256, kernel_size=(3, 1), stride=1, padding=(1, 0), **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv2d = nn.Conv2d(448, 2080, kernel_size=1, stride=1, **dd)
+        self.conv2d = nn.Conv2d(448, 2080, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = None if no_relu else nn.ReLU()
 
     def construct(self, x):
@@ -265,30 +264,30 @@ class InceptionResnetV2(msnn.Cell):
             act_kwargs=dict(inplace=True),
         )
 
-        self.conv2d_1a = conv_block(in_chans, 32, kernel_size=3, stride=2, **dd)
-        self.conv2d_2a = conv_block(32, 32, kernel_size=3, stride=1, **dd)
-        self.conv2d_2b = conv_block(32, 64, kernel_size=3, stride=1, padding=1, **dd)
+        self.conv2d_1a = conv_block(in_chans, 32, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2d_2a = conv_block(32, 32, kernel_size=3, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2d_2b = conv_block(32, 64, kernel_size=3, stride=1, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [dict(num_chs=64, reduction=2, module='conv2d_2b')]
 
         self.maxpool_3a = nn.MaxPool2d(3, stride = 2)
-        self.conv2d_3b = conv_block(64, 80, kernel_size=1, stride=1, **dd)
-        self.conv2d_4a = conv_block(80, 192, kernel_size=3, stride=1, **dd)
+        self.conv2d_3b = conv_block(64, 80, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2d_4a = conv_block(80, 192, kernel_size=3, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=192, reduction=4, module='conv2d_4a')]
 
         self.maxpool_5a = nn.MaxPool2d(3, stride = 2)
-        self.mixed_5b = Mixed_5b(conv_block=conv_block, **dd)
-        self.repeat = msnn.SequentialCell(*[Block35(scale=0.17, conv_block=conv_block, **dd) for _ in range(10)])
+        self.mixed_5b = Mixed_5b(conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.repeat = msnn.SequentialCell(*[Block35(scale=0.17, conv_block=conv_block, **dd) for _ in range(10)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=320, reduction=8, module='repeat')]
 
-        self.mixed_6a = Mixed_6a(conv_block=conv_block, **dd)
-        self.repeat_1 = msnn.SequentialCell(*[Block17(scale=0.10, conv_block=conv_block, **dd) for _ in range(20)])
+        self.mixed_6a = Mixed_6a(conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.repeat_1 = msnn.SequentialCell(*[Block17(scale=0.10, conv_block=conv_block, **dd) for _ in range(20)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=1088, reduction=16, module='repeat_1')]
 
-        self.mixed_7a = Mixed_7a(conv_block=conv_block, **dd)
-        self.repeat_2 = msnn.SequentialCell(*[Block8(scale=0.20, conv_block=conv_block, **dd) for _ in range(9)])
+        self.mixed_7a = Mixed_7a(conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.repeat_2 = msnn.SequentialCell(*[Block8(scale=0.20, conv_block=conv_block, **dd) for _ in range(9)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.block8 = Block8(no_relu=True, conv_block=conv_block, **dd)
-        self.conv2d_7b = conv_block(2080, self.num_features, kernel_size=1, stride=1, **dd)
+        self.block8 = Block8(no_relu=True, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2d_7b = conv_block(2080, self.num_features, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info += [dict(num_chs=self.num_features, reduction=32, module='conv2d_7b')]
 
         self.global_pool, self.head_drop, self.classif = create_classifier(
@@ -297,9 +296,9 @@ class InceptionResnetV2(msnn.Cell):
             pool_type=global_pool,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         module_map = {k: i for i, (k, _) in enumerate(flatten_modules(self.named_children(), prefix=()))}
         module_map.pop(('classif',))
@@ -318,11 +317,11 @@ class InceptionResnetV2(msnn.Cell):
                 return float('inf')
         return _matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, "checkpointing not supported"
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.classif
 
@@ -360,7 +359,7 @@ class InceptionResnetV2(msnn.Cell):
 
 
 def _create_inception_resnet_v2(variant, pretrained=False, **kwargs):
-    return build_model_with_cfg(InceptionResnetV2, variant, pretrained, **kwargs)
+    return build_model_with_cfg(InceptionResnetV2, variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 default_cfgs = generate_default_cfgs({
@@ -388,7 +387,7 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def inception_resnet_v2(pretrained=False, **kwargs) -> InceptionResnetV2:
-    return _create_inception_resnet_v2('inception_resnet_v2', pretrained=pretrained, **kwargs)
+    return _create_inception_resnet_v2('inception_resnet_v2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 register_model_deprecations(__name__, {

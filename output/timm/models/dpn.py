@@ -36,7 +36,7 @@ class CatBnAct(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.bn = norm_layer(in_chs, eps=0.001, **dd)
+        self.bn = norm_layer(in_chs, eps=0.001, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
@@ -68,8 +68,8 @@ class BnActConv2d(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.bn = norm_layer(in_chs, eps=0.001, **dd)
-        self.conv = create_conv2d(in_chs, out_chs, kernel_size, stride=stride, groups=groups, **dd)
+        self.bn = norm_layer(in_chs, eps=0.001, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv = create_conv2d(in_chs, out_chs, kernel_size, stride=stride, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.conv(self.bn(x))
@@ -111,20 +111,20 @@ class DualPathBlock(msnn.Cell):
             # Using different member names here to allow easier parameter key matching for conversion
             if self.key_stride == 2:
                 self.c1x1_w_s2 = BnActConv2d(
-                    in_chs=in_chs, out_chs=num_1x1_c + 2 * inc, kernel_size=1, stride=2, **dd)
+                    in_chs=in_chs, out_chs=num_1x1_c + 2 * inc, kernel_size=1, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.c1x1_w_s1 = BnActConv2d(
-                    in_chs=in_chs, out_chs=num_1x1_c + 2 * inc, kernel_size=1, stride=1, **dd)
+                    in_chs=in_chs, out_chs=num_1x1_c + 2 * inc, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.c1x1_a = BnActConv2d(in_chs=in_chs, out_chs=num_1x1_a, kernel_size=1, stride=1, **dd)
+        self.c1x1_a = BnActConv2d(in_chs=in_chs, out_chs=num_1x1_a, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.c3x3_b = BnActConv2d(
-            in_chs=num_1x1_a, out_chs=num_3x3_b, kernel_size=3, stride=self.key_stride, groups=groups, **dd)
+            in_chs=num_1x1_a, out_chs=num_3x3_b, kernel_size=3, stride=self.key_stride, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if b:
-            self.c1x1_c = CatBnAct(in_chs=num_3x3_b, **dd)
-            self.c1x1_c1 = create_conv2d(num_3x3_b, num_1x1_c, kernel_size=1, **dd)
-            self.c1x1_c2 = create_conv2d(num_3x3_b, inc, kernel_size=1, **dd)
+            self.c1x1_c = CatBnAct(in_chs=num_3x3_b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.c1x1_c1 = create_conv2d(num_3x3_b, num_1x1_c, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.c1x1_c2 = create_conv2d(num_3x3_b, inc, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.c1x1_c = BnActConv2d(in_chs=num_3x3_b, out_chs=num_1x1_c + inc, kernel_size=1, stride=1, **dd)
+            self.c1x1_c = BnActConv2d(in_chs=num_3x3_b, out_chs=num_1x1_c + inc, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.c1x1_c1 = None
             self.c1x1_c2 = None
 
@@ -213,7 +213,7 @@ class DPN(msnn.Cell):
             stride=2,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         blocks['conv1_pool'] = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
         self.feature_info = [dict(num_chs=num_init_features, reduction=2, module='features.conv1_1')]
 
@@ -221,10 +221,10 @@ class DPN(msnn.Cell):
         bw = 64 * bw_factor
         inc = inc_sec[0]
         r = (k_r * bw) // (64 * bw_factor)
-        blocks['conv2_1'] = DualPathBlock(num_init_features, r, r, bw, inc, groups, 'proj', b, **dd)
+        blocks['conv2_1'] = DualPathBlock(num_init_features, r, r, bw, inc, groups, 'proj', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = bw + 3 * inc
         for i in range(2, k_sec[0] + 1):
-            blocks['conv2_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)
+            blocks['conv2_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs += inc
         self.feature_info += [dict(num_chs=in_chs, reduction=4, module=f'features.conv2_{k_sec[0]}')]
 
@@ -232,10 +232,10 @@ class DPN(msnn.Cell):
         bw = 128 * bw_factor
         inc = inc_sec[1]
         r = (k_r * bw) // (64 * bw_factor)
-        blocks['conv3_1'] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'down', b, **dd)
+        blocks['conv3_1'] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'down', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = bw + 3 * inc
         for i in range(2, k_sec[1] + 1):
-            blocks['conv3_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)
+            blocks['conv3_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs += inc
         self.feature_info += [dict(num_chs=in_chs, reduction=8, module=f'features.conv3_{k_sec[1]}')]
 
@@ -243,10 +243,10 @@ class DPN(msnn.Cell):
         bw = 256 * bw_factor
         inc = inc_sec[2]
         r = (k_r * bw) // (64 * bw_factor)
-        blocks['conv4_1'] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'down', b, **dd)
+        blocks['conv4_1'] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'down', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = bw + 3 * inc
         for i in range(2, k_sec[2] + 1):
-            blocks['conv4_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)
+            blocks['conv4_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs += inc
         self.feature_info += [dict(num_chs=in_chs, reduction=16, module=f'features.conv4_{k_sec[2]}')]
 
@@ -254,14 +254,14 @@ class DPN(msnn.Cell):
         bw = 512 * bw_factor
         inc = inc_sec[3]
         r = (k_r * bw) // (64 * bw_factor)
-        blocks['conv5_1'] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'down', b, **dd)
+        blocks['conv5_1'] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'down', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = bw + 3 * inc
         for i in range(2, k_sec[3] + 1):
-            blocks['conv5_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)
+            blocks['conv5_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs += inc
         self.feature_info += [dict(num_chs=in_chs, reduction=32, module=f'features.conv5_{k_sec[3]}')]
 
-        blocks['conv5_bn_ac'] = CatBnAct(in_chs, norm_layer=fc_norm_layer, **dd)
+        blocks['conv5_bn_ac'] = CatBnAct(in_chs, norm_layer=fc_norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.num_features = self.head_hidden_size = in_chs
         self.features = msnn.SequentialCell(blocks)
@@ -273,10 +273,10 @@ class DPN(msnn.Cell):
             pool_type=global_pool,
             use_conv=True,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^features\.conv1',
@@ -287,11 +287,11 @@ class DPN(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
@@ -326,7 +326,7 @@ def _create_dpn(variant, pretrained=False, **kwargs):
         pretrained,
         feature_cfg=dict(feature_concat=True, flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -359,7 +359,7 @@ def dpn48b(pretrained=False, **kwargs) -> DPN:
     model_args = dict(
         small=True, num_init_features=10, k_r=128, groups=32,
         b=True, k_sec=(3, 4, 6, 3), inc_sec=(16, 32, 32, 64), act_layer='silu')
-    return _create_dpn('dpn48b', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_dpn('dpn48b', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -367,7 +367,7 @@ def dpn68(pretrained=False, **kwargs) -> DPN:
     model_args = dict(
         small=True, num_init_features=10, k_r=128, groups=32,
         k_sec=(3, 4, 12, 3), inc_sec=(16, 32, 32, 64))
-    return _create_dpn('dpn68', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_dpn('dpn68', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -375,7 +375,7 @@ def dpn68b(pretrained=False, **kwargs) -> DPN:
     model_args = dict(
         small=True, num_init_features=10, k_r=128, groups=32,
         b=True, k_sec=(3, 4, 12, 3), inc_sec=(16, 32, 32, 64))
-    return _create_dpn('dpn68b', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_dpn('dpn68b', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -383,7 +383,7 @@ def dpn92(pretrained=False, **kwargs) -> DPN:
     model_args = dict(
         num_init_features=64, k_r=96, groups=32,
         k_sec=(3, 4, 20, 3), inc_sec=(16, 32, 24, 128))
-    return _create_dpn('dpn92', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_dpn('dpn92', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -391,7 +391,7 @@ def dpn98(pretrained=False, **kwargs) -> DPN:
     model_args = dict(
         num_init_features=96, k_r=160, groups=40,
         k_sec=(3, 6, 20, 3), inc_sec=(16, 32, 32, 128))
-    return _create_dpn('dpn98', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_dpn('dpn98', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -399,7 +399,7 @@ def dpn131(pretrained=False, **kwargs) -> DPN:
     model_args = dict(
         num_init_features=128, k_r=160, groups=40,
         k_sec=(4, 8, 28, 3), inc_sec=(16, 32, 32, 128))
-    return _create_dpn('dpn131', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_dpn('dpn131', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -407,4 +407,4 @@ def dpn107(pretrained=False, **kwargs) -> DPN:
     model_args = dict(
         num_init_features=128, k_r=200, groups=50,
         k_sec=(4, 8, 20, 3), inc_sec=(20, 64, 64, 128))
-    return _create_dpn('dpn107', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_dpn('dpn107', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

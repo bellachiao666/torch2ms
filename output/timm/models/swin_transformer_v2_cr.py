@@ -131,9 +131,9 @@ class WindowMultiHeadAttention(msnn.Cell):
         self.num_heads: int = num_heads
         self.sequential_attn: bool = sequential_attn
 
-        self.qkv = nn.Linear(in_features=dim, out_features=dim * 3, bias=True, **dd)
+        self.qkv = nn.Linear(in_features=dim, out_features=dim * 3, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(drop_attn)
-        self.proj = nn.Linear(in_features=dim, out_features=dim, bias=True, **dd)
+        self.proj = nn.Linear(in_features=dim, out_features=dim, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(drop_proj)
         # meta network for positional encodings
         self.meta_mlp = Mlp(
@@ -143,9 +143,9 @@ class WindowMultiHeadAttention(msnn.Cell):
             act_layer=nn.ReLU,
             drop=(0.125, 0.),  # FIXME should there be stochasticity, appears to 'overfit' without?
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # NOTE old checkpoints used inverse of logit_scale ('tau') following the paper, see conversion fn
-        self.logit_scale = ms.Parameter(mint.log(10 * mint.ones(num_heads, **dd)))
+        self.logit_scale = ms.Parameter(mint.log(10 * mint.ones(num_heads, **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self._make_pair_wise_relative_positions()
 
     def _make_pair_wise_relative_positions(self) -> None:
@@ -284,8 +284,8 @@ class SwinTransformerV2CrBlock(msnn.Cell):
             drop_proj=proj_drop,
             sequential_attn=sequential_attn,
             **dd,
-        )
-        self.norm1 = norm_layer(dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_prob=drop_path) if drop_path > 0.0 else msnn.Identity()
 
         # mlp branch
@@ -295,19 +295,19 @@ class SwinTransformerV2CrBlock(msnn.Cell):
             drop=proj_drop,
             out_features=dim,
             **dd,
-        )
-        self.norm2 = norm_layer(dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_prob=drop_path) if drop_path > 0.0 else msnn.Identity()
 
         # Extra main branch norm layer mentioned for Huge/Giant models in V2 paper.
         # Also being used as final network norm and optional stage ending norm while still in a C-last format.
-        self.norm3 = norm_layer(dim, **dd) if extra_norm else msnn.Identity()
+        self.norm3 = norm_layer(dim, **dd) if extra_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.register_buffer(
             "attn_mask",
             None if self.dynamic_mask else self.get_attn_mask(**dd),
             persistent=False,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.init_weights()
 
     def _calc_window_shift(
@@ -327,9 +327,6 @@ class SwinTransformerV2CrBlock(msnn.Cell):
         shift_size = [0 if f <= w else s for f, w, s in zip(self.feat_size, window_size, target_shift_size)]
         return tuple(window_size), tuple(shift_size)
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
             x: Optional[ms.Tensor] = None,
@@ -474,8 +471,8 @@ class PatchMerging(msnn.Cell):
         """
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm = norm_layer(4 * dim, **dd)
-        self.reduction = nn.Linear(in_features=4 * dim, out_features=2 * dim, bias=False, **dd)
+        self.norm = norm_layer(4 * dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.reduction = nn.Linear(in_features=4 * dim, out_features=2 * dim, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """Forward pass of patch merging.
@@ -531,8 +528,8 @@ class PatchEmbed(msnn.Cell):
         self.num_patches = self.grid_size[0] * self.grid_size[1]
         self.strict_img_size = strict_img_size
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
-        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()
+        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def set_input_size(self, img_size: Tuple[int, int]) -> None:
         """Update input image size.
@@ -613,7 +610,7 @@ class SwinTransformerV2CrStage(msnn.Cell):
         self.feat_size: Tuple[int, int] = (feat_size[0] // 2, feat_size[1] // 2) if downscale else feat_size
 
         if downscale:
-            self.downsample = PatchMerging(embed_dim, norm_layer=norm_layer, **dd)
+            self.downsample = PatchMerging(embed_dim, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             embed_dim = embed_dim * 2
         else:
             self.downsample = msnn.Identity()
@@ -644,7 +641,7 @@ class SwinTransformerV2CrStage(msnn.Cell):
                 **dd,
             )
             for index in range(depth)]
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def set_input_size(
             self,
@@ -756,7 +753,7 @@ class SwinTransformerV2Cr(msnn.Cell):
             norm_layer=norm_layer,
             strict_img_size=strict_img_size,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         grid_size = self.patch_embed.grid_size
         if window_size is None:
             self.window_size = tuple([s // window_ratio for s in grid_size])
@@ -787,12 +784,12 @@ class SwinTransformerV2Cr(msnn.Cell):
                 sequential_attn=sequential_attn,
                 norm_layer=norm_layer,
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if stage_idx != 0:
                 in_dim *= 2
                 in_scale *= 2
             self.feature_info += [dict(num_chs=in_dim, reduction=4 * in_scale, module=f'stages.{stage_idx}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.head = ClassifierHead(
             self.num_features,
@@ -800,7 +797,7 @@ class SwinTransformerV2Cr(msnn.Cell):
             pool_type=global_pool,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # current weight init skips custom init and uses pytorch layer defaults, seems to work well
         # FIXME more experiments needed
@@ -837,7 +834,7 @@ class SwinTransformerV2Cr(msnn.Cell):
                 always_partition=always_partition,
             )
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^patch_embed',  # stem and embed
@@ -847,12 +844,12 @@ class SwinTransformerV2Cr(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore()
+    @ms.jit()
     def get_classifier(self) -> msnn.Cell:
         """Method returns the classification head of the model.
         Returns:
@@ -983,7 +980,7 @@ def _create_swin_transformer_v2_cr(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1064,7 +1061,7 @@ def swinv2_cr_tiny_384(pretrained: bool = False, **kwargs) -> SwinTransformerV2C
         depths=(2, 2, 6, 2),
         num_heads=(3, 6, 12, 24),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_tiny_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_tiny_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1075,7 +1072,7 @@ def swinv2_cr_tiny_224(pretrained: bool = False, **kwargs) -> SwinTransformerV2C
         depths=(2, 2, 6, 2),
         num_heads=(3, 6, 12, 24),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_tiny_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_tiny_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1090,7 +1087,7 @@ def swinv2_cr_tiny_ns_224(pretrained: bool = False, **kwargs) -> SwinTransformer
         num_heads=(3, 6, 12, 24),
         extra_norm_stage=True,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_tiny_ns_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_tiny_ns_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1101,7 +1098,7 @@ def swinv2_cr_small_384(pretrained: bool = False, **kwargs) -> SwinTransformerV2
         depths=(2, 2, 18, 2),
         num_heads=(3, 6, 12, 24),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_small_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_small_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1112,7 +1109,7 @@ def swinv2_cr_small_224(pretrained: bool = False, **kwargs) -> SwinTransformerV2
         depths=(2, 2, 18, 2),
         num_heads=(3, 6, 12, 24),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_small_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_small_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1124,7 +1121,7 @@ def swinv2_cr_small_ns_224(pretrained: bool = False, **kwargs) -> SwinTransforme
         num_heads=(3, 6, 12, 24),
         extra_norm_stage=True,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_small_ns_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_small_ns_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1136,7 +1133,7 @@ def swinv2_cr_small_ns_256(pretrained: bool = False, **kwargs) -> SwinTransforme
         num_heads=(3, 6, 12, 24),
         extra_norm_stage=True,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_small_ns_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_small_ns_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1147,7 +1144,7 @@ def swinv2_cr_base_384(pretrained: bool = False, **kwargs) -> SwinTransformerV2C
         depths=(2, 2, 18, 2),
         num_heads=(4, 8, 16, 32),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_base_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_base_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1158,7 +1155,7 @@ def swinv2_cr_base_224(pretrained: bool = False, **kwargs) -> SwinTransformerV2C
         depths=(2, 2, 18, 2),
         num_heads=(4, 8, 16, 32),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_base_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_base_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1170,7 +1167,7 @@ def swinv2_cr_base_ns_224(pretrained: bool = False, **kwargs) -> SwinTransformer
         num_heads=(4, 8, 16, 32),
         extra_norm_stage=True,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_base_ns_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_base_ns_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1181,7 +1178,7 @@ def swinv2_cr_large_384(pretrained: bool = False, **kwargs) -> SwinTransformerV2
         depths=(2, 2, 18, 2),
         num_heads=(6, 12, 24, 48),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_large_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_large_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1192,7 +1189,7 @@ def swinv2_cr_large_224(pretrained: bool = False, **kwargs) -> SwinTransformerV2
         depths=(2, 2, 18, 2),
         num_heads=(6, 12, 24, 48),
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_large_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_large_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1204,7 +1201,7 @@ def swinv2_cr_huge_384(pretrained: bool = False, **kwargs) -> SwinTransformerV2C
         num_heads=(11, 22, 44, 88),  # head count not certain for Huge, 384 & 224 trying diff values
         extra_norm_period=6,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_huge_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_huge_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1216,7 +1213,7 @@ def swinv2_cr_huge_224(pretrained: bool = False, **kwargs) -> SwinTransformerV2C
         num_heads=(8, 16, 32, 64),  # head count not certain for Huge, 384 & 224 trying diff values
         extra_norm_period=6,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_huge_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_huge_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1228,7 +1225,7 @@ def swinv2_cr_giant_384(pretrained: bool = False, **kwargs) -> SwinTransformerV2
         num_heads=(16, 32, 64, 128),
         extra_norm_period=6,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_giant_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_giant_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1240,4 +1237,4 @@ def swinv2_cr_giant_224(pretrained: bool = False, **kwargs) -> SwinTransformerV2
         num_heads=(16, 32, 64, 128),
         extra_norm_period=6,
     )
-    return _create_swin_transformer_v2_cr('swinv2_cr_giant_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swin_transformer_v2_cr('swinv2_cr_giant_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -37,7 +37,7 @@ class DiffAttention(msnn.Cell):
 
     Supports both fused (scaled_dot_product_attention) and manual implementations.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -82,13 +82,13 @@ class DiffAttention(msnn.Cell):
         self.scale = self.head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
-        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
-        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
         self.attn_drop_p = attn_drop
-        self.norm = norm_layer(dim, **dd) if scale_norm else msnn.Identity()
-        self.proj = nn.Linear(dim, dim, bias=proj_bias, **dd)
+        self.norm = norm_layer(dim, **dd) if scale_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = nn.Linear(dim, dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
         self.dual_lambda = dual_lambda
@@ -103,7 +103,7 @@ class DiffAttention(msnn.Cell):
             self.lambda_q2 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
             self.lambda_k2 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
 
-        self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)
+        self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.lambda_init = 0.8
         self.set_lambda_init(depth)

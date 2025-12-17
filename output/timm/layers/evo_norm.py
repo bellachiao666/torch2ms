@@ -114,10 +114,10 @@ class EvoNorm2dB0(msnn.Cell):
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.momentum = momentum
         self.eps = eps
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None
-        self.register_buffer('running_var', mint.ones(num_features, **dd))
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer('running_var', mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -164,9 +164,9 @@ class EvoNorm2dB1(msnn.Cell):
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.momentum = momentum
         self.eps = eps
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-        self.register_buffer('running_var', mint.ones(num_features, **dd))
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer('running_var', mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -210,9 +210,9 @@ class EvoNorm2dB2(msnn.Cell):
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.momentum = momentum
         self.eps = eps
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-        self.register_buffer('running_var', mint.ones(num_features, **dd))
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer('running_var', mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -261,9 +261,9 @@ class EvoNorm2dS0(msnn.Cell):
         else:
             self.groups = groups
         self.eps = eps
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -345,8 +345,8 @@ class EvoNorm2dS1(msnn.Cell):
             self.groups = groups
         self.eps = eps
         self.pre_act_norm = False
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -422,8 +422,8 @@ class EvoNorm2dS2(msnn.Cell):
         else:
             self.groups = groups
         self.eps = eps
-        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-        self.bias = ms.Parameter(mint.empty(num_features, **dd))
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 

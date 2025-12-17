@@ -101,7 +101,7 @@ def undo_windowing(
     B, C = x.shape[0], x.shape[-1]
     # [B, #MUy*#MUx, MUy, MUx, C] -> [B, #MUy, #MUx, MUy, MUx, C]
     num_MUs = [s // mu for s, mu in zip(shape, mu_shape)]
-    x = x.view(B, *num_MUs, *mu_shape, C)
+    x = x.view(B, *num_MUs, *mu_shape, C)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     # [B, #MUy, #MUx, MUy, MUx, C] -> [B, #MUy*MUy, #MUx*MUx, C]
     permute = (
@@ -109,7 +109,7 @@ def undo_windowing(
         + sum([list(p) for p in zip(range(1, 1 + D), range(1 + D, 1 + 2 * D))], [])
         + [len(x.shape) - 1]
     )
-    x = x.permute(permute).reshape(B, *shape, C)
+    x = x.permute(permute).reshape(B, *shape, C)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return x
 
@@ -151,7 +151,7 @@ class Unroll(msnn.Cell):
         """
         B, _, C = x.shape
         cur_size = self.size
-        x = x.view(*([B] + cur_size + [C]))
+        x = x.view(*([B] + cur_size + [C]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         for strides in self.schedule:
             # Move patches with the given strides to the batch dimension
@@ -226,7 +226,7 @@ class Reroll(msnn.Cell):
 
         for strides in schedule:
             # Extract the current patch from N
-            x = x.view(B, *strides, N // math.prod(strides), *cur_mu_shape, C)
+            x = x.view(B, *strides, N // math.prod(strides), *cur_mu_shape, C)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
             # Move that patch into the current MU
             # Example in 2d: [B, Sy, Sx, N//(Sy*Sx), MUy, MUx, C] -> [B, N//(Sy*Sx), Sy, MUy, Sx, MUx, C]
@@ -241,11 +241,11 @@ class Reroll(msnn.Cell):
             # Reshape to [B, N//(Sy*Sx), *MU, C]
             for i in range(D):
                 cur_mu_shape[i] *= strides[i]
-            x = x.reshape(B, -1, *cur_mu_shape, C)
+            x = x.reshape(B, -1, *cur_mu_shape, C)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             N = x.shape[1]
 
         # Current shape (e.g., 2d: [B, #MUy*#MUx, MUy, MUx, C])
-        x = x.view(B, N, *cur_mu_shape, C)
+        x = x.view(B, N, *cur_mu_shape, C)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # If masked, return [B, #MUs, MUy, MUx, C]
         if mask is not None:
@@ -264,7 +264,7 @@ class MaskUnitAttention(msnn.Cell):
     Note: this assumes the tokens have already been flattened and unrolled into mask units.
     See `Unroll` for more details.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -295,8 +295,8 @@ class MaskUnitAttention(msnn.Cell):
         self.scale = self.head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, 3 * dim_out, **dd)
-        self.proj = nn.Linear(dim_out, dim_out, **dd)
+        self.qkv = nn.Linear(dim, 3 * dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(dim_out, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.window_size = window_size
         self.use_mask_unit_attn = use_mask_unit_attn
@@ -348,11 +348,11 @@ class HieraBlock(msnn.Cell):
         self.dim = dim
         self.dim_out = dim_out
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if dim != dim_out:
             self.do_expand = True
             if use_expand_proj:
-                self.proj = nn.Linear(dim, dim_out, **dd)
+                self.proj = nn.Linear(dim, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             else:
                 assert dim_out == dim * 2
                 self.proj = None
@@ -367,13 +367,13 @@ class HieraBlock(msnn.Cell):
             window_size,
             use_mask_unit_attn,
             **dd
-        )
-        self.ls1 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0 else msnn.Identity()
 
-        self.norm2 = norm_layer(dim_out, **dd)
-        self.mlp = Mlp(dim_out, int(dim_out * mlp_ratio), act_layer=act_layer, **dd)
-        self.ls2 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else msnn.Identity()
+        self.norm2 = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.mlp = Mlp(dim_out, int(dim_out * mlp_ratio), act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale(dim_out, init_values=init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0 else msnn.Identity()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -423,7 +423,7 @@ class PatchEmbed(msnn.Cell):
             stride=stride,
             padding=padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(
             self,
@@ -504,7 +504,7 @@ class Hiera(msnn.Cell):
             patch_stride,
             patch_padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.pos_embed: Optional[ms.Parameter] = None
         self.pos_embed_win: Optional[ms.Parameter] = None
@@ -513,17 +513,17 @@ class Hiera(msnn.Cell):
         if sep_pos_embed:
             self.pos_embed_spatial = ms.Parameter(
                 mint.zeros(1, self.tokens_spatial_shape[1] * self.tokens_spatial_shape[2], embed_dim, **dd)
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.pos_embed_temporal = ms.Parameter(
                 mint.zeros(1, self.tokens_spatial_shape[0], embed_dim, **dd)
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             if abs_win_pos_embed:
                 # absolute win, params NCHW to make tile & interpolate more natural before add & reshape
-                self.pos_embed = ms.Parameter(mint.zeros(1, embed_dim, *global_pos_size, **dd))
-                self.pos_embed_win = ms.Parameter(mint.zeros(1, embed_dim, *mask_unit_size, **dd))
+                self.pos_embed = ms.Parameter(mint.zeros(1, embed_dim, *global_pos_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                self.pos_embed_win = ms.Parameter(mint.zeros(1, embed_dim, *mask_unit_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
-                self.pos_embed = ms.Parameter(mint.zeros(1, num_tokens, embed_dim, **dd))
+                self.pos_embed = ms.Parameter(mint.zeros(1, num_tokens, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Setup roll and reroll modules
         self.unroll = Unroll(
@@ -574,7 +574,7 @@ class Hiera(msnn.Cell):
                 use_expand_proj=use_expand_proj,
                 use_mask_unit_attn=use_mask_unit_attn,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             embed_dim = dim_out
             if i in self.stage_ends:
                 self.feature_info += [
@@ -590,7 +590,7 @@ class Hiera(msnn.Cell):
             norm_layer=norm_layer,
             input_fmt='NLC',
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Initialize everything
         if sep_pos_embed:
@@ -620,7 +620,7 @@ class Hiera(msnn.Cell):
             rescale(layer.attn.proj.weight.data, layer_id + 1)
             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         if self.pos_embed is not None:
             return ["pos_embed"]
@@ -629,18 +629,18 @@ class Hiera(msnn.Cell):
         else:
             return ["pos_embed_spatial", "pos_embed_temporal"]
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict:
         return dict(
             stem=r'^pos_embed|pos_embed_spatial|pos_embed_temporal|pos_embed_abs|pos_embed_win|patch_embed',
             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self):
         return self.head.fc
 
@@ -729,7 +729,7 @@ class Hiera(msnn.Cell):
             take_indices, max_index = feature_take_indices(len(self.blocks), indices)
 
         if mask is not None:
-            patch_mask = mask.view(x.shape[0], 1, *self.mask_spatial_shape)  # B, C, *mask_spatial_shape
+            patch_mask = mask.view(x.shape[0], 1, *self.mask_spatial_shape)  # B, C, *mask_spatial_shape; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             patch_mask = None
         x = self.patch_embed(x, mask=patch_mask)
@@ -794,7 +794,7 @@ class Hiera(msnn.Cell):
             mask = self.get_random_mask(x, mask_ratio=self.patch_drop_rate)
 
         if mask is not None:
-            patch_mask = mask.view(x.shape[0], 1, *self.mask_spatial_shape)  # B, C, *mask_spatial_shape
+            patch_mask = mask.view(x.shape[0], 1, *self.mask_spatial_shape)  # B, C, *mask_spatial_shape; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             patch_mask = None
         x = self.patch_embed(x, mask=patch_mask)
@@ -971,43 +971,43 @@ def _create_hiera(variant: str, pretrained: bool = False, **kwargs) -> Hiera:
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hiera_tiny_224(pretrained=False, **kwargs):
     model_args = dict(embed_dim=96, num_heads=1, stages=(1, 2, 7, 2))
-    return _create_hiera('hiera_tiny_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_tiny_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hiera_small_224(pretrained=False, **kwargs):
     model_args = dict(embed_dim=96, num_heads=1, stages=(1, 2, 11, 2))
-    return _create_hiera('hiera_small_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_small_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hiera_base_224(pretrained=False, **kwargs):
     model_args = dict(embed_dim=96, num_heads=1, stages=(2, 3, 16, 3))
-    return _create_hiera('hiera_base_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_base_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hiera_base_plus_224(pretrained=False, **kwargs):
     model_args = dict(embed_dim=112, num_heads=2, stages=(2, 3, 16, 3))
-    return _create_hiera('hiera_base_plus_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_base_plus_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hiera_large_224(pretrained=False, **kwargs):
     model_args = dict(embed_dim=144, num_heads=2, stages=(2, 6, 36, 4))
-    return _create_hiera('hiera_large_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_large_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hiera_huge_224(pretrained=False, **kwargs):
     model_args = dict(embed_dim=256, num_heads=4, stages=(2, 6, 36, 4))
-    return _create_hiera('hiera_huge_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_huge_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1016,11 +1016,11 @@ def hiera_small_abswin_256(pretrained=False, **kwargs):
         embed_dim=96, num_heads=1, stages=(1, 2, 11, 2), abs_win_pos_embed=True, global_pos_size=(16, 16),
         init_values=1e-5, weight_init='jax', use_expand_proj=False,
     )
-    return _create_hiera('hiera_small_abswin_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_small_abswin_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hiera_base_abswin_256(pretrained=False, **kwargs):
     model_args = dict(
         embed_dim=96, num_heads=1, stages=(2, 3, 16, 3), abs_win_pos_embed=True, init_values=1e-5, weight_init='jax')
-    return _create_hiera('hiera_base_abswin_256', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera('hiera_base_abswin_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

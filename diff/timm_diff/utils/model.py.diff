@@ -56,6 +56,14 @@
              BatchNormAct2d,
              SyncBatchNormAct,
      )):
+@@ -142,7 +145,7 @@     submodules = [root_module.get_submodule(m) for m in submodules]
+ 
+     if not len(submodules):
+-        named_modules, submodules = list(zip(*root_module.named_children()))
++        named_modules, submodules = list(zip(*root_module.named_children()))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     for n, m in zip(named_modules, submodules):
+         # (Un)freeze parameters
 @@ -164,8 +167,8 @@                 # convert it in place, but will return the converted result. In this case `res` holds the converted
                  # result and we may try to re-assign the named module
                  if isinstance(m, (

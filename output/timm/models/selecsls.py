@@ -30,7 +30,7 @@ __all__ = ['SelecSls']  # model_registry will add each entrypoint fn to this
 class SequentialList(msnn.SequentialCell):
 
     def __init__(self, *args):
-        super().__init__(*args)
+        super().__init__(*args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     @torch.jit._overload_method  # noqa: F811
     def forward(self, x):
@@ -79,7 +79,7 @@ def conv_bn(in_chs, out_chs, k=3, stride=1, padding=None, dilation=1, device=Non
         nn.Conv2d(in_chs, out_chs, k, stride, padding=padding, dilation=dilation, bias=False, **dd),
         nn.BatchNorm2d(out_chs, **dd),
         nn.ReLU()
-    )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+    )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
 
 class SelecSlsBlock(msnn.Cell):
@@ -102,12 +102,12 @@ class SelecSlsBlock(msnn.Cell):
         assert stride in [1, 2]
 
         # Process input with 4 conv blocks with the same number of input and output channels
-        self.conv1 = conv_bn(in_chs, mid_chs, 3, stride, dilation=dilation, **dd)
-        self.conv2 = conv_bn(mid_chs, mid_chs, 1, **dd)
-        self.conv3 = conv_bn(mid_chs, mid_chs // 2, 3, **dd)
-        self.conv4 = conv_bn(mid_chs // 2, mid_chs, 1, **dd)
-        self.conv5 = conv_bn(mid_chs, mid_chs // 2, 3, **dd)
-        self.conv6 = conv_bn(2 * mid_chs + (0 if is_first else skip_chs), out_chs, 1, **dd)
+        self.conv1 = conv_bn(in_chs, mid_chs, 3, stride, dilation=dilation, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2 = conv_bn(mid_chs, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv3 = conv_bn(mid_chs, mid_chs // 2, 3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv4 = conv_bn(mid_chs // 2, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv5 = conv_bn(mid_chs, mid_chs // 2, 3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv6 = conv_bn(2 * mid_chs + (0 if is_first else skip_chs), out_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: List[ms.Tensor]) -> List[ms.Tensor]:
         if not isinstance(x, list):
@@ -154,10 +154,10 @@ class SelecSls(msnn.Cell):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
 
-        self.stem = conv_bn(in_chans, 32, stride=2, **dd)
-        self.features = SequentialList(*[cfg['block'](*block_args, **dd) for block_args in cfg['features']])
+        self.stem = conv_bn(in_chans, 32, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.features = SequentialList(*[cfg['block'](*block_args, **dd) for block_args in cfg['features']])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.from_seq = SelectSeq()  # from List[tensor] -> Tensor in module compatible way
-        self.head = msnn.SequentialCell(*[conv_bn(*conv_args, **dd) for conv_args in cfg['head']])
+        self.head = msnn.SequentialCell(*[conv_bn(*conv_args, **dd) for conv_args in cfg['head']])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_features = self.head_hidden_size = cfg['num_features']
         self.feature_info = cfg['feature_info']
 
@@ -167,13 +167,13 @@ class SelecSls(msnn.Cell):
             pool_type=global_pool,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         for n, m in self.named_modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')  # 'torch.nn.init.kaiming_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
@@ -181,11 +181,11 @@ class SelecSls(msnn.Cell):
             blocks_head=r'^head'
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.fc
 
@@ -346,7 +346,7 @@ def _create_selecsls(variant, pretrained, **kwargs):
         model_cfg=cfg,
         feature_cfg=dict(out_indices=(0, 1, 2, 3, 4), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -382,32 +382,32 @@ default_cfgs = generate_default_cfgs({
 def selecsls42(pretrained=False, **kwargs) -> SelecSls:
     """Constructs a SelecSls42 model.
     """
-    return _create_selecsls('selecsls42', pretrained, **kwargs)
+    return _create_selecsls('selecsls42', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def selecsls42b(pretrained=False, **kwargs) -> SelecSls:
     """Constructs a SelecSls42_B model.
     """
-    return _create_selecsls('selecsls42b', pretrained, **kwargs)
+    return _create_selecsls('selecsls42b', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def selecsls60(pretrained=False, **kwargs) -> SelecSls:
     """Constructs a SelecSls60 model.
     """
-    return _create_selecsls('selecsls60', pretrained, **kwargs)
+    return _create_selecsls('selecsls60', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def selecsls60b(pretrained=False, **kwargs) -> SelecSls:
     """Constructs a SelecSls60_B model.
     """
-    return _create_selecsls('selecsls60b', pretrained, **kwargs)
+    return _create_selecsls('selecsls60b', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def selecsls84(pretrained=False, **kwargs) -> SelecSls:
     """Constructs a SelecSls84 model.
     """
-    return _create_selecsls('selecsls84', pretrained, **kwargs)
+    return _create_selecsls('selecsls84', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

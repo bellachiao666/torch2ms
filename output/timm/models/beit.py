@@ -115,7 +115,7 @@ class Attention(msnn.Cell):
     Implements multi-head self-attention with support for relative position bias
     and fused attention operations. Can use either standard or custom head dimensions.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -153,11 +153,11 @@ class Attention(msnn.Cell):
         self.fused_attn = use_fused_attn()
         self.qkv_bias_separate = qkv_bias_separate
 
-        self.qkv = nn.Linear(dim, all_head_dim * 3, bias=False, **dd)
+        self.qkv = nn.Linear(dim, all_head_dim * 3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if qkv_bias:
-            self.q_bias = ms.Parameter(mint.zeros(all_head_dim, **dd))
-            self.register_buffer('k_bias', mint.zeros(all_head_dim, **dd), persistent=False)
-            self.v_bias = ms.Parameter(mint.zeros(all_head_dim, **dd))
+            self.q_bias = ms.Parameter(mint.zeros(all_head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.register_buffer('k_bias', mint.zeros(all_head_dim, **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.v_bias = ms.Parameter(mint.zeros(all_head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.q_bias = None
             self.k_bias = None
@@ -167,7 +167,7 @@ class Attention(msnn.Cell):
             self.window_size = window_size
             self.num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3
             self.relative_position_bias_table = ms.Parameter(
-                mint.zeros(self.num_relative_distance, num_heads, **dd))  # 2*Wh-1 * 2*Ww-1, nH
+                mint.zeros(self.num_relative_distance, num_heads, **dd))  # 2*Wh-1 * 2*Ww-1, nH; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.register_buffer(
                 "relative_position_index",
                 gen_relative_position_index(window_size, device=device),
@@ -179,7 +179,7 @@ class Attention(msnn.Cell):
             self.relative_position_index = None
 
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(all_head_dim, dim, **dd)
+        self.proj = nn.Linear(all_head_dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def _get_rel_pos_bias(self) -> ms.Tensor:
@@ -299,7 +299,7 @@ class Block(msnn.Cell):
         """
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = Attention(
             dim,
             num_heads=num_heads,
@@ -309,11 +309,11 @@ class Block(msnn.Cell):
             window_size=window_size,
             attn_head_dim=attn_head_dim,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if swiglu_mlp:
             self.mlp = SwiGLU(
                 in_features=dim,
@@ -321,7 +321,7 @@ class Block(msnn.Cell):
                 norm_layer=norm_layer if scale_mlp else None,
                 drop=proj_drop,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.mlp = Mlp(
                 in_features=dim,
@@ -330,12 +330,12 @@ class Block(msnn.Cell):
                 norm_layer=norm_layer if scale_mlp else None,
                 drop=proj_drop,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         if init_values:
-            self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))
-            self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))
+            self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.gamma_1, self.gamma_2 = None, None
 
@@ -377,7 +377,7 @@ class RelativePositionBias(msnn.Cell):
         self.window_size = window_size
         self.window_area = window_size[0] * window_size[1]
         num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3
-        self.relative_position_bias_table = ms.Parameter(mint.zeros(num_relative_distance, num_heads, **dd))
+        self.relative_position_bias_table = ms.Parameter(mint.zeros(num_relative_distance, num_heads, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # trunc_normal_(self.relative_position_bias_table, std=.02)
         self.register_buffer("relative_position_index", gen_relative_position_index(window_size))
 
@@ -469,13 +469,13 @@ class Beit(msnn.Cell):
             in_chans=in_chans,
             embed_dim=embed_dim,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         num_patches = self.patch_embed.num_patches
         r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
 
-        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))
+        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        self.pos_embed = ms.Parameter(mint.zeros(1, num_patches + 1, embed_dim, **dd)) if use_abs_pos_emb else None
+        self.pos_embed = ms.Parameter(mint.zeros(1, num_patches + 1, embed_dim, **dd)) if use_abs_pos_emb else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
 
         if use_shared_rel_pos_bias:
@@ -483,7 +483,7 @@ class Beit(msnn.Cell):
                 window_size=self.patch_embed.grid_size,
                 num_heads=num_heads,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.rel_pos_bias = None
 
@@ -504,15 +504,15 @@ class Beit(msnn.Cell):
                 window_size=self.patch_embed.grid_size if use_rel_pos_bias else None,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
 
         use_fc_norm = self.global_pool == 'avg'
-        self.norm = msnn.Identity() if use_fc_norm else norm_layer(embed_dim, **dd)
-        self.fc_norm = norm_layer(embed_dim, **dd) if use_fc_norm else msnn.Identity()
+        self.norm = msnn.Identity() if use_fc_norm else norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc_norm = norm_layer(embed_dim, **dd) if use_fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.apply(self._init_weights)
         if self.pos_embed is not None:
@@ -552,7 +552,7 @@ class Beit(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set[str]:
         """Get parameter names that should not use weight decay.
 
@@ -565,7 +565,7 @@ class Beit(msnn.Cell):
                 nwd.add(n)
         return nwd
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True):
         """Enable or disable gradient checkpointing.
 
@@ -574,7 +574,7 @@ class Beit(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Create parameter group matcher for optimizer parameter groups.
 
@@ -590,7 +590,7 @@ class Beit(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier head.
 
@@ -922,7 +922,7 @@ def _create_beit(variant: str, pretrained: bool = False, **kwargs) -> Beit:
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -932,7 +932,7 @@ def beit_base_patch16_224(pretrained: bool = False, **kwargs) -> Beit:
     model_args = dict(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=0.1)
-    model = _create_beit('beit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_beit('beit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -942,7 +942,7 @@ def beit_base_patch16_384(pretrained: bool = False, **kwargs) -> Beit:
     model_args = dict(
         img_size=384, patch_size=16, embed_dim=768, depth=12, num_heads=12,
         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=0.1)
-    model = _create_beit('beit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_beit('beit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -952,7 +952,7 @@ def beit_large_patch16_224(pretrained: bool = False, **kwargs) -> Beit:
     model_args = dict(
         patch_size=16, embed_dim=1024, depth=24, num_heads=16,
         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
-    model = _create_beit('beit_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_beit('beit_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -962,7 +962,7 @@ def beit_large_patch16_384(pretrained: bool = False, **kwargs) -> Beit:
     model_args = dict(
         img_size=384, patch_size=16, embed_dim=1024, depth=24, num_heads=16,
         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
-    model = _create_beit('beit_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_beit('beit_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -972,7 +972,7 @@ def beit_large_patch16_512(pretrained: bool = False, **kwargs) -> Beit:
     model_args = dict(
         img_size=512, patch_size=16, embed_dim=1024, depth=24, num_heads=16,
         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
-    model = _create_beit('beit_large_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_beit('beit_large_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -982,7 +982,7 @@ def beitv2_base_patch16_224(pretrained: bool = False, **kwargs) -> Beit:
     model_args = dict(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
-    model = _create_beit('beitv2_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_beit('beitv2_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -992,5 +992,5 @@ def beitv2_large_patch16_224(pretrained: bool = False, **kwargs) -> Beit:
     model_args = dict(
         patch_size=16, embed_dim=1024, depth=24, num_heads=16,
         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
-    model = _create_beit('beitv2_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_beit('beitv2_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

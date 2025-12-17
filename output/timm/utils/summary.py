@@ -17,7 +17,7 @@ except ImportError:
 
 
 def get_outdir(path, *paths, inc=False):
-    outdir = os.path.join(path, *paths)
+    outdir = os.path.join(path, *paths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     elif inc:

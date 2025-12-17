@@ -47,7 +47,7 @@ _logger = logging.getLogger(__name__)
 
 
 class RelPosAttention(msnn.Cell):
-    fused_attn: Final[bool]
+    fused_attn: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -70,12 +70,12 @@ class RelPosAttention(msnn.Cell):
         self.scale = self.head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
-        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
-        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
-        self.rel_pos = rel_pos_cls(num_heads=num_heads, **dd) if rel_pos_cls else None
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.rel_pos = rel_pos_cls(num_heads=num_heads, **dd) if rel_pos_cls else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
@@ -136,7 +136,7 @@ class RelPosBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = RelPosAttention(
             dim,
             num_heads,
@@ -147,20 +147,20 @@ class RelPosBlock(msnn.Cell):
             proj_drop=proj_drop,
             norm_layer=norm_layer,
             **dd,
-        )
-        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
-        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x, shared_rel_pos: Optional[ms.Tensor] = None):
@@ -202,8 +202,8 @@ class ResPostRelPosBlock(msnn.Cell):
             proj_drop=proj_drop,
             norm_layer=norm_layer,
             **dd,
-        )
-        self.norm1 = norm_layer(dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         self.mlp = Mlp(
@@ -212,8 +212,8 @@ class ResPostRelPosBlock(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
-        self.norm2 = norm_layer(dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         self.init_weights()
@@ -319,7 +319,7 @@ class VisionTransformerRelPos(msnn.Cell):
             in_chans=in_chans,
             embed_dim=embed_dim,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         feat_size = self.patch_embed.grid_size
         r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
 
@@ -329,16 +329,16 @@ class VisionTransformerRelPos(msnn.Cell):
                 rel_pos_args['hidden_dim'] = rel_pos_dim
             if 'swin' in rel_pos_type:
                 rel_pos_args['mode'] = 'swin'
-            rel_pos_cls = partial(RelPosMlp, **rel_pos_args)
+            rel_pos_cls = partial(RelPosMlp, **rel_pos_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            rel_pos_cls = partial(RelPosBias, **rel_pos_args)
+            rel_pos_cls = partial(RelPosBias, **rel_pos_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.shared_rel_pos = None
         if shared_rel_pos:
-            self.shared_rel_pos = rel_pos_cls(num_heads=num_heads, **dd)
+            self.shared_rel_pos = rel_pos_cls(num_heads=num_heads, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             # NOTE shared rel pos currently mutually exclusive w/ per-block, but could support both...
             rel_pos_cls = None
 
-        self.cls_token = ms.Parameter(mint.zeros(1, self.num_prefix_tokens, embed_dim, **dd)) if class_token else None
+        self.cls_token = ms.Parameter(mint.zeros(1, self.num_prefix_tokens, embed_dim, **dd)) if class_token else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
         self.blocks = msnn.CellList([
@@ -357,15 +357,15 @@ class VisionTransformerRelPos(msnn.Cell):
                 act_layer=act_layer,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
-        self.norm = norm_layer(embed_dim, **dd) if not fc_norm else msnn.Identity()
+        self.norm = norm_layer(embed_dim, **dd) if not fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier Head
-        self.fc_norm = norm_layer(embed_dim, **dd) if fc_norm else msnn.Identity()
+        self.fc_norm = norm_layer(embed_dim, **dd) if fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if weight_init != 'skip':
             self.init_weights(weight_init)
@@ -386,22 +386,22 @@ class VisionTransformerRelPos(msnn.Cell):
             rescale(layer.attn.proj.weight.data, layer_id + 1)
             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'cls_token'}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^cls_token|patch_embed',  # stem and embed
             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -411,7 +411,7 @@ class VisionTransformerRelPos(msnn.Cell):
         if global_pool is not None:
             assert global_pool in ('', 'avg', 'token')
             self.global_pool = global_pool
-        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def forward_intermediates(
             self,
@@ -531,7 +531,7 @@ def _create_vision_transformer_relpos(variant, pretrained=False, **kwargs):
         VisionTransformerRelPos, variant, pretrained,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -593,7 +593,7 @@ def vit_relpos_base_patch32_plus_rpn_256(pretrained=False, **kwargs) -> VisionTr
     """
     model_args = dict(patch_size=32, embed_dim=896, depth=12, num_heads=14, block_fn=ResPostRelPosBlock)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_base_patch32_plus_rpn_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_base_patch32_plus_rpn_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -603,7 +603,7 @@ def vit_relpos_base_patch16_plus_240(pretrained=False, **kwargs) -> VisionTransf
     """
     model_args = dict(patch_size=16, embed_dim=896, depth=12, num_heads=14)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_base_patch16_plus_240', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_base_patch16_plus_240', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -613,7 +613,7 @@ def vit_relpos_small_patch16_224(pretrained=False, **kwargs) -> VisionTransforme
     """
     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6, qkv_bias=False, fc_norm=True)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -624,7 +624,7 @@ def vit_relpos_medium_patch16_224(pretrained=False, **kwargs) -> VisionTransform
     model_args = dict(
         patch_size=16, embed_dim=512, depth=12, num_heads=8, qkv_bias=False, fc_norm=True)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_medium_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_medium_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -635,7 +635,7 @@ def vit_relpos_base_patch16_224(pretrained=False, **kwargs) -> VisionTransformer
     model_args = dict(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, qkv_bias=False, fc_norm=True)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -647,7 +647,7 @@ def vit_srelpos_small_patch16_224(pretrained=False, **kwargs) -> VisionTransform
         patch_size=16, embed_dim=384, depth=12, num_heads=6, qkv_bias=False, fc_norm=False,
         rel_pos_dim=384, shared_rel_pos=True)
     model = _create_vision_transformer_relpos(
-        'vit_srelpos_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_srelpos_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -659,7 +659,7 @@ def vit_srelpos_medium_patch16_224(pretrained=False, **kwargs) -> VisionTransfor
         patch_size=16, embed_dim=512, depth=12, num_heads=8, qkv_bias=False, fc_norm=False,
         rel_pos_dim=512, shared_rel_pos=True)
     model = _create_vision_transformer_relpos(
-        'vit_srelpos_medium_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_srelpos_medium_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -671,7 +671,7 @@ def vit_relpos_medium_patch16_cls_224(pretrained=False, **kwargs) -> VisionTrans
         patch_size=16, embed_dim=512, depth=12, num_heads=8, qkv_bias=False, fc_norm=False,
         rel_pos_dim=256, class_token=True, global_pool='token')
     model = _create_vision_transformer_relpos(
-        'vit_relpos_medium_patch16_cls_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_medium_patch16_cls_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -682,7 +682,7 @@ def vit_relpos_base_patch16_cls_224(pretrained=False, **kwargs) -> VisionTransfo
     model_args = dict(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, qkv_bias=False, class_token=True, global_pool='token')
     model = _create_vision_transformer_relpos(
-        'vit_relpos_base_patch16_cls_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_base_patch16_cls_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -695,7 +695,7 @@ def vit_relpos_base_patch16_clsgap_224(pretrained=False, **kwargs) -> VisionTran
     model_args = dict(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, qkv_bias=False, fc_norm=True, class_token=True)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_base_patch16_clsgap_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_base_patch16_clsgap_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -706,7 +706,7 @@ def vit_relpos_small_patch16_rpn_224(pretrained=False, **kwargs) -> VisionTransf
     model_args = dict(
         patch_size=16, embed_dim=384, depth=12, num_heads=6, qkv_bias=False, block_fn=ResPostRelPosBlock)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_small_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_small_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -717,7 +717,7 @@ def vit_relpos_medium_patch16_rpn_224(pretrained=False, **kwargs) -> VisionTrans
     model_args = dict(
         patch_size=16, embed_dim=512, depth=12, num_heads=8, qkv_bias=False, block_fn=ResPostRelPosBlock)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_medium_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_medium_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -728,5 +728,5 @@ def vit_relpos_base_patch16_rpn_224(pretrained=False, **kwargs) -> VisionTransfo
     model_args = dict(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, qkv_bias=False, block_fn=ResPostRelPosBlock)
     model = _create_vision_transformer_relpos(
-        'vit_relpos_base_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'vit_relpos_base_patch16_rpn_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

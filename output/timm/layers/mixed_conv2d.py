@@ -62,7 +62,7 @@ class MixedConv2d(nn.ModuleDict):
                     groups=conv_groups,
                     **kwargs,
                 )
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.splits = in_splits
 
     def forward(self, x):

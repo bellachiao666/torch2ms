@@ -78,6 +78,7 @@ class Lars(Optimizer):
         for group in self.param_groups:
             group.setdefault("nesterov", False)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

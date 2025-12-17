@@ -38,10 +38,10 @@
 -    def reset_parameters(self):
 -        nn.init.ones_(self.weight)
 -        nn.init.zeros_(self.bias)
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-+        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None
-+        self.register_buffer('running_var', mint.ones(num_features, **dd))
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.register_buffer('running_var', mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.reset_parameters()
 +
@@ -80,9 +80,9 @@
 -        nn.init.zeros_(self.bias)
 -
 -    def forward(self, x):
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-+        self.register_buffer('running_var', mint.ones(num_features, **dd))
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.register_buffer('running_var', mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.reset_parameters()
 +
@@ -116,9 +116,9 @@
 -        nn.init.zeros_(self.bias)
 -
 -    def forward(self, x):
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-+        self.register_buffer('running_var', mint.ones(num_features, **dd))
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.register_buffer('running_var', mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.reset_parameters()
 +
@@ -150,9 +150,9 @@
 -    def reset_parameters(self):
 -        nn.init.ones_(self.weight)
 -        nn.init.zeros_(self.bias)
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-+        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.v = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.reset_parameters()
 +
@@ -212,8 +212,8 @@
 -        nn.init.zeros_(self.bias)
 -
 -    def forward(self, x):
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.reset_parameters()
 +
@@ -276,8 +276,8 @@
 -        nn.init.zeros_(self.bias)
 -
 -    def forward(self, x):
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.reset_parameters()
 +

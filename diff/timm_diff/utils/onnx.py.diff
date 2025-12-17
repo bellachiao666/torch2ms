@@ -29,7 +29,7 @@
  
      # Run model once before export trace, sets padding for models with Conv2dSameExport. This means
      # that the padding for models with Conv2dSameExport (most models with tf_ prefix) is fixed for
-@@ -71,12 +76,12 @@         export_type = torch.onnx.OperatorExportTypes.ONNX
+@@ -71,15 +76,15 @@         export_type = torch.onnx.OperatorExportTypes.ONNX
  
      if use_dynamo:
 -        export_options = torch.onnx.ExportOptions(dynamic_shapes=dynamic_size)
@@ -42,12 +42,8 @@
 +        )  # 'torch.onnx.dynamo_export' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          export_output.save(output_file)
      else:
-         torch.onnx.export(
-@@ -92,7 +97,7 @@             dynamic_axes=dynamic_axes,
-             opset_version=opset,
-             operator_export_type=export_type
--        )
-+        )  # 'torch.onnx.export' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     if check:
-         onnx_model = onnx.load(output_file)
+-        torch.onnx.export(
++        ms.jit(
+             model,
+             example_input,
+             output_file,

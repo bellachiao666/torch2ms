@@ -111,8 +111,6 @@ class Kron(torch.optim.Optimizer):
         deterministic: Deterministic behaviour across save / load (resume). FIXME slow, needs work
     """
 
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
         self,
         params: ParamsT,
@@ -221,6 +219,7 @@ class Kron(torch.optim.Optimizer):
         super().__setstate__(state)
         self._param_exprs = {}
 
+    @torch.no_grad()
     def step(self, closure=None):
         loss = None
         if closure is not None:
@@ -545,11 +544,11 @@ def _balance_Q(Q_in):
 
 def _precond_grad(Q, exprs, G):
     """Precondition gradient G with preconditioner Q."""
-    return mint.einsum(exprs[-1], *[q.conj() for q in Q], *Q, G)
+    return mint.einsum(exprs[-1], *[q.conj() for q in Q], *Q, G)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _calc_A_and_conjB(exprA, G, Q, V):
-    A = mint.einsum(exprA, *Q, G)
+    A = mint.einsum(exprA, *Q, G)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     order = G.dim()
     p = tuple(range(order))
     conjB = mint.permute(V.conj(), p[1:] + p[:1])

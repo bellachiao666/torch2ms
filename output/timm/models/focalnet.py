@@ -73,11 +73,11 @@ class FocalModulation(msnn.Cell):
         self.normalize_modulator = normalize_modulator
         self.input_split = [dim, dim, self.focal_level + 1]
 
-        self.f = nn.Conv2d(dim, 2 * dim + (self.focal_level + 1), kernel_size=1, bias=bias, **dd)
-        self.h = nn.Conv2d(dim, dim, kernel_size=1, bias=bias, **dd)
+        self.f = nn.Conv2d(dim, 2 * dim + (self.focal_level + 1), kernel_size=1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.h = nn.Conv2d(dim, dim, kernel_size=1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.act = nn.GELU()
-        self.proj = nn.Conv2d(dim, dim, kernel_size=1, **dd)
+        self.proj = nn.Conv2d(dim, dim, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
         self.focal_layers = msnn.CellList()
 
@@ -87,9 +87,9 @@ class FocalModulation(msnn.Cell):
             self.focal_layers.append(msnn.SequentialCell(
                 nn.Conv2d(dim, dim, kernel_size=kernel_size, groups=dim, padding=kernel_size // 2, bias=False, **dd),
                 nn.GELU(),
-            ))
+            ))  # 存在 *args/**kwargs，需手动确认参数映射;
             self.kernel_sizes.append(kernel_size)
-        self.norm = norm_layer(dim, **dd) if self.use_post_norm else msnn.Identity()
+        self.norm = norm_layer(dim, **dd) if self.use_post_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         # pre linear projection
@@ -162,7 +162,7 @@ class FocalNetBlock(msnn.Cell):
         self.focal_level = focal_level
         self.use_post_norm = use_post_norm
 
-        self.norm1 = norm_layer(dim, **dd) if not use_post_norm else msnn.Identity()
+        self.norm1 = norm_layer(dim, **dd) if not use_post_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.modulation = FocalModulation(
             dim,
             focal_window=focal_window,
@@ -172,12 +172,12 @@ class FocalNetBlock(msnn.Cell):
             proj_drop=proj_drop,
             norm_layer=norm_layer,
             **dd,
-        )
-        self.norm1_post = norm_layer(dim, **dd) if use_post_norm else msnn.Identity()
-        self.ls1 = LayerScale2d(dim, layerscale_value, **dd) if layerscale_value is not None else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1_post = norm_layer(dim, **dd) if use_post_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale2d(dim, layerscale_value, **dd) if layerscale_value is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd) if not use_post_norm else msnn.Identity()
+        self.norm2 = norm_layer(dim, **dd) if not use_post_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
@@ -185,9 +185,9 @@ class FocalNetBlock(msnn.Cell):
             drop=proj_drop,
             use_conv=True,
             **dd,
-        )
-        self.norm2_post = norm_layer(dim, **dd) if use_post_norm else msnn.Identity()
-        self.ls2 = LayerScale2d(dim, layerscale_value, **dd) if layerscale_value is not None else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm2_post = norm_layer(dim, **dd) if use_post_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale2d(dim, layerscale_value, **dd) if layerscale_value is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -260,7 +260,7 @@ class FocalNetStage(msnn.Cell):
                 overlap=use_overlap_down,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.downsample = msnn.Identity()
 
@@ -280,9 +280,9 @@ class FocalNetStage(msnn.Cell):
                 norm_layer=norm_layer,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
@@ -328,8 +328,8 @@ class Downsample(msnn.Cell):
                 kernel_size, padding = 7, 2
             elif stride == 2:
                 kernel_size, padding = 3, 1
-        self.proj = nn.Conv2d(in_chs, out_chs, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
-        self.norm = norm_layer(out_chs, **dd) if norm_layer is not None else msnn.Identity()
+        self.proj = nn.Conv2d(in_chs, out_chs, kernel_size=kernel_size, stride=stride, padding=padding, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.proj(x)
@@ -397,7 +397,7 @@ class FocalNet(msnn.Cell):
             overlap=use_overlap_down,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_dim = embed_dim[0]
 
         dpr = calculate_drop_path_rates(drop_path_rate, sum(depths))  # stochastic depth decay rule
@@ -421,12 +421,12 @@ class FocalNet(msnn.Cell):
                 drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_dim = out_dim
             layers += [layer]
             self.feature_info += [dict(num_chs=out_dim, reduction=4 * 2 ** i_layer, module=f'layers.{i_layer}')]
 
-        self.layers = msnn.SequentialCell(*layers)
+        self.layers = msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if head_hidden_size:
             self.norm = msnn.Identity()
@@ -439,24 +439,24 @@ class FocalNet(msnn.Cell):
                 drop_rate=drop_rate,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.norm = norm_layer(self.num_features, **dd)
+            self.norm = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head = ClassifierHead(
                 self.num_features,
                 num_classes,
                 pool_type=global_pool,
                 drop_rate=drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         named_apply(partial(_init_weights, head_init_scale=head_init_scale), self)
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {''}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
@@ -470,13 +470,13 @@ class FocalNet(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
         for l in self.layers:
             l.set_grad_checkpointing(enable=enable)
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -654,44 +654,44 @@ def _create_focalnet(variant, pretrained=False, **kwargs):
         FocalNet, variant, pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def focalnet_tiny_srf(pretrained=False, **kwargs) -> FocalNet:
-    model_kwargs = dict(depths=[2, 2, 6, 2], embed_dim=96, **kwargs)
-    return _create_focalnet('focalnet_tiny_srf', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=[2, 2, 6, 2], embed_dim=96, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_tiny_srf', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_small_srf(pretrained=False, **kwargs) -> FocalNet:
-    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=96, **kwargs)
-    return _create_focalnet('focalnet_small_srf', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=96, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_small_srf', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_base_srf(pretrained=False, **kwargs) -> FocalNet:
-    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=128, **kwargs)
-    return _create_focalnet('focalnet_base_srf', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=128, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_base_srf', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_tiny_lrf(pretrained=False, **kwargs) -> FocalNet:
-    model_kwargs = dict(depths=[2, 2, 6, 2], embed_dim=96, focal_levels=[3, 3, 3, 3], **kwargs)
-    return _create_focalnet('focalnet_tiny_lrf', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=[2, 2, 6, 2], embed_dim=96, focal_levels=[3, 3, 3, 3], **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_tiny_lrf', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_small_lrf(pretrained=False, **kwargs) -> FocalNet:
-    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=96, focal_levels=[3, 3, 3, 3], **kwargs)
-    return _create_focalnet('focalnet_small_lrf', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=96, focal_levels=[3, 3, 3, 3], **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_small_lrf', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_base_lrf(pretrained=False, **kwargs) -> FocalNet:
-    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=128, focal_levels=[3, 3, 3, 3], **kwargs)
-    return _create_focalnet('focalnet_base_lrf', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=128, focal_levels=[3, 3, 3, 3], **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_base_lrf', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 # FocalNet large+ models
@@ -699,46 +699,46 @@ def focalnet_base_lrf(pretrained=False, **kwargs) -> FocalNet:
 def focalnet_large_fl3(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
         depths=[2, 2, 18, 2], embed_dim=192, focal_levels=[3, 3, 3, 3], focal_windows=[5] * 4,
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_large_fl3', pretrained=pretrained, **model_kwargs)
+        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_large_fl3', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_large_fl4(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
         depths=[2, 2, 18, 2], embed_dim=192, focal_levels=[4, 4, 4, 4],
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_large_fl4', pretrained=pretrained, **model_kwargs)
+        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_large_fl4', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_xlarge_fl3(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
         depths=[2, 2, 18, 2], embed_dim=256, focal_levels=[3, 3, 3, 3], focal_windows=[5] * 4,
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_xlarge_fl3', pretrained=pretrained, **model_kwargs)
+        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_xlarge_fl3', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_xlarge_fl4(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
         depths=[2, 2, 18, 2], embed_dim=256, focal_levels=[4, 4, 4, 4],
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_xlarge_fl4', pretrained=pretrained, **model_kwargs)
+        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_xlarge_fl4', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_huge_fl3(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
         depths=[2, 2, 18, 2], embed_dim=352, focal_levels=[3, 3, 3, 3], focal_windows=[3] * 4,
-        use_post_norm=True, use_post_norm_in_modulation=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_huge_fl3', pretrained=pretrained, **model_kwargs)
+        use_post_norm=True, use_post_norm_in_modulation=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_huge_fl3', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def focalnet_huge_fl4(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
         depths=[2, 2, 18, 2], embed_dim=352, focal_levels=[4, 4, 4, 4],
-        use_post_norm=True, use_post_norm_in_modulation=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_huge_fl4', pretrained=pretrained, **model_kwargs)
+        use_post_norm=True, use_post_norm_in_modulation=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_focalnet('focalnet_huge_fl4', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

@@ -37,16 +37,16 @@ class InceptionA(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         conv_block = conv_block or ConvNormAct
-        self.branch1x1 = conv_block(in_channels, 64, kernel_size=1, **dd)
+        self.branch1x1 = conv_block(in_channels, 64, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch5x5_1 = conv_block(in_channels, 48, kernel_size=1, **dd)
-        self.branch5x5_2 = conv_block(48, 64, kernel_size=5, padding=2, **dd)
+        self.branch5x5_1 = conv_block(in_channels, 48, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch5x5_2 = conv_block(48, 64, kernel_size=5, padding=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch3x3dbl_1 = conv_block(in_channels, 64, kernel_size=1, **dd)
-        self.branch3x3dbl_2 = conv_block(64, 96, kernel_size=3, padding=1, **dd)
-        self.branch3x3dbl_3 = conv_block(96, 96, kernel_size=3, padding=1, **dd)
+        self.branch3x3dbl_1 = conv_block(in_channels, 64, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3dbl_2 = conv_block(64, 96, kernel_size=3, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3dbl_3 = conv_block(96, 96, kernel_size=3, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch_pool = conv_block(in_channels, pool_features, kernel_size=1, **dd)
+        self.branch_pool = conv_block(in_channels, pool_features, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _forward(self, x):
         branch1x1 = self.branch1x1(x)
@@ -81,11 +81,11 @@ class InceptionB(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         conv_block = conv_block or ConvNormAct
-        self.branch3x3 = conv_block(in_channels, 384, kernel_size=3, stride=2, **dd)
+        self.branch3x3 = conv_block(in_channels, 384, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch3x3dbl_1 = conv_block(in_channels, 64, kernel_size=1, **dd)
-        self.branch3x3dbl_2 = conv_block(64, 96, kernel_size=3, padding=1, **dd)
-        self.branch3x3dbl_3 = conv_block(96, 96, kernel_size=3, stride=2, **dd)
+        self.branch3x3dbl_1 = conv_block(in_channels, 64, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3dbl_2 = conv_block(64, 96, kernel_size=3, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3dbl_3 = conv_block(96, 96, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _forward(self, x):
         branch3x3 = self.branch3x3(x)
@@ -117,20 +117,20 @@ class InceptionC(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         conv_block = conv_block or ConvNormAct
-        self.branch1x1 = conv_block(in_channels, 192, kernel_size=1, **dd)
+        self.branch1x1 = conv_block(in_channels, 192, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         c7 = channels_7x7
-        self.branch7x7_1 = conv_block(in_channels, c7, kernel_size=1, **dd)
-        self.branch7x7_2 = conv_block(c7, c7, kernel_size=(1, 7), padding=(0, 3), **dd)
-        self.branch7x7_3 = conv_block(c7, 192, kernel_size=(7, 1), padding=(3, 0), **dd)
+        self.branch7x7_1 = conv_block(in_channels, c7, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7_2 = conv_block(c7, c7, kernel_size=(1, 7), padding=(0, 3), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7_3 = conv_block(c7, 192, kernel_size=(7, 1), padding=(3, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch7x7dbl_1 = conv_block(in_channels, c7, kernel_size=1, **dd)
-        self.branch7x7dbl_2 = conv_block(c7, c7, kernel_size=(7, 1), padding=(3, 0), **dd)
-        self.branch7x7dbl_3 = conv_block(c7, c7, kernel_size=(1, 7), padding=(0, 3), **dd)
-        self.branch7x7dbl_4 = conv_block(c7, c7, kernel_size=(7, 1), padding=(3, 0), **dd)
-        self.branch7x7dbl_5 = conv_block(c7, 192, kernel_size=(1, 7), padding=(0, 3), **dd)
+        self.branch7x7dbl_1 = conv_block(in_channels, c7, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7dbl_2 = conv_block(c7, c7, kernel_size=(7, 1), padding=(3, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7dbl_3 = conv_block(c7, c7, kernel_size=(1, 7), padding=(0, 3), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7dbl_4 = conv_block(c7, c7, kernel_size=(7, 1), padding=(3, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7dbl_5 = conv_block(c7, 192, kernel_size=(1, 7), padding=(0, 3), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch_pool = conv_block(in_channels, 192, kernel_size=1, **dd)
+        self.branch_pool = conv_block(in_channels, 192, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _forward(self, x):
         branch1x1 = self.branch1x1(x)
@@ -168,13 +168,13 @@ class InceptionD(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         conv_block = conv_block or ConvNormAct
-        self.branch3x3_1 = conv_block(in_channels, 192, kernel_size=1, **dd)
-        self.branch3x3_2 = conv_block(192, 320, kernel_size=3, stride=2, **dd)
+        self.branch3x3_1 = conv_block(in_channels, 192, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3_2 = conv_block(192, 320, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch7x7x3_1 = conv_block(in_channels, 192, kernel_size=1, **dd)
-        self.branch7x7x3_2 = conv_block(192, 192, kernel_size=(1, 7), padding=(0, 3), **dd)
-        self.branch7x7x3_3 = conv_block(192, 192, kernel_size=(7, 1), padding=(3, 0), **dd)
-        self.branch7x7x3_4 = conv_block(192, 192, kernel_size=3, stride=2, **dd)
+        self.branch7x7x3_1 = conv_block(in_channels, 192, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7x3_2 = conv_block(192, 192, kernel_size=(1, 7), padding=(0, 3), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7x3_3 = conv_block(192, 192, kernel_size=(7, 1), padding=(3, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch7x7x3_4 = conv_block(192, 192, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _forward(self, x):
         branch3x3 = self.branch3x3_1(x)
@@ -206,18 +206,18 @@ class InceptionE(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         conv_block = conv_block or ConvNormAct
-        self.branch1x1 = conv_block(in_channels, 320, kernel_size=1, **dd)
+        self.branch1x1 = conv_block(in_channels, 320, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch3x3_1 = conv_block(in_channels, 384, kernel_size=1, **dd)
-        self.branch3x3_2a = conv_block(384, 384, kernel_size=(1, 3), padding=(0, 1), **dd)
-        self.branch3x3_2b = conv_block(384, 384, kernel_size=(3, 1), padding=(1, 0), **dd)
+        self.branch3x3_1 = conv_block(in_channels, 384, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3_2a = conv_block(384, 384, kernel_size=(1, 3), padding=(0, 1), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3_2b = conv_block(384, 384, kernel_size=(3, 1), padding=(1, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch3x3dbl_1 = conv_block(in_channels, 448, kernel_size=1, **dd)
-        self.branch3x3dbl_2 = conv_block(448, 384, kernel_size=3, padding=1, **dd)
-        self.branch3x3dbl_3a = conv_block(384, 384, kernel_size=(1, 3), padding=(0, 1), **dd)
-        self.branch3x3dbl_3b = conv_block(384, 384, kernel_size=(3, 1), padding=(1, 0), **dd)
+        self.branch3x3dbl_1 = conv_block(in_channels, 448, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3dbl_2 = conv_block(448, 384, kernel_size=3, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3dbl_3a = conv_block(384, 384, kernel_size=(1, 3), padding=(0, 1), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.branch3x3dbl_3b = conv_block(384, 384, kernel_size=(3, 1), padding=(1, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.branch_pool = conv_block(in_channels, 192, kernel_size=1, **dd)
+        self.branch_pool = conv_block(in_channels, 192, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _forward(self, x):
         branch1x1 = self.branch1x1(x)
@@ -261,10 +261,10 @@ class InceptionAux(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         conv_block = conv_block or ConvNormAct
-        self.conv0 = conv_block(in_channels, 128, kernel_size=1, **dd)
-        self.conv1 = conv_block(128, 768, kernel_size=5, **dd)
+        self.conv0 = conv_block(in_channels, 128, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv1 = conv_block(128, 768, kernel_size=5, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv1.stddev = 0.01
-        self.fc = Linear(768, num_classes, **dd)
+        self.fc = Linear(768, num_classes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.fc.stddev = 0.001
 
     def construct(self, x):
@@ -288,7 +288,7 @@ class InceptionAux(msnn.Cell):
 class InceptionV3(msnn.Cell):
     """Inception-V3
     """
-    aux_logits: torch.jit.Final[bool]
+    aux_logits: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -316,28 +316,28 @@ class InceptionV3(msnn.Cell):
             act_kwargs=dict(inplace=True),
         )
 
-        self.Conv2d_1a_3x3 = conv_block(in_chans, 32, kernel_size=3, stride=2, **dd)
-        self.Conv2d_2a_3x3 = conv_block(32, 32, kernel_size=3, **dd)
-        self.Conv2d_2b_3x3 = conv_block(32, 64, kernel_size=3, padding=1, **dd)
+        self.Conv2d_1a_3x3 = conv_block(in_chans, 32, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Conv2d_2a_3x3 = conv_block(32, 32, kernel_size=3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Conv2d_2b_3x3 = conv_block(32, 64, kernel_size=3, padding=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.Pool1 = nn.MaxPool2d(kernel_size = 3, stride = 2)
-        self.Conv2d_3b_1x1 = conv_block(64, 80, kernel_size=1, **dd)
-        self.Conv2d_4a_3x3 = conv_block(80, 192, kernel_size=3, **dd)
+        self.Conv2d_3b_1x1 = conv_block(64, 80, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Conv2d_4a_3x3 = conv_block(80, 192, kernel_size=3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.Pool2 = nn.MaxPool2d(kernel_size = 3, stride = 2)
-        self.Mixed_5b = InceptionA(192, pool_features=32, conv_block=conv_block, **dd)
-        self.Mixed_5c = InceptionA(256, pool_features=64, conv_block=conv_block, **dd)
-        self.Mixed_5d = InceptionA(288, pool_features=64, conv_block=conv_block, **dd)
-        self.Mixed_6a = InceptionB(288, conv_block=conv_block, **dd)
-        self.Mixed_6b = InceptionC(768, channels_7x7=128, conv_block=conv_block, **dd)
-        self.Mixed_6c = InceptionC(768, channels_7x7=160, conv_block=conv_block, **dd)
-        self.Mixed_6d = InceptionC(768, channels_7x7=160, conv_block=conv_block, **dd)
-        self.Mixed_6e = InceptionC(768, channels_7x7=192, conv_block=conv_block, **dd)
+        self.Mixed_5b = InceptionA(192, pool_features=32, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_5c = InceptionA(256, pool_features=64, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_5d = InceptionA(288, pool_features=64, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_6a = InceptionB(288, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_6b = InceptionC(768, channels_7x7=128, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_6c = InceptionC(768, channels_7x7=160, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_6d = InceptionC(768, channels_7x7=160, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_6e = InceptionC(768, channels_7x7=192, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if aux_logits:
-            self.AuxLogits = InceptionAux(768, num_classes, conv_block=conv_block, **dd)
+            self.AuxLogits = InceptionAux(768, num_classes, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.AuxLogits = None
-        self.Mixed_7a = InceptionD(768, conv_block=conv_block, **dd)
-        self.Mixed_7b = InceptionE(1280, conv_block=conv_block, **dd)
-        self.Mixed_7c = InceptionE(2048, conv_block=conv_block, **dd)
+        self.Mixed_7a = InceptionD(768, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_7b = InceptionE(1280, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.Mixed_7c = InceptionE(2048, conv_block=conv_block, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(num_chs=64, reduction=2, module='Conv2d_2b_3x3'),
             dict(num_chs=192, reduction=4, module='Conv2d_4a_3x3'),
@@ -353,7 +353,7 @@ class InceptionV3(msnn.Cell):
             pool_type=global_pool,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -363,7 +363,7 @@ class InceptionV3(msnn.Cell):
                 nn.init.constant_(m.weight, 1)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         module_map = {k: i for i, (k, _) in enumerate(flatten_modules(self.named_children(), prefix=()))}
         module_map.pop(('fc',))
@@ -380,11 +380,11 @@ class InceptionV3(msnn.Cell):
                 return float('inf')
         return _matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.fc
 
@@ -463,7 +463,7 @@ def _create_inception_v3(variant, pretrained=False, **kwargs):
         pretrained_cfg=pretrained_cfg,
         pretrained_strict=load_strict,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -500,7 +500,7 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def inception_v3(pretrained=False, **kwargs) -> InceptionV3:
-    model = _create_inception_v3('inception_v3', pretrained=pretrained, **kwargs)
+    model = _create_inception_v3('inception_v3', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

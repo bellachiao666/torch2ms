@@ -43,14 +43,7 @@
  class AdamP(Optimizer):
      def __init__(
              self,
-@@ -63,7 +69,6 @@         )
-         super(AdamP, self).__init__(params, defaults)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         loss = None
-         if closure is not None:
-@@ -84,8 +89,8 @@                 # State initialization
+@@ -84,8 +90,8 @@                 # State initialization
                  if len(state) == 0:
                      state['step'] = 0
 -                    state['exp_avg'] = torch.zeros_like(p)

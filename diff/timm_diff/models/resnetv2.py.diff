@@ -24,10 +24,23 @@
      """Pre-activation basic block (not in typical 'v2' implementations)."""
  
      def __init__(
-@@ -110,13 +115,13 @@         self.conv1 = conv_layer(in_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)
-         self.norm2 = norm_layer(mid_chs, **dd)
-         self.conv2 = conv_layer(mid_chs, out_chs, 3, dilation=dilation, groups=groups, **dd)
+@@ -102,21 +107,21 @@                 conv_layer=conv_layer,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.downsample = None
+ 
+-        self.norm1 = norm_layer(in_chs, **dd)
+-        self.conv1 = conv_layer(in_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)
+-        self.norm2 = norm_layer(mid_chs, **dd)
+-        self.conv2 = conv_layer(mid_chs, out_chs, 3, dilation=dilation, groups=groups, **dd)
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else nn.Identity()
++        self.norm1 = norm_layer(in_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv1 = conv_layer(in_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm2 = norm_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv2 = conv_layer(mid_chs, out_chs, 3, dilation=dilation, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
  
      def zero_init_last(self) -> None:
@@ -49,10 +62,27 @@
      """Pre-activation (v2) bottleneck block.
  
      Follows the implementation of "Identity Mappings in Deep Residual Networks":
-@@ -210,13 +215,13 @@         self.conv2 = conv_layer(mid_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)
-         self.norm3 = norm_layer(mid_chs, **dd)
-         self.conv3 = conv_layer(mid_chs, out_chs, 1, **dd)
+@@ -200,23 +205,23 @@                 conv_layer=conv_layer,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.downsample = None
+ 
+-        self.norm1 = norm_layer(in_chs, **dd)
+-        self.conv1 = conv_layer(in_chs, mid_chs, 1, **dd)
+-        self.norm2 = norm_layer(mid_chs, **dd)
+-        self.conv2 = conv_layer(mid_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)
+-        self.norm3 = norm_layer(mid_chs, **dd)
+-        self.conv3 = conv_layer(mid_chs, out_chs, 1, **dd)
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else nn.Identity()
++        self.norm1 = norm_layer(in_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv1 = conv_layer(in_chs, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm2 = norm_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv2 = conv_layer(mid_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm3 = norm_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv3 = conv_layer(mid_chs, out_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
  
      def zero_init_last(self) -> None:
@@ -74,10 +104,27 @@
      """Non Pre-activation bottleneck block, equiv to V1.5/V1b Bottleneck. Used for ViT.
      """
      def __init__(
-@@ -289,15 +294,15 @@         self.norm2 = norm_layer(mid_chs, **dd)
-         self.conv3 = conv_layer(mid_chs, out_chs, 1, **dd)
-         self.norm3 = norm_layer(out_chs, apply_act=False, **dd)
+@@ -279,25 +284,25 @@                 conv_layer=conv_layer,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.downsample = None
+ 
+-        self.conv1 = conv_layer(in_chs, mid_chs, 1, **dd)
+-        self.norm1 = norm_layer(mid_chs, **dd)
+-        self.conv2 = conv_layer(mid_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)
+-        self.norm2 = norm_layer(mid_chs, **dd)
+-        self.conv3 = conv_layer(mid_chs, out_chs, 1, **dd)
+-        self.norm3 = norm_layer(out_chs, apply_act=False, **dd)
 -        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else nn.Identity()
++        self.conv1 = conv_layer(in_chs, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm1 = norm_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv2 = conv_layer(mid_chs, mid_chs, 3, stride=stride, dilation=first_dilation, groups=groups, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm2 = norm_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv3 = conv_layer(mid_chs, out_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm3 = norm_layer(out_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0 else msnn.Identity()
          self.act3 = act_layer(inplace=True)
  
@@ -101,13 +148,15 @@
      """1x1 convolution downsampling module."""
  
      def __init__(
-@@ -342,9 +347,9 @@         dd = {'device': device, 'dtype': dtype}
+@@ -341,10 +346,10 @@     ):
+         dd = {'device': device, 'dtype': dtype}
          super().__init__()
-         self.conv = conv_layer(in_chs, out_chs, 1, stride=stride, **dd)
+-        self.conv = conv_layer(in_chs, out_chs, 1, stride=stride, **dd)
 -        self.norm = nn.Identity() if preact else norm_layer(out_chs, apply_act=False, **dd)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+        self.norm = msnn.Identity() if preact else norm_layer(out_chs, apply_act=False, **dd)
++        self.conv = conv_layer(in_chs, out_chs, 1, stride=stride, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm = msnn.Identity() if preact else norm_layer(out_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          """Forward pass.
@@ -125,12 +174,13 @@
              self.pool = avg_pool_fn(2, avg_stride, ceil_mode=True, count_include_pad=False)
          else:
 -            self.pool = nn.Identity()
-+            self.pool = msnn.Identity()
-         self.conv = conv_layer(in_chs, out_chs, 1, stride=1, **dd)
+-        self.conv = conv_layer(in_chs, out_chs, 1, stride=1, **dd)
 -        self.norm = nn.Identity() if preact else norm_layer(out_chs, apply_act=False, **dd)
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+        self.norm = msnn.Identity() if preact else norm_layer(out_chs, apply_act=False, **dd)
++            self.pool = msnn.Identity()
++        self.conv = conv_layer(in_chs, out_chs, 1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm = msnn.Identity() if preact else norm_layer(out_chs, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          """Forward pass.
@@ -152,7 +202,13 @@
          for block_idx in range(depth):
              drop_path_rate = block_dpr[block_idx] if block_dpr else 0.
              stride = stride if block_idx == 0 else 1
-@@ -442,7 +447,7 @@             first_dilation = dilation
+@@ -437,12 +442,12 @@                 drop_path_rate=drop_path_rate,
+                 **layer_kwargs,
+                 **block_kwargs,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             prev_chs = out_chs
+             first_dilation = dilation
              proj_layer = None
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -168,7 +224,31 @@
      dd = {'device': device, 'dtype': dtype}
      stem = OrderedDict()
      assert stem_type in ('', 'fixed', 'same', 'deep', 'deep_fixed', 'deep_same', 'tiered')
-@@ -507,18 +512,18 @@     if 'fixed' in stem_type:
+@@ -491,34 +496,34 @@             stem_chs = (3 * out_chs // 8, out_chs // 2)  # 'T' resnets in resnet.py
+         else:
+             stem_chs = (out_chs // 2, out_chs // 2)  # 'D' ResNets
+-        stem['conv1'] = conv_layer(in_chs, stem_chs[0], kernel_size=3, stride=2, **dd)
+-        stem['norm1'] = norm_layer(stem_chs[0], **dd)
+-        stem['conv2'] = conv_layer(stem_chs[0], stem_chs[1], kernel_size=3, stride=1, **dd)
+-        stem['norm2'] = norm_layer(stem_chs[1], **dd)
+-        stem['conv3'] = conv_layer(stem_chs[1], out_chs, kernel_size=3, stride=1, **dd)
++        stem['conv1'] = conv_layer(in_chs, stem_chs[0], kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        stem['norm1'] = norm_layer(stem_chs[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        stem['conv2'] = conv_layer(stem_chs[0], stem_chs[1], kernel_size=3, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        stem['norm2'] = norm_layer(stem_chs[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        stem['conv3'] = conv_layer(stem_chs[1], out_chs, kernel_size=3, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if not preact:
+-            stem['norm3'] = norm_layer(out_chs, **dd)
++            stem['norm3'] = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     else:
+         # The usual 7x7 stem conv
+-        stem['conv'] = conv_layer(in_chs, out_chs, kernel_size=7, stride=2, **dd)
++        stem['conv'] = conv_layer(in_chs, out_chs, kernel_size=7, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if not preact:
+-            stem['norm'] = norm_layer(out_chs, **dd)
++            stem['norm'] = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     if 'fixed' in stem_type:
          # 'fixed' SAME padding approximation that is used in BiT models
          stem['pad'] = nn.ConstantPad2d(1, 0.)
 -        stem['pool'] = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
@@ -193,6 +273,14 @@
      """Implementation of Pre-activation (v2) ResNet mode.
      """
  
+@@ -584,7 +589,7 @@             conv_layer=conv_layer,
+             norm_layer=norm_layer,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         stem_feat = ('stem.conv3' if is_stem_deep(stem_type) else 'stem.conv') if preact else 'stem.norm'
+         self.feature_info.append(dict(num_chs=stem_chs, reduction=2, module=stem_feat))
+ 
 @@ -597,7 +602,7 @@         else:
              assert not basic
              block_fn = Bottleneck
@@ -201,18 +289,60 @@
          for stage_idx, (d, c, bdpr) in enumerate(zip(layers, channels, block_dprs)):
              out_chs = make_divisible(c * wf)
              stride = 1 if stage_idx == 0 else 2
-@@ -625,7 +630,7 @@             self.stages.add_module(str(stage_idx), stage)
+@@ -618,14 +623,14 @@                 block_dpr=bdpr,
+                 block_fn=block_fn,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             prev_chs = out_chs
+             curr_stride *= stride
+             self.feature_info += [dict(num_chs=prev_chs, reduction=curr_stride, module=f'stages.{stage_idx}')]
+             self.stages.add_module(str(stage_idx), stage)
  
          self.num_features = self.head_hidden_size = prev_chs
 -        self.norm = norm_layer(self.num_features, **dd) if preact else nn.Identity()
-+        self.norm = norm_layer(self.num_features, **dd) if preact else msnn.Identity()
++        self.norm = norm_layer(self.num_features, **dd) if preact else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.head = ClassifierHead(
              self.num_features,
              num_classes,
-@@ -666,7 +671,7 @@             s.grad_checkpointing = enable
+@@ -633,21 +638,21 @@             drop_rate=self.drop_rate,
+             use_conv=True,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
-     @torch.jit.ignore
+         self.init_weights(zero_init_last=zero_init_last)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def init_weights(self, zero_init_last: bool = True) -> None:
+         """Initialize model weights."""
+         named_apply(partial(_init_weights, zero_init_last=zero_init_last), self)
+ 
+-    @torch.jit.ignore()
++    @ms.jit()
+     def load_pretrained(self, checkpoint_path: str, prefix: str = 'resnet/') -> None:
+         """Load pretrained weights."""
+         _load_weights(self, checkpoint_path, prefix)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+         """Group parameters for optimization."""
+         matcher = dict(
+@@ -659,14 +664,14 @@         )
+         return matcher
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True) -> None:
+         """Enable or disable gradient checkpointing."""
+         for s in self.stages:
+             s.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          """Get the classifier head."""
          return self.head.fc
@@ -270,7 +400,7 @@
      """Initialize module weights.
  
      Args:
-@@ -802,28 +807,27 @@         zero_init_last: Zero-initialize last layer weights.
+@@ -802,28 +807,28 @@         zero_init_last: Zero-initialize last layer weights.
      """
      if isinstance(module, nn.Linear) or ('head.fc' in name and isinstance(module, nn.Conv2d)):
 -        nn.init.normal_(module.weight, mean=0.0, std=0.01)
@@ -292,7 +422,7 @@
          module.zero_init_last()
  
  
--@torch.no_grad()
+ @torch.no_grad()
 -def _load_weights(model: nn.Module, checkpoint_path: str, prefix: str = 'resnet/'):
 +def _load_weights(model: msnn.Cell, checkpoint_path: str, prefix: str = 'resnet/'):
      import numpy as np
@@ -306,3 +436,179 @@
  
      weights = np.load(checkpoint_path)
      stem_conv_w = adapt_input_conv(
+@@ -869,7 +874,7 @@         ResNetV2, variant, pretrained,
+         feature_cfg=feature_cfg,
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _create_resnetv2_bit(variant: str, pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+@@ -889,7 +894,7 @@         stem_type='fixed',
+         conv_layer=partial(StdConv2d, eps=1e-8),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _cfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
+@@ -1008,42 +1013,42 @@ def resnetv2_50x1_bit(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-50x1-BiT model."""
+     return _create_resnetv2_bit(
+-        'resnetv2_50x1_bit', pretrained=pretrained, layers=[3, 4, 6, 3], width_factor=1, **kwargs)
++        'resnetv2_50x1_bit', pretrained=pretrained, layers=[3, 4, 6, 3], width_factor=1, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_50x3_bit(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-50x3-BiT model."""
+     return _create_resnetv2_bit(
+-        'resnetv2_50x3_bit', pretrained=pretrained, layers=[3, 4, 6, 3], width_factor=3, **kwargs)
++        'resnetv2_50x3_bit', pretrained=pretrained, layers=[3, 4, 6, 3], width_factor=3, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_101x1_bit(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-101x1-BiT model."""
+     return _create_resnetv2_bit(
+-        'resnetv2_101x1_bit', pretrained=pretrained, layers=[3, 4, 23, 3], width_factor=1, **kwargs)
++        'resnetv2_101x1_bit', pretrained=pretrained, layers=[3, 4, 23, 3], width_factor=1, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_101x3_bit(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-101x3-BiT model."""
+     return _create_resnetv2_bit(
+-        'resnetv2_101x3_bit', pretrained=pretrained, layers=[3, 4, 23, 3], width_factor=3, **kwargs)
++        'resnetv2_101x3_bit', pretrained=pretrained, layers=[3, 4, 23, 3], width_factor=3, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_152x2_bit(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-152x2-BiT model."""
+     return _create_resnetv2_bit(
+-        'resnetv2_152x2_bit', pretrained=pretrained, layers=[3, 8, 36, 3], width_factor=2, **kwargs)
++        'resnetv2_152x2_bit', pretrained=pretrained, layers=[3, 8, 36, 3], width_factor=2, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_152x4_bit(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-152x4-BiT model."""
+     return _create_resnetv2_bit(
+-        'resnetv2_152x4_bit', pretrained=pretrained, layers=[3, 8, 36, 3], width_factor=4, **kwargs)
++        'resnetv2_152x4_bit', pretrained=pretrained, layers=[3, 8, 36, 3], width_factor=4, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1053,7 +1058,7 @@         layers=[2, 2, 2, 2], channels=(64, 128, 256, 512), basic=True, bottle_ratio=1.0,
+         conv_layer=create_conv2d, norm_layer=BatchNormAct2d
+     )
+-    return _create_resnetv2('resnetv2_18', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_18', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1063,7 +1068,7 @@         layers=[2, 2, 2, 2], channels=(64, 128, 256, 512), basic=True, bottle_ratio=1.0,
+         conv_layer=create_conv2d, norm_layer=BatchNormAct2d, stem_type='deep', avg_down=True
+     )
+-    return _create_resnetv2('resnetv2_18d', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_18d', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1073,7 +1078,7 @@         layers=(3, 4, 6, 3), channels=(64, 128, 256, 512), basic=True, bottle_ratio=1.0,
+         conv_layer=create_conv2d, norm_layer=BatchNormAct2d
+     )
+-    return _create_resnetv2('resnetv2_34', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_34', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1083,14 +1088,14 @@         layers=(3, 4, 6, 3), channels=(64, 128, 256, 512), basic=True, bottle_ratio=1.0,
+         conv_layer=create_conv2d, norm_layer=BatchNormAct2d, stem_type='deep', avg_down=True
+     )
+-    return _create_resnetv2('resnetv2_34d', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_34d', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_50(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-50 model."""
+     model_args = dict(layers=[3, 4, 6, 3], conv_layer=create_conv2d, norm_layer=BatchNormAct2d)
+-    return _create_resnetv2('resnetv2_50', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_50', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1099,7 +1104,7 @@     model_args = dict(
+         layers=[3, 4, 6, 3], conv_layer=create_conv2d, norm_layer=BatchNormAct2d,
+         stem_type='deep', avg_down=True)
+-    return _create_resnetv2('resnetv2_50d', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_50d', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1108,14 +1113,14 @@     model_args = dict(
+         layers=[3, 4, 6, 3], conv_layer=create_conv2d, norm_layer=BatchNormAct2d,
+         stem_type='tiered', avg_down=True)
+-    return _create_resnetv2('resnetv2_50t', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_50t', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_101(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-101 model."""
+     model_args = dict(layers=[3, 4, 23, 3], conv_layer=create_conv2d, norm_layer=BatchNormAct2d)
+-    return _create_resnetv2('resnetv2_101', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_101', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1124,14 +1129,14 @@     model_args = dict(
+         layers=[3, 4, 23, 3], conv_layer=create_conv2d, norm_layer=BatchNormAct2d,
+         stem_type='deep', avg_down=True)
+-    return _create_resnetv2('resnetv2_101d', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_101d', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def resnetv2_152(pretrained: bool = False, **kwargs: Any) -> ResNetV2:
+     """ResNetV2-152 model."""
+     model_args = dict(layers=[3, 8, 36, 3], conv_layer=create_conv2d, norm_layer=BatchNormAct2d)
+-    return _create_resnetv2('resnetv2_152', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_152', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1140,7 +1145,7 @@     model_args = dict(
+         layers=[3, 8, 36, 3], conv_layer=create_conv2d, norm_layer=BatchNormAct2d,
+         stem_type='deep', avg_down=True)
+-    return _create_resnetv2('resnetv2_152d', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_152d', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ # Experimental configs (may change / be removed)
+@@ -1151,7 +1156,7 @@     model_args = dict(
+         layers=[3, 4, 6, 3], conv_layer=create_conv2d, norm_layer=GroupNormAct,
+         stem_type='deep', avg_down=True)
+-    return _create_resnetv2('resnetv2_50d_gn', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_50d_gn', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1160,7 +1165,7 @@     model_args = dict(
+         layers=[3, 4, 6, 3], conv_layer=create_conv2d, norm_layer=EvoNorm2dS0,
+         stem_type='deep', avg_down=True)
+-    return _create_resnetv2('resnetv2_50d_evos', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_50d_evos', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -1169,7 +1174,7 @@     model_args = dict(
+         layers=[3, 4, 6, 3], conv_layer=create_conv2d, norm_layer=FilterResponseNormTlu2d,
+         stem_type='deep', avg_down=True)
+-    return _create_resnetv2('resnetv2_50d_frn', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_resnetv2('resnetv2_50d_frn', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ register_model_deprecations(__name__, {

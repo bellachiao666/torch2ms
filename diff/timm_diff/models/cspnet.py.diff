@@ -6,17 +6,17 @@
  """PyTorch CspNet
  
  A PyTorch implementation of Cross Stage Partial Networks including:
-@@ -16,8 +21,8 @@ from functools import partial
+@@ -15,9 +20,7 @@ from dataclasses import dataclass, asdict, replace
+ from functools import partial
  from typing import Any, Dict, List, Optional, Tuple, Type, Union
- 
+-
 -import torch
 -import torch.nn as nn
-+# import torch
 +# import torch.nn as nn
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import ClassifierHead, ConvNormAct, DropPath, calculate_drop_path_rates, get_attn, create_act_layer, make_divisible
-@@ -132,7 +137,7 @@     )
+@@ -132,7 +135,7 @@     )
  
  
 -class BottleneckBlock(nn.Module):
@@ -24,7 +24,7 @@
      """ ResNe(X)t Bottleneck Block
      """
  
-@@ -143,11 +148,11 @@             dilation: int = 1,
+@@ -143,11 +146,11 @@             dilation: int = 1,
              bottle_ratio: float = 0.25,
              groups: int = 1,
 -            act_layer: Type[nn.Module] = nn.ReLU,
@@ -39,15 +39,26 @@
              drop_path: float = 0.,
              device=None,
              dtype=None,
-@@ -170,16 +175,16 @@             **ckwargs,
+@@ -159,7 +162,7 @@         attn_last = attn_layer is not None and attn_last
+         attn_first = attn_layer is not None and not attn_last
+ 
+-        self.conv1 = ConvNormAct(in_chs, mid_chs, kernel_size=1, **ckwargs, **dd)
++        self.conv1 = ConvNormAct(in_chs, mid_chs, kernel_size=1, **ckwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.conv2 = ConvNormAct(
+             mid_chs,
+             mid_chs,
+@@ -169,17 +172,17 @@             drop_layer=drop_block,
+             **ckwargs,
              **dd,
-         )
+-        )
 -        self.attn2 = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_first else nn.Identity()
-+        self.attn2 = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_first else msnn.Identity()
-         self.conv3 = ConvNormAct(mid_chs, out_chs, kernel_size=1, apply_act=False, **ckwargs, **dd)
+-        self.conv3 = ConvNormAct(mid_chs, out_chs, kernel_size=1, apply_act=False, **ckwargs, **dd)
 -        self.attn3 = attn_layer(out_chs, act_layer=act_layer, **dd) if attn_last else nn.Identity()
 -        self.drop_path = DropPath(drop_path) if drop_path else nn.Identity()
-+        self.attn3 = attn_layer(out_chs, act_layer=act_layer, **dd) if attn_last else msnn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.attn2 = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_first else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv3 = ConvNormAct(mid_chs, out_chs, kernel_size=1, apply_act=False, **ckwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.attn3 = attn_layer(out_chs, act_layer=act_layer, **dd) if attn_last else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
          self.act3 = create_act_layer(act_layer)
  
@@ -61,7 +72,7 @@
          shortcut = x
          x = self.conv1(x)
          x = self.conv2(x)
-@@ -193,7 +198,7 @@         return x
+@@ -193,7 +196,7 @@         return x
  
  
 -class DarkBlock(nn.Module):
@@ -69,7 +80,7 @@
      """ DarkNet Block
      """
  
-@@ -204,10 +209,10 @@             dilation: int = 1,
+@@ -204,10 +207,10 @@             dilation: int = 1,
              bottle_ratio: float = 0.5,
              groups: int = 1,
 -            act_layer: Type[nn.Module] = nn.ReLU,
@@ -83,18 +94,22 @@
              drop_path: float = 0.,
              device=None,
              dtype=None,
-@@ -218,7 +223,7 @@         ckwargs = dict(act_layer=act_layer, norm_layer=norm_layer)
+@@ -217,8 +220,8 @@         mid_chs = int(round(out_chs * bottle_ratio))
+         ckwargs = dict(act_layer=act_layer, norm_layer=norm_layer)
  
-         self.conv1 = ConvNormAct(in_chs, mid_chs, kernel_size=1, **ckwargs, **dd)
+-        self.conv1 = ConvNormAct(in_chs, mid_chs, kernel_size=1, **ckwargs, **dd)
 -        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else nn.Identity()
-+        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else msnn.Identity()
++        self.conv1 = ConvNormAct(in_chs, mid_chs, kernel_size=1, **ckwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.conv2 = ConvNormAct(
              mid_chs,
              out_chs,
-@@ -229,12 +234,12 @@             **ckwargs,
+@@ -228,13 +231,13 @@             drop_layer=drop_block,
+             **ckwargs,
              **dd,
-         )
+-        )
 -        self.drop_path = DropPath(drop_path) if drop_path else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
  
      def zero_init_last(self):
@@ -107,7 +122,7 @@
          shortcut = x
          x = self.conv1(x)
          x = self.attn(x)
-@@ -243,7 +248,7 @@         return x
+@@ -243,7 +246,7 @@         return x
  
  
 -class EdgeBlock(nn.Module):
@@ -115,7 +130,7 @@
      """ EdgeResidual / Fused-MBConv / MobileNetV1-like 3x3 + 1x1 block (w/ activated output)
      """
  
-@@ -254,10 +259,10 @@             dilation: int = 1,
+@@ -254,10 +257,10 @@             dilation: int = 1,
              bottle_ratio: float = 0.5,
              groups: int = 1,
 -            act_layer: Type[nn.Module] = nn.ReLU,
@@ -129,13 +144,16 @@
              drop_path: float = 0.,
              device=None,
              dtype=None,
-@@ -277,14 +282,14 @@             **ckwargs,
+@@ -276,15 +279,15 @@             drop_layer=drop_block,
+             **ckwargs,
              **dd,
-         )
+-        )
 -        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else nn.Identity()
-+        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else msnn.Identity()
-         self.conv2 = ConvNormAct(mid_chs, out_chs, kernel_size=1, **ckwargs, **dd)
+-        self.conv2 = ConvNormAct(mid_chs, out_chs, kernel_size=1, **ckwargs, **dd)
 -        self.drop_path = DropPath(drop_path) if drop_path else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.attn = attn_layer(mid_chs, act_layer=act_layer, **dd) if attn_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv2 = ConvNormAct(mid_chs, out_chs, kernel_size=1, **ckwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
  
      def zero_init_last(self):
@@ -148,7 +166,7 @@
          shortcut = x
          x = self.conv1(x)
          x = self.attn(x)
-@@ -293,7 +298,7 @@         return x
+@@ -293,7 +296,7 @@         return x
  
  
 -class CrossStage(nn.Module):
@@ -156,7 +174,7 @@
      """Cross Stage."""
      def __init__(
              self,
-@@ -311,7 +316,7 @@             down_growth: bool = False,
+@@ -311,7 +314,7 @@             down_growth: bool = False,
              cross_linear: bool = False,
              block_dpr: Optional[List[float]] = None,
 -            block_fn: Type[nn.Module] = BottleneckBlock,
@@ -164,7 +182,7 @@
              device=None,
              dtype=None,
              **block_kwargs,
-@@ -327,8 +332,8 @@ 
+@@ -327,10 +330,10 @@ 
          if stride != 1 or first_dilation != dilation:
              if avg_down:
 -                self.conv_down = nn.Sequential(
@@ -172,9 +190,16 @@
 +                self.conv_down = msnn.SequentialCell(
 +                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),  # FIXME dilation handling
                      ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
-                 )
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              else:
-@@ -345,7 +350,7 @@                 )
+                 self.conv_down = ConvNormAct(
+                     in_chs,
+@@ -342,10 +345,10 @@                     aa_layer=aa_layer,
+                     **conv_kwargs,
+                     **dd,
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              prev_chs = down_chs
          else:
 -            self.conv_down = nn.Identity()
@@ -182,7 +207,11 @@
              prev_chs = in_chs
  
          # FIXME this 1x1 expansion is pushed down into the cross and block paths in the darknet cfgs. Also,
-@@ -361,7 +366,7 @@         )
+@@ -358,10 +361,10 @@             apply_act=not cross_linear,
+             **conv_kwargs,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          prev_chs = exp_chs // 2  # output of conv_exp is always split in two
  
 -        self.blocks = nn.Sequential()
@@ -190,10 +219,21 @@
          for i in range(depth):
              self.blocks.add_module(str(i), block_fn(
                  in_chs=prev_chs,
-@@ -379,17 +384,17 @@         self.conv_transition_b = ConvNormAct(prev_chs, exp_chs // 2, kernel_size=1, **conv_kwargs, **dd)
-         self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)
+@@ -372,24 +375,24 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
+                 **block_kwargs,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             prev_chs = block_out_chs
  
+         # transition convs
+-        self.conv_transition_b = ConvNormAct(prev_chs, exp_chs // 2, kernel_size=1, **conv_kwargs, **dd)
+-        self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)
+-
 -    def forward(self, x):
++        self.conv_transition_b = ConvNormAct(prev_chs, exp_chs // 2, kernel_size=1, **conv_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.conv_down(x)
          x = self.conv_exp(x)
@@ -210,7 +250,7 @@
      """Cross Stage 3.
      Similar to CrossStage, but with only one transition conv for the output.
      """
-@@ -409,7 +414,7 @@             down_growth: bool = False,
+@@ -409,7 +412,7 @@             down_growth: bool = False,
              cross_linear: bool = False,
              block_dpr: Optional[List[float]] = None,
 -            block_fn: Type[nn.Module] = BottleneckBlock,
@@ -218,7 +258,7 @@
              device=None,
              dtype=None,
              **block_kwargs,
-@@ -425,8 +430,8 @@ 
+@@ -425,10 +428,10 @@ 
          if stride != 1 or first_dilation != dilation:
              if avg_down:
 -                self.conv_down = nn.Sequential(
@@ -226,9 +266,24 @@
 +                self.conv_down = msnn.SequentialCell(
 +                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),  # FIXME dilation handling
                      ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
-                 )
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              else:
-@@ -457,7 +462,7 @@         )
+                 self.conv_down = ConvNormAct(
+                     in_chs,
+@@ -440,7 +443,7 @@                     aa_layer=aa_layer,
+                     **conv_kwargs,
+                     **dd,
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             prev_chs = down_chs
+         else:
+             self.conv_down = None
+@@ -454,10 +457,10 @@             apply_act=not cross_linear,
+             **conv_kwargs,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          prev_chs = exp_chs // 2  # expanded output is split in 2 for blocks and cross stage
  
 -        self.blocks = nn.Sequential()
@@ -236,10 +291,19 @@
          for i in range(depth):
              self.blocks.add_module(str(i), block_fn(
                  in_chs=prev_chs,
-@@ -474,16 +479,16 @@         # transition convs
-         self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)
+@@ -468,22 +471,22 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
+                 **block_kwargs,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             prev_chs = block_out_chs
  
+         # transition convs
+-        self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)
+-
 -    def forward(self, x):
++        self.conv_transition = ConvNormAct(exp_chs, out_chs, kernel_size=1, **conv_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.conv_down(x)
          x = self.conv_exp(x)
@@ -255,7 +319,7 @@
      """DarkNet stage."""
  
      def __init__(
-@@ -498,7 +503,7 @@             groups: int = 1,
+@@ -498,7 +501,7 @@             groups: int = 1,
              first_dilation: Optional[int] = None,
              avg_down: bool = False,
 -            block_fn: Type[nn.Module] = BottleneckBlock,
@@ -263,7 +327,7 @@
              block_dpr: Optional[List[float]] = None,
              device=None,
              dtype=None,
-@@ -511,8 +516,8 @@         aa_layer = block_kwargs.pop('aa_layer', None)
+@@ -511,10 +514,10 @@         aa_layer = block_kwargs.pop('aa_layer', None)
  
          if avg_down:
 -            self.conv_down = nn.Sequential(
@@ -271,9 +335,17 @@
 +            self.conv_down = msnn.SequentialCell(
 +                nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),   # FIXME dilation handling
                  ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
-             )
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
-@@ -530,7 +535,7 @@ 
+             self.conv_down = ConvNormAct(
+                 in_chs,
+@@ -526,11 +529,11 @@                 aa_layer=aa_layer,
+                 **conv_kwargs,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
          prev_chs = out_chs
          block_out_chs = int(round(out_chs * block_ratio))
 -        self.blocks = nn.Sequential()
@@ -281,7 +353,11 @@
          for i in range(depth):
              self.blocks.add_module(str(i), block_fn(
                  in_chs=prev_chs,
-@@ -544,7 +549,7 @@             ))
+@@ -541,10 +544,10 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
+                 **block_kwargs,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              prev_chs = block_out_chs
  
 -    def forward(self, x):
@@ -289,7 +365,7 @@
          x = self.conv_down(x)
          x = self.blocks(x)
          return x
-@@ -557,14 +562,14 @@         stride: int = 2,
+@@ -557,14 +560,14 @@         stride: int = 2,
          pool: str = '',
          padding: str = '',
 -        act_layer: Type[nn.Module] = nn.ReLU,
@@ -307,12 +383,21 @@
      feature_info = []
      if not isinstance(out_chs, (tuple, list)):
          out_chs = [out_chs]
-@@ -596,11 +601,11 @@         if prev_feat is not None:
+@@ -587,7 +590,7 @@             act_layer=act_layer,
+             norm_layer=norm_layer,
+             **dd,
+-        ))
++        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         stem_stride *= conv_stride
+         prev_chs = chs
+         prev_feat = dict(num_chs=prev_chs, reduction=stem_stride, module='.'.join(['stem', conv_name]))
+@@ -596,11 +599,11 @@         if prev_feat is not None:
              feature_info.append(prev_feat)
          if aa_layer is not None:
 -            stem.add_module('pool', nn.MaxPool2d(kernel_size=3, stride=1, padding=1))
+-            stem.add_module('aa', aa_layer(channels=prev_chs, stride=2, **dd))
 +            stem.add_module('pool', nn.MaxPool2d(kernel_size = 3, stride = 1, padding = 1))
-             stem.add_module('aa', aa_layer(channels=prev_chs, stride=2, **dd))
++            stem.add_module('aa', aa_layer(channels=prev_chs, stride=2, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              pool_name = 'aa'
          else:
 -            stem.add_module('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
@@ -320,29 +405,95 @@
              pool_name = 'pool'
          stem_stride *= 2
          prev_feat = dict(num_chs=prev_chs, reduction=stem_stride, module='.'.join(['stem', pool_name]))
-@@ -698,10 +703,10 @@         prev_feat = dict(num_chs=prev_chs, reduction=net_stride, module=f'stages.{stage_idx}')
+@@ -640,7 +643,7 @@     if attn_layer is not None:
+         attn_layer = get_attn(attn_layer)
+         if attn_kwargs:
+-            attn_layer = partial(attn_layer, **attn_kwargs)
++            attn_layer = partial(attn_layer, **attn_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return attn_layer, stage_args
+ 
+ 
+@@ -657,7 +660,7 @@     num_stages = len(cfg.stages.depth)
+     cfg_dict['block_dpr'] = [None] * num_stages if not drop_path_rate else \
+         calculate_drop_path_rates(drop_path_rate, cfg.stages.depth, stagewise=True)
+-    stage_args = [dict(zip(cfg_dict.keys(), values)) for values in zip(*cfg_dict.values())]
++    stage_args = [dict(zip(cfg_dict.keys(), values)) for values in zip(*cfg_dict.values())]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     block_kwargs = dict(
+         act_layer=cfg.act_layer,
+         norm_layer=cfg.norm_layer,
+@@ -693,15 +696,15 @@             attn_layer=attn_fn,  # will be passed through stage as block_kwargs
+             **block_kwargs,
+             **dd,
+-        )]
++        )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         prev_chs = stage_args['out_chs']
+         prev_feat = dict(num_chs=prev_chs, reduction=net_stride, module=f'stages.{stage_idx}')
  
      feature_info.append(prev_feat)
 -    return nn.Sequential(*stages), feature_info
 -
 -
 -class CspNet(nn.Module):
-+    return msnn.SequentialCell(*stages), feature_info
++    return msnn.SequentialCell(*stages), feature_info  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +
 +class CspNet(msnn.Cell):
      """Cross Stage Partial base model.
  
      Paper: `CSPNet: A New Backbone that can Enhance Learning Capability of CNN` - https://arxiv.org/abs/1911.11929
-@@ -795,7 +800,7 @@         assert not enable, 'gradient checkpointing not supported'
+@@ -743,7 +746,7 @@         self.drop_rate = drop_rate
+         assert output_stride in (8, 16, 32)
  
-     @torch.jit.ignore
+-        cfg = replace(cfg, **kwargs)  # overlay kwargs onto cfg
++        cfg = replace(cfg, **kwargs)  # overlay kwargs onto cfg; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         layer_args = dict(
+             act_layer=cfg.act_layer,
+             norm_layer=cfg.norm_layer,
+@@ -752,7 +755,7 @@         self.feature_info = []
+ 
+         # Construct the stem
+-        self.stem, stem_feat_info = create_csp_stem(in_chans, **asdict(cfg.stem), **layer_args, **dd)
++        self.stem, stem_feat_info = create_csp_stem(in_chans, **asdict(cfg.stem), **layer_args, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.feature_info.extend(stem_feat_info[:-1])
+ 
+         # Construct the stages
+@@ -762,7 +765,7 @@             output_stride=output_stride,
+             stem_feat=stem_feat_info[-1],
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         prev_chs = stage_feat_info[-1]['num_chs']
+         self.feature_info.extend(stage_feat_info)
+ 
+@@ -774,11 +777,11 @@             pool_type=global_pool,
+             drop_rate=drop_rate,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         named_apply(partial(_init_weights, zero_init_last=zero_init_last), self)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         matcher = dict(
+             stem=r'^stem',
+@@ -790,12 +793,12 @@         )
+         return matcher
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         assert not enable, 'gradient checkpointing not supported'
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -810,7 +815,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -810,7 +813,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -350,7 +501,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -818,13 +823,13 @@ 
+@@ -818,13 +821,13 @@ 
  def _init_weights(module, name, zero_init_last=False):
      if isinstance(module, nn.Conv2d):
 -        nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
@@ -367,3 +518,148 @@
      elif zero_init_last and hasattr(module, 'zero_init_last'):
          module.zero_init_last()
  
+@@ -1001,7 +1004,7 @@         CspNet, variant, pretrained,
+         model_cfg=model_cfgs[variant],
+         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+-        **kwargs)
++        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _cfg(url='', **kwargs):
+@@ -1094,114 +1097,114 @@ 
+ @register_model
+ def cspresnet50(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cspresnet50', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cspresnet50', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cspresnet50d(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cspresnet50d', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cspresnet50d', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cspresnet50w(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cspresnet50w', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cspresnet50w', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cspresnext50(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cspresnext50', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cspresnext50', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cspdarknet53(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cspdarknet53', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cspdarknet53', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def darknet17(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('darknet17', pretrained=pretrained, **kwargs)
++    return _create_cspnet('darknet17', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def darknet21(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('darknet21', pretrained=pretrained, **kwargs)
++    return _create_cspnet('darknet21', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def sedarknet21(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('sedarknet21', pretrained=pretrained, **kwargs)
++    return _create_cspnet('sedarknet21', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def darknet53(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('darknet53', pretrained=pretrained, **kwargs)
++    return _create_cspnet('darknet53', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def darknetaa53(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('darknetaa53', pretrained=pretrained, **kwargs)
++    return _create_cspnet('darknetaa53', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_s(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_s', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_m(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_m', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_l(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_l', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_l', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_x(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_x', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_x', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_focus_s(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_focus_s', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_focus_s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_focus_m(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_focus_m', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_focus_m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_focus_l(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_focus_l', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_focus_l', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3darknet_focus_x(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3darknet_focus_x', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3darknet_focus_x', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3sedarknet_l(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3sedarknet_l', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3sedarknet_l', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3sedarknet_x(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3sedarknet_x', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3sedarknet_x', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3sedarknet_xdw(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3sedarknet_xdw', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3sedarknet_xdw', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3edgenet_x(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3edgenet_x', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3edgenet_x', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def cs3se_edgenet_x(pretrained=False, **kwargs) -> CspNet:
+-    return _create_cspnet('cs3se_edgenet_x', pretrained=pretrained, **kwargs)
++    return _create_cspnet('cs3se_edgenet_x', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

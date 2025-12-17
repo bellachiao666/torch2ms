@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,12 +1,15 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -6,17 +6,17 @@
  """ NasNet-A (Large)
   nasnetalarge implementation grabbed from Cadene's pretrained models
   https://github.com/Cadene/pretrained-models.pytorch
-@@ -5,8 +10,8 @@ from functools import partial
+ """
+ from functools import partial
  from typing import Optional, Type
- 
+-
 -import torch
 -import torch.nn as nn
-+# import torch
 +# import torch.nn as nn
  
  from timm.layers import ConvNormAct, create_conv2d, create_pool2d, create_classifier
  from ._builder import build_model_with_cfg
-@@ -16,7 +21,7 @@ 
+@@ -16,7 +19,7 @@ 
  
  
 -class ActConvBn(nn.Module):
@@ -24,10 +24,16 @@
  
      def __init__(
              self,
-@@ -35,14 +40,14 @@             in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
-         self.bn = nn.BatchNorm2d(out_channels, eps=0.001, momentum=0.1, **dd)
- 
+@@ -32,17 +35,17 @@         super().__init__()
+         self.act = nn.ReLU()
+         self.conv = create_conv2d(
+-            in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
+-        self.bn = nn.BatchNorm2d(out_channels, eps=0.001, momentum=0.1, **dd)
+-
 -    def forward(self, x):
++            in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn = nn.BatchNorm2d(out_channels, eps=0.001, momentum=0.1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.act(x)
          x = self.conv(x)
@@ -40,10 +46,22 @@
  
      def __init__(
              self,
-@@ -73,13 +78,13 @@             **dd,
-         )
- 
+@@ -64,22 +67,22 @@             padding=padding,
+             groups=in_channels,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.pointwise_conv2d = create_conv2d(
+             in_channels,
+             out_channels,
+             kernel_size=1,
+             padding=0,
+             **dd,
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.depthwise_conv2d(x)
          x = self.pointwise_conv2d(x)
@@ -55,21 +73,28 @@
  
      def __init__(
              self,
-@@ -99,12 +104,12 @@         self.separable_1 = SeparableConv2d(
-             in_channels, middle_channels, kernel_size, stride=stride, padding=pad_type, **dd)
-         self.bn_sep_1 = nn.BatchNorm2d(middle_channels, eps=0.001, momentum=0.1, **dd)
+@@ -97,14 +100,14 @@         middle_channels = out_channels if stem_cell else in_channels
+         self.act_1 = nn.ReLU()
+         self.separable_1 = SeparableConv2d(
+-            in_channels, middle_channels, kernel_size, stride=stride, padding=pad_type, **dd)
+-        self.bn_sep_1 = nn.BatchNorm2d(middle_channels, eps=0.001, momentum=0.1, **dd)
 -        self.act_2 = nn.ReLU(inplace=True)
++            in_channels, middle_channels, kernel_size, stride=stride, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn_sep_1 = nn.BatchNorm2d(middle_channels, eps=0.001, momentum=0.1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 +        self.act_2 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
          self.separable_2 = SeparableConv2d(
-             middle_channels, out_channels, kernel_size, stride=1, padding=pad_type, **dd)
-         self.bn_sep_2 = nn.BatchNorm2d(out_channels, eps=0.001, momentum=0.1, **dd)
- 
+-            middle_channels, out_channels, kernel_size, stride=1, padding=pad_type, **dd)
+-        self.bn_sep_2 = nn.BatchNorm2d(out_channels, eps=0.001, momentum=0.1, **dd)
+-
 -    def forward(self, x):
++            middle_channels, out_channels, kernel_size, stride=1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn_sep_2 = nn.BatchNorm2d(out_channels, eps=0.001, momentum=0.1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.act_1(x)
          x = self.separable_1(x)
          x = self.bn_sep_1(x)
-@@ -114,7 +119,7 @@         return x
+@@ -114,7 +117,7 @@         return x
  
  
 -class CellStem0(nn.Module):
@@ -77,7 +102,34 @@
      def __init__(
              self,
              stem_size: int,
-@@ -148,7 +153,7 @@             self.num_channels, self.num_channels, 3, 1, pad_type, **dd)
+@@ -127,28 +130,28 @@         super().__init__()
+         self.num_channels = num_channels
+         self.stem_size = stem_size
+-        self.conv_1x1 = ActConvBn(self.stem_size, self.num_channels, 1, stride=1, **dd)
++        self.conv_1x1 = ActConvBn(self.stem_size, self.num_channels, 1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_0_left = BranchSeparables(
+-            self.num_channels, self.num_channels, 5, 2, pad_type, **dd)
++            self.num_channels, self.num_channels, 5, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.comb_iter_0_right = BranchSeparables(
+-            self.stem_size, self.num_channels, 7, 2, pad_type, stem_cell=True, **dd)
++            self.stem_size, self.num_channels, 7, 2, pad_type, stem_cell=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_1_left = create_pool2d('max', 3, 2, padding=pad_type)
+         self.comb_iter_1_right = BranchSeparables(
+-            self.stem_size, self.num_channels, 7, 2, pad_type, stem_cell=True, **dd)
++            self.stem_size, self.num_channels, 7, 2, pad_type, stem_cell=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_2_left = create_pool2d('avg', 3, 2, count_include_pad=False, padding=pad_type)
+         self.comb_iter_2_right = BranchSeparables(
+-            self.stem_size, self.num_channels, 5, 2, pad_type, stem_cell=True, **dd)
++            self.stem_size, self.num_channels, 5, 2, pad_type, stem_cell=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_3_right = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+ 
+         self.comb_iter_4_left = BranchSeparables(
+-            self.num_channels, self.num_channels, 3, 1, pad_type, **dd)
++            self.num_channels, self.num_channels, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.comb_iter_4_right = create_pool2d('max', 3, 2, padding=pad_type)
  
 -    def forward(self, x):
@@ -85,7 +137,7 @@
          x1 = self.conv_1x1(x)
  
          x_comb_iter_0_left = self.comb_iter_0_left(x1)
-@@ -170,11 +175,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x1)
+@@ -170,11 +173,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x1)
          x_comb_iter_4 = x_comb_iter_4_left + x_comb_iter_4_right
  
 -        x_out = torch.cat([x_comb_iter_1, x_comb_iter_2, x_comb_iter_3, x_comb_iter_4], 1)
@@ -98,24 +150,51 @@
  
      def __init__(
              self,
-@@ -191,13 +196,13 @@         self.conv_1x1 = ActConvBn(2 * self.num_channels, self.num_channels, 1, stride=1, **dd)
+@@ -188,35 +191,35 @@         super().__init__()
+         self.num_channels = num_channels
+         self.stem_size = stem_size
+-        self.conv_1x1 = ActConvBn(2 * self.num_channels, self.num_channels, 1, stride=1, **dd)
++        self.conv_1x1 = ActConvBn(2 * self.num_channels, self.num_channels, 1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.act = nn.ReLU()
 -        self.path_1 = nn.Sequential()
 -        self.path_1.add_module('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False))
+-        self.path_1.add_module('conv', nn.Conv2d(self.stem_size, self.num_channels // 2, 1, stride=1, bias=False, **dd))
+-
+-        self.path_2 = nn.Sequential()
 +        self.path_1 = msnn.SequentialCell()
 +        self.path_1.add_module('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False))
-         self.path_1.add_module('conv', nn.Conv2d(self.stem_size, self.num_channels // 2, 1, stride=1, bias=False, **dd))
- 
--        self.path_2 = nn.Sequential()
++        self.path_1.add_module('conv', nn.Conv2d(self.stem_size, self.num_channels // 2, 1, stride=1, bias=False, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +        self.path_2 = msnn.SequentialCell()
          self.path_2.add_module('pad', nn.ZeroPad2d((-1, 1, -1, 1)))
 -        self.path_2.add_module('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False))
+-        self.path_2.add_module('conv', nn.Conv2d(self.stem_size, self.num_channels // 2, 1, stride=1, bias=False, **dd))
+-
+-        self.final_path_bn = nn.BatchNorm2d(self.num_channels, eps=0.001, momentum=0.1, **dd)
+-
+-        self.comb_iter_0_left = BranchSeparables(self.num_channels, self.num_channels, 5, 2, pad_type, **dd)
+-        self.comb_iter_0_right = BranchSeparables(self.num_channels, self.num_channels, 7, 2, pad_type, **dd)
 +        self.path_2.add_module('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False))
-         self.path_2.add_module('conv', nn.Conv2d(self.stem_size, self.num_channels // 2, 1, stride=1, bias=False, **dd))
++        self.path_2.add_module('conv', nn.Conv2d(self.stem_size, self.num_channels // 2, 1, stride=1, bias=False, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
++
++        self.final_path_bn = nn.BatchNorm2d(self.num_channels, eps=0.001, momentum=0.1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++        self.comb_iter_0_left = BranchSeparables(self.num_channels, self.num_channels, 5, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.comb_iter_0_right = BranchSeparables(self.num_channels, self.num_channels, 7, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
-         self.final_path_bn = nn.BatchNorm2d(self.num_channels, eps=0.001, momentum=0.1, **dd)
-@@ -216,7 +221,7 @@         self.comb_iter_4_left = BranchSeparables(self.num_channels, self.num_channels, 3, 1, pad_type, **dd)
+         self.comb_iter_1_left = create_pool2d('max', 3, 2, padding=pad_type)
+-        self.comb_iter_1_right = BranchSeparables(self.num_channels, self.num_channels, 7, 2, pad_type, **dd)
++        self.comb_iter_1_right = BranchSeparables(self.num_channels, self.num_channels, 7, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_2_left = create_pool2d('avg', 3, 2, count_include_pad=False, padding=pad_type)
+-        self.comb_iter_2_right = BranchSeparables(self.num_channels, self.num_channels, 5, 2, pad_type, **dd)
++        self.comb_iter_2_right = BranchSeparables(self.num_channels, self.num_channels, 5, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_3_right = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+ 
+-        self.comb_iter_4_left = BranchSeparables(self.num_channels, self.num_channels, 3, 1, pad_type, **dd)
++        self.comb_iter_4_left = BranchSeparables(self.num_channels, self.num_channels, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.comb_iter_4_right = create_pool2d('max', 3, 2, padding=pad_type)
  
 -    def forward(self, x_conv0, x_stem_0):
@@ -123,7 +202,7 @@
          x_left = self.conv_1x1(x_stem_0)
  
          x_relu = self.act(x_conv0)
-@@ -225,7 +230,7 @@         # path 2
+@@ -225,7 +228,7 @@         # path 2
          x_path2 = self.path_2(x_relu)
          # final path
 -        x_right = self.final_path_bn(torch.cat([x_path1, x_path2], 1))
@@ -131,7 +210,7 @@
  
          x_comb_iter_0_left = self.comb_iter_0_left(x_left)
          x_comb_iter_0_right = self.comb_iter_0_right(x_right)
-@@ -246,11 +251,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x_left)
+@@ -246,11 +249,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x_left)
          x_comb_iter_4 = x_comb_iter_4_left + x_comb_iter_4_right
  
 -        x_out = torch.cat([x_comb_iter_1, x_comb_iter_2, x_comb_iter_3, x_comb_iter_4], 1)
@@ -144,27 +223,55 @@
  
      def __init__(
              self,
-@@ -267,13 +272,13 @@         self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, **dd)
+@@ -264,38 +267,38 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, **dd)
++        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.act = nn.ReLU()
 -        self.path_1 = nn.Sequential()
 -        self.path_1.add_module('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False))
+-        self.path_1.add_module('conv', nn.Conv2d(in_chs_left, out_chs_left, 1, stride=1, bias=False, **dd))
+-
+-        self.path_2 = nn.Sequential()
 +        self.path_1 = msnn.SequentialCell()
 +        self.path_1.add_module('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False))
-         self.path_1.add_module('conv', nn.Conv2d(in_chs_left, out_chs_left, 1, stride=1, bias=False, **dd))
- 
--        self.path_2 = nn.Sequential()
++        self.path_1.add_module('conv', nn.Conv2d(in_chs_left, out_chs_left, 1, stride=1, bias=False, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +        self.path_2 = msnn.SequentialCell()
          self.path_2.add_module('pad', nn.ZeroPad2d((-1, 1, -1, 1)))
 -        self.path_2.add_module('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False))
+-        self.path_2.add_module('conv', nn.Conv2d(in_chs_left, out_chs_left, 1, stride=1, bias=False, **dd))
+-
+-        self.final_path_bn = nn.BatchNorm2d(out_chs_left * 2, eps=0.001, momentum=0.1, **dd)
+-
+-        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 1, pad_type, **dd)
+-        self.comb_iter_0_right = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
+-
+-        self.comb_iter_1_left = BranchSeparables(out_chs_right, out_chs_right, 5, 1, pad_type, **dd)
+-        self.comb_iter_1_right = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
 +        self.path_2.add_module('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False))
-         self.path_2.add_module('conv', nn.Conv2d(in_chs_left, out_chs_left, 1, stride=1, bias=False, **dd))
++        self.path_2.add_module('conv', nn.Conv2d(in_chs_left, out_chs_left, 1, stride=1, bias=False, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
++
++        self.final_path_bn = nn.BatchNorm2d(out_chs_left * 2, eps=0.001, momentum=0.1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.comb_iter_0_right = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.comb_iter_1_left = BranchSeparables(out_chs_right, out_chs_right, 5, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.comb_iter_1_right = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
-         self.final_path_bn = nn.BatchNorm2d(out_chs_left * 2, eps=0.001, momentum=0.1, **dd)
-@@ -291,11 +296,11 @@ 
-         self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
+         self.comb_iter_2_left = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
  
+         self.comb_iter_3_left = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+         self.comb_iter_3_right = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+ 
+-        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
+-
 -    def forward(self, x, x_prev):
++        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x, x_prev):
          x_relu = self.act(x_prev)
          x_path1 = self.path_1(x_relu)
@@ -174,7 +281,7 @@
          x_right = self.conv_1x1(x)
  
          x_comb_iter_0_left = self.comb_iter_0_left(x_right)
-@@ -316,11 +321,11 @@         x_comb_iter_4_left = self.comb_iter_4_left(x_right)
+@@ -316,11 +319,11 @@         x_comb_iter_4_left = self.comb_iter_4_left(x_right)
          x_comb_iter_4 = x_comb_iter_4_left + x_right
  
 -        x_out = torch.cat([x_left, x_comb_iter_0, x_comb_iter_1, x_comb_iter_2, x_comb_iter_3, x_comb_iter_4], 1)
@@ -187,15 +294,41 @@
  
      def __init__(
              self,
-@@ -350,7 +355,7 @@ 
-         self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
+@@ -334,23 +337,23 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.conv_prev_1x1 = ActConvBn(in_chs_left, out_chs_left, 1, stride=1, padding=pad_type, **dd)
+-        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, padding=pad_type, **dd)
+-
+-        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 1, pad_type, **dd)
+-        self.comb_iter_0_right = BranchSeparables(out_chs_left, out_chs_left, 3, 1, pad_type, **dd)
+-
+-        self.comb_iter_1_left = BranchSeparables(out_chs_left, out_chs_left, 5, 1, pad_type, **dd)
+-        self.comb_iter_1_right = BranchSeparables(out_chs_left, out_chs_left, 3, 1, pad_type, **dd)
++        self.conv_prev_1x1 = ActConvBn(in_chs_left, out_chs_left, 1, stride=1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.comb_iter_0_right = BranchSeparables(out_chs_left, out_chs_left, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.comb_iter_1_left = BranchSeparables(out_chs_left, out_chs_left, 5, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.comb_iter_1_right = BranchSeparables(out_chs_left, out_chs_left, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
+         self.comb_iter_2_left = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+ 
+         self.comb_iter_3_left = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+         self.comb_iter_3_right = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+ 
+-        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
+-
 -    def forward(self, x, x_prev):
++        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x, x_prev):
          x_left = self.conv_prev_1x1(x_prev)
          x_right = self.conv_1x1(x)
  
-@@ -372,11 +377,11 @@         x_comb_iter_4_left = self.comb_iter_4_left(x_right)
+@@ -372,11 +375,11 @@         x_comb_iter_4_left = self.comb_iter_4_left(x_right)
          x_comb_iter_4 = x_comb_iter_4_left + x_right
  
 -        x_out = torch.cat([x_left, x_comb_iter_0, x_comb_iter_1, x_comb_iter_2, x_comb_iter_3, x_comb_iter_4], 1)
@@ -208,7 +341,32 @@
  
      def __init__(
              self,
-@@ -407,7 +412,7 @@         self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
+@@ -390,24 +393,24 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.conv_prev_1x1 = ActConvBn(in_chs_left, out_chs_left, 1, stride=1, padding=pad_type, **dd)
+-        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, padding=pad_type, **dd)
+-
+-        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)
+-        self.comb_iter_0_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)
++        self.conv_prev_1x1 = ActConvBn(in_chs_left, out_chs_left, 1, stride=1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.comb_iter_0_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_1_left = create_pool2d('max', 3, 2, padding=pad_type)
+-        self.comb_iter_1_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)
++        self.comb_iter_1_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_2_left = create_pool2d('avg', 3, 2, count_include_pad=False, padding=pad_type)
+-        self.comb_iter_2_right = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)
++        self.comb_iter_2_right = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_3_right = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+ 
+-        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
++        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.comb_iter_4_right = create_pool2d('max', 3, 2, padding=pad_type)
  
 -    def forward(self, x, x_prev):
@@ -216,7 +374,7 @@
          x_left = self.conv_prev_1x1(x_prev)
          x_right = self.conv_1x1(x)
  
-@@ -430,11 +435,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x_right)
+@@ -430,11 +433,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x_right)
          x_comb_iter_4 = x_comb_iter_4_left + x_comb_iter_4_right
  
 -        x_out = torch.cat([x_comb_iter_1, x_comb_iter_2, x_comb_iter_3, x_comb_iter_4], 1)
@@ -229,7 +387,32 @@
  
      def __init__(
              self,
-@@ -465,7 +470,7 @@         self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
+@@ -448,24 +451,24 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.conv_prev_1x1 = ActConvBn(in_chs_left, out_chs_left, 1, stride=1, padding=pad_type, **dd)
+-        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, padding=pad_type, **dd)
+-
+-        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)
+-        self.comb_iter_0_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)
++        self.conv_prev_1x1 = ActConvBn(in_chs_left, out_chs_left, 1, stride=1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, 1, stride=1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.comb_iter_0_left = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.comb_iter_0_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_1_left = create_pool2d('max', 3, 2, padding=pad_type)
+-        self.comb_iter_1_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)
++        self.comb_iter_1_right = BranchSeparables(out_chs_right, out_chs_right, 7, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_2_left = create_pool2d('avg', 3, 2, count_include_pad=False, padding=pad_type)
+-        self.comb_iter_2_right = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)
++        self.comb_iter_2_right = BranchSeparables(out_chs_right, out_chs_right, 5, 2, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.comb_iter_3_right = create_pool2d('avg', 3, 1, count_include_pad=False, padding=pad_type)
+ 
+-        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)
++        self.comb_iter_4_left = BranchSeparables(out_chs_right, out_chs_right, 3, 1, pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.comb_iter_4_right = create_pool2d('max', 3, 2, padding=pad_type)
  
 -    def forward(self, x, x_prev):
@@ -237,7 +420,7 @@
          x_left = self.conv_prev_1x1(x_prev)
          x_right = self.conv_1x1(x)
  
-@@ -488,11 +493,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x_right)
+@@ -488,11 +491,11 @@         x_comb_iter_4_right = self.comb_iter_4_right(x_right)
          x_comb_iter_4 = x_comb_iter_4_left + x_comb_iter_4_right
  
 -        x_out = torch.cat([x_comb_iter_1, x_comb_iter_2, x_comb_iter_3, x_comb_iter_4], 1)
@@ -250,23 +433,134 @@
      """NASNetALarge (6 @ 4032) """
  
      def __init__(
-@@ -598,7 +603,7 @@         self.cell_17 = NormalCell(
+@@ -529,76 +532,76 @@             norm_layer=partial(nn.BatchNorm2d, eps=0.001, momentum=0.1),
+             apply_act=False,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.cell_stem_0 = CellStem0(
+-            self.stem_size, num_channels=channels // (channel_multiplier ** 2), pad_type=pad_type, **dd)
++            self.stem_size, num_channels=channels // (channel_multiplier ** 2), pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_stem_1 = CellStem1(
+-            self.stem_size, num_channels=channels // channel_multiplier, pad_type=pad_type, **dd)
++            self.stem_size, num_channels=channels // channel_multiplier, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.cell_0 = FirstCell(
+             in_chs_left=channels, out_chs_left=channels // 2,
+-            in_chs_right=2 * channels, out_chs_right=channels, pad_type=pad_type, **dd)
++            in_chs_right=2 * channels, out_chs_right=channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_1 = NormalCell(
+             in_chs_left=2 * channels, out_chs_left=channels,
+-            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)
++            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_2 = NormalCell(
+             in_chs_left=6 * channels, out_chs_left=channels,
+-            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)
++            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_3 = NormalCell(
+             in_chs_left=6 * channels, out_chs_left=channels,
+-            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)
++            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_4 = NormalCell(
+             in_chs_left=6 * channels, out_chs_left=channels,
+-            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)
++            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_5 = NormalCell(
+             in_chs_left=6 * channels, out_chs_left=channels,
+-            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)
++            in_chs_right=6 * channels, out_chs_right=channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.reduction_cell_0 = ReductionCell0(
+             in_chs_left=6 * channels, out_chs_left=2 * channels,
+-            in_chs_right=6 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)
++            in_chs_right=6 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_6 = FirstCell(
+             in_chs_left=6 * channels, out_chs_left=channels,
+-            in_chs_right=8 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)
++            in_chs_right=8 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_7 = NormalCell(
+             in_chs_left=8 * channels, out_chs_left=2 * channels,
+-            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)
++            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_8 = NormalCell(
+             in_chs_left=12 * channels, out_chs_left=2 * channels,
+-            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)
++            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_9 = NormalCell(
+             in_chs_left=12 * channels, out_chs_left=2 * channels,
+-            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)
++            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_10 = NormalCell(
+             in_chs_left=12 * channels, out_chs_left=2 * channels,
+-            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)
++            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_11 = NormalCell(
+             in_chs_left=12 * channels, out_chs_left=2 * channels,
+-            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)
++            in_chs_right=12 * channels, out_chs_right=2 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.reduction_cell_1 = ReductionCell1(
+             in_chs_left=12 * channels, out_chs_left=4 * channels,
+-            in_chs_right=12 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
++            in_chs_right=12 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_12 = FirstCell(
+             in_chs_left=12 * channels, out_chs_left=2 * channels,
+-            in_chs_right=16 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
++            in_chs_right=16 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_13 = NormalCell(
+             in_chs_left=16 * channels, out_chs_left=4 * channels,
+-            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
++            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_14 = NormalCell(
              in_chs_left=24 * channels, out_chs_left=4 * channels,
-             in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
+-            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
++            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_15 = NormalCell(
+             in_chs_left=24 * channels, out_chs_left=4 * channels,
+-            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
++            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_16 = NormalCell(
+             in_chs_left=24 * channels, out_chs_left=4 * channels,
+-            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
++            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.cell_17 = NormalCell(
+             in_chs_left=24 * channels, out_chs_left=4 * channels,
+-            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)
 -        self.act = nn.ReLU(inplace=True)
++            in_chs_right=24 * channels, out_chs_right=4 * channels, pad_type=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.act = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
          self.feature_info = [
              dict(num_chs=96, reduction=2, module='conv0'),
              dict(num_chs=168, reduction=4, module='cell_stem_1.conv_1x1.act'),
-@@ -632,7 +637,7 @@         assert not enable, 'gradient checkpointing not supported'
+@@ -613,9 +616,9 @@             pool_type=global_pool,
+             drop_rate=drop_rate,
+             **dd,
+-        )
+-
+-    @torch.jit.ignore
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         matcher = dict(
+             stem=r'^conv0|cell_stem_[01]',
+@@ -627,12 +630,12 @@         )
+         return matcher
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         assert not enable, 'gradient checkpointing not supported'
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.last_linear
  
      def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
-@@ -676,7 +681,7 @@         x = self.head_drop(x)
+@@ -676,7 +679,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.last_linear(x)
  
 -    def forward(self, x):
@@ -274,3 +568,18 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
+@@ -689,7 +692,7 @@         pretrained,
+         feature_cfg=dict(feature_cls='hook', no_rewrite=True),  # not possible to re-write this model
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ default_cfgs = generate_default_cfgs({
+@@ -714,5 +717,5 @@ def nasnetalarge(pretrained=False, **kwargs) -> NASNetALarge:
+     """NASNet-A large model architecture.
+     """
+-    model_kwargs = dict(pad_type='same', **kwargs)
+-    return _create_nasnet('nasnetalarge', pretrained, **model_kwargs)
++    model_kwargs = dict(pad_type='same', **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    return _create_nasnet('nasnetalarge', pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

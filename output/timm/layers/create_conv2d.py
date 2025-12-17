@@ -29,13 +29,13 @@ def create_conv2d(in_channels, out_channels, kernel_size, **kwargs):
                 assert groups == 1
         # We're going to use only lists for defining the MixedConv2d kernel groups,
         # ints, tuples, other iterables will continue to pass to normal conv and specify h, w.
-        m = MixedConv2d(in_channels, out_channels, kernel_size, **kwargs)
+        m = MixedConv2d(in_channels, out_channels, kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         depthwise = kwargs.pop('depthwise', False)
         # for DW out_channels must be multiple of in_channels as must have out_channels % groups == 0
         groups = in_channels if depthwise else kwargs.pop('groups', 1)
         if 'num_experts' in kwargs and kwargs['num_experts'] > 0:
-            m = CondConv2d(in_channels, out_channels, kernel_size, groups=groups, **kwargs)
+            m = CondConv2d(in_channels, out_channels, kernel_size, groups=groups, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            m = create_conv2d_pad(in_channels, out_channels, kernel_size, groups=groups, **kwargs)
+            m = create_conv2d_pad(in_channels, out_channels, kernel_size, groups=groups, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return m

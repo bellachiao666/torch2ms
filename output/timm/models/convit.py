@@ -27,8 +27,6 @@ Modifications and additions for timm hacked together by / Copyright 2021, Ross W
 https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
 '''
 from typing import Optional, Union, Type, Any
-
-# import torch
 # import torch.nn as nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
@@ -62,15 +60,15 @@ class GPSA(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.locality_strength = locality_strength
 
-        self.qk = nn.Linear(dim, dim * 2, bias=qkv_bias, **dd)
-        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)
+        self.qk = nn.Linear(dim, dim * 2, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.v = nn.Linear(dim, dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
-        self.pos_proj = nn.Linear(3, num_heads, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.pos_proj = nn.Linear(3, num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
-        self.gating_param = ms.Parameter(mint.ones(self.num_heads, **dd))
-        self.rel_indices: ms.Tensor = mint.zeros(1, 1, 1, 3, **dd)  # silly torchscript hack, won't work with None
+        self.gating_param = ms.Parameter(mint.ones(self.num_heads, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.rel_indices: ms.Tensor = mint.zeros(1, 1, 1, 3, **dd)  # silly torchscript hack, won't work with None; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         B, N, C = x.shape
@@ -157,9 +155,9 @@ class MHSA(msnn.Cell):
         head_dim = dim // num_heads
         self.scale = head_dim ** -0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def get_attention_map(self, x, return_map=False):
@@ -221,7 +219,7 @@ class Block(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.use_gpsa = use_gpsa
         if self.use_gpsa:
             self.attn = GPSA(
@@ -232,7 +230,7 @@ class Block(msnn.Cell):
                 proj_drop=proj_drop,
                 locality_strength=locality_strength,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.attn = MHSA(
                 dim,
@@ -241,9 +239,9 @@ class Block(msnn.Cell):
                 attn_drop=attn_drop,
                 proj_drop=proj_drop,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(
             in_features=dim,
@@ -251,7 +249,7 @@ class Block(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = x + self.drop_path(self.attn(self.norm1(x)))
@@ -306,7 +304,7 @@ class ConVit(msnn.Cell):
                 in_chans=in_chans,
                 embed_dim=embed_dim,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.patch_embed = PatchEmbed(
                 img_size=img_size,
@@ -314,15 +312,15 @@ class ConVit(msnn.Cell):
                 in_chans=in_chans,
                 embed_dim=embed_dim,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         num_patches = self.patch_embed.num_patches
         self.num_patches = num_patches
 
-        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))
+        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
 
         if self.use_pos_embed:
-            self.pos_embed = ms.Parameter(mint.zeros(1, num_patches, embed_dim, **dd))
+            self.pos_embed = ms.Parameter(mint.zeros(1, num_patches, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             trunc_normal_(self.pos_embed, std=.02)
 
         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
@@ -339,13 +337,13 @@ class ConVit(msnn.Cell):
                 use_gpsa=i < local_up_to_layer,
                 locality_strength=locality_strength,
                 **dd,
-            ) for i in range(depth)])
-        self.norm = norm_layer(embed_dim, **dd)
+            ) for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier head
         self.feature_info = [dict(num_chs=embed_dim, reduction=0, module='head')]
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         trunc_normal_(self.cls_token, std=.02)
         self.apply(self._init_weights)
@@ -362,22 +360,22 @@ class ConVit(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token'}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^cls_token|pos_embed|patch_embed',  # stem and embed
             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -417,7 +415,7 @@ def _create_convit(variant, pretrained=False, **kwargs):
     if kwargs.get('features_only', None):
         raise RuntimeError('features_only not implemented for Vision Transformer models.')
 
-    return build_model_with_cfg(ConVit, variant, pretrained, **kwargs)
+    return build_model_with_cfg(ConVit, variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -442,7 +440,7 @@ default_cfgs = generate_default_cfgs({
 def convit_tiny(pretrained=False, **kwargs) -> ConVit:
     model_args = dict(
         local_up_to_layer=10, locality_strength=1.0, embed_dim=48, num_heads=4)
-    model = _create_convit(variant='convit_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convit(variant='convit_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -450,7 +448,7 @@ def convit_tiny(pretrained=False, **kwargs) -> ConVit:
 def convit_small(pretrained=False, **kwargs) -> ConVit:
     model_args = dict(
         local_up_to_layer=10, locality_strength=1.0, embed_dim=48, num_heads=9)
-    model = _create_convit(variant='convit_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convit(variant='convit_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -458,5 +456,5 @@ def convit_small(pretrained=False, **kwargs) -> ConVit:
 def convit_base(pretrained=False, **kwargs) -> ConVit:
     model_args = dict(
         local_up_to_layer=10, locality_strength=1.0, embed_dim=48, num_heads=16)
-    model = _create_convit(variant='convit_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_convit(variant='convit_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

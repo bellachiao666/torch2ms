@@ -101,6 +101,7 @@ class RMSpropTF(Optimizer):
             group.setdefault('caution', False)
             group.setdefault('corrected_weight_decay', False)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

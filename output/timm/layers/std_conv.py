@@ -131,12 +131,12 @@ class ScaledStdConv2d(nn.Conv2d):
             padding = get_padding(kernel_size, stride, dilation)
         super().__init__(
             in_channels, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation,
-            groups=groups, bias=bias, **dd)
+            groups=groups, bias=bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.scale = gamma * self.weight[0].numel() ** -0.5  # gamma * 1 / sqrt(fan-in)
         self.eps = eps
         self.gain_init = gain_init
 
-        self.gain = ms.Parameter(mint.empty((self.out_channels, 1, 1, 1), **dd))
+        self.gain = ms.Parameter(mint.empty((self.out_channels, 1, 1, 1), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -184,13 +184,13 @@ class ScaledStdConv2dSame(nn.Conv2d):
         padding, is_dynamic = get_padding_value(padding, kernel_size, stride=stride, dilation=dilation)
         super().__init__(
             in_channels, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation,
-            groups=groups, bias=bias, **dd)
+            groups=groups, bias=bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.scale = gamma * self.weight[0].numel() ** -0.5
         self.same_pad = is_dynamic
         self.eps = eps
         self.gain_init = gain_init
 
-        self.gain = ms.Parameter(mint.empty((self.out_channels, 1, 1, 1), **dd))
+        self.gain = ms.Parameter(mint.empty((self.out_channels, 1, 1, 1), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 

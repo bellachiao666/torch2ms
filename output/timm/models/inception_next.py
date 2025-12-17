@@ -45,13 +45,13 @@ class InceptionDWConv2d(msnn.Cell):
         band_padding = get_padding(band_kernel_size, dilation=dilation)
         self.dwconv_hw = nn.Conv2d(
             gc, gc, square_kernel_size,
-            padding=square_padding, dilation=dilation, groups=gc, **dd)
+            padding=square_padding, dilation=dilation, groups=gc, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.dwconv_w = nn.Conv2d(
             gc, gc, (1, band_kernel_size),
-            padding=(0, band_padding), dilation=(1, dilation), groups=gc, **dd)
+            padding=(0, band_padding), dilation=(1, dilation), groups=gc, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.dwconv_h = nn.Conv2d(
             gc, gc, (band_kernel_size, 1),
-            padding=(band_padding, 0), dilation=(dilation, 1), groups=gc, **dd)
+            padding=(band_padding, 0), dilation=(dilation, 1), groups=gc, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.split_indexes = (in_chs - 3 * gc, gc, gc, gc)
 
     def construct(self, x):
@@ -88,11 +88,11 @@ class ConvMlp(msnn.Cell):
         hidden_features = hidden_features or in_features
         bias = to_2tuple(bias)
 
-        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)
-        self.norm = norm_layer(hidden_features, **dd) if norm_layer else msnn.Identity()
+        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(hidden_features, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.drop = nn.Dropout(drop)
-        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1], **dd)
+        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1], **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.fc1(x)
@@ -129,10 +129,10 @@ class MlpClassifierHead(msnn.Cell):
         assert pool_type, 'Cannot disable pooling'
         self.global_pool = SelectAdaptivePool2d(pool_type=pool_type, flatten=True)
 
-        self.fc1 = nn.Linear(in_features * self.global_pool.feat_mult(), hidden_features, bias=bias, **dd)
+        self.fc1 = nn.Linear(in_features * self.global_pool.feat_mult(), hidden_features, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.norm = norm_layer(hidden_features, **dd)
-        self.fc2 = nn.Linear(hidden_features, num_classes, bias=bias, **dd)
+        self.norm = norm_layer(hidden_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc2 = nn.Linear(hidden_features, num_classes, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop)
 
     def reset(self, num_classes: int, pool_type: Optional[str] = None):
@@ -175,10 +175,10 @@ class MetaNeXtBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.token_mixer = token_mixer(dim, dilation=dilation, **dd)
-        self.norm = norm_layer(dim, **dd)
-        self.mlp = mlp_layer(dim, int(mlp_ratio * dim), act_layer=act_layer, **dd)
-        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value else None
+        self.token_mixer = token_mixer(dim, dilation=dilation, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.mlp = mlp_layer(dim, int(mlp_ratio * dim), act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.gamma = ms.Parameter(ls_init_value * mint.ones(dim, **dd)) if ls_init_value else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -223,7 +223,7 @@ class MetaNeXtStage(msnn.Cell):
                     dilation=dilation[0],
                     **dd,
                 ),
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.downsample = msnn.Identity()
 
@@ -240,8 +240,8 @@ class MetaNeXtStage(msnn.Cell):
                 norm_layer=norm_layer,
                 mlp_ratio=mlp_ratio,
                 **dd,
-            ))
-        self.blocks = msnn.SequentialCell(*stage_blocks)
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*stage_blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -303,7 +303,7 @@ class MetaNeXt(msnn.Cell):
         self.stem = msnn.SequentialCell(
             nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4, **dd),
             norm_layer(dims[0], **dd)
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dp_rates = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
         prev_chs = dims[0]
@@ -332,11 +332,11 @@ class MetaNeXt(msnn.Cell):
                 norm_layer=norm_layer,
                 mlp_ratio=mlp_ratios[i],
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_chs = out_chs
             self.feature_info += [dict(num_chs=prev_chs, reduction=curr_stride, module=f'stages.{i}')]
         self.num_features = prev_chs
-        self.head = MlpClassifierHead(self.num_features, num_classes, pool_type=self.global_pool, drop=drop_rate, **dd)
+        self.head = MlpClassifierHead(self.num_features, num_classes, pool_type=self.global_pool, drop=drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_hidden_size = self.head.num_features
         self.apply(self._init_weights)
 
@@ -346,7 +346,7 @@ class MetaNeXt(msnn.Cell):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
@@ -356,7 +356,7 @@ class MetaNeXt(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc2
 
@@ -364,12 +364,12 @@ class MetaNeXt(msnn.Cell):
         self.num_classes = num_classes
         self.head.reset(num_classes, global_pool)
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return set()
 
@@ -486,7 +486,7 @@ def _create_inception_next(variant, pretrained=False, **kwargs):
         MetaNeXt, variant, pretrained,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -496,7 +496,7 @@ def inception_next_atto(pretrained=False, **kwargs):
         depths=(2, 2, 6, 2), dims=(40, 80, 160, 320),
         token_mixers=partial(InceptionDWConv2d, band_kernel_size=9, branch_ratio=0.25)
     )
-    return _create_inception_next('inception_next_atto', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_inception_next('inception_next_atto', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -505,7 +505,7 @@ def inception_next_tiny(pretrained=False, **kwargs):
         depths=(3, 3, 9, 3), dims=(96, 192, 384, 768),
         token_mixers=InceptionDWConv2d,
     )
-    return _create_inception_next('inception_next_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_inception_next('inception_next_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -514,7 +514,7 @@ def inception_next_small(pretrained=False, **kwargs):
         depths=(3, 3, 27, 3), dims=(96, 192, 384, 768),
         token_mixers=InceptionDWConv2d,
     )
-    return _create_inception_next('inception_next_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_inception_next('inception_next_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -523,4 +523,4 @@ def inception_next_base(pretrained=False, **kwargs):
         depths=(3, 3, 27, 3), dims=(128, 256, 512, 1024),
         token_mixers=InceptionDWConv2d,
     )
-    return _create_inception_next('inception_next_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_inception_next('inception_next_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

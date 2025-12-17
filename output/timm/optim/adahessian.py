@@ -93,6 +93,7 @@ class Adahessian(torch.optim.Optimizer):
             if not isinstance(p.hess, float) and self.state[p]["hessian step"] % self.update_each == 0:
                 p.hess.zero_()
 
+    @torch.no_grad()
     def set_hessian(self):
         """
         Computes the Hutchinson approximation of the hessian trace and accumulates it for each trainable parameter.
@@ -120,6 +121,7 @@ class Adahessian(torch.optim.Optimizer):
             for h_z, z, p in zip(h_zs, zs, params):
                 p.hess += h_z * z / self.n_samples  # approximate the expected values of z*(H@z)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """
         Performs a single optimization step.

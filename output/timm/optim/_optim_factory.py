@@ -224,13 +224,10 @@ class OptimizerRegistry:
 
         # Return class or partial with defaults
         if bind_defaults and opt_info.defaults:
-            opt_class = partial(opt_class, **opt_info.defaults)
+            opt_class = partial(opt_class, **opt_info.defaults)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         return opt_class
 
-    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def create_optimizer(
             self,
             model_or_params: Union[msnn.Cell, ParamsT],
@@ -346,7 +343,7 @@ class OptimizerRegistry:
 
         # Create optimizer
         opt_class = self.get_optimizer_class(opt_info, bind_defaults=False)
-        optimizer = opt_class(params, **opt_args)
+        optimizer = opt_class(params, **opt_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Apply Lookahead if requested
         if use_lookahead:
@@ -1187,9 +1184,6 @@ def get_optimizer_class(
     return default_registry.get_optimizer_class(name, bind_defaults=bind_defaults)
 
 
-# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_optimizer_v2(
         model_or_params: Union[msnn.Cell, ParamsT],
         opt: str = 'sgd',
@@ -1288,7 +1282,7 @@ def create_optimizer_v2(
         layer_decay_no_opt_scale=layer_decay_no_opt_scale,
         param_group_fn=param_group_fn,
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def optimizer_kwargs(cfg):
@@ -1317,9 +1311,6 @@ def optimizer_kwargs(cfg):
     return kwargs
 
 
-# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.optim' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_optimizer(
         args,
         model: Union[msnn.Cell, ParamsT],
@@ -1332,5 +1323,5 @@ def create_optimizer(
         model,
         **optimizer_kwargs(cfg=args),
         filter_bias_and_bn=filter_bias_and_bn,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

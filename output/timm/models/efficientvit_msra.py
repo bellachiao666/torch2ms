@@ -43,10 +43,11 @@ class ConvNorm(msnn.SequentialCell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)
-        self.bn = nn.BatchNorm2d(out_chs, **dd)
+        self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn = nn.BatchNorm2d(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         c, bn = self.conv, self.bn
         w = bn.weight / (bn.running_var + bn.eps)**0.5
@@ -73,14 +74,15 @@ class NormLinear(msnn.SequentialCell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.bn = nn.BatchNorm1d(in_features, **dd)
+        self.bn = nn.BatchNorm1d(in_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop)
-        self.linear = nn.Linear(in_features, out_features, bias=bias, **dd)
+        self.linear = nn.Linear(in_features, out_features, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         trunc_normal_(self.linear.weight, std=std)
         if self.linear.bias is not None:
             nn.init.constant_(self.linear.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    @torch.no_grad()
     def fuse(self):
         bn, linear = self.bn, self.linear
         w = bn.weight / (bn.running_var + bn.eps)**0.5
@@ -108,11 +110,11 @@ class PatchMerging(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         hid_dim = int(dim * 4)
-        self.conv1 = ConvNorm(dim, hid_dim, 1, 1, 0, **dd)
+        self.conv1 = ConvNorm(dim, hid_dim, 1, 1, 0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = nn.ReLU()
-        self.conv2 = ConvNorm(hid_dim, hid_dim, 3, 2, 1, groups=hid_dim, **dd)
-        self.se = SqueezeExcite(hid_dim, .25, **dd)
-        self.conv3 = ConvNorm(hid_dim, out_dim, 1, 1, 0, **dd)
+        self.conv2 = ConvNorm(hid_dim, hid_dim, 3, 2, 1, groups=hid_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.se = SqueezeExcite(hid_dim, .25, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv3 = ConvNorm(hid_dim, out_dim, 1, 1, 0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv3(self.se(self.act(self.conv2(self.act(self.conv1(x))))))
@@ -143,9 +145,9 @@ class ConvMlp(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.pw1 = ConvNorm(ed, h, **dd)
+        self.pw1 = ConvNorm(ed, h, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = nn.ReLU()
-        self.pw2 = ConvNorm(h, ed, bn_weight_init=0, **dd)
+        self.pw2 = ConvNorm(h, ed, bn_weight_init=0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.pw2(self.act(self.pw1(x)))
@@ -187,14 +189,14 @@ class CascadedGroupAttention(msnn.Cell):
         qkvs = []
         dws = []
         for i in range(num_heads):
-            qkvs.append(ConvNorm(dim // num_heads, self.key_dim * 2 + self.val_dim, **dd))
-            dws.append(ConvNorm(self.key_dim, self.key_dim, kernels[i], 1, kernels[i] // 2, groups=self.key_dim, **dd))
+            qkvs.append(ConvNorm(dim // num_heads, self.key_dim * 2 + self.val_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            dws.append(ConvNorm(self.key_dim, self.key_dim, kernels[i], 1, kernels[i] // 2, groups=self.key_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.qkvs = msnn.CellList(qkvs)
         self.dws = msnn.CellList(dws)
         self.proj = msnn.SequentialCell(
             nn.ReLU(),
             ConvNorm(self.val_dim * num_heads, dim, bn_weight_init=0, **dd)
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         points = list(itertools.product(range(resolution), range(resolution)))
         N = len(points)
@@ -206,7 +208,7 @@ class CascadedGroupAttention(msnn.Cell):
                 if offset not in attention_offsets:
                     attention_offsets[offset] = len(attention_offsets)
                 idxs.append(attention_offsets[offset])
-        self.attention_biases = ms.Parameter(mint.zeros(num_heads, len(attention_offsets), **dd))
+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, len(attention_offsets), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.register_buffer(
             'attention_bias_idxs',
             ms.Tensor(idxs, device=device, dtype=ms.int64).view(N, N),
@@ -214,13 +216,12 @@ class CascadedGroupAttention(msnn.Cell):
         )
         self.attention_bias_cache = {}
 
+    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -292,7 +293,7 @@ class LocalWindowAttention(msnn.Cell):
             resolution=window_resolution,
             kernels=kernels,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         H = W = self.resolution
@@ -350,8 +351,8 @@ class EfficientVitBlock(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
 
-        self.dw0 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))
-        self.ffn0 = ResidualDrop(ConvMlp(dim, int(dim * 2), **dd))
+        self.dw0 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ffn0 = ResidualDrop(ConvMlp(dim, int(dim * 2), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.mixer = ResidualDrop(
             LocalWindowAttention(
@@ -362,10 +363,10 @@ class EfficientVitBlock(msnn.Cell):
                 kernels=kernels,
                 **dd,
             ),
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.dw1 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))
-        self.ffn1 = ResidualDrop(ConvMlp(dim, int(dim * 2), **dd))
+        self.dw1 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ffn1 = ResidualDrop(ConvMlp(dim, int(dim * 2), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.ffn1(self.dw1(self.mixer(self.ffn0(self.dw0(x)))))
@@ -398,15 +399,15 @@ class EfficientVitStage(msnn.Cell):
                     ResidualDrop(ConvNorm(in_dim, in_dim, 3, 1, 1, groups=in_dim, **dd)),
                     ResidualDrop(ConvMlp(in_dim, int(in_dim * 2), **dd)),
                 )
-            ))
-            down_blocks.append(('patchmerge', PatchMerging(in_dim, out_dim, **dd)))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            down_blocks.append(('patchmerge', PatchMerging(in_dim, out_dim, **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             down_blocks.append((
                 'res2',
                 msnn.SequentialCell(
                     ResidualDrop(ConvNorm(out_dim, out_dim, 3, 1, 1, groups=out_dim, **dd)),
                     ResidualDrop(ConvMlp(out_dim, int(out_dim * 2), **dd)),
                 )
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.downsample = msnn.SequentialCell(OrderedDict(down_blocks))
         else:
             assert in_dim == out_dim
@@ -424,8 +425,8 @@ class EfficientVitStage(msnn.Cell):
                 window_resolution,
                 kernels,
                 **dd,
-            ))
-        self.blocks = msnn.SequentialCell(*blocks)
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -443,13 +444,13 @@ class PatchEmbedding(msnn.SequentialCell):
     ):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
-        self.add_module('conv1', ConvNorm(in_chans, dim // 8, 3, 2, 1, **dd))
+        self.add_module('conv1', ConvNorm(in_chans, dim // 8, 3, 2, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('relu1', nn.ReLU())
-        self.add_module('conv2', ConvNorm(dim // 8, dim // 4, 3, 2, 1, **dd))
+        self.add_module('conv2', ConvNorm(dim // 8, dim // 4, 3, 2, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('relu2', nn.ReLU())
-        self.add_module('conv3', ConvNorm(dim // 4, dim // 2, 3, 2, 1, **dd))
+        self.add_module('conv3', ConvNorm(dim // 4, dim // 2, 3, 2, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('relu3', nn.ReLU())
-        self.add_module('conv4', ConvNorm(dim // 2, dim, 3, 2, 1, **dd))
+        self.add_module('conv4', ConvNorm(dim // 2, dim, 3, 2, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.patch_size = 16
 
 
@@ -478,7 +479,7 @@ class EfficientVitMsra(msnn.Cell):
         self.drop_rate = drop_rate
 
         # Patch embedding
-        self.patch_embed = PatchEmbedding(in_chans, embed_dim[0], **dd)
+        self.patch_embed = PatchEmbedding(in_chans, embed_dim[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stride = self.patch_embed.patch_size
         resolution = img_size // self.patch_embed.patch_size
         attn_ratio = [embed_dim[i] / (key_dim[i] * num_heads[i]) for i in range(len(embed_dim))]
@@ -501,14 +502,14 @@ class EfficientVitMsra(msnn.Cell):
                 kernels=kernels,
                 depth=dpth,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             pre_ed = ed
             if do[0] == 'subsample' and i != 0:
                 stride *= do[1]
             resolution = stage.resolution
             stages.append(stage)
             self.feature_info += [dict(num_chs=ed, reduction=stride, module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if global_pool == 'avg':
             self.global_pool = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
@@ -517,13 +518,13 @@ class EfficientVitMsra(msnn.Cell):
             self.global_pool = msnn.Identity()
         self.num_features = self.head_hidden_size = embed_dim[-1]
         self.head = NormLinear(
-            self.num_features, num_classes, drop=self.drop_rate, **dd) if num_classes > 0 else msnn.Identity()
+            self.num_features, num_classes, drop=self.drop_rate, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {x for x in self.state_dict().keys() if 'attention_biases' in x}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^patch_embed',
@@ -534,11 +535,11 @@ class EfficientVitMsra(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.linear
 
@@ -716,7 +717,7 @@ def _create_efficientvit_msra(variant, pretrained=False, **kwargs):
         pretrained,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -730,7 +731,7 @@ def efficientvit_m0(pretrained=False, **kwargs):
         window_size=[7, 7, 7],
         kernels=[5, 5, 5, 5]
     )
-    return _create_efficientvit_msra('efficientvit_m0', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_msra('efficientvit_m0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -743,7 +744,7 @@ def efficientvit_m1(pretrained=False, **kwargs):
         window_size=[7, 7, 7],
         kernels=[7, 5, 3, 3]
     )
-    return _create_efficientvit_msra('efficientvit_m1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_msra('efficientvit_m1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -756,7 +757,7 @@ def efficientvit_m2(pretrained=False, **kwargs):
         window_size=[7, 7, 7],
         kernels=[7, 5, 3, 3]
     )
-    return _create_efficientvit_msra('efficientvit_m2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_msra('efficientvit_m2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -769,7 +770,7 @@ def efficientvit_m3(pretrained=False, **kwargs):
         window_size=[7, 7, 7],
         kernels=[5, 5, 5, 5]
     )
-    return _create_efficientvit_msra('efficientvit_m3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_msra('efficientvit_m3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -782,7 +783,7 @@ def efficientvit_m4(pretrained=False, **kwargs):
         window_size=[7, 7, 7],
         kernels=[7, 5, 3, 3]
     )
-    return _create_efficientvit_msra('efficientvit_m4', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_msra('efficientvit_m4', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -795,4 +796,4 @@ def efficientvit_m5(pretrained=False, **kwargs):
         window_size=[7, 7, 7],
         kernels=[7, 5, 3, 3]
     )
-    return _create_efficientvit_msra('efficientvit_m5', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientvit_msra('efficientvit_m5', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

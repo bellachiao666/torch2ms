@@ -116,7 +116,7 @@ class PatchEmbed(msnn.Cell):
             stride=stride,
             padding=padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x) -> Tuple[ms.Tensor, List[int]]:
         x = self.proj(x)
@@ -234,10 +234,10 @@ class MultiScaleAttentionPoolFirst(msnn.Cell):
         padding_q = tuple([int(q // 2) for q in kernel_q])
         padding_kv = tuple([int(kv // 2) for kv in kernel_kv])
 
-        self.q = nn.Linear(dim, dim_out, bias=qkv_bias, **dd)
-        self.k = nn.Linear(dim, dim_out, bias=qkv_bias, **dd)
-        self.v = nn.Linear(dim, dim_out, bias=qkv_bias, **dd)
-        self.proj = nn.Linear(dim_out, dim_out, **dd)
+        self.q = nn.Linear(dim, dim_out, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.k = nn.Linear(dim, dim_out, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.v = nn.Linear(dim, dim_out, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(dim_out, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         # Skip pooling with kernel and stride size of (1, 1, 1).
         if prod(kernel_q) == 1 and prod(stride_q) == 1:
@@ -267,8 +267,8 @@ class MultiScaleAttentionPoolFirst(msnn.Cell):
                     groups=dim_conv,
                     bias=False,
                     **dd,
-                )
-                self.norm_q = norm_layer(dim_conv, **dd)
+                )  # 存在 *args/**kwargs，需手动确认参数映射;
+                self.norm_q = norm_layer(dim_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if kernel_kv:
                 self.pool_k = nn.Conv2d(
                     dim_conv,
@@ -279,8 +279,8 @@ class MultiScaleAttentionPoolFirst(msnn.Cell):
                     groups=dim_conv,
                     bias=False,
                     **dd,
-                )
-                self.norm_k = norm_layer(dim_conv, **dd)
+                )  # 存在 *args/**kwargs，需手动确认参数映射;
+                self.norm_k = norm_layer(dim_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 self.pool_v = nn.Conv2d(
                     dim_conv,
                     dim_conv,
@@ -290,8 +290,8 @@ class MultiScaleAttentionPoolFirst(msnn.Cell):
                     groups=dim_conv,
                     bias=False,
                     **dd,
-                )
-                self.norm_v = norm_layer(dim_conv, **dd)
+                )  # 存在 *args/**kwargs，需手动确认参数映射;
+                self.norm_v = norm_layer(dim_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             raise NotImplementedError(f"Unsupported model {mode}")
 
@@ -304,8 +304,8 @@ class MultiScaleAttentionPoolFirst(msnn.Cell):
             kv_size = size // stride_kv[1] if len(stride_kv) > 0 else size
             rel_sp_dim = 2 * max(q_size, kv_size) - 1
 
-            self.rel_pos_h = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
-            self.rel_pos_w = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
+            self.rel_pos_h = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.rel_pos_w = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             trunc_normal_tf_(self.rel_pos_h, std=0.02)
             trunc_normal_tf_(self.rel_pos_w, std=0.02)
 
@@ -410,8 +410,8 @@ class MultiScaleAttention(msnn.Cell):
         padding_q = tuple([int(q // 2) for q in kernel_q])
         padding_kv = tuple([int(kv // 2) for kv in kernel_kv])
 
-        self.qkv = nn.Linear(dim, dim_out * 3, bias=qkv_bias, **dd)
-        self.proj = nn.Linear(dim_out, dim_out, **dd)
+        self.qkv = nn.Linear(dim, dim_out * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(dim_out, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         # Skip pooling with kernel and stride size of (1, 1, 1).
         if prod(kernel_q) == 1 and prod(stride_q) == 1:
@@ -441,8 +441,8 @@ class MultiScaleAttention(msnn.Cell):
                     groups=dim_conv,
                     bias=False,
                     **dd,
-                )
-                self.norm_q = norm_layer(dim_conv, **dd)
+                )  # 存在 *args/**kwargs，需手动确认参数映射;
+                self.norm_q = norm_layer(dim_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if kernel_kv:
                 self.pool_k = nn.Conv2d(
                     dim_conv,
@@ -453,8 +453,8 @@ class MultiScaleAttention(msnn.Cell):
                     groups=dim_conv,
                     bias=False,
                     **dd,
-                )
-                self.norm_k = norm_layer(dim_conv, **dd)
+                )  # 存在 *args/**kwargs，需手动确认参数映射;
+                self.norm_k = norm_layer(dim_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 self.pool_v = nn.Conv2d(
                     dim_conv,
                     dim_conv,
@@ -464,8 +464,8 @@ class MultiScaleAttention(msnn.Cell):
                     groups=dim_conv,
                     bias=False,
                     **dd,
-                )
-                self.norm_v = norm_layer(dim_conv, **dd)
+                )  # 存在 *args/**kwargs，需手动确认参数映射;
+                self.norm_v = norm_layer(dim_conv, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             raise NotImplementedError(f"Unsupported model {mode}")
 
@@ -478,8 +478,8 @@ class MultiScaleAttention(msnn.Cell):
             kv_size = size // stride_kv[1] if len(stride_kv) > 0 else size
             rel_sp_dim = 2 * max(q_size, kv_size) - 1
 
-            self.rel_pos_h = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
-            self.rel_pos_w = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))
+            self.rel_pos_h = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.rel_pos_w = ms.Parameter(mint.zeros(rel_sp_dim, self.head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             trunc_normal_tf_(self.rel_pos_h, std=0.02)
             trunc_normal_tf_(self.rel_pos_w, std=0.02)
 
@@ -570,9 +570,9 @@ class MultiScaleBlock(msnn.Cell):
         self.dim_out = dim_out
         self.has_cls_token = has_cls_token
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.shortcut_proj_attn = nn.Linear(dim, dim_out, **dd) if proj_needed and expand_attn else None
+        self.shortcut_proj_attn = nn.Linear(dim, dim_out, **dd) if proj_needed and expand_attn else None  # 存在 *args/**kwargs，需手动确认参数映射;
         if stride_q and prod(stride_q) > 1:
             kernel_skip = [s + 1 if s > 1 else s for s in stride_q]
             stride_skip = stride_q
@@ -599,18 +599,18 @@ class MultiScaleBlock(msnn.Cell):
             rel_pos_type=rel_pos_type,
             residual_pooling=residual_pooling,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
 
-        self.norm2 = norm_layer(att_dim, **dd)
+        self.norm2 = norm_layer(att_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         mlp_dim_out = dim_out
-        self.shortcut_proj_mlp = nn.Linear(dim, dim_out, **dd) if proj_needed and not expand_attn else None
+        self.shortcut_proj_mlp = nn.Linear(dim, dim_out, **dd) if proj_needed and not expand_attn else None  # 存在 *args/**kwargs，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=att_dim,
             hidden_features=int(att_dim * mlp_ratio),
             out_features=mlp_dim_out,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
 
     def _shortcut_pool(self, x, feat_size: List[int]):
@@ -700,7 +700,7 @@ class MultiScaleVitStage(msnn.Cell):
                 norm_layer=norm_layer,
                 drop_path=drop_path[i] if isinstance(drop_path, (list, tuple)) else drop_path,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             dim = out_dims[i]
             self.blocks.append(attention_block)
             if i == 0:
@@ -762,12 +762,12 @@ class MultiScaleVit(msnn.Cell):
             stride=cfg.patch_stride,
             padding=cfg.patch_padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         patch_dims = (img_size[0] // cfg.patch_stride[0], img_size[1] // cfg.patch_stride[1])
         num_patches = prod(patch_dims)
 
         if cfg.use_cls_token:
-            self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))
+            self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_prefix_tokens = 1
             pos_embed_dim = num_patches + 1
         else:
@@ -776,7 +776,7 @@ class MultiScaleVit(msnn.Cell):
             pos_embed_dim = num_patches
 
         if cfg.use_abs_pos:
-            self.pos_embed = ms.Parameter(mint.zeros(1, pos_embed_dim, embed_dim, **dd))
+            self.pos_embed = ms.Parameter(mint.zeros(1, pos_embed_dim, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.pos_embed = None
 
@@ -812,7 +812,7 @@ class MultiScaleVit(msnn.Cell):
                 norm_layer=norm_layer,
                 drop_path=dpr[i],
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             curr_stride *= max(cfg.stride_q[i])
             self.feature_info += [dict(module=f'block.{i}', num_chs=dim_out, reduction=curr_stride)]
             embed_dim = dim_out
@@ -820,11 +820,11 @@ class MultiScaleVit(msnn.Cell):
             self.stages.append(stage)
 
         self.num_features = self.head_hidden_size = embed_dim
-        self.norm = norm_layer(embed_dim, **dd)
+        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head = msnn.SequentialCell(OrderedDict([
             ('drop', nn.Dropout(self.drop_rate)),
             ('fc', nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity())
-        ]))
+        ]))  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if self.pos_embed is not None:
             trunc_normal_tf_(self.pos_embed, std=0.02)
@@ -838,12 +838,12 @@ class MultiScaleVit(msnn.Cell):
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {k for k, _ in self.named_parameters()
                 if any(n in k for n in ["pos_embed", "rel_pos_h", "rel_pos_w", "cls_token"])}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^patch_embed',  # stem and embed
@@ -851,12 +851,12 @@ class MultiScaleVit(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -1074,7 +1074,7 @@ def _create_mvitv2(variant, cfg_variant=None, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -1119,39 +1119,39 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def mvitv2_tiny(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_tiny', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_tiny', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mvitv2_small(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_small', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_small', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mvitv2_base(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_base', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_base', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mvitv2_large(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_large', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_large', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mvitv2_small_cls(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_small_cls', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_small_cls', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mvitv2_base_cls(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_base_cls', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_base_cls', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mvitv2_large_cls(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_large_cls', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_large_cls', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mvitv2_huge_cls(pretrained=False, **kwargs) -> MultiScaleVit:
-    return _create_mvitv2('mvitv2_huge_cls', pretrained=pretrained, **kwargs)
+    return _create_mvitv2('mvitv2_huge_cls', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

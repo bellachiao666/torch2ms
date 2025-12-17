@@ -39,15 +39,15 @@ class VisionTransformerDistilled(VisionTransformer):
 
     def __init__(self, *args, **kwargs):
         weight_init = kwargs.pop('weight_init', '')
-        super().__init__(*args, **kwargs, weight_init='skip')
+        super().__init__(*args, **kwargs, weight_init='skip')  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         assert self.global_pool in ('token',)
         dd = {'device': kwargs.get('device', None), 'dtype': kwargs.get('dtype', None)}
 
         self.num_prefix_tokens = 2
-        self.dist_token = ms.Parameter(mint.zeros(1, 1, self.embed_dim, **dd))
+        self.dist_token = ms.Parameter(mint.zeros(1, 1, self.embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pos_embed = ms.Parameter(
-            mint.zeros(1, self.patch_embed.num_patches + self.num_prefix_tokens, self.embed_dim, **dd))
-        self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if self.num_classes > 0 else msnn.Identity()
+            mint.zeros(1, self.patch_embed.num_patches + self.num_prefix_tokens, self.embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if self.num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
         self.distilled_training = False  # must set this True to train w/ distillation token
 
         self.init_weights(weight_init)
@@ -56,7 +56,7 @@ class VisionTransformerDistilled(VisionTransformer):
         trunc_normal_(self.dist_token, std=.02)
         super().init_weights(mode=mode)
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^cls_token|pos_embed|patch_embed|dist_token',
@@ -65,7 +65,7 @@ class VisionTransformerDistilled(VisionTransformer):
                 (r'^norm', (99999,))]  # final norm w/ last block
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head, self.head_dist
 
@@ -74,7 +74,7 @@ class VisionTransformerDistilled(VisionTransformer):
         self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else msnn.Identity()
         self.head_dist = nn.Linear(self.embed_dim, self.num_classes) if num_classes > 0 else msnn.Identity()
 
-    @torch.jit.ignore
+    @ms.jit
     def set_distilled_training(self, enable=True):
         self.distilled_training = enable
 
@@ -135,7 +135,7 @@ def _create_deit(variant, pretrained=False, distilled=False, **kwargs):
         pretrained_filter_fn=partial(checkpoint_filter_fn, adapt_layer_scale=True),
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -254,7 +254,7 @@ def deit_tiny_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=192, depth=12, num_heads=3)
-    model = _create_deit('deit_tiny_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit_tiny_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -264,7 +264,7 @@ def deit_small_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6)
-    model = _create_deit('deit_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -274,7 +274,7 @@ def deit_base_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12)
-    model = _create_deit('deit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -284,7 +284,7 @@ def deit_base_patch16_384(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12)
-    model = _create_deit('deit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -295,7 +295,7 @@ def deit_tiny_distilled_patch16_224(pretrained=False, **kwargs) -> VisionTransfo
     """
     model_args = dict(patch_size=16, embed_dim=192, depth=12, num_heads=3)
     model = _create_deit(
-        'deit_tiny_distilled_patch16_224', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))
+        'deit_tiny_distilled_patch16_224', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -306,7 +306,7 @@ def deit_small_distilled_patch16_224(pretrained=False, **kwargs) -> VisionTransf
     """
     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6)
     model = _create_deit(
-        'deit_small_distilled_patch16_224', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))
+        'deit_small_distilled_patch16_224', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -317,7 +317,7 @@ def deit_base_distilled_patch16_224(pretrained=False, **kwargs) -> VisionTransfo
     """
     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12)
     model = _create_deit(
-        'deit_base_distilled_patch16_224', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))
+        'deit_base_distilled_patch16_224', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -328,7 +328,7 @@ def deit_base_distilled_patch16_384(pretrained=False, **kwargs) -> VisionTransfo
     """
     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12)
     model = _create_deit(
-        'deit_base_distilled_patch16_384', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))
+        'deit_base_distilled_patch16_384', pretrained=pretrained, distilled=True, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -338,7 +338,7 @@ def deit3_small_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_small_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -348,7 +348,7 @@ def deit3_small_patch16_384(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=384, depth=12, num_heads=6, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_small_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_small_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -358,7 +358,7 @@ def deit3_medium_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=512, depth=12, num_heads=8, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_medium_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_medium_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -368,7 +368,7 @@ def deit3_base_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -378,7 +378,7 @@ def deit3_base_patch16_384(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -388,7 +388,7 @@ def deit3_large_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=1024, depth=24, num_heads=16, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -398,7 +398,7 @@ def deit3_large_patch16_384(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=16, embed_dim=1024, depth=24, num_heads=16, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -408,7 +408,7 @@ def deit3_huge_patch14_224(pretrained=False, **kwargs) -> VisionTransformer:
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
     """
     model_args = dict(patch_size=14, embed_dim=1280, depth=32, num_heads=16, no_embed_class=True, init_values=1e-6)
-    model = _create_deit('deit3_huge_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_deit('deit3_huge_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

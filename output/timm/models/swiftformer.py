@@ -37,7 +37,7 @@ class LayerScale2d(msnn.Cell):
         super().__init__()
         self.inplace = inplace
         self.gamma = ms.Parameter(
-            init_values * mint.ones(dim, 1, 1, **dd), requires_grad=True)
+            init_values * mint.ones(dim, 1, 1, **dd), requires_grad=True)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return x.mul_(self.gamma) if self.inplace else x * self.gamma
@@ -65,8 +65,8 @@ class Embedding(msnn.Cell):
         patch_size = to_2tuple(patch_size)
         stride = to_2tuple(stride)
         padding = to_2tuple(padding)
-        self.proj = nn.Conv2d(in_chans, embed_dim, patch_size, stride, padding, **dd)
-        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()
+        self.proj = nn.Conv2d(in_chans, embed_dim, patch_size, stride, padding, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.proj(x)
@@ -94,13 +94,13 @@ class ConvEncoder(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size // 2, groups=dim, **dd)
-        self.norm = norm_layer(dim, **dd)
-        self.pwconv1 = nn.Conv2d(dim, hidden_dim, 1, **dd)
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size // 2, groups=dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pwconv1 = nn.Conv2d(dim, hidden_dim, 1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.pwconv2 = nn.Conv2d(hidden_dim, dim, 1, **dd)
+        self.pwconv2 = nn.Conv2d(hidden_dim, dim, 1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.layer_scale = LayerScale2d(dim, 1, **dd) if use_layer_scale else msnn.Identity()
+        self.layer_scale = LayerScale2d(dim, 1, **dd) if use_layer_scale else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         input = x
@@ -135,10 +135,10 @@ class Mlp(msnn.Cell):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.norm1 = norm_layer(in_features, **dd)
-        self.fc1 = nn.Conv2d(in_features, hidden_features, 1, **dd)
+        self.norm1 = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc1 = nn.Conv2d(in_features, hidden_features, 1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.fc2 = nn.Conv2d(hidden_features, out_features, 1, **dd)
+        self.fc2 = nn.Conv2d(hidden_features, out_features, 1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -168,13 +168,13 @@ class EfficientAdditiveAttention(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.scale_factor = token_dim ** -0.5
-        self.to_query = nn.Linear(in_dims, token_dim * num_heads, **dd)
-        self.to_key = nn.Linear(in_dims, token_dim * num_heads, **dd)
+        self.to_query = nn.Linear(in_dims, token_dim * num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.to_key = nn.Linear(in_dims, token_dim * num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
-        self.w_g = ms.Parameter(mint.randn(token_dim * num_heads, 1, **dd))
+        self.w_g = ms.Parameter(mint.randn(token_dim * num_heads, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.proj = nn.Linear(token_dim * num_heads, token_dim * num_heads, **dd)
-        self.final = nn.Linear(token_dim * num_heads, token_dim, **dd)
+        self.proj = nn.Linear(token_dim * num_heads, token_dim * num_heads, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.final = nn.Linear(token_dim * num_heads, token_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         B, _, H, W = x.shape
@@ -210,13 +210,13 @@ class LocalRepresentation(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size // 2, groups=dim, **dd)
-        self.norm = norm_layer(dim, **dd)
-        self.pwconv1 = nn.Conv2d(dim, dim, kernel_size=1, **dd)
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size // 2, groups=dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pwconv1 = nn.Conv2d(dim, dim, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.pwconv2 = nn.Conv2d(dim, dim, kernel_size=1, **dd)
+        self.pwconv2 = nn.Conv2d(dim, dim, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.layer_scale = LayerScale2d(dim, 1, **dd) if use_layer_scale else msnn.Identity()
+        self.layer_scale = LayerScale2d(dim, 1, **dd) if use_layer_scale else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         skip = x
@@ -258,8 +258,8 @@ class Block(msnn.Cell):
             act_layer=act_layer,
             norm_layer=norm_layer,
             **dd,
-        )
-        self.attn = EfficientAdditiveAttention(in_dims=dim, token_dim=dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn = EfficientAdditiveAttention(in_dims=dim, token_dim=dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.linear = Mlp(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
@@ -267,12 +267,12 @@ class Block(msnn.Cell):
             norm_layer=norm_layer,
             drop=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
         self.layer_scale_1 = LayerScale2d(dim, layer_scale_init_value, **dd) \
-            if use_layer_scale else msnn.Identity()
+            if use_layer_scale else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.layer_scale_2 = LayerScale2d(dim, layer_scale_init_value, **dd) \
-            if use_layer_scale else msnn.Identity()
+            if use_layer_scale else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.local_representation(x)
@@ -322,7 +322,7 @@ class Stage(msnn.Cell):
                     use_layer_scale=use_layer_scale,
                     layer_scale_init_value=layer_scale_init_value,
                     **dd,
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 blocks.append(ConvEncoder(
                     dim=dim,
@@ -333,8 +333,8 @@ class Stage(msnn.Cell):
                     norm_layer=norm_layer,
                     use_layer_scale=use_layer_scale,
                     **dd,
-                ))
-        self.blocks = msnn.SequentialCell(*blocks)
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.downsample(x)
@@ -382,7 +382,7 @@ class SwiftFormer(msnn.Cell):
             nn.Conv2d(embed_dims[0] // 2, embed_dims[0], 3, 2, 1, **dd),
             nn.BatchNorm2d(embed_dims[0], **dd),
             nn.ReLU(),
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         prev_dim = embed_dims[0]
 
         stages = []
@@ -394,7 +394,7 @@ class SwiftFormer(msnn.Cell):
                 stride=down_stride,
                 padding=down_pad,
                 **dd,
-            ) if downsamples[i] else msnn.Identity()
+            ) if downsamples[i] else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stage = Stage(
                 dim=embed_dims[i],
                 index=i,
@@ -407,19 +407,19 @@ class SwiftFormer(msnn.Cell):
                 layer_scale_init_value=layer_scale_init_value,
                 downsample=downsample,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_dim = embed_dims[i]
             stages.append(stage)
             self.feature_info += [dict(num_chs=embed_dims[i], reduction=2**(i+2), module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier head
         self.num_features  = self.head_hidden_size = out_chs = embed_dims[-1]
-        self.norm = nn.BatchNorm2d(out_chs, **dd)
+        self.norm = nn.BatchNorm2d(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = Linear(out_chs, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = Linear(out_chs, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # assuming model is always distilled (valid for current checkpoints, will split def if that changes)
-        self.head_dist = Linear(out_chs, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head_dist = Linear(out_chs, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.distilled_training = False  # must set this True to train w/ distillation token
         self._initialize_weights()
 
@@ -434,11 +434,11 @@ class SwiftFormer(msnn.Cell):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set:
         return set()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         matcher = dict(
             stem=r'^stem',  # stem and embed
@@ -450,12 +450,12 @@ class SwiftFormer(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> Tuple[msnn.Cell, msnn.Cell]:
         return self.head, self.head_dist
 
@@ -467,7 +467,7 @@ class SwiftFormer(msnn.Cell):
         self.head = Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else msnn.Identity()
         self.head_dist = Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else msnn.Identity()
 
-    @torch.jit.ignore
+    @ms.jit
     def set_distilled_training(self, enable: bool = True):
         self.distilled_training = enable
 
@@ -626,28 +626,28 @@ def _create_swiftformer(variant: str, pretrained: bool = False, **kwargs: Any) -
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def swiftformer_xs(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
     model_args = dict(layers=[3, 3, 6, 4], embed_dims=[48, 56, 112, 220])
-    return _create_swiftformer('swiftformer_xs', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swiftformer('swiftformer_xs', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def swiftformer_s(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
     model_args = dict(layers=[3, 3, 9, 6], embed_dims=[48, 64, 168, 224])
-    return _create_swiftformer('swiftformer_s', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swiftformer('swiftformer_s', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 @register_model
 def swiftformer_l1(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
     model_args = dict(layers=[4, 3, 10, 5], embed_dims=[48, 96, 192, 384])
-    return _create_swiftformer('swiftformer_l1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swiftformer('swiftformer_l1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def swiftformer_l3(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
     model_args = dict(layers=[4, 4, 12, 6], embed_dims=[64, 128, 320, 512])
-    return _create_swiftformer('swiftformer_l3', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_swiftformer('swiftformer_l3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

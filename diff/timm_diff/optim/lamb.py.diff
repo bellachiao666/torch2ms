@@ -21,7 +21,7 @@
  class Lamb(Optimizer):
      """Implements a pure pytorch variant of FuseLAMB (NvLamb variant) optimizer from apex.optimizers.FusedLAMB
      reference: https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/LanguageModeling/Transformer-XL/pytorch/lamb.py
-@@ -139,12 +145,11 @@                 grad = p.grad
+@@ -139,8 +145,8 @@                 grad = p.grad
                  if grad.is_sparse:
                      raise RuntimeError('Lamb does not support sparse gradients, consider SparseAdam instead.')
 -                norms.append(torch.linalg.vector_norm(grad))
@@ -31,11 +31,7 @@
          clip_global_norm = (global_norm / max_grad_norm).clamp_(min=1.0)
          return clip_global_norm
  
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step.
-         Arguments:
-@@ -190,9 +195,9 @@                 # State initialization
+@@ -190,9 +196,9 @@                 # State initialization
                  if len(state) == 0:
                      # Exponential moving average of gradient valuesa
 -                    state['exp_avg'] = torch.zeros_like(p)
@@ -46,7 +42,7 @@
  
                  exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
  
-@@ -228,14 +233,14 @@                     trust_ratio = w_norm / g_norm
+@@ -228,14 +234,14 @@                     trust_ratio = w_norm / g_norm
                      # FIXME nested where required since logical and/or not working in PT XLA
                      # Set the ratio to 1.0 (no change) if either weight norm or grad norm is zero
 -                    trust_ratio = torch.where(

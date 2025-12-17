@@ -32,7 +32,7 @@ def nullwrap(fn: Optional[F] = None):
     # as a decorator
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        return fn(*args, **kwargs)
+        return fn(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return wrapper  # `@nullwrap`
 
 

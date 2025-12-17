@@ -76,8 +76,8 @@ class PosEmbedRel(msnn.Cell):
         self.dim_head = dim_head
         self.scale = scale
 
-        self.height_rel = ms.Parameter(mint.empty(self.height * 2 - 1, dim_head, **dd))
-        self.width_rel = ms.Parameter(mint.empty(self.width * 2 - 1, dim_head, **dd))
+        self.height_rel = ms.Parameter(mint.empty(self.height * 2 - 1, dim_head, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.width_rel = ms.Parameter(mint.empty(self.width * 2 - 1, dim_head, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.reset_parameters()
 
@@ -150,10 +150,10 @@ class BottleneckAttn(msnn.Cell):
         self.scale = self.dim_head_qk ** -0.5
         self.scale_pos_embed = scale_pos_embed
 
-        self.qkv = nn.Conv2d(dim, self.dim_out_qk * 2 + self.dim_out_v, 1, bias=qkv_bias, **dd)
+        self.qkv = nn.Conv2d(dim, self.dim_out_qk * 2 + self.dim_out_v, 1, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         # NOTE I'm only supporting relative pos embedding for now
-        self.pos_embed = PosEmbedRel(feat_size, dim_head=self.dim_head_qk, scale=self.scale, **dd)
+        self.pos_embed = PosEmbedRel(feat_size, dim_head=self.dim_head_qk, scale=self.scale, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.pool = nn.AvgPool2d(2, 2) if stride == 2 else msnn.Identity()
 

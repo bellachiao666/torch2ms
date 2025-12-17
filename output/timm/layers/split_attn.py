@@ -78,14 +78,14 @@ class SplitAttn(msnn.Cell):
             bias=bias,
             **kwargs,
             **dd,
-        )
-        self.bn0 = norm_layer(mid_chs, **dd) if norm_layer else msnn.Identity()
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn0 = norm_layer(mid_chs, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act0 = act_layer(inplace=True)
-        self.fc1 = nn.Conv2d(out_channels, attn_chs, 1, groups=groups, **dd)
-        self.bn1 = norm_layer(attn_chs, **dd) if norm_layer else msnn.Identity()
+        self.fc1 = nn.Conv2d(out_channels, attn_chs, 1, groups=groups, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = norm_layer(attn_chs, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer(inplace=True)
-        self.fc2 = nn.Conv2d(attn_chs, mid_chs, 1, groups=groups, **dd)
+        self.fc2 = nn.Conv2d(attn_chs, mid_chs, 1, groups=groups, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.rsoftmax = RadixSoftmax(radix, groups)
 
     def construct(self, x):

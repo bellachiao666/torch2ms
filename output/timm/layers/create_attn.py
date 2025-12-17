@@ -98,5 +98,5 @@ def create_attn(attn_type, channels, **kwargs):
     module_cls = get_attn(attn_type)
     if module_cls is not None:
         # NOTE: it's expected the first (positional) argument of all attention layers is the # input channels
-        return module_cls(channels, **kwargs)
+        return module_cls(channels, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return None

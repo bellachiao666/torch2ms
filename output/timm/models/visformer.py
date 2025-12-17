@@ -55,17 +55,17 @@ class SpatialMlp(msnn.Cell):
                 hidden_features = in_features * 2
         self.hidden_features = hidden_features
         self.group = group
-        self.conv1 = nn.Conv2d(in_features, hidden_features, 1, stride=1, padding=0, bias=False, **dd)
+        self.conv1 = nn.Conv2d(in_features, hidden_features, 1, stride=1, padding=0, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act1 = act_layer()
         self.drop1 = nn.Dropout(drop_probs[0])
         if self.spatial_conv:
             self.conv2 = nn.Conv2d(
-                hidden_features, hidden_features, 3, stride=1, padding=1, groups=self.group, bias=False, **dd)
+                hidden_features, hidden_features, 3, stride=1, padding=1, groups=self.group, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.act2 = act_layer()
         else:
             self.conv2 = None
             self.act2 = None
-        self.conv3 = nn.Conv2d(hidden_features, out_features, 1, stride=1, padding=0, bias=False, **dd)
+        self.conv3 = nn.Conv2d(hidden_features, out_features, 1, stride=1, padding=0, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop3 = nn.Dropout(drop_probs[1])
 
     def construct(self, x):
@@ -81,7 +81,7 @@ class SpatialMlp(msnn.Cell):
 
 
 class Attention(msnn.Cell):
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -102,9 +102,9 @@ class Attention(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn(experimental=True)
 
-        self.qkv = nn.Conv2d(dim, head_dim * num_heads * 3, 1, stride=1, padding=0, bias=False, **dd)
+        self.qkv = nn.Conv2d(dim, head_dim * num_heads * 3, 1, stride=1, padding=0, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Conv2d(self.head_dim * self.num_heads, dim, 1, stride=1, padding=0, bias=False, **dd)
+        self.proj = nn.Conv2d(self.head_dim * self.num_heads, dim, 1, stride=1, padding=0, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x):
@@ -155,7 +155,7 @@ class Block(msnn.Cell):
             self.norm1 = None
             self.attn = None
         else:
-            self.norm1 = norm_layer(dim, **dd)
+            self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.attn = Attention(
                 dim,
                 num_heads=num_heads,
@@ -163,9 +163,9 @@ class Block(msnn.Cell):
                 attn_drop=attn_drop,
                 proj_drop=proj_drop,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = SpatialMlp(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
@@ -174,7 +174,7 @@ class Block(msnn.Cell):
             group=group,
             spatial_conv=spatial_conv,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         if self.attn is not None:
@@ -242,7 +242,7 @@ class Visformer(msnn.Cell):
                 norm_layer=embed_norm,
                 flatten=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             img_size = [x // patch_size for x in img_size]
         else:
             if self.init_channels is None:
@@ -255,14 +255,14 @@ class Visformer(msnn.Cell):
                     norm_layer=embed_norm,
                     flatten=False,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 img_size = [x // (patch_size // 2) for x in img_size]
             else:
                 self.stem = msnn.SequentialCell(
                     nn.Conv2d(in_chans, self.init_channels, 7, stride=2, padding=3, bias=False, **dd),
                     nn.BatchNorm2d(self.init_channels, **dd),
                     nn.ReLU()
-                )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
                 img_size = [x // 2 for x in img_size]
                 self.patch_embed1 = PatchEmbed(
                     img_size=img_size,
@@ -272,14 +272,14 @@ class Visformer(msnn.Cell):
                     norm_layer=embed_norm,
                     flatten=False,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 img_size = [x // (patch_size // 4) for x in img_size]
 
         if self.use_pos_embed:
             if self.vit_stem:
-                self.pos_embed1 = ms.Parameter(mint.zeros(1, embed_dim, *img_size, **dd))
+                self.pos_embed1 = ms.Parameter(mint.zeros(1, embed_dim, *img_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
-                self.pos_embed1 = ms.Parameter(mint.zeros(1, embed_dim//2, *img_size, **dd))
+                self.pos_embed1 = ms.Parameter(mint.zeros(1, embed_dim//2, *img_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.pos_drop = nn.Dropout(p = pos_drop_rate)
         else:
             self.pos_embed1 = None
@@ -300,7 +300,7 @@ class Visformer(msnn.Cell):
                 **dd,
             )
             for i in range(self.stage_num1)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # stage2
         if not self.vit_stem:
@@ -312,10 +312,10 @@ class Visformer(msnn.Cell):
                 norm_layer=embed_norm,
                 flatten=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             img_size = [x // (patch_size // 8) for x in img_size]
             if self.use_pos_embed:
-                self.pos_embed2 = ms.Parameter(mint.zeros(1, embed_dim, *img_size, **dd))
+                self.pos_embed2 = ms.Parameter(mint.zeros(1, embed_dim, *img_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.pos_embed2 = None
         else:
@@ -336,7 +336,7 @@ class Visformer(msnn.Cell):
                 **dd,
             )
             for i in range(self.stage_num1, self.stage_num1+self.stage_num2)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # stage 3
         if not self.vit_stem:
@@ -348,10 +348,10 @@ class Visformer(msnn.Cell):
                 norm_layer=embed_norm,
                 flatten=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             img_size = [x // (patch_size // 8) for x in img_size]
             if self.use_pos_embed:
-                self.pos_embed3 = ms.Parameter(mint.zeros(1, embed_dim*2, *img_size, **dd))
+                self.pos_embed3 = ms.Parameter(mint.zeros(1, embed_dim*2, *img_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.pos_embed3 = None
         else:
@@ -372,10 +372,10 @@ class Visformer(msnn.Cell):
                 **dd,
             )
             for i in range(self.stage_num1+self.stage_num2, depth)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.num_features = self.head_hidden_size = embed_dim if self.vit_stem else embed_dim * 2
-        self.norm = norm_layer(self.num_features, **dd)
+        self.norm = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # head
         global_pool, head = create_classifier(
@@ -410,7 +410,7 @@ class Visformer(msnn.Cell):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0.)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^patch_embed1|pos_embed1|stem',  # stem and embed
@@ -421,11 +421,11 @@ class Visformer(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -486,7 +486,7 @@ class Visformer(msnn.Cell):
 def _create_visformer(variant, pretrained=False, default_cfg=None, **kwargs):
     if kwargs.get('features_only', None):
         raise RuntimeError('features_only not implemented for Vision Transformer models.')
-    model = build_model_with_cfg(Visformer, variant, pretrained, **kwargs)
+    model = build_model_with_cfg(Visformer, variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -514,7 +514,7 @@ def visformer_tiny(pretrained=False, **kwargs) -> Visformer:
         init_channels=16, embed_dim=192, depth=(7, 4, 4), num_heads=3, mlp_ratio=4., group=8,
         attn_stage='011', spatial_conv='100', norm_layer=nn.BatchNorm2d, conv_init=True,
         embed_norm=nn.BatchNorm2d)
-    model = _create_visformer('visformer_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_visformer('visformer_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -524,7 +524,7 @@ def visformer_small(pretrained=False, **kwargs) -> Visformer:
         init_channels=32, embed_dim=384, depth=(7, 4, 4), num_heads=6, mlp_ratio=4., group=8,
         attn_stage='011', spatial_conv='100', norm_layer=nn.BatchNorm2d, conv_init=True,
         embed_norm=nn.BatchNorm2d)
-    model = _create_visformer('visformer_small', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_visformer('visformer_small', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

@@ -50,11 +50,11 @@ class MultiQueryAttentionV2(msnn.Cell):
         self.value_dim = value_dim
         self.scale = key_dim ** -0.5
 
-        self.query_proj = ms.Parameter(mint.empty((self.num_heads, self.key_dim, dim), **dd))
-        self.key_proj = ms.Parameter(mint.empty((dim, self.key_dim), **dd))
-        self.value_proj = ms.Parameter(mint.empty((dim, self.value_dim), **dd))
+        self.query_proj = ms.Parameter(mint.empty((self.num_heads, self.key_dim, dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.key_proj = ms.Parameter(mint.empty((dim, self.key_dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.value_proj = ms.Parameter(mint.empty((dim, self.value_dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.out_proj = ms.Parameter(mint.empty((dim_out, self.num_heads, self.value_dim), **dd))
+        self.out_proj = ms.Parameter(mint.empty((dim_out, self.num_heads, self.value_dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
         self.reset_parameters()
@@ -107,7 +107,7 @@ class MultiQueryAttention2d(msnn.Cell):
     1. Projections in Attention is explicit written out as 1x1 Conv2D.
     2. Additional reshapes are introduced to bring a up to 3x speed up.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -163,14 +163,14 @@ class MultiQueryAttention2d(msnn.Cell):
             else:
                 # no pad if not 'same' as kern=stride=even
                 self.query.add_module('down_pool', nn.AvgPool2d(kernel_size = query_strides))
-            self.query.add_module('norm', norm_layer(dim, **dd))
+            self.query.add_module('norm', norm_layer(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.query.add_module('proj', create_conv2d(
             dim,
             self.num_heads * self.key_dim,
             kernel_size=1,
             bias=use_bias,
             **dd,
-        ))
+        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.key = msnn.SequentialCell()
         if kv_stride > 1:
@@ -183,8 +183,8 @@ class MultiQueryAttention2d(msnn.Cell):
                 padding=padding,
                 depthwise=True,
                 **dd,
-            ))
-            self.key.add_module('norm', norm_layer(dim, **dd))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.key.add_module('norm', norm_layer(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.key.add_module('proj', create_conv2d(
             dim,
             self.key_dim,
@@ -192,7 +192,7 @@ class MultiQueryAttention2d(msnn.Cell):
             padding=padding,
             bias=use_bias,
             **dd,
-        ))
+        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.value = msnn.SequentialCell()
         if kv_stride > 1:
@@ -205,15 +205,15 @@ class MultiQueryAttention2d(msnn.Cell):
                 padding=padding,
                 depthwise=True,
                 **dd,
-            ))
-            self.value.add_module('norm', norm_layer(dim, **dd))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.value.add_module('norm', norm_layer(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.value.add_module('proj', create_conv2d(
             dim,
             self.value_dim,
             kernel_size=1,
             bias=use_bias,
             **dd,
-        ))
+        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.attn_drop = nn.Dropout(attn_drop)
 
@@ -227,7 +227,7 @@ class MultiQueryAttention2d(msnn.Cell):
             kernel_size=1,
             bias=use_bias,
             **dd,
-        ))
+        ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.output.add_module('drop', nn.Dropout(proj_drop))
 
         self.einsum = False
@@ -320,7 +320,7 @@ class MultiQueryAttention2d(msnn.Cell):
 
 
 class Attention2d(msnn.Cell):
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     """ multi-head attention for 2D NCHW tensors"""
     def __init__(
@@ -345,9 +345,9 @@ class Attention2d(msnn.Cell):
         self.head_first = head_first
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Conv2d(dim, dim_attn * 3, 1, bias=bias, **dd)
+        self.qkv = nn.Conv2d(dim, dim_attn * 3, 1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Conv2d(dim_attn, dim_out, 1, bias=bias, **dd)
+        self.proj = nn.Conv2d(dim_attn, dim_out, 1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x, attn_mask: Optional[ms.Tensor] = None):

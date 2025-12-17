@@ -100,8 +100,8 @@ class ConvNorm(msnn.Cell):
             groups=groups,
             bias=bias,
             **dd,
-        )
-        self.bn = create_norm_layer(norm_layer, out_channels, **norm_kwargs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn = create_norm_layer(norm_layer, out_channels, **norm_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv(x)
@@ -133,7 +133,7 @@ class Attention2d(msnn.Cell):
         resolution = to_2tuple(resolution)
         if stride is not None:
             resolution = tuple([math.ceil(r / stride) for r in resolution])
-            self.stride_conv = ConvNorm(dim, dim, kernel_size=3, stride=stride, groups=dim, **dd)
+            self.stride_conv = ConvNorm(dim, dim, kernel_size=3, stride=stride, groups=dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.upsample = nn.Upsample(scale_factor = stride, mode = 'bilinear')
         else:
             self.stride_conv = None
@@ -146,15 +146,15 @@ class Attention2d(msnn.Cell):
         self.attn_ratio = attn_ratio
         kh = self.key_dim * self.num_heads
 
-        self.q = ConvNorm(dim, kh, **dd)
-        self.k = ConvNorm(dim, kh, **dd)
-        self.v = ConvNorm(dim, self.dh, **dd)
-        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, groups=self.dh, **dd)
-        self.talking_head1 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)
-        self.talking_head2 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)
+        self.q = ConvNorm(dim, kh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k = ConvNorm(dim, kh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.v = ConvNorm(dim, self.dh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, groups=self.dh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.talking_head1 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.talking_head2 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.act = act_layer()
-        self.proj = ConvNorm(self.dh, dim, 1, **dd)
+        self.proj = ConvNorm(self.dh, dim, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         pos = mint.stack(ndgrid(
             mint.arange(self.resolution[0], device=device, dtype=ms.int64),
@@ -162,17 +162,16 @@ class Attention2d(msnn.Cell):
         )).flatten(1)
         rel_pos = (pos[..., :, None] - pos[..., None, :]).abs()
         rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
-        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
         self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
 
+    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -220,8 +219,8 @@ class LocalGlobalQuery(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.pool = nn.AvgPool2d(1, 2, 0)
-        self.local = nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=2, padding=1, groups=in_dim, **dd)
-        self.proj = ConvNorm(in_dim, out_dim, 1, **dd)
+        self.local = nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=2, padding=1, groups=in_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = ConvNorm(in_dim, out_dim, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         local_q = self.local(x)
@@ -263,15 +262,15 @@ class Attention2dDownsample(msnn.Cell):
         self.out_dim = out_dim or dim
         kh = self.key_dim * self.num_heads
 
-        self.q = LocalGlobalQuery(dim, kh, **dd)
-        self.k = ConvNorm(dim, kh, 1, **dd)
-        self.v = ConvNorm(dim, self.dh, 1, **dd)
-        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, stride=2, groups=self.dh, **dd)
+        self.q = LocalGlobalQuery(dim, kh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k = ConvNorm(dim, kh, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.v = ConvNorm(dim, self.dh, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, stride=2, groups=self.dh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.act = act_layer()
-        self.proj = ConvNorm(self.dh, self.out_dim, 1, **dd)
+        self.proj = ConvNorm(self.dh, self.out_dim, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         k_pos = mint.stack(ndgrid(
             mint.arange(self.resolution[0], device=device, dtype=ms.int64),
             mint.arange(self.resolution[1], device=device, dtype=ms.int64),
@@ -285,13 +284,12 @@ class Attention2dDownsample(msnn.Cell):
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
         self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
 
+    @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
@@ -351,7 +349,7 @@ class Downsample(msnn.Cell):
             padding=padding,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if use_attn:
             self.attn = Attention2dDownsample(
@@ -360,7 +358,7 @@ class Downsample(msnn.Cell):
                 resolution=resolution,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.attn = None
 
@@ -401,7 +399,7 @@ class ConvMlpWithNorm(msnn.Cell):
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if mid_conv:
             self.mid = ConvNormAct(
                 hidden_features,
@@ -412,11 +410,11 @@ class ConvMlpWithNorm(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.mid = msnn.Identity()
         self.drop1 = nn.Dropout(drop)
-        self.fc2 = ConvNorm(hidden_features, out_features, 1, norm_layer=norm_layer, **dd)
+        self.fc2 = ConvNorm(hidden_features, out_features, 1, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop2 = nn.Dropout(drop)
 
     def construct(self, x):
@@ -454,9 +452,9 @@ class EfficientFormerV2Block(msnn.Cell):
                 act_layer=act_layer,
                 stride=stride,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.ls1 = LayerScale2d(
-                dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()
+                dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
         else:
             self.token_mixer = None
@@ -471,9 +469,9 @@ class EfficientFormerV2Block(msnn.Cell):
             drop=proj_drop,
             mid_conv=True,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.ls2 = LayerScale2d(
-            dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()
+            dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -505,7 +503,7 @@ class Stem4(msnn.SequentialCell):
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = ConvNormAct(
             out_chs // 2,
             out_chs,
@@ -516,7 +514,7 @@ class Stem4(msnn.SequentialCell):
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class EfficientFormerV2Stage(msnn.Cell):
@@ -556,7 +554,7 @@ class EfficientFormerV2Stage(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             dim = dim_out
             resolution = tuple([math.ceil(r / 2) for r in resolution])
         else:
@@ -578,9 +576,9 @@ class EfficientFormerV2Stage(msnn.Cell):
                 act_layer=act_layer,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             blocks += [b]
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -624,7 +622,7 @@ class EfficientFormerV2(msnn.Cell):
         norm_layer = partial(get_norm_layer(norm_layer), eps=norm_eps)
         act_layer = get_act_layer(act_layer)
 
-        self.stem = Stem4(in_chans, embed_dims[0], act_layer=act_layer, norm_layer=norm_layer, **dd)
+        self.stem = Stem4(in_chans, embed_dims[0], act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         prev_dim = embed_dims[0]
         stride = 4
 
@@ -652,22 +650,22 @@ class EfficientFormerV2(msnn.Cell):
                 act_layer=act_layer,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if downsamples[i]:
                 stride *= 2
             prev_dim = embed_dims[i]
             self.feature_info += [dict(num_chs=prev_dim, reduction=stride, module=f'stages.{i}')]
             stages.append(stage)
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Classifier head
         self.num_features = self.head_hidden_size = embed_dims[-1]
-        self.norm = norm_layer(embed_dims[-1], **dd)
+        self.norm = norm_layer(embed_dims[-1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
         self.dist = distillation
         if self.dist:
-            self.head_dist = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()
+            self.head_dist = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.head_dist = None
 
@@ -681,11 +679,11 @@ class EfficientFormerV2(msnn.Cell):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {k for k, _ in self.named_parameters() if 'attention_biases' in k}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^stem',  # stem and embed
@@ -693,12 +691,12 @@ class EfficientFormerV2(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head, self.head_dist
 
@@ -709,7 +707,7 @@ class EfficientFormerV2(msnn.Cell):
         self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else msnn.Identity()
         self.head_dist = nn.Linear(self.num_features, num_classes) if num_classes > 0 else msnn.Identity()
 
-    @torch.jit.ignore
+    @ms.jit
     def set_distilled_training(self, enable=True):
         self.distilled_training = enable
 
@@ -839,7 +837,7 @@ def _create_efficientformerv2(variant, pretrained=False, **kwargs):
     model = build_model_with_cfg(
         EfficientFormerV2, variant, pretrained,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -852,7 +850,7 @@ def efficientformerv2_s0(pretrained=False, **kwargs) -> EfficientFormerV2:
         drop_path_rate=0.0,
         mlp_ratios=EfficientFormer_expansion_ratios['S0'],
     )
-    return _create_efficientformerv2('efficientformerv2_s0', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientformerv2('efficientformerv2_s0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -864,7 +862,7 @@ def efficientformerv2_s1(pretrained=False, **kwargs) -> EfficientFormerV2:
         drop_path_rate=0.0,
         mlp_ratios=EfficientFormer_expansion_ratios['S1'],
     )
-    return _create_efficientformerv2('efficientformerv2_s1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientformerv2('efficientformerv2_s1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -876,7 +874,7 @@ def efficientformerv2_s2(pretrained=False, **kwargs) -> EfficientFormerV2:
         drop_path_rate=0.02,
         mlp_ratios=EfficientFormer_expansion_ratios['S2'],
     )
-    return _create_efficientformerv2('efficientformerv2_s2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientformerv2('efficientformerv2_s2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -888,5 +886,5 @@ def efficientformerv2_l(pretrained=False, **kwargs) -> EfficientFormerV2:
         drop_path_rate=0.1,
         mlp_ratios=EfficientFormer_expansion_ratios['L'],
     )
-    return _create_efficientformerv2('efficientformerv2_l', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_efficientformerv2('efficientformerv2_l', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 

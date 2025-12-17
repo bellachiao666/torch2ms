@@ -31,8 +31,6 @@ class PatchRandomErasing:
     2. 'region': Erases rectangular regions at patch granularity
     """
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             erase_prob: float = 0.5,
@@ -91,10 +89,6 @@ class PatchRandomErasing:
         self.const_value = value
         self.unique_noise_per_patch = True
 
-    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _get_values(
             self,
             shape: Union[Tuple[int, ...], torch.Size],
@@ -171,9 +165,6 @@ class PatchRandomErasing:
 
         return patches, patch_coord, patch_valid
 
-    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _erase_patches(
             self,
             patches: ms.Tensor,
@@ -220,9 +211,6 @@ class PatchRandomErasing:
 
         patches[erase_idx] = self._get_values(fill_shape, dtype=dtype)
 
-    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _erase_region(
             self,
             patches: ms.Tensor,
@@ -262,7 +250,7 @@ class PatchRandomErasing:
             for attempt in range(10):
                 # Sample random area and aspect ratio
                 target_area = random.uniform(self.min_area, self.max_area) * total_area
-                aspect_ratio = math.exp(random.uniform(*self.log_aspect_ratio))
+                aspect_ratio = math.exp(random.uniform(*self.log_aspect_ratio))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
                 # Calculate region height and width
                 h = int(round(math.sqrt(target_area * aspect_ratio)))

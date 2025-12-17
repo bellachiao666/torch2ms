@@ -7,7 +7,7 @@ from mindspore.mint import nn, ops
 
 
 class SpaceToDepth(msnn.Cell):
-    bs: torch.jit.Final[int]
+    bs: torch.jit.Final[int]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(self, block_size: int = 4):
         super().__init__()

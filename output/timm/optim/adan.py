@@ -45,7 +45,7 @@ class MultiTensorApply(object):
             MultiTensorApply.import_err = err
 
     def __call__(self, op, noop_flag_buffer, tensor_lists, *args):
-        return op(self.chunk_size, noop_flag_buffer, tensor_lists, *args)
+        return op(self.chunk_size, noop_flag_buffer, tensor_lists, *args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 # 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -104,6 +104,7 @@ class Adan(Optimizer):
             group.setdefault('no_prox', False)
             group.setdefault('caution', False)
 
+    @torch.no_grad()
     def restart_opt(self):
         for group in self.param_groups:
             group['step'] = 0
@@ -119,6 +120,7 @@ class Adan(Optimizer):
                     # Exponential moving average of gradient difference
                     state['exp_avg_diff'] = mint.zeros_like(p)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step."""
         loss = None

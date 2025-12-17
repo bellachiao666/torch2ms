@@ -55,13 +55,13 @@ class SeparableConv2d(msnn.Cell):
             dilation=dilation,
             depthwise=True,
             **dd,
-        )
-        self.bn_dw = norm_layer(in_chs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn_dw = norm_layer(in_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act_dw = act_layer(inplace=True) if act_layer is not None else msnn.Identity()
 
         # pointwise convolution
-        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)
-        self.bn_pw = norm_layer(out_chs, **dd)
+        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn_pw = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act_pw = act_layer(inplace=True) if act_layer is not None else msnn.Identity()
 
     def construct(self, x):
@@ -95,7 +95,7 @@ class PreSeparableConv2d(msnn.Cell):
         self.kernel_size = kernel_size
         self.dilation = dilation
 
-        self.norm = norm_act_layer(in_chs, inplace=True, **dd) if first_act else msnn.Identity()
+        self.norm = norm_act_layer(in_chs, inplace=True, **dd) if first_act else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # depthwise convolution
         self.conv_dw = create_conv2d(
             in_chs,
@@ -106,10 +106,10 @@ class PreSeparableConv2d(msnn.Cell):
             dilation=dilation,
             depthwise=True,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # pointwise convolution
-        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)
+        self.conv_pw = create_conv2d(in_chs, out_chs, kernel_size=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.norm(x)
@@ -149,7 +149,7 @@ class XceptionModule(msnn.Cell):
                 norm_layer=norm_layer,
                 apply_act=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.shortcut = None
 
@@ -168,7 +168,7 @@ class XceptionModule(msnn.Cell):
                 act_layer=separable_act_layer,
                 norm_layer=norm_layer,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs[i]
 
         self.drop_path = drop_path
@@ -207,11 +207,11 @@ class PreXceptionModule(msnn.Cell):
         self.out_channels = out_chs[-1]
         self.no_skip = no_skip
         if not no_skip and (self.out_channels != self.in_channels or stride != 1):
-            self.shortcut = create_conv2d(in_chs, self.out_channels, 1, stride=stride, **dd)
+            self.shortcut = create_conv2d(in_chs, self.out_channels, 1, stride=stride, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.shortcut = msnn.Identity()
 
-        self.norm = get_norm_act_layer(norm_layer, act_layer=act_layer)(in_chs, inplace=True, **dd)
+        self.norm = get_norm_act_layer(norm_layer, act_layer=act_layer)(in_chs, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.stack = msnn.SequentialCell()
         for i in range(3):
             self.stack.add_module(f'conv{i + 1}', PreSeparableConv2d(
@@ -225,7 +225,7 @@ class PreXceptionModule(msnn.Cell):
                 norm_layer=norm_layer,
                 first_act=i > 0,
                 **dd,
-            ))
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs[i]
 
         self.drop_path = drop_path
@@ -267,12 +267,12 @@ class XceptionAligned(msnn.Cell):
         self.drop_rate = drop_rate
         self.grad_checkpointing = False
 
-        layer_args = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)
+        layer_args = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.stem = msnn.SequentialCell(*[
             ConvNormAct(in_chans, 32, kernel_size=3, stride=2, **layer_args),
             create_conv2d(32, 64, kernel_size=3, stride=1, **dd) if preact else
             ConvNormAct(32, 64, kernel_size=3, stride=1, **layer_args)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         curr_dilation = 1
         curr_stride = 2
@@ -294,7 +294,7 @@ class XceptionAligned(msnn.Cell):
                     b['stride'] = 1
                 else:
                     curr_stride = next_stride
-            self.blocks.add_module(str(i), module_fn(**b, **layer_args))
+            self.blocks.add_module(str(i), module_fn(**b, **layer_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = self.blocks[-1].out_channels
             net_block_idx += 1
 
@@ -308,20 +308,20 @@ class XceptionAligned(msnn.Cell):
             pool_type=global_pool,
             drop_rate=drop_rate,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
             blocks=r'^blocks\.(\d+)',
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -354,7 +354,7 @@ def _xception(variant, pretrained=False, **kwargs):
         pretrained,
         feature_cfg=dict(flatten_sequential=True, feature_cls='hook'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -405,7 +405,7 @@ def xception41(pretrained=False, **kwargs) -> XceptionAligned:
         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
     ]
     model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
-    return _xception('xception41', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _xception('xception41', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -424,7 +424,7 @@ def xception65(pretrained=False, **kwargs) -> XceptionAligned:
         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
     ]
     model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
-    return _xception('xception65', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _xception('xception65', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -445,7 +445,7 @@ def xception71(pretrained=False, **kwargs) -> XceptionAligned:
         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
     ]
     model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
-    return _xception('xception71', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _xception('xception71', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -464,7 +464,7 @@ def xception41p(pretrained=False, **kwargs) -> XceptionAligned:
         dict(in_chs=1024, out_chs=(1536, 1536, 2048), no_skip=True, stride=1),
     ]
     model_args = dict(block_cfg=block_cfg, preact=True, norm_layer=nn.BatchNorm2d)
-    return _xception('xception41p', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _xception('xception41p', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -484,4 +484,4 @@ def xception65p(pretrained=False, **kwargs) -> XceptionAligned:
     ]
     model_args = dict(
         block_cfg=block_cfg, preact=True, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
-    return _xception('xception65p', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _xception('xception65p', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -20,8 +20,6 @@ Rest of code, ByobNet, and Transformer block hacked together by / Copyright 2022
 #
 import math
 from typing import Callable, Tuple, Optional, Type
-
-# import torch
 # import torch.nn.functional as F
 # from torch import nn
 
@@ -210,8 +208,8 @@ class MobileVitBlock(msnn.Cell):
             groups=groups,
             dilation=dilation[0],
             **dd,
-        )
-        self.conv_1x1 = nn.Conv2d(in_chs, transformer_dim, kernel_size=1, bias=False, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv_1x1 = nn.Conv2d(in_chs, transformer_dim, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.transformer = msnn.SequentialCell(*[
             TransformerBlock(
@@ -227,15 +225,15 @@ class MobileVitBlock(msnn.Cell):
                 **dd,
             )
             for _ in range(transformer_depth)
-        ])
-        self.norm = transformer_norm_layer(transformer_dim, **dd)
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = transformer_norm_layer(transformer_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv_proj = layers.conv_norm_act(transformer_dim, out_chs, kernel_size=1, stride=1, **dd)
+        self.conv_proj = layers.conv_norm_act(transformer_dim, out_chs, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if no_fusion:
             self.conv_fusion = None
         else:
-            self.conv_fusion = layers.conv_norm_act(in_chs + out_chs, out_chs, kernel_size=kernel_size, stride=1, **dd)
+            self.conv_fusion = layers.conv_norm_act(in_chs + out_chs, out_chs, kernel_size=kernel_size, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.patch_size = to_2tuple(patch_size)
         self.patch_area = self.patch_size[0] * self.patch_size[1]
@@ -322,7 +320,7 @@ class LinearSelfAttention(msnn.Cell):
             bias=bias,
             kernel_size=1,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
         self.out_proj = nn.Conv2d(
             in_channels=embed_dim,
@@ -330,7 +328,7 @@ class LinearSelfAttention(msnn.Cell):
             bias=bias,
             kernel_size=1,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.out_drop = nn.Dropout(proj_drop)
 
     def _forward_self_attn(self, x: ms.Tensor) -> ms.Tensor:
@@ -357,7 +355,7 @@ class LinearSelfAttention(msnn.Cell):
         out = self.out_drop(out)
         return out
 
-    @torch.jit.ignore()
+    @ms.jit()
     def _forward_cross_attn(self, x: ms.Tensor, x_prev: Optional[ms.Tensor] = None) -> ms.Tensor:
         # x --> [B, C, P, N]
         # x_prev = [B, C, P, M]
@@ -434,17 +432,17 @@ class LinearTransformerBlock(msnn.Cell):
         act_layer = act_layer or nn.SiLU
         norm_layer = norm_layer or GroupNorm1
 
-        self.norm1 = norm_layer(embed_dim, **dd)
-        self.attn = LinearSelfAttention(embed_dim=embed_dim, attn_drop=attn_drop, proj_drop=drop, **dd)
+        self.norm1 = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn = LinearSelfAttention(embed_dim=embed_dim, attn_drop=attn_drop, proj_drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path)
 
-        self.norm2 = norm_layer(embed_dim, **dd)
+        self.norm2 = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = ConvMlp(
             in_features=embed_dim,
             hidden_features=int(embed_dim * mlp_ratio),
             act_layer=act_layer,
             drop=drop,
-            **dd)
+            **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path)
 
     def construct(self, x: ms.Tensor, x_prev: Optional[ms.Tensor] = None) -> ms.Tensor:
@@ -505,8 +503,8 @@ class MobileVitV2Block(msnn.Cell):
             groups=groups,
             dilation=dilation[0],
             **dd,
-        )
-        self.conv_1x1 = nn.Conv2d(in_chs, transformer_dim, kernel_size=1, bias=False, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv_1x1 = nn.Conv2d(in_chs, transformer_dim, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.transformer = msnn.SequentialCell(*[
             LinearTransformerBlock(
@@ -520,10 +518,10 @@ class MobileVitV2Block(msnn.Cell):
                 **dd,
             )
             for _ in range(transformer_depth)
-        ])
-        self.norm = transformer_norm_layer(transformer_dim, **dd)
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = transformer_norm_layer(transformer_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv_proj = layers.conv_norm_act(transformer_dim, out_chs, kernel_size=1, stride=1, apply_act=False, **dd)
+        self.conv_proj = layers.conv_norm_act(transformer_dim, out_chs, kernel_size=1, stride=1, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.patch_size = to_2tuple(patch_size)
         self.patch_area = self.patch_size[0] * self.patch_size[1]
@@ -576,7 +574,7 @@ def _create_mobilevit(variant, cfg_variant=None, pretrained=False, **kwargs):
         ByobNet, variant, pretrained,
         model_cfg=model_cfgs[variant] if not cfg_variant else model_cfgs[cfg_variant],
         feature_cfg=dict(flatten_sequential=True),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _create_mobilevit2(variant, cfg_variant=None, pretrained=False, **kwargs):
@@ -584,7 +582,7 @@ def _create_mobilevit2(variant, cfg_variant=None, pretrained=False, **kwargs):
         ByobNet, variant, pretrained,
         model_cfg=model_cfgs[variant] if not cfg_variant else model_cfgs[cfg_variant],
         feature_cfg=dict(flatten_sequential=True),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -650,52 +648,52 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def mobilevit_xxs(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevit_xxs', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevit_xxs', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevit_xs(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevit_xs', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevit_xs', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevit_s(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevit_s', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevit_s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevitv2_050(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_050', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevitv2_050', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevitv2_075(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_075', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevitv2_075', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevitv2_100(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_100', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevitv2_100', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevitv2_125(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_125', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevitv2_125', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevitv2_150(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_150', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevitv2_150', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevitv2_175(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_175', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevitv2_175', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobilevitv2_200(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_200', pretrained=pretrained, **kwargs)
+    return _create_mobilevit('mobilevitv2_200', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 register_model_deprecations(__name__, {

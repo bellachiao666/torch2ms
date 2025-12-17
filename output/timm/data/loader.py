@@ -83,12 +83,6 @@ def adapt_to_chs(x, n):
 
 class PrefetchLoader:
 
-    # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.utils.data' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.utils' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             loader: torch.utils.data.DataLoader,
@@ -207,9 +201,6 @@ def _worker_init(worker_id, worker_seeding='all'):
             np.random.seed(worker_info.seed % (2 ** 32 - 1))
 
 
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_loader(
         dataset: Union[ImageDataset, IterableImageDataset],
         input_size: Union[int, Tuple[int, int], Tuple[int, int, int]],
@@ -368,10 +359,10 @@ def create_loader(
         persistent_workers=persistent_workers
     )
     try:
-        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
     except TypeError as e:
         loader_args.pop('persistent_workers')  # only in Pytorch 1.7+
-        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        loader = loader_class(dataset, **loader_args)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if use_prefetcher:
         prefetch_re_prob = re_prob if is_training and not no_aug else 0.
         loader = PrefetchLoader(
@@ -395,7 +386,7 @@ def create_loader(
 class MultiEpochsDataLoader(torch.utils.data.DataLoader):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self._DataLoader__initialized = False
         if self.batch_sampler is None:
             self.sampler = _RepeatSampler(self.sampler)

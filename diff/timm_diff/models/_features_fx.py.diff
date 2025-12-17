@@ -21,7 +21,8 @@
 +class FeatureGraphNet(msnn.Cell):
      """ A FX Graph based feature extractor that works with the model feature_info metadata
      """
-     return_dict: torch.jit.Final[bool]
+-    return_dict: torch.jit.Final[bool]
++    return_dict: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
      def __init__(
              self,
@@ -46,7 +47,12 @@
      """ A standalone feature extraction wrapper that maps dict -> list or single tensor
      NOTE:
        * one can use feature_extractor directly if dictionary output is desired
-@@ -82,7 +86,7 @@ 
+@@ -78,11 +82,11 @@         squeeze_out: if only one output, and output in list format, flatten to single tensor
+         return_dict: return as dictionary from extractor with node names as keys, ignores squeeze_out arg
+     """
+-    return_dict: torch.jit.Final[bool]
++    return_dict: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
      def __init__(
              self,
 -            model: nn.Module,

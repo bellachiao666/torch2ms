@@ -173,9 +173,9 @@ def _mobileone_bcfg(
             ak = {}
             if i >= d - se:
                 ak['attn_layer'] = 'se'
-            scfg += [ByoBlockCfg(type='one', d=1, c=prev_c, gs=1, block_kwargs=bk, **ak)]  # depthwise block
+            scfg += [ByoBlockCfg(type='one', d=1, c=prev_c, gs=1, block_kwargs=bk, **ak)]  # depthwise block; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             scfg += [ByoBlockCfg(
-                type='one', d=1, c=out_c, gs=0, block_kwargs=dict(kernel_size=1, **bk), **ak)]  # pointwise block
+                type='one', d=1, c=out_c, gs=0, block_kwargs=dict(kernel_size=1, **bk), **ak)]  # pointwise block; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_c = out_c
         bcfg += [scfg]
     return bcfg
@@ -209,7 +209,7 @@ def interleave_blocks(
     blocks = []
     for i in range(d):
         block_type = types[1] if i in every else types[0]
-        blocks += [ByoBlockCfg(type=block_type, d=1, **kwargs)]
+        blocks += [ByoBlockCfg(type=block_type, d=1, **kwargs)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return tuple(blocks)
 
 
@@ -294,7 +294,7 @@ class DownsampleAvg(msnn.Cell):
             self.pool = avg_pool_fn(2, avg_stride, ceil_mode=True, count_include_pad=False)
         else:
             self.pool = msnn.Identity()
-        self.conv = layers.conv_norm_act(in_chs, out_chs, 1, apply_act=apply_act, **dd)
+        self.conv = layers.conv_norm_act(in_chs, out_chs, 1, apply_act=apply_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """Forward pass.
@@ -336,9 +336,9 @@ def create_shortcut(
         if not downsample_type:
             return None  # no shortcut
         elif downsample_type == 'avg':
-            return DownsampleAvg(in_chs, out_chs, stride=stride, dilation=dilation[0], **kwargs)
+            return DownsampleAvg(in_chs, out_chs, stride=stride, dilation=dilation[0], **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            return layers.conv_norm_act(in_chs, out_chs, kernel_size=1, stride=stride, dilation=dilation[0], **kwargs)
+            return layers.conv_norm_act(in_chs, out_chs, kernel_size=1, stride=stride, dilation=dilation[0], **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         return msnn.Identity()  # identity shortcut
 
@@ -380,9 +380,9 @@ class BasicBlock(msnn.Cell):
             apply_act=False,
             layers=layers,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv1_kxk = layers.conv_norm_act(in_chs, mid_chs, kernel_size, stride=stride, dilation=dilation[0], **dd)
+        self.conv1_kxk = layers.conv_norm_act(in_chs, mid_chs, kernel_size, stride=stride, dilation=dilation[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs)
         self.conv2_kxk = layers.conv_norm_act(
             mid_chs,
@@ -393,8 +393,8 @@ class BasicBlock(msnn.Cell):
             drop_layer=drop_block,
             apply_act=False,
             **dd,
-        )
-        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
         self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
 
@@ -456,9 +456,9 @@ class BottleneckBlock(msnn.Cell):
             apply_act=False,
             layers=layers,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv1_1x1 = layers.conv_norm_act(in_chs, mid_chs, 1, **dd)
+        self.conv1_1x1 = layers.conv_norm_act(in_chs, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2_kxk = layers.conv_norm_act(
             mid_chs,
             mid_chs,
@@ -468,7 +468,7 @@ class BottleneckBlock(msnn.Cell):
             groups=groups,
             drop_layer=drop_block,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if extra_conv:
             self.conv2b_kxk = layers.conv_norm_act(
                 mid_chs,
@@ -477,12 +477,12 @@ class BottleneckBlock(msnn.Cell):
                 dilation=dilation[1],
                 groups=groups,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.conv2b_kxk = msnn.Identity()
-        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
-        self.conv3_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)
-        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv3_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
         self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
 
@@ -551,10 +551,10 @@ class DarkBlock(msnn.Cell):
             apply_act=False,
             layers=layers,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv1_1x1 = layers.conv_norm_act(in_chs, mid_chs, 1, **dd)
-        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
+        self.conv1_1x1 = layers.conv_norm_act(in_chs, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2_kxk = layers.conv_norm_act(
             mid_chs,
             out_chs,
@@ -565,8 +565,8 @@ class DarkBlock(msnn.Cell):
             drop_layer=drop_block,
             apply_act=False,
             **dd,
-        )
-        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
         self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
 
@@ -632,7 +632,7 @@ class EdgeBlock(msnn.Cell):
             apply_act=False,
             layers=layers,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv1_kxk = layers.conv_norm_act(
             in_chs,
             mid_chs,
@@ -642,10 +642,10 @@ class EdgeBlock(msnn.Cell):
             groups=groups,
             drop_layer=drop_block,
             **dd,
-        )
-        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)
-        self.conv2_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)
-        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn = msnn.Identity() if attn_last or layers.attn is None else layers.attn(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn_last = msnn.Identity() if not attn_last or layers.attn is None else layers.attn(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
         self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
 
@@ -706,11 +706,11 @@ class RepVggBlock(msnn.Cell):
                 groups=groups,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.reparam_conv = None
             use_ident = in_chs == out_chs and stride == 1 and dilation[0] == dilation[1]
-            self.identity = layers.norm_act(out_chs, apply_act=False, **dd) if use_ident else None
+            self.identity = layers.norm_act(out_chs, apply_act=False, **dd) if use_ident else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.conv_kxk = layers.conv_norm_act(
                 in_chs,
                 out_chs,
@@ -721,7 +721,7 @@ class RepVggBlock(msnn.Cell):
                 drop_layer=drop_block,
                 apply_act=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.conv_1x1 = layers.conv_norm_act(
                 in_chs,
                 out_chs,
@@ -730,10 +730,10 @@ class RepVggBlock(msnn.Cell):
                 groups=groups,
                 apply_act=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. and use_ident else msnn.Identity()
 
-        self.attn = msnn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)
+        self.attn = msnn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = layers.act(inplace=True)
 
     def init_weights(self, zero_init_last: bool = False):
@@ -888,13 +888,13 @@ class MobileOneBlock(msnn.Cell):
                 groups=groups,
                 bias=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.reparam_conv = None
 
             # Re-parameterizable skip connection
             use_ident = in_chs == out_chs and stride == 1 and dilation[0] == dilation[1]
-            self.identity = layers.norm_act(out_chs, apply_act=False, **dd) if use_ident else None
+            self.identity = layers.norm_act(out_chs, apply_act=False, **dd) if use_ident else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
             # Re-parameterizable conv branches
             convs = []
@@ -907,7 +907,7 @@ class MobileOneBlock(msnn.Cell):
                     groups=groups,
                     apply_act=False,
                     **dd,
-                ))
+                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.conv_kxk = msnn.CellList(convs)
 
             # Re-parameterizable scale branch
@@ -921,10 +921,10 @@ class MobileOneBlock(msnn.Cell):
                     groups=groups,
                     apply_act=False,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. and use_ident else msnn.Identity()
 
-        self.attn = msnn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)
+        self.attn = msnn.Identity() if layers.attn is None else layers.attn(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = layers.act(inplace=True)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -1081,9 +1081,9 @@ class SelfAttnBlock(msnn.Cell):
             apply_act=False,
             layers=layers,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv1_1x1 = layers.conv_norm_act(in_chs, mid_chs, 1, **dd)
+        self.conv1_1x1 = layers.conv_norm_act(in_chs, mid_chs, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if extra_conv:
             self.conv2_kxk = layers.conv_norm_act(
                 mid_chs,
@@ -1094,15 +1094,15 @@ class SelfAttnBlock(msnn.Cell):
                 groups=groups,
                 drop_layer=drop_block,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stride = 1  # striding done via conv if enabled
         else:
             self.conv2_kxk = msnn.Identity()
         opt_kwargs = {} if feat_size is None else dict(feat_size=feat_size)
         # FIXME need to dilate self attn to have dilated network support, moop moop
-        self.self_attn = layers.self_attn(mid_chs, stride=stride, **opt_kwargs, **dd)
-        self.post_attn = layers.norm_act(mid_chs, **dd) if post_attn_na else msnn.Identity()
-        self.conv3_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)
+        self.self_attn = layers.self_attn(mid_chs, stride=stride, **opt_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.post_attn = layers.norm_act(mid_chs, **dd) if post_attn_na else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv3_1x1 = layers.conv_norm_act(mid_chs, out_chs, 1, apply_act=False, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else msnn.Identity()
         self.act = msnn.Identity() if linear_out else layers.act(inplace=True)
 
@@ -1142,9 +1142,9 @@ def register_block(block_type: str, block_fn: msnn.Cell):
 
 def create_block(block: Union[str, msnn.Cell], **kwargs):
     if isinstance(block, (msnn.Cell, partial)):
-        return block(**kwargs)
+        return block(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     assert block in _block_registry, f'Unknown block type ({block}'
-    return _block_registry[block](**kwargs)
+    return _block_registry[block](**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class Stem(msnn.SequentialCell):
@@ -1194,7 +1194,7 @@ class Stem(msnn.SequentialCell):
             if i > 0 and s > 1:
                 last_feat_idx = i - 1
                 self.feature_info.append(dict(num_chs=prev_chs, reduction=curr_stride, module=prev_feat, stage=0))
-            self.add_module(conv_name, layer_fn(prev_chs, ch, kernel_size=kernel_size, stride=s, **dd))
+            self.add_module(conv_name, layer_fn(prev_chs, ch, kernel_size=kernel_size, stride=s, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_chs = ch
             curr_stride *= s
             prev_feat = conv_name
@@ -1244,32 +1244,32 @@ def create_byob_stem(
     if 'quad' in stem_type:
         # based on NFNet stem, stack of 4 3x3 convs
         num_act = 2 if 'quad2' in stem_type else None
-        stem = Stem(in_chs, out_chs, num_rep=4, num_act=num_act, pool=pool_type, layers=layers, **dd)
+        stem = Stem(in_chs, out_chs, num_rep=4, num_act=num_act, pool=pool_type, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif 'tiered' in stem_type:
         # 3x3 stack of 3 convs as in my ResNet-T
-        stem = Stem(in_chs, (3 * out_chs // 8, out_chs // 2, out_chs), pool=pool_type, layers=layers, **dd)
+        stem = Stem(in_chs, (3 * out_chs // 8, out_chs // 2, out_chs), pool=pool_type, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif 'deep' in stem_type:
         # 3x3 stack of 3 convs as in ResNet-D
-        stem = Stem(in_chs, out_chs, num_rep=3, chs_decay=1.0, pool=pool_type, layers=layers, **dd)
+        stem = Stem(in_chs, out_chs, num_rep=3, chs_decay=1.0, pool=pool_type, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif 'rep' in stem_type:
-        stem = RepVggBlock(in_chs, out_chs, stride=2, layers=layers, **dd)
+        stem = RepVggBlock(in_chs, out_chs, stride=2, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif 'one' in stem_type:
-        stem = MobileOneBlock(in_chs, out_chs, kernel_size=3, stride=2, layers=layers, **dd)
+        stem = MobileOneBlock(in_chs, out_chs, kernel_size=3, stride=2, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     elif '7x7' in stem_type:
         # 7x7 stem conv as in ResNet
         if pool_type:
-            stem = Stem(in_chs, out_chs, 7, num_rep=1, pool=pool_type, layers=layers, **dd)
+            stem = Stem(in_chs, out_chs, 7, num_rep=1, pool=pool_type, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            stem = layers.conv_norm_act(in_chs, out_chs, 7, stride=2, **dd)
+            stem = layers.conv_norm_act(in_chs, out_chs, 7, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
         if isinstance(out_chs, (tuple, list)):
-            stem = Stem(in_chs, out_chs, 3, pool=pool_type, layers=layers, **dd)
+            stem = Stem(in_chs, out_chs, 3, pool=pool_type, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             # 3x3 stem conv as in RegNet is the default
             if pool_type:
-                stem = Stem(in_chs, out_chs, 3, num_rep=1, pool=pool_type, layers=layers, **dd)
+                stem = Stem(in_chs, out_chs, 3, num_rep=1, pool=pool_type, layers=layers, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
-                stem = layers.conv_norm_act(in_chs, out_chs, 3, stride=2, **dd)
+                stem = layers.conv_norm_act(in_chs, out_chs, 3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     if isinstance(stem, Stem):
         feature_info = [dict(f, module='.'.join([feat_prefix, f['module']])) for f in stem.feature_info]
@@ -1307,7 +1307,7 @@ def update_block_kwargs(block_kwargs: Dict[str, Any], block_cfg: ByoBlockCfg, mo
         else:
             attn_kwargs = override_kwargs(block_cfg.attn_kwargs, model_cfg.attn_kwargs)
             attn_layer = block_cfg.attn_layer or model_cfg.attn_layer
-            attn_layer = partial(get_attn(attn_layer), **attn_kwargs) if attn_layer is not None else None
+            attn_layer = partial(get_attn(attn_layer), **attn_kwargs) if attn_layer is not None else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         layer_fns = replace(layer_fns, attn=attn_layer)
 
     # override self-attn layer / args with block local cfg
@@ -1321,7 +1321,7 @@ def update_block_kwargs(block_kwargs: Dict[str, Any], block_cfg: ByoBlockCfg, mo
             self_attn_kwargs = override_kwargs(block_cfg.self_attn_kwargs, model_cfg.self_attn_kwargs)
             self_attn_layer = block_cfg.self_attn_layer or model_cfg.self_attn_layer
             self_attn_layer = partial(get_attn(self_attn_layer), **self_attn_kwargs) \
-                if self_attn_layer is not None else None
+                if self_attn_layer is not None else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         layer_fns = replace(layer_fns, self_attn=self_attn_layer)
 
     block_kwargs['layers'] = layer_fns
@@ -1418,17 +1418,17 @@ def create_byob_stages(
                 # add feat_size arg for blocks that support/need it
                 block_kwargs['feat_size'] = feat_size
             block_kwargs_fn(block_kwargs, block_cfg=block_cfg, model_cfg=cfg)
-            blocks += [create_block(block_cfg.type, **block_kwargs)]
+            blocks += [create_block(block_cfg.type, **block_kwargs)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             first_dilation = dilation
             prev_chs = out_chs
             if stride > 1 and block_idx == 0:
                 feat_size = reduce_feat_size(feat_size, stride)
 
-        stages += [msnn.SequentialCell(*blocks)]
+        stages += [msnn.SequentialCell(*blocks)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         prev_feat = dict(num_chs=prev_chs, reduction=net_stride, module=f'stages.{stage_idx}', stage=stage_idx + 1)
 
     feature_info.append(prev_feat)
-    return msnn.SequentialCell(*stages), feature_info, feat_size
+    return msnn.SequentialCell(*stages), feature_info, feat_size  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def get_layer_fns(cfg: ByoModelCfg, allow_aa: bool = True):
@@ -1438,8 +1438,8 @@ def get_layer_fns(cfg: ByoModelCfg, allow_aa: bool = True):
         conv_norm_act = partial(ConvNormAct, norm_layer=cfg.norm_layer, act_layer=act, aa_layer=cfg.aa_layer)
     else:
         conv_norm_act = partial(ConvNormAct, norm_layer=cfg.norm_layer, act_layer=act)
-    attn = partial(get_attn(cfg.attn_layer), **cfg.attn_kwargs) if cfg.attn_layer else None
-    self_attn = partial(get_attn(cfg.self_attn_layer), **cfg.self_attn_kwargs) if cfg.self_attn_layer else None
+    attn = partial(get_attn(cfg.attn_layer), **cfg.attn_kwargs) if cfg.attn_layer else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    self_attn = partial(get_attn(cfg.self_attn_layer), **cfg.self_attn_kwargs) if cfg.self_attn_layer else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     layer_fn = LayerFn(conv_norm_act=conv_norm_act, norm_act=norm_act, act=act, attn=attn, self_attn=self_attn)
     return layer_fn
 
@@ -1491,7 +1491,7 @@ class ByobNet(msnn.Cell):
         self.drop_rate = drop_rate
         self.grad_checkpointing = False
 
-        cfg = replace(cfg, **kwargs)  # overlay kwargs onto cfg
+        cfg = replace(cfg, **kwargs)  # overlay kwargs onto cfg; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stem_layers = get_layer_fns(cfg, allow_aa=False)  # keep aa off for stem-layers
         stage_layers = get_layer_fns(cfg)
         if cfg.fixed_input_size:
@@ -1510,7 +1510,7 @@ class ByobNet(msnn.Cell):
             pool_type=cfg.stem_pool,
             layers=stem_layers,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info.extend(stem_feat[:-1])
         feat_size = reduce_feat_size(feat_size, stride=stem_feat[-1]['reduction'])
 
@@ -1524,14 +1524,14 @@ class ByobNet(msnn.Cell):
             layers=stage_layers,
             feat_size=feat_size,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info.extend(stage_feat[:-1])
         reduction = stage_feat[-1]['reduction']
 
         prev_chs = stage_feat[-1]['num_chs']
         if cfg.num_features:
             self.num_features = int(round(cfg.width_factor * cfg.num_features))
-            self.final_conv = stage_layers.conv_norm_act(prev_chs, self.num_features, 1, **dd)
+            self.final_conv = stage_layers.conv_norm_act(prev_chs, self.num_features, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.num_features = prev_chs
             self.final_conv = msnn.Identity()
@@ -1553,7 +1553,7 @@ class ByobNet(msnn.Cell):
                 act_layer=cfg.act_layer,
                 drop_rate=self.drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head_hidden_size = self.head.hidden_size
         elif cfg.head_type == 'attn_abs':
             if global_pool is None:
@@ -1568,7 +1568,7 @@ class ByobNet(msnn.Cell):
                 drop_rate=self.drop_rate,
                 qkv_separate=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head_hidden_size = self.head.embed_dim
         elif cfg.head_type == 'attn_rot':
             if global_pool is None:
@@ -1583,7 +1583,7 @@ class ByobNet(msnn.Cell):
                 drop_rate=self.drop_rate,
                 qkv_separate=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head_hidden_size = self.head.embed_dim
         else:
             if global_pool is None:
@@ -1595,13 +1595,13 @@ class ByobNet(msnn.Cell):
                 pool_type=global_pool,
                 drop_rate=self.drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.global_pool = global_pool
 
         # init weights
         named_apply(partial(_init_weights, zero_init_last=zero_init_last), self)
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Group matcher for parameter groups.
 
@@ -1620,7 +1620,7 @@ class ByobNet(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -1629,7 +1629,7 @@ class ByobNet(msnn.Cell):
         """
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get classifier module.
 
@@ -2445,7 +2445,7 @@ def _create_byobnet(variant: str, pretrained: bool = False, **kwargs) -> ByobNet
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -2789,7 +2789,7 @@ def gernet_l(pretrained=False, **kwargs) -> ByobNet:
     """ GEResNet-Large (GENet-Large from official impl)
     `Neural Architecture Design for GPU-Efficient Networks` - https://arxiv.org/abs/2006.14090
     """
-    return _create_byobnet('gernet_l', pretrained=pretrained, **kwargs)
+    return _create_byobnet('gernet_l', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2797,7 +2797,7 @@ def gernet_m(pretrained=False, **kwargs) -> ByobNet:
     """ GEResNet-Medium (GENet-Normal from official impl)
     `Neural Architecture Design for GPU-Efficient Networks` - https://arxiv.org/abs/2006.14090
     """
-    return _create_byobnet('gernet_m', pretrained=pretrained, **kwargs)
+    return _create_byobnet('gernet_m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2805,7 +2805,7 @@ def gernet_s(pretrained=False, **kwargs) -> ByobNet:
     """ EResNet-Small (GENet-Small from official impl)
     `Neural Architecture Design for GPU-Efficient Networks` - https://arxiv.org/abs/2006.14090
     """
-    return _create_byobnet('gernet_s', pretrained=pretrained, **kwargs)
+    return _create_byobnet('gernet_s', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2813,7 +2813,7 @@ def repvgg_a0(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-A0
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_a0', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_a0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2821,7 +2821,7 @@ def repvgg_a1(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-A1
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_a1', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_a1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2829,7 +2829,7 @@ def repvgg_a2(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-A2
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_a2', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_a2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2837,7 +2837,7 @@ def repvgg_b0(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-B0
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_b0', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_b0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2845,7 +2845,7 @@ def repvgg_b1(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-B1
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_b1', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_b1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2853,7 +2853,7 @@ def repvgg_b1g4(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-B1g4
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_b1g4', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_b1g4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2861,7 +2861,7 @@ def repvgg_b2(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-B2
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_b2', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_b2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2869,7 +2869,7 @@ def repvgg_b2g4(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-B2g4
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_b2g4', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_b2g4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2877,7 +2877,7 @@ def repvgg_b3(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-B3
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_b3', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_b3', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2885,7 +2885,7 @@ def repvgg_b3g4(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-B3g4
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_b3g4', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_b3g4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -2893,277 +2893,277 @@ def repvgg_d2se(pretrained=False, **kwargs) -> ByobNet:
     """ RepVGG-D2se
     `Making VGG-style ConvNets Great Again` - https://arxiv.org/abs/2101.03697
     """
-    return _create_byobnet('repvgg_d2se', pretrained=pretrained, **kwargs)
+    return _create_byobnet('repvgg_d2se', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet51q(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('resnet51q', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet51q', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet61q(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('resnet61q', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet61q', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnext26ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('resnext26ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnext26ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def gcresnext26ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('gcresnext26ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('gcresnext26ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def seresnext26ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('seresnext26ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('seresnext26ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def eca_resnext26ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('eca_resnext26ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('eca_resnext26ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def bat_resnext26ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('bat_resnext26ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('bat_resnext26ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet32ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('resnet32ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet32ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet33ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('resnet33ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet33ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def gcresnet33ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('gcresnet33ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('gcresnet33ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def seresnet33ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('seresnet33ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('seresnet33ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def eca_resnet33ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('eca_resnet33ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('eca_resnet33ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def gcresnet50t(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('gcresnet50t', pretrained=pretrained, **kwargs)
+    return _create_byobnet('gcresnet50t', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def gcresnext50ts(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('gcresnext50ts', pretrained=pretrained, **kwargs)
+    return _create_byobnet('gcresnext50ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_b16(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_b16', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_b16', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_c16(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_c16', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_c16', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_d32(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_d32', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_d32', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_d8(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_d8', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_d8', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_e8(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_e8', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_e8', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_b16_evos(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_b16_evos', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_b16_evos', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_c16_evos(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_c16_evos', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_c16_evos', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def regnetz_d8_evos(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('regnetz_d8_evos', pretrained=pretrained, **kwargs)
+    return _create_byobnet('regnetz_d8_evos', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobileone_s0(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('mobileone_s0', pretrained=pretrained, **kwargs)
+    return _create_byobnet('mobileone_s0', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobileone_s1(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('mobileone_s1', pretrained=pretrained, **kwargs)
+    return _create_byobnet('mobileone_s1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobileone_s2(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('mobileone_s2', pretrained=pretrained, **kwargs)
+    return _create_byobnet('mobileone_s2', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobileone_s3(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('mobileone_s3', pretrained=pretrained, **kwargs)
+    return _create_byobnet('mobileone_s3', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mobileone_s4(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('mobileone_s4', pretrained=pretrained, **kwargs)
+    return _create_byobnet('mobileone_s4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50_clip(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50 CLIP image tower
     """
-    return _create_byobnet('resnet50_clip', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50_clip', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet101_clip(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-101 CLIP image tower
     """
-    return _create_byobnet('resnet101_clip', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet101_clip', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50x4_clip(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50x4 CLIP image tower
     """
-    return _create_byobnet('resnet50x4_clip', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50x4_clip', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50x16_clip(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50x16 CLIP image tower
     """
-    return _create_byobnet('resnet50x16_clip', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50x16_clip', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50x64_clip(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50x64 CLIP image tower
     """
-    return _create_byobnet('resnet50x64_clip', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50x64_clip', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50_clip_gap(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50 CLIP image tower w/ avg pool (no attention pool)
     """
-    return _create_byobnet('resnet50_clip_gap', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50_clip_gap', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet101_clip_gap(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-101 CLIP image tower w/ avg pool (no attention pool)
     """
-    return _create_byobnet('resnet101_clip_gap', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet101_clip_gap', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50x4_clip_gap(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50x4 CLIP image tower w/ avg pool (no attention pool)
     """
-    return _create_byobnet('resnet50x4_clip_gap', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50x4_clip_gap', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50x16_clip_gap(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50x16 CLIP image tower w/ avg pool (no attention pool)
     """
-    return _create_byobnet('resnet50x16_clip_gap', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50x16_clip_gap', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50x64_clip_gap(pretrained=False, **kwargs) -> ByobNet:
     """ OpenAI Modified ResNet-50x64 CLIP image tower w/ avg pool (no attention pool)
     """
-    return _create_byobnet('resnet50x64_clip_gap', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50x64_clip_gap', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def resnet50_mlp(pretrained=False, **kwargs) -> ByobNet:
     """
     """
-    return _create_byobnet('resnet50_mlp', pretrained=pretrained, **kwargs)
+    return _create_byobnet('resnet50_mlp', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def test_byobnet(pretrained=False, **kwargs) -> ByobNet:
     """ Minimal test ResNet (BYOB based) model.
     """
-    return _create_byobnet('test_byobnet', pretrained=pretrained, **kwargs)
+    return _create_byobnet('test_byobnet', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

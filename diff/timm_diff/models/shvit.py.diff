@@ -17,7 +17,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import GroupNorm1, SqueezeExcite, SelectAdaptivePool2d, LayerType, trunc_normal_
-@@ -27,28 +31,27 @@ __all__ = ['SHViT']
+@@ -27,28 +31,28 @@ __all__ = ['SHViT']
  
  
 -class Residual(nn.Module):
@@ -31,7 +31,7 @@
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          return x + self.m(x)
  
--    @torch.no_grad()
+     @torch.no_grad()
 -    def fuse(self) -> nn.Module:
 +    def fuse(self) -> msnn.Cell:
          if isinstance(self.m, Conv2dNorm):
@@ -52,20 +52,21 @@
      def __init__(
              self,
              in_channels: int,
-@@ -66,32 +69,22 @@         self.add_module('c', nn.Conv2d(
-             in_channels, out_channels, kernel_size, stride, padding, bias=False, **dd, **kwargs))
-         self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))
+@@ -64,10 +68,10 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         self.add_module('c', nn.Conv2d(
+-            in_channels, out_channels, kernel_size, stride, padding, bias=False, **dd, **kwargs))
+-        self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))
 -        nn.init.constant_(self.bn.weight, bn_weight_init)
 -        nn.init.constant_(self.bn.bias, 0)
--
--    @torch.no_grad()
++            in_channels, out_channels, kernel_size, stride, padding, bias=False, **dd, **kwargs))  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.add_module('bn', nn.BatchNorm2d(out_channels, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
 +        nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+
+ 
+     @torch.no_grad()
      def fuse(self) -> nn.Conv2d:
-         c, bn = self._modules.values()
-         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
-         w = c.weight * w[:, None, None, None]
+@@ -76,22 +80,13 @@         w = c.weight * w[:, None, None, None]
          b = bn.bias - bn.running_mean * bn.weight / (bn.running_var + bn.eps) ** 0.5
          m = nn.Conv2d(
 -            in_channels=w.size(1) * self.c.groups,
@@ -89,18 +90,21 @@
      def __init__(
              self,
              in_features: int,
-@@ -107,9 +100,8 @@         self.add_module('l', nn.Linear(in_features, out_features, bias=bias, **dd))
+@@ -103,11 +98,11 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.add_module('bn', nn.BatchNorm1d(in_features, **dd))
+-        self.add_module('l', nn.Linear(in_features, out_features, bias=bias, **dd))
++        self.add_module('bn', nn.BatchNorm1d(in_features, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.add_module('l', nn.Linear(in_features, out_features, bias=bias, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
          trunc_normal_(self.l.weight, std=std)
          if bias:
 -            nn.init.constant_(self.l.bias, 0)
--
--    @torch.no_grad()
 +            nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+
+ 
+     @torch.no_grad()
      def fuse(self) -> nn.Linear:
-         bn, l = self._modules.values()
-         w = bn.weight / (bn.running_var + bn.eps) ** 0.5
-@@ -119,18 +111,18 @@             b = b @ self.l.weight.T
+@@ -119,32 +114,32 @@             b = b @ self.l.weight.T
          else:
              b = (l.weight @ b[:, None]).view(-1) + self.l.bias
 -        m = nn.Linear(w.size(1), w.size(0), device=l.weight.device, dtype=l.weight.dtype)
@@ -121,15 +125,27 @@
              device=None,
              dtype=None,
      ):
-@@ -144,7 +136,7 @@         self.se = SqueezeExcite(hid_dim, 0.25, **dd)
-         self.conv3 = Conv2dNorm(hid_dim, out_dim, **dd)
- 
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         hid_dim = int(dim * 4)
+-        self.conv1 = Conv2dNorm(dim, hid_dim, **dd)
++        self.conv1 = Conv2dNorm(dim, hid_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act1 = act_layer()
+-        self.conv2 = Conv2dNorm(hid_dim, hid_dim, 3, 2, 1, groups=hid_dim, **dd)
++        self.conv2 = Conv2dNorm(hid_dim, hid_dim, 3, 2, 1, groups=hid_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act2 = act_layer()
+-        self.se = SqueezeExcite(hid_dim, 0.25, **dd)
+-        self.conv3 = Conv2dNorm(hid_dim, out_dim, **dd)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.se = SqueezeExcite(hid_dim, 0.25, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv3 = Conv2dNorm(hid_dim, out_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          x = self.conv1(x)
          x = self.act1(x)
          x = self.conv2(x)
-@@ -154,12 +146,12 @@         return x
+@@ -154,37 +149,37 @@         return x
  
  
 -class FFN(nn.Module):
@@ -139,14 +155,25 @@
              dim: int,
              embed_dim: int,
 -            act_layer: Type[nn.Module] = nn.ReLU,
+-            device=None,
+-            dtype=None,
+-    ):
+-        dd = {'device': device, 'dtype': dtype}
+-        super().__init__()
+-        self.pw1 = Conv2dNorm(dim, embed_dim, **dd)
 +            act_layer: Type[msnn.Cell] = nn.ReLU,
-             device=None,
-             dtype=None,
-     ):
-@@ -169,22 +161,22 @@         self.act = act_layer()
-         self.pw2 = Conv2dNorm(embed_dim, dim, bn_weight_init=0, **dd)
- 
++            device=None,
++            dtype=None,
++    ):
++        dd = {'device': device, 'dtype': dtype}
++        super().__init__()
++        self.pw1 = Conv2dNorm(dim, embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act = act_layer()
+-        self.pw2 = Conv2dNorm(embed_dim, dim, bn_weight_init=0, **dd)
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.pw2 = Conv2dNorm(embed_dim, dim, bn_weight_init=0, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          x = self.pw1(x)
          x = self.act(x)
@@ -169,13 +196,19 @@
              device=None,
              dtype=None,
      ):
-@@ -198,32 +190,32 @@         self.pre_norm = norm_layer(pdim, **dd)
+@@ -195,55 +190,55 @@         self.dim = dim
+         self.pdim = pdim
  
-         self.qkv = Conv2dNorm(pdim, qk_dim * 2 + pdim, **dd)
+-        self.pre_norm = norm_layer(pdim, **dd)
+-
+-        self.qkv = Conv2dNorm(pdim, qk_dim * 2 + pdim, **dd)
 -        self.proj = nn.Sequential(act_layer(), Conv2dNorm(dim, dim, bn_weight_init=0, **dd))
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+        self.proj = msnn.SequentialCell(act_layer(), Conv2dNorm(dim, dim, bn_weight_init=0, **dd))
++        self.pre_norm = norm_layer(pdim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.qkv = Conv2dNorm(pdim, qk_dim * 2 + pdim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.proj = msnn.SequentialCell(act_layer(), Conv2dNorm(dim, dim, bn_weight_init=0, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          B, _, H, W = x.shape
@@ -208,19 +241,31 @@
              type: str,
 -            norm_layer: Type[nn.Module] = GroupNorm1,
 -            act_layer: Type[nn.Module] = nn.ReLU,
+-            device=None,
+-            dtype=None,
+-    ):
+-        dd = {'device': device, 'dtype': dtype}
+-        super().__init__()
+-        self.conv = Residual(Conv2dNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0, **dd))
 +            norm_layer: Type[msnn.Cell] = GroupNorm1,
 +            act_layer: Type[msnn.Cell] = nn.ReLU,
-             device=None,
-             dtype=None,
-     ):
-@@ -233,17 +225,17 @@         if type == "s":
-             self.mixer = Residual(SHSA(dim, qk_dim, pdim, norm_layer, act_layer, **dd))
++            device=None,
++            dtype=None,
++    ):
++        dd = {'device': device, 'dtype': dtype}
++        super().__init__()
++        self.conv = Residual(Conv2dNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if type == "s":
+-            self.mixer = Residual(SHSA(dim, qk_dim, pdim, norm_layer, act_layer, **dd))
++            self.mixer = Residual(SHSA(dim, qk_dim, pdim, norm_layer, act_layer, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
 -            self.mixer = nn.Identity()
-+            self.mixer = msnn.Identity()
-         self.ffn = Residual(FFN(dim, int(dim * 2), **dd))
- 
+-        self.ffn = Residual(FFN(dim, int(dim * 2), **dd))
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++            self.mixer = msnn.Identity()
++        self.ffn = Residual(FFN(dim, int(dim * 2), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          x = self.conv(x)
          x = self.mixer(x)
@@ -233,7 +278,7 @@
      def __init__(
              self,
              prev_dim: int,
-@@ -252,27 +244,27 @@             pdim: int,
+@@ -252,27 +247,27 @@             pdim: int,
              type: str,
              depth: int,
 -            norm_layer: Type[nn.Module] = GroupNorm1,
@@ -256,18 +301,20 @@
 -        ) if prev_dim != dim else nn.Identity()
 -
 -        self.blocks = nn.Sequential(*[
-+        ) if prev_dim != dim else msnn.Identity()
++        ) if prev_dim != dim else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.blocks = msnn.SequentialCell(*[
              BasicBlock(dim, qk_dim, pdim, type, norm_layer, act_layer, **dd) for _ in range(depth)
-         ])
- 
+-        ])
+-
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          x = self.downsample(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -281,7 +273,7 @@         return x
+@@ -281,7 +276,7 @@         return x
  
  
 -class SHViT(nn.Module):
@@ -275,7 +322,7 @@
      def __init__(
              self,
              in_chans: int = 3,
-@@ -293,8 +285,8 @@             depth: Tuple[int, int, int] = (1, 2, 3),
+@@ -293,8 +288,8 @@             depth: Tuple[int, int, int] = (1, 2, 3),
              types: Tuple[str, str, str] = ("s", "s", "s"),
              drop_rate: float = 0.,
 -            norm_layer: Type[nn.Module] = GroupNorm1,
@@ -285,7 +332,7 @@
              device=None,
              dtype=None,
      ):
-@@ -306,7 +298,7 @@ 
+@@ -306,7 +301,7 @@ 
          # Patch embedding
          stem_chs = embed_dim[0]
 -        self.patch_embed = nn.Sequential(
@@ -293,26 +340,55 @@
              Conv2dNorm(in_chans, stem_chs // 8, 3, 2, 1, **dd),
              act_layer(),
              Conv2dNorm(stem_chs // 8, stem_chs // 4, 3, 2, 1, **dd),
-@@ -333,13 +325,13 @@             ))
+@@ -314,7 +309,7 @@             Conv2dNorm(stem_chs // 4, stem_chs // 2, 3, 2, 1, **dd),
+             act_layer(),
+             Conv2dNorm(stem_chs // 2, stem_chs, 3, 2, 1, **dd)
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Build SHViT blocks
+         stages = []
+@@ -330,22 +325,22 @@                 norm_layer=norm_layer,
+                 act_layer=act_layer,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              prev_chs = embed_dim[i]
              self.feature_info.append(dict(num_chs=prev_chs, reduction=2**(i+4), module=f'stages.{i}'))
 -        self.stages = nn.Sequential(*stages)
-+        self.stages = msnn.SequentialCell(*stages)
++        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Classifier head
          self.num_features = self.head_hidden_size = embed_dim[-1]
          self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -        self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
 -        self.head = NormLinear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else nn.Identity()
+-
+-    @torch.jit.ignore
 +        self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-+        self.head = NormLinear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()
- 
-     @torch.jit.ignore
++        self.head = NormLinear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    @ms.jit
      def no_weight_decay(self) -> Set:
-@@ -362,25 +354,25 @@             s.grad_checkpointing = enable
+         return set()
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+         matcher = dict(
+             stem=r'^patch_embed',  # stem and embed
+@@ -356,31 +351,31 @@         )
+         return matcher
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         for s in self.stages:
+             s.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head.l
  
@@ -339,7 +415,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -428,24 +420,23 @@             self.reset_classifier(0, '')
+@@ -428,19 +423,19 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -362,12 +438,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
- 
--    @torch.no_grad()
-     def fuse(self):
-         def fuse_children(net):
-             for child_name, child in net.named_children():
-@@ -459,7 +450,7 @@         fuse_children(self)
+@@ -459,7 +454,7 @@         fuse_children(self)
  
  
 -def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
@@ -375,3 +446,40 @@
      state_dict = state_dict.get('model', state_dict)
  
      # out_dict = {}
+@@ -533,7 +528,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=(0, 1, 2), flatten_sequential=True),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -541,25 +536,25 @@ def shvit_s1(pretrained: bool = False, **kwargs: Any) -> SHViT:
+     model_args = dict(
+         embed_dim=(128, 224, 320), depth=(2, 4, 5), partial_dim=(32, 48, 68), types=("i", "s", "s"))
+-    return _create_shvit('shvit_s1', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_shvit('shvit_s1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def shvit_s2(pretrained: bool = False, **kwargs: Any) -> SHViT:
+     model_args = dict(
+         embed_dim=(128, 308, 448), depth=(2, 4, 5), partial_dim=(32, 66, 96), types=("i", "s", "s"))
+-    return _create_shvit('shvit_s2', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_shvit('shvit_s2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def shvit_s3(pretrained: bool = False, **kwargs: Any) -> SHViT:
+     model_args = dict(
+         embed_dim=(192, 352, 448), depth=(3, 5, 5), partial_dim=(48, 75, 96), types=("i", "s", "s"))
+-    return _create_shvit('shvit_s3', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_shvit('shvit_s3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def shvit_s4(pretrained: bool = False, **kwargs: Any) -> SHViT:
+     model_args = dict(
+         embed_dim=(224, 336, 448), depth=(4, 7, 6), partial_dim=(48, 72, 96), types=("i", "s", "s"))
+-    return _create_shvit('shvit_s4', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_shvit('shvit_s4', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

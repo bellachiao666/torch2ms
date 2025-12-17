@@ -57,7 +57,7 @@ class ConvNormAct(msnn.Cell):
             groups=groups,
             bias=bias,
             **conv_kwargs,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if apply_norm:
             # NOTE for backwards compatibility with models that use separate norm and act layer definitions
@@ -70,7 +70,7 @@ class ConvNormAct(msnn.Cell):
                 apply_act=apply_act,
                 act_kwargs=act_kwargs,
                 **norm_kwargs,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.bn = msnn.SequentialCell()
             if drop_layer:
@@ -84,7 +84,7 @@ class ConvNormAct(msnn.Cell):
             enable=use_aa,
             noop=None,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     @property
     def in_channels(self):

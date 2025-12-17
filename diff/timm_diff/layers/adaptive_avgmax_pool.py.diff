@@ -18,7 +18,7 @@
  
  from .format import get_spatial_dim, get_channel_dim
  
-@@ -28,66 +31,67 @@ 
+@@ -28,66 +31,66 @@ 
  
  def adaptive_avgmax_pool2d(x, output_size: _int_tuple_2_t = 1):
 -    x_avg = F.adaptive_avg_pool2d(x, output_size)
@@ -57,7 +57,6 @@
  
 -class FastAdaptiveAvgPool(nn.Module):
 +class FastAdaptiveAvgPool(msnn.Cell):
-+    # 'torch.nn.functional' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(self, flatten: bool = False, input_fmt: F = 'NCHW'):
          super().__init__()
          self.flatten = flatten
@@ -99,7 +98,7 @@
      def __init__(self, flatten: bool = False, input_fmt: str = 'NCHW'):
          super().__init__()
          self.flatten = flatten
-@@ -97,31 +101,31 @@         else:
+@@ -97,31 +100,31 @@         else:
              self.dim_cat = get_channel_dim(input_fmt)
  
 -    def forward(self, x):
@@ -137,7 +136,7 @@
      """Selectable global pooling layer with dynamic input kernel size
      """
      def __init__(
-@@ -136,8 +140,8 @@         self.pool_type = pool_type or ''  # convert other falsy values to empty string for consistent TS typing
+@@ -136,8 +139,8 @@         self.pool_type = pool_type or ''  # convert other falsy values to empty string for consistent TS typing
          pool_type = pool_type.lower()
          if not pool_type:
 -            self.pool = nn.Identity()  # pass through
@@ -147,7 +146,7 @@
          elif pool_type.startswith('fast') or input_fmt != 'NCHW':
              assert output_size == 1, 'Fast pooling and non NCHW input formats require output_size == 1.'
              if pool_type.endswith('catavgmax'):
-@@ -150,7 +154,7 @@                 self.pool = FastAdaptiveAvgPool(flatten, input_fmt=input_fmt)
+@@ -150,7 +153,7 @@                 self.pool = FastAdaptiveAvgPool(flatten, input_fmt=input_fmt)
              else:
                  assert False, 'Invalid pool type: %s' % pool_type
 -            self.flatten = nn.Identity()
@@ -155,7 +154,7 @@
          else:
              assert input_fmt == 'NCHW'
              if pool_type == 'avgmax':
-@@ -158,17 +162,17 @@             elif pool_type == 'catavgmax':
+@@ -158,17 +161,17 @@             elif pool_type == 'catavgmax':
                  self.pool = AdaptiveCatAvgMaxPool2d(output_size)
              elif pool_type == 'max':
 -                self.pool = nn.AdaptiveMaxPool2d(output_size)

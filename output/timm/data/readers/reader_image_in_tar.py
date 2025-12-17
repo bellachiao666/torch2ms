@@ -128,7 +128,7 @@ def extract_tarinfos(
     tarfiles = []
 
     def _label_from_paths(*path, leaf_only=True):
-        path = os.path.join(*path).strip(os.path.sep)
+        path = os.path.join(*path).strip(os.path.sep)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         return path.split(os.path.sep)[-1] if leaf_only else path.replace(os.path.sep, '_')
 
     def _add_samples(info, fn):
@@ -167,7 +167,7 @@ def extract_tarinfos(
     samples_and_targets = [(s, class_name_to_idx[l]) for s, l in zip(samples, labels) if l in class_name_to_idx]
     if sort:
         samples_and_targets = sorted(samples_and_targets, key=lambda k: natural_key(k[0][0].path))
-    samples, targets = zip(*samples_and_targets)
+    samples, targets = zip(*samples_and_targets)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     samples = np.array(samples)
     targets = np.array(targets)
     _logger.info(f'Finished processing {len(samples)} samples across {len(tarfiles)} tar files.')

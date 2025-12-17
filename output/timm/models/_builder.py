@@ -221,10 +221,10 @@ def load_pretrained(
         if isinstance(pretrained_loc, (list, tuple)):
             custom_load = pretrained_cfg.get('custom_load', False)
             if isinstance(custom_load, str) and custom_load == 'hf':
-                load_custom_from_hf(*pretrained_loc, model, cache_dir=cache_dir)
+                load_custom_from_hf(*pretrained_loc, model, cache_dir=cache_dir)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 return
             else:
-                state_dict = load_state_dict_from_hf(*pretrained_loc, cache_dir=cache_dir)
+                state_dict = load_state_dict_from_hf(*pretrained_loc, cache_dir=cache_dir)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             state_dict = load_state_dict_from_hf(pretrained_loc, weights_only=True, cache_dir=cache_dir)
     elif load_from == 'local-dir':
@@ -359,7 +359,7 @@ def resolve_pretrained_cfg(
     if pretrained_cfg:
         if isinstance(pretrained_cfg, dict):
             # pretrained_cfg dict passed as arg, validate by converting to PretrainedCfg
-            pretrained_cfg = PretrainedCfg(**pretrained_cfg)
+            pretrained_cfg = PretrainedCfg(**pretrained_cfg)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif isinstance(pretrained_cfg, str):
             pretrained_tag = pretrained_cfg
             pretrained_cfg = None
@@ -379,7 +379,7 @@ def resolve_pretrained_cfg(
     pretrained_cfg_overlay = pretrained_cfg_overlay or {}
     if not pretrained_cfg.architecture:
         pretrained_cfg_overlay.setdefault('architecture', variant)
-    pretrained_cfg = dataclasses.replace(pretrained_cfg, **pretrained_cfg_overlay)
+    pretrained_cfg = dataclasses.replace(pretrained_cfg, **pretrained_cfg_overlay)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return pretrained_cfg
 
@@ -445,9 +445,9 @@ def build_model_with_cfg(
 
     # Instantiate the model
     if model_cfg is None:
-        model = model_cls(**kwargs)
+        model = model_cls(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
-        model = model_cls(cfg=model_cfg, **kwargs)
+        model = model_cls(cfg=model_cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     model.pretrained_cfg = pretrained_cfg
     model.default_cfg = model.pretrained_cfg  # alias for backwards compat
 
@@ -499,7 +499,7 @@ def build_model_with_cfg(
         if output_fmt is not None and not use_getter:  # don't set default for intermediate feat getter
             feature_cfg.setdefault('output_fmt', output_fmt)
 
-        model = feature_cls(model, **feature_cfg)
+        model = feature_cls(model, **feature_cfg)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         model.pretrained_cfg = pretrained_cfg_for_features(pretrained_cfg)  # add back pretrained cfg
         model.default_cfg = model.pretrained_cfg  # alias for rename backwards compat (default_cfg -> pretrained_cfg)
 

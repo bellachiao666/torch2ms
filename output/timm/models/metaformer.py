@@ -84,8 +84,8 @@ class Stem(msnn.Cell):
             stride=4,
             padding=2,
             **dd,
-        )
-        self.norm = norm_layer(out_channels, **dd) if norm_layer else msnn.Identity()
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(out_channels, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv(x)
@@ -111,7 +111,7 @@ class Downsampling(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm = norm_layer(in_channels, **dd) if norm_layer else msnn.Identity()
+        self.norm = norm_layer(in_channels, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv = nn.Conv2d(
             in_channels,
             out_channels,
@@ -119,7 +119,7 @@ class Downsampling(msnn.Cell):
             stride=stride,
             padding=padding,
             **dd
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.norm(x)
@@ -144,7 +144,7 @@ class Scale(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.shape = (dim, 1, 1) if use_nchw else (dim,)
-        self.scale = ms.Parameter(init_value * mint.ones(dim, **dd), requires_grad=trainable)
+        self.scale = ms.Parameter(init_value * mint.ones(dim, **dd), requires_grad=trainable)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return x * self.scale.view(self.shape)
@@ -183,8 +183,8 @@ class StarReLU(msnn.Cell):
         super().__init__()
         self.inplace = inplace
         self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.scale = ms.Parameter(scale_value * mint.ones(1, **dd), requires_grad=scale_learnable)
-        self.bias = ms.Parameter(bias_value * mint.ones(1, **dd), requires_grad=bias_learnable)
+        self.scale = ms.Parameter(scale_value * mint.ones(1, **dd), requires_grad=scale_learnable)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(bias_value * mint.ones(1, **dd), requires_grad=bias_learnable)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.scale * self.relu(x) ** 2 + self.bias
@@ -195,7 +195,7 @@ class Attention(msnn.Cell):
     Vanilla self-attention from Transformer: https://arxiv.org/abs/1706.03762.
     Modified from timm.
     """
-    fused_attn: Final[bool]
+    fused_attn: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -223,9 +223,9 @@ class Attention(msnn.Cell):
 
         self.attention_dim = self.num_heads * self.head_dim
 
-        self.qkv = nn.Linear(dim, self.attention_dim * 3, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, self.attention_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(self.attention_dim, dim, bias=proj_bias, **dd)
+        self.proj = nn.Linear(self.attention_dim, dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x):
@@ -255,21 +255,21 @@ class Attention(msnn.Cell):
 
 class GroupNorm1NoBias(GroupNorm1):
     def __init__(self, num_channels: int, **kwargs):
-        super().__init__(num_channels, **kwargs)
+        super().__init__(num_channels, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.eps = kwargs.get('eps', 1e-6)
         self.bias = None
 
 
 class LayerNorm2dNoBias(LayerNorm2d):
     def __init__(self, num_channels: int, **kwargs):
-        super().__init__(num_channels, **kwargs)
+        super().__init__(num_channels, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.eps = kwargs.get('eps', 1e-6)
         self.bias = None
 
 
 class LayerNormNoBias(nn.LayerNorm):
     def __init__(self, num_channels: int, **kwargs):
-        super().__init__(num_channels, **kwargs)
+        super().__init__(num_channels, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.eps = kwargs.get('eps', 1e-6)
         self.bias = None
 
@@ -295,8 +295,8 @@ class SepConv(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         mid_channels = int(expansion_ratio * dim)
-        self.pwconv1 = nn.Conv2d(dim, mid_channels, kernel_size=1, bias=bias, **dd)
-        self.act1 = act1_layer(**dd) if issubclass(act1_layer, StarReLU) else act1_layer()
+        self.pwconv1 = nn.Conv2d(dim, mid_channels, kernel_size=1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.act1 = act1_layer(**dd) if issubclass(act1_layer, StarReLU) else act1_layer()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.dwconv = nn.Conv2d(
             mid_channels,
             mid_channels,
@@ -305,9 +305,9 @@ class SepConv(msnn.Cell):
             groups=mid_channels,
             bias=bias,
             **dd,
-        )  # depthwise conv
-        self.act2 = act2_layer(**dd) if issubclass(act2_layer, StarReLU) else act2_layer()
-        self.pwconv2 = nn.Conv2d(mid_channels, dim, kernel_size=1, bias=bias, **dd)
+        )  # depthwise conv; 存在 *args/**kwargs，需手动确认参数映射;
+        self.act2 = act2_layer(**dd) if issubclass(act2_layer, StarReLU) else act2_layer()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pwconv2 = nn.Conv2d(mid_channels, dim, kernel_size=1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.pwconv1(x)
@@ -351,10 +351,10 @@ class MlpHead(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         hidden_features = int(mlp_ratio * dim)
-        self.fc1 = nn.Linear(dim, hidden_features, bias=bias, **dd)
+        self.fc1 = nn.Linear(dim, hidden_features, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
-        self.norm = norm_layer(hidden_features, **dd)
-        self.fc2 = nn.Linear(hidden_features, num_classes, bias=bias, **dd)
+        self.norm = norm_layer(hidden_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.fc2 = nn.Linear(hidden_features, num_classes, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.head_drop = nn.Dropout(drop_rate)
 
     def construct(self, x):
@@ -389,16 +389,16 @@ class MetaFormerBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        ls_layer = partial(Scale, dim=dim, init_value=layer_scale_init_value, use_nchw=use_nchw, **dd)
-        rs_layer = partial(Scale, dim=dim, init_value=res_scale_init_value, use_nchw=use_nchw, **dd)
+        ls_layer = partial(Scale, dim=dim, init_value=layer_scale_init_value, use_nchw=use_nchw, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        rs_layer = partial(Scale, dim=dim, init_value=res_scale_init_value, use_nchw=use_nchw, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.norm1 = norm_layer(dim, **dd)
-        self.token_mixer = token_mixer(dim=dim, proj_drop=proj_drop, **dd, **kwargs)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.token_mixer = token_mixer(dim=dim, proj_drop=proj_drop, **dd, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
         self.layer_scale1 = ls_layer() if layer_scale_init_value is not None else msnn.Identity()
         self.res_scale1 = rs_layer() if res_scale_init_value is not None else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             dim,
             int(4 * dim),
@@ -407,7 +407,7 @@ class MetaFormerBlock(msnn.Cell):
             drop=proj_drop,
             use_conv=use_nchw,
             **dd
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
         self.layer_scale2 = ls_layer() if layer_scale_init_value is not None else msnn.Identity()
         self.res_scale2 = rs_layer() if res_scale_init_value is not None else msnn.Identity()
@@ -462,7 +462,7 @@ class MetaFormerStage(msnn.Cell):
             padding=1,
             norm_layer=downsample_norm,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.blocks = msnn.SequentialCell(*[MetaFormerBlock(
             dim=out_chs,
@@ -477,9 +477,9 @@ class MetaFormerStage(msnn.Cell):
             use_nchw=self.use_nchw,
             **dd,
             **kwargs,
-        ) for i in range(depth)])
+        ) for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
@@ -554,7 +554,7 @@ class MetaFormer(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         # Bind dd kwargs to activation layers that need them
         if mlp_act in (StarReLU,):
-            mlp_act = partial(mlp_act, **dd)
+            mlp_act = partial(mlp_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.num_classes = num_classes
         self.num_features = dims[-1]
@@ -584,7 +584,7 @@ class MetaFormer(msnn.Cell):
             dims[0],
             norm_layer=downsample_norm,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         stages = []
         prev_dim = dims[0]
@@ -605,20 +605,20 @@ class MetaFormer(msnn.Cell):
                 norm_layer=norm_layers[i],
                 **dd,
                 **kwargs,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_dim = dims[i]
             self.feature_info += [dict(num_chs=dims[i], reduction=2**(i+2), module=f'stages.{i}')]
 
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # if using MlpHead, dropout is handled by MlpHead
         if num_classes > 0:
             if self.use_mlp_head:
                 # FIXME not actually returning mlp hidden state right now as pre-logits.
-                final = MlpHead(self.num_features, num_classes, drop_rate=self.drop_rate, **dd)
+                final = MlpHead(self.num_features, num_classes, drop_rate=self.drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 self.head_hidden_size = self.num_features
             else:
-                final = nn.Linear(self.num_features, num_classes, **dd)
+                final = nn.Linear(self.num_features, num_classes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
                 self.head_hidden_size = self.num_features
         else:
             final = msnn.Identity()
@@ -629,7 +629,7 @@ class MetaFormer(msnn.Cell):
             ('flatten', mint.flatten(1) if global_pool else msnn.Identity()),
             ('drop', nn.Dropout(drop_rate) if self.use_mlp_head else msnn.Identity()),
             ('fc', final)
-        ]))
+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.apply(self._init_weights)
 
@@ -639,13 +639,13 @@ class MetaFormer(msnn.Cell):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
         for stage in self.stages:
             stage.set_grad_checkpointing(enable=enable)
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -657,9 +657,9 @@ class MetaFormer(msnn.Cell):
             self.head.flatten = mint.flatten(1) if global_pool else msnn.Identity()
         if num_classes > 0:
             if self.use_mlp_head:
-                final = MlpHead(self.num_features, num_classes, drop_rate=self.drop_rate, **dd)
+                final = MlpHead(self.num_features, num_classes, drop_rate=self.drop_rate, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
-                final = nn.Linear(self.num_features, num_classes, **dd)
+                final = nn.Linear(self.num_features, num_classes, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             final = msnn.Identity()
         self.head.fc = final
@@ -794,7 +794,7 @@ def _create_metaformer(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     return model
 
@@ -976,8 +976,8 @@ def poolformer_s12(pretrained=False, **kwargs) -> MetaFormer:
         layer_scale_init_values=1e-5,
         res_scale_init_values=None,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformer_s12', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformer_s12', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -992,8 +992,8 @@ def poolformer_s24(pretrained=False, **kwargs) -> MetaFormer:
         layer_scale_init_values=1e-5,
         res_scale_init_values=None,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformer_s24', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformer_s24', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1008,8 +1008,8 @@ def poolformer_s36(pretrained=False, **kwargs) -> MetaFormer:
         layer_scale_init_values=1e-6,
         res_scale_init_values=None,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformer_s36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformer_s36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1024,8 +1024,8 @@ def poolformer_m36(pretrained=False, **kwargs) -> MetaFormer:
         layer_scale_init_values=1e-6,
         res_scale_init_values=None,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformer_m36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformer_m36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1040,8 +1040,8 @@ def poolformer_m48(pretrained=False, **kwargs) -> MetaFormer:
         layer_scale_init_values=1e-6,
         res_scale_init_values=None,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformer_m48', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformer_m48', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1051,8 +1051,8 @@ def poolformerv2_s12(pretrained=False, **kwargs) -> MetaFormer:
         dims=[64, 128, 320, 512],
         norm_layers=GroupNorm1NoBias,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformerv2_s12', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformerv2_s12', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1062,8 +1062,8 @@ def poolformerv2_s24(pretrained=False, **kwargs) -> MetaFormer:
         dims=[64, 128, 320, 512],
         norm_layers=GroupNorm1NoBias,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformerv2_s24', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformerv2_s24', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1073,8 +1073,8 @@ def poolformerv2_s36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[64, 128, 320, 512],
         norm_layers=GroupNorm1NoBias,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformerv2_s36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformerv2_s36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1084,8 +1084,8 @@ def poolformerv2_m36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[96, 192, 384, 768],
         norm_layers=GroupNorm1NoBias,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformerv2_m36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformerv2_m36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1095,8 +1095,8 @@ def poolformerv2_m48(pretrained=False, **kwargs) -> MetaFormer:
         dims=[96, 192, 384, 768],
         norm_layers=GroupNorm1NoBias,
         use_mlp_head=False,
-        **kwargs)
-    return _create_metaformer('poolformerv2_m48', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('poolformerv2_m48', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1106,8 +1106,8 @@ def convformer_s18(pretrained=False, **kwargs) -> MetaFormer:
         dims=[64, 128, 320, 512],
         token_mixers=SepConv,
         norm_layers=LayerNorm2dNoBias,
-        **kwargs)
-    return _create_metaformer('convformer_s18', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('convformer_s18', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1117,8 +1117,8 @@ def convformer_s36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[64, 128, 320, 512],
         token_mixers=SepConv,
         norm_layers=LayerNorm2dNoBias,
-        **kwargs)
-    return _create_metaformer('convformer_s36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('convformer_s36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1128,8 +1128,8 @@ def convformer_m36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[96, 192, 384, 576],
         token_mixers=SepConv,
         norm_layers=LayerNorm2dNoBias,
-        **kwargs)
-    return _create_metaformer('convformer_m36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('convformer_m36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1139,8 +1139,8 @@ def convformer_b36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[128, 256, 512, 768],
         token_mixers=SepConv,
         norm_layers=LayerNorm2dNoBias,
-        **kwargs)
-    return _create_metaformer('convformer_b36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('convformer_b36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1150,8 +1150,8 @@ def caformer_s18(pretrained=False, **kwargs) -> MetaFormer:
         dims=[64, 128, 320, 512],
         token_mixers=[SepConv, SepConv, Attention, Attention],
         norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
-        **kwargs)
-    return _create_metaformer('caformer_s18', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('caformer_s18', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1161,8 +1161,8 @@ def caformer_s36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[64, 128, 320, 512],
         token_mixers=[SepConv, SepConv, Attention, Attention],
         norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
-        **kwargs)
-    return _create_metaformer('caformer_s36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('caformer_s36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1172,8 +1172,8 @@ def caformer_m36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[96, 192, 384, 576],
         token_mixers=[SepConv, SepConv, Attention, Attention],
         norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
-        **kwargs)
-    return _create_metaformer('caformer_m36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('caformer_m36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1183,5 +1183,5 @@ def caformer_b36(pretrained=False, **kwargs) -> MetaFormer:
         dims=[128, 256, 512, 768],
         token_mixers=[SepConv, SepConv, Attention, Attention],
         norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
-        **kwargs)
-    return _create_metaformer('caformer_b36', pretrained=pretrained, **model_kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_metaformer('caformer_b36', pretrained=pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

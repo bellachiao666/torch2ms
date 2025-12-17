@@ -109,8 +109,6 @@ def scale_eps_for_ns(
     return eps * (din / dout) ** 0.5
 
 
-# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def zeropower_via_newtonschulz(
         G: ms.Tensor,
         steps: int,
@@ -188,8 +186,6 @@ def zeropower_via_newtonschulz(
     return X
 
 
-# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def get_lr_scale(
         param_shape: torch.Size,
         adjust_lr_fn: str = "match_rms_adamw",
@@ -219,8 +215,6 @@ def get_lr_scale(
         assert False, f'Invalid scaling function "{adjust_lr_fn}" for Muon'
 
 
-# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def get_adamuon_lr_scale(
         param_shape: torch.Size,
         adjust_lr_fn: str = "match_rms_adamw",
@@ -320,8 +314,6 @@ def _is_suitable_for_muon(
     return (True, "ok") if return_reason else True
 
 
-# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def reshape_for_muon(
         tensor: ms.Tensor,
         mode: str = "flatten",
@@ -742,6 +734,7 @@ class Muon(torch.optim.Optimizer):
             group.setdefault('algo', 'muon')
             group.setdefault('scale_eps', False)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step."""
         loss = None

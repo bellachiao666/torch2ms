@@ -35,7 +35,7 @@ def _gen_hardcorenas(pretrained, variant, arch_def, **kwargs):
         act_layer=resolve_act_layer(kwargs, 'hard_swish'),
         se_layer=se_layer,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     features_only = False
     model_cls = MobileNetV3
@@ -51,7 +51,7 @@ def _gen_hardcorenas(pretrained, variant, arch_def, **kwargs):
         pretrained_strict=not features_only,
         kwargs_filter=kwargs_filter,
         **model_kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if features_only:
         model.default_cfg = pretrained_cfg_for_features(model.default_cfg)
     return model
@@ -86,7 +86,7 @@ def hardcorenas_a(pretrained=False, **kwargs) -> MobileNetV3:
                 ['ir_r1_k5_s2_e6_c80_se0.25', 'ir_r1_k5_s1_e6_c80_se0.25'],
                 ['ir_r1_k5_s1_e6_c112_se0.25', 'ir_r1_k5_s1_e6_c112_se0.25'],
                 ['ir_r1_k5_s2_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25'], ['cn_r1_k1_s1_c960']]
-    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_a', arch_def=arch_def, **kwargs)
+    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_a', arch_def=arch_def, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -100,7 +100,7 @@ def hardcorenas_b(pretrained=False, **kwargs) -> MobileNetV3:
                 ['ir_r1_k5_s1_e3_c112', 'ir_r1_k3_s1_e3_c112', 'ir_r1_k3_s1_e3_c112', 'ir_r1_k3_s1_e3_c112'],
                 ['ir_r1_k5_s2_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25', 'ir_r1_k3_s1_e3_c192_se0.25'],
                 ['cn_r1_k1_s1_c960']]
-    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_b', arch_def=arch_def, **kwargs)
+    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_b', arch_def=arch_def, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -114,7 +114,7 @@ def hardcorenas_c(pretrained=False, **kwargs) -> MobileNetV3:
                 ['ir_r1_k5_s1_e6_c112_se0.25', 'ir_r1_k3_s1_e3_c112', 'ir_r1_k3_s1_e3_c112', 'ir_r1_k3_s1_e3_c112'],
                 ['ir_r1_k5_s2_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25', 'ir_r1_k3_s1_e3_c192_se0.25'],
                 ['cn_r1_k1_s1_c960']]
-    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_c', arch_def=arch_def, **kwargs)
+    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_c', arch_def=arch_def, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -129,7 +129,7 @@ def hardcorenas_d(pretrained=False, **kwargs) -> MobileNetV3:
                  'ir_r1_k5_s1_e3_c112_se0.25'],
                 ['ir_r1_k5_s2_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25',
                  'ir_r1_k3_s1_e6_c192_se0.25'], ['cn_r1_k1_s1_c960']]
-    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_d', arch_def=arch_def, **kwargs)
+    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_d', arch_def=arch_def, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -143,7 +143,7 @@ def hardcorenas_e(pretrained=False, **kwargs) -> MobileNetV3:
                  'ir_r1_k5_s1_e3_c112_se0.25'],
                 ['ir_r1_k5_s2_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25',
                  'ir_r1_k3_s1_e6_c192_se0.25'], ['cn_r1_k1_s1_c960']]
-    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_e', arch_def=arch_def, **kwargs)
+    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_e', arch_def=arch_def, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -158,5 +158,5 @@ def hardcorenas_f(pretrained=False, **kwargs) -> MobileNetV3:
                  'ir_r1_k3_s1_e3_c112_se0.25'],
                 ['ir_r1_k5_s2_e6_c192_se0.25', 'ir_r1_k5_s1_e6_c192_se0.25', 'ir_r1_k3_s1_e6_c192_se0.25',
                  'ir_r1_k3_s1_e6_c192_se0.25'], ['cn_r1_k1_s1_c960']]
-    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_f', arch_def=arch_def, **kwargs)
+    model = _gen_hardcorenas(pretrained=pretrained, variant='hardcorenas_f', arch_def=arch_def, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

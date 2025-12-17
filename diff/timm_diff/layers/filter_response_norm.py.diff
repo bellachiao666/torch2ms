@@ -30,9 +30,9 @@
 -        self.weight = nn.Parameter(torch.empty(num_features, **dd))
 -        self.bias = nn.Parameter(torch.empty(num_features, **dd))
 -        self.tau = nn.Parameter(torch.empty(num_features, **dd)) if apply_act else None
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
-+        self.tau = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.tau = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.reset_parameters()
  
@@ -76,8 +76,8 @@
          self.eps = eps
 -        self.weight = nn.Parameter(torch.empty(num_features, **dd))
 -        self.bias = nn.Parameter(torch.empty(num_features, **dd))
-+        self.weight = ms.Parameter(mint.empty(num_features, **dd))
-+        self.bias = ms.Parameter(mint.empty(num_features, **dd))
++        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.reset_parameters()
  

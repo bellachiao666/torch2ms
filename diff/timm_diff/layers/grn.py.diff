@@ -24,8 +24,8 @@
  
 -        self.weight = nn.Parameter(torch.zeros(dim, **dd))
 -        self.bias = nn.Parameter(torch.zeros(dim, **dd))
-+        self.weight = ms.Parameter(mint.zeros(dim, **dd))
-+        self.bias = ms.Parameter(mint.zeros(dim, **dd))
++        self.weight = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
 -    def forward(self, x):
 +    def construct(self, x):

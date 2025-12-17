@@ -54,7 +54,7 @@ def _create_act(
     act_kwargs.setdefault('inplace', inplace)
     act = None
     if apply_act:
-        act = create_act_layer(act_layer, **act_kwargs)
+        act = create_act_layer(act_layer, **act_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return msnn.Identity() if act is None else act
 
 
@@ -90,7 +90,7 @@ class BatchNormAct2d(nn.BatchNorm2d):
                 affine=affine,
                 track_running_stats=track_running_stats,
                 **factory_kwargs,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         except TypeError:
             # NOTE for backwards compat with old PyTorch w/o factory device/dtype support
             super().__init__(
@@ -222,10 +222,10 @@ class FrozenBatchNormAct2d(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.eps = eps
-        self.register_buffer("weight", mint.ones(num_features, **dd))
-        self.register_buffer("bias", mint.zeros(num_features, **dd))
-        self.register_buffer("running_mean", mint.zeros(num_features, **dd))
-        self.register_buffer("running_var", mint.ones(num_features, **dd))
+        self.register_buffer("weight", mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer("bias", mint.zeros(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer("running_mean", mint.zeros(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.register_buffer("running_var", mint.ones(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
@@ -358,7 +358,7 @@ def _num_groups(num_channels: int, num_groups: int, group_size: int):
 
 
 class GroupNormAct(nn.GroupNorm):
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     # NOTE num_channel and num_groups order flipped for easier layer swaps / binding of fixed args
     def __init__(
@@ -400,7 +400,7 @@ class GroupNormAct(nn.GroupNorm):
 
 
 class GroupNorm1Act(nn.GroupNorm):
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -432,10 +432,8 @@ class GroupNorm1Act(nn.GroupNorm):
 
 
 class LayerNormAct(nn.LayerNorm):
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             normalization_shape: Union[int, List[int], torch.Size],
@@ -448,7 +446,7 @@ class LayerNormAct(nn.LayerNorm):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(normalization_shape, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(normalization_shape, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
 
@@ -466,8 +464,6 @@ class LayerNormAct(nn.LayerNorm):
 
 class LayerNormActFp32(nn.LayerNorm):
 
-    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             normalization_shape: Union[int, List[int], torch.Size],
@@ -480,7 +476,7 @@ class LayerNormActFp32(nn.LayerNorm):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(normalization_shape, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(normalization_shape, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
 
@@ -494,7 +490,7 @@ class LayerNormActFp32(nn.LayerNorm):
 
 
 class LayerNormAct2d(nn.LayerNorm):
-    _fast_norm: torch.jit.Final[bool]
+    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -508,7 +504,7 @@ class LayerNormAct2d(nn.LayerNorm):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
         self._fast_norm = is_fast_norm()
@@ -539,7 +535,7 @@ class LayerNormAct2dFp32(nn.LayerNorm):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
+        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
 
@@ -573,7 +569,7 @@ class RmsNormAct(RmsNorm):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)
+        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
         self._fast_norm = is_fast_norm()
@@ -607,7 +603,7 @@ class RmsNormActFp32(RmsNorm):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)
+        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
 
@@ -638,7 +634,7 @@ class RmsNormAct2d(RmsNorm2d):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)
+        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
         self._fast_norm = is_fast_norm()
@@ -672,7 +668,7 @@ class RmsNormAct2dFp32(RmsNorm2d):
             drop_layer: Optional[Type[msnn.Cell]] = None,
             **kwargs,
     ):
-        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)
+        super().__init__(channels=num_channels, eps=eps, affine=affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop = drop_layer() if drop_layer is not None else msnn.Identity()
         self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
 

@@ -6,12 +6,12 @@
  """ Lookahead Optimizer Wrapper.
  Implementation modified from: https://github.com/alphadl/lookahead.pytorch
  Paper: `Lookahead Optimizer: k steps forward, 1 step back` - https://arxiv.org/abs/1907.08610
-@@ -6,12 +11,11 @@ """
- from collections import OrderedDict
+@@ -7,11 +12,12 @@ from collections import OrderedDict
  from typing import Callable, Dict
--
+ 
 -import torch
 -from torch.optim.optimizer import Optimizer
++# import torch
 +# from torch.optim.optimizer import Optimizer
  from collections import defaultdict
  
@@ -20,14 +20,7 @@
  class Lookahead(Optimizer):
      def __init__(self, base_optimizer, alpha=0.5, k=6):
          # NOTE super().__init__() not called on purpose
-@@ -32,14 +36,13 @@             for group in self._base_optimizer.param_groups:
-                 group.setdefault(name, default)
- 
--    @torch.no_grad()
-     def update_slow(self, group):
-         for fast_p in group["params"]:
-             if fast_p.grad is None:
-                 continue
+@@ -39,7 +45,7 @@                 continue
              param_state = self._base_optimizer.state[fast_p]
              if 'lookahead_slow_buff' not in param_state:
 -                param_state['lookahead_slow_buff'] = torch.empty_like(fast_p)
@@ -35,10 +28,3 @@
                  param_state['lookahead_slow_buff'].copy_(fast_p)
              slow = param_state['lookahead_slow_buff']
              slow.add_(fast_p - slow, alpha=group['lookahead_alpha'])
-@@ -49,7 +52,6 @@         for group in self._base_optimizer.param_groups:
-             self.update_slow(group)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         loss = self._base_optimizer.step(closure)
-         for group in self._base_optimizer.param_groups:

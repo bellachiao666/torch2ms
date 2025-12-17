@@ -42,14 +42,16 @@
          self.conv = create_conv2d(
              in_channels,
              out_channels,
-@@ -75,10 +79,10 @@             bias=bias,
+@@ -74,11 +78,11 @@             groups=groups,
+             bias=bias,
              **dd,
-         )
+-        )
 -        self.norm = norm_layer(num_features=out_channels, **dd) if norm_layer else nn.Identity()
 -        self.act = act_layer(inplace=True) if act_layer is not None else nn.Identity()
 -
 -    def forward(self, x):
-+        self.norm = norm_layer(num_features=out_channels, **dd) if norm_layer else msnn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm = norm_layer(num_features=out_channels, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.act = act_layer(inplace=True) if act_layer is not None else msnn.Identity()
 +
 +    def construct(self, x):
@@ -74,10 +76,22 @@
              device=None,
              dtype=None,
      ):
-@@ -126,13 +130,13 @@             **dd,
-         )
- 
+@@ -115,7 +119,7 @@             act_layer=act_layer[0],
+             bias=use_bias[0],
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.point_conv = ConvNormAct(
+             in_channels,
+             out_channels,
+@@ -124,15 +128,15 @@             act_layer=act_layer[1],
+             bias=use_bias[1],
+             **dd,
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.depth_conv(x)
          x = self.point_conv(x)
@@ -99,10 +113,22 @@
              device=None,
              dtype=None,
      ):
-@@ -175,13 +179,13 @@             **dd,
-         )
- 
+@@ -163,7 +167,7 @@             act_layer=act_layer[0],
+             bias=use_bias[0],
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.conv2 = ConvNormAct(
+             mid_channels,
+             out_channels,
+@@ -173,15 +177,15 @@             act_layer=act_layer[1],
+             bias=use_bias[1],
+             **dd,
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.conv1(x)
          x = self.conv2(x)
@@ -124,10 +150,30 @@
              device=None,
              dtype=None,
      ):
-@@ -234,14 +238,14 @@             **dd,
-         )
- 
+@@ -212,7 +216,7 @@             act_layer=act_layer[0],
+             bias=use_bias[0],
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.depth_conv = ConvNormAct(
+             mid_channels,
+             mid_channels,
+@@ -223,7 +227,7 @@             act_layer=act_layer[1],
+             bias=use_bias[1],
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.point_conv = ConvNormAct(
+             mid_channels,
+             out_channels,
+@@ -232,16 +236,16 @@             act_layer=act_layer[2],
+             bias=use_bias[2],
+             **dd,
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.inverted_conv(x)
          x = self.depth_conv(x)
@@ -150,10 +196,22 @@
              device=None,
              dtype=None,
      ):
-@@ -285,13 +289,13 @@             **dd,
-         )
- 
+@@ -274,7 +278,7 @@             act_layer=act_layer[0],
+             bias=use_bias[0],
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.point_conv = ConvNormAct(
+             mid_channels,
+             out_channels,
+@@ -283,15 +287,15 @@             act_layer=act_layer[1],
+             bias=use_bias[1],
+             **dd,
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.spatial_conv(x)
          x = self.point_conv(x)
@@ -177,16 +235,34 @@
              scales: Tuple[int, ...] = (5,),
              eps: float = 1e-5,
              device=None,
-@@ -329,8 +333,8 @@             act_layer=act_layer[0],
+@@ -328,9 +332,9 @@             norm_layer=norm_layer[0],
+             act_layer=act_layer[0],
              **dd,
-         )
+-        )
 -        self.aggreg = nn.ModuleList([
 -            nn.Sequential(
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.aggreg = msnn.CellList([
 +            msnn.SequentialCell(
                  nn.Conv2d(
                      3 * total_dim,
                      3 * total_dim,
+@@ -343,7 +347,7 @@                 nn.Conv2d(3 * total_dim, 3 * total_dim, 1, groups=3 * heads, bias=use_bias[0], **dd),
+             )
+             for scale in scales
+-        ])
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.kernel_func = kernel_func(inplace=False)
+ 
+         self.proj = ConvNormAct(
+@@ -354,7 +358,7 @@             norm_layer=norm_layer[1],
+             act_layer=act_layer[1],
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def _attn(self, q, k, v):
+         dtype = v.dtype
 @@ -364,7 +368,7 @@         out = out[..., :-1] / (out[..., -1:] + self.eps)
          return out.to(dtype)
  
@@ -229,14 +305,16 @@
              device=None,
              dtype=None,
      ):
-@@ -419,7 +423,7 @@                 norm_layer=(None, norm_layer),
+@@ -419,8 +423,8 @@                 norm_layer=(None, norm_layer),
                  **dd,
              ),
 -            nn.Identity(),
+-        )
 +            msnn.Identity(),
-         )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.local_module = ResidualBlock(
              MBConv(
+                 in_channels=in_channels,
 @@ -431,28 +435,28 @@                 act_layer=(act_layer, act_layer, None),
                  **dd,
              ),
@@ -245,7 +323,7 @@
 -
 -    def forward(self, x):
 +            msnn.Identity(),
-+        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x = self.context_module(x)
@@ -279,7 +357,36 @@
          res = self.main(self.pre_norm(x))
          if self.shortcut is not None:
              res = res + self.shortcut(x)
-@@ -520,14 +524,14 @@     return block
+@@ -483,7 +487,7 @@                 norm_layer=(None, norm_layer) if fewer_norm else norm_layer,
+                 act_layer=(act_layer, None),
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             block = ConvBlock(
+                 in_channels=in_channels,
+@@ -493,7 +497,7 @@                 norm_layer=(None, norm_layer) if fewer_norm else norm_layer,
+                 act_layer=(act_layer, None),
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     else:
+         if block_type == "default":
+             block = MBConv(
+@@ -505,7 +509,7 @@                 norm_layer=(None, None, norm_layer) if fewer_norm else norm_layer,
+                 act_layer=(act_layer, act_layer, None),
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             block = FusedMBConv(
+                 in_channels=in_channels,
+@@ -516,18 +520,18 @@                 norm_layer=(None, norm_layer) if fewer_norm else norm_layer,
+                 act_layer=(act_layer, None),
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return block
  
  
 -class Stem(nn.Sequential):
@@ -296,12 +403,21 @@
              block_type: str = 'default',
              device=None,
              dtype=None,
+@@ -547,7 +551,7 @@                 act_layer=act_layer,
+                 **dd,
+             )
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         stem_block = 0
+         for _ in range(depth):
+             self.add_module(f'res{stem_block}', ResidualBlock(
 @@ -561,19 +565,19 @@                     block_type=block_type,
                      **dd,
                  ),
 -                nn.Identity(),
+-            ))
 +                msnn.Identity(),
-             ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              stem_block += 1
  
  
@@ -319,17 +435,35 @@
              expand_ratio: float,
              head_dim: int,
              vit_stage: bool = False,
+@@ -594,7 +598,7 @@                 **dd,
+             ),
+             None,
+-        )]
++        )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         in_chs = out_chs
+ 
+         if vit_stage:
+@@ -609,7 +613,7 @@                         act_layer=act_layer,
+                         **dd,
+                     )
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             # for stage 1, 2
+             for i in range(1, depth):
 @@ -623,23 +627,23 @@                         act_layer=act_layer,
                          **dd,
                      ),
 -                    nn.Identity(),
-+                    msnn.Identity(),
-                 ))
- 
+-                ))
+-
 -        self.blocks = nn.Sequential(*blocks)
 -
 -    def forward(self, x):
-+        self.blocks = msnn.SequentialCell(*blocks)
++                    msnn.Identity(),
++                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          return self.blocks(x)
@@ -349,17 +483,35 @@
              head_dim: int,
              vit_stage: bool = False,
              fewer_norm: bool = False,
+@@ -661,7 +665,7 @@                 **dd,
+             ),
+             None,
+-        )]
++        )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         in_chs = out_chs
+ 
+         if vit_stage:
+@@ -676,7 +680,7 @@                         act_layer=act_layer,
+                         **dd,
+                     )
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             # for stage 1, 2, 3
+             for i in range(depth):
 @@ -692,24 +696,24 @@                         block_type='default' if fewer_norm else 'fused',
                          **dd,
                      ),
 -                    nn.Identity(),
-+                    msnn.Identity(),
-                 ))
- 
+-                ))
+-
 -        self.blocks = nn.Sequential(*blocks)
 -
 -    def forward(self, x):
-+        self.blocks = msnn.SequentialCell(*blocks)
++                    msnn.Identity(),
++                ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          return self.blocks(x)
@@ -380,8 +532,11 @@
              pool_type: str = 'avg',
              norm_eps: float = 1e-5,
              device=None,
-@@ -723,12 +727,12 @@         assert pool_type, 'Cannot disable pooling'
-         self.in_conv = ConvNormAct(in_channels, widths[0], 1, norm_layer=norm_layer, act_layer=act_layer, **dd)
+@@ -721,26 +725,26 @@         self.num_features = widths[-1]
+ 
+         assert pool_type, 'Cannot disable pooling'
+-        self.in_conv = ConvNormAct(in_channels, widths[0], 1, norm_layer=norm_layer, act_layer=act_layer, **dd)
++        self.in_conv = ConvNormAct(in_channels, widths[0], 1, norm_layer=norm_layer, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.global_pool = SelectAdaptivePool2d(pool_type=pool_type, flatten=True)
 -        self.classifier = nn.Sequential(
 +        self.classifier = msnn.SequentialCell(
@@ -390,13 +545,15 @@
 -            act_layer(inplace=True) if act_layer is not None else nn.Identity(),
 -            nn.Dropout(dropout, inplace=False),
 -            nn.Linear(widths[1], num_classes, bias=True, **dd) if num_classes > 0 else nn.Identity(),
+-        )
 +            act_layer(inplace=True) if act_layer is not None else msnn.Identity(),
 +            nn.Dropout(dropout, inplace = False),
 +            nn.Linear(widths[1], num_classes, bias=True, **dd) if num_classes > 0 else msnn.Identity(),
-         )
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
  
      def reset(self, num_classes: int, pool_type: Optional[str] = None):
-@@ -736,11 +740,11 @@             assert pool_type, 'Cannot disable pooling'
+         if pool_type is not None:
+             assert pool_type, 'Cannot disable pooling'
              self.global_pool = SelectAdaptivePool2d(pool_type=pool_type, flatten=True,)
          if num_classes > 0:
 -            self.classifier[-1] = nn.Linear(self.num_features, num_classes, bias=True)
@@ -429,7 +586,13 @@
              global_pool: str = 'avg',
              head_widths: Tuple[int, ...] = (),
              drop_rate: float = 0.0,
-@@ -783,7 +787,7 @@ 
+@@ -778,12 +782,12 @@         self.num_classes = num_classes
+ 
+         # input stem
+-        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, **dd)
++        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         stride = self.stem.stride
+ 
          # stages
          self.feature_info = []
 -        self.stages = nn.Sequential()
@@ -437,10 +600,37 @@
          in_channels = widths[0]
          for i, (w, d) in enumerate(zip(widths[1:], depths[1:])):
              self.stages.append(EfficientVitStage(
-@@ -828,7 +832,7 @@         self.grad_checkpointing = enable
+@@ -796,7 +800,7 @@                 head_dim=head_dim,
+                 vit_stage=i >= 2,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             stride *= 2
+             in_channels = w
+             self.feature_info += [dict(num_chs=in_channels, reduction=stride, module=f'stages.{i}')]
+@@ -809,10 +813,10 @@             dropout=drop_rate,
+             pool_type=self.global_pool,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.head_hidden_size = self.head.num_features
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         matcher = dict(
+             stem=r'^stem',
+@@ -823,12 +827,12 @@         )
+         return matcher
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head.classifier[-1]
  
@@ -485,7 +675,13 @@
          global_pool: str = 'avg',
          head_widths: Tuple[int, ...] = (),
          drop_rate: float = 0.0,
-@@ -943,7 +947,7 @@ 
+@@ -938,12 +942,12 @@         norm_layer = partial(norm_layer, eps=self.norm_eps)
+ 
+         # input stem
+-        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, block_type='large', **dd)
++        self.stem = Stem(in_chans, widths[0], depths[0], norm_layer, act_layer, block_type='large', **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         stride = self.stem.stride
+ 
          # stages
          self.feature_info = []
 -        self.stages = nn.Sequential()
@@ -493,10 +689,37 @@
          in_channels = widths[0]
          for i, (w, d) in enumerate(zip(widths[1:], depths[1:])):
              self.stages.append(EfficientVitLargeStage(
-@@ -990,7 +994,7 @@         self.grad_checkpointing = enable
+@@ -956,7 +960,7 @@                 vit_stage=i >= 3,
+                 fewer_norm=i >= 2,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             stride *= 2
+             in_channels = w
+             self.feature_info += [dict(num_chs=in_channels, reduction=stride, module=f'stages.{i}')]
+@@ -971,10 +975,10 @@             act_layer=act_layer,
+             norm_eps=self.norm_eps,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.head_hidden_size = self.head.num_features
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         matcher = dict(
+             stem=r'^stem',
+@@ -985,12 +989,12 @@         )
+         return matcher
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head.classifier[-1]
  
@@ -524,3 +747,75 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
+@@ -1189,7 +1193,7 @@         pretrained,
+         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+         **kwargs
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1201,7 +1205,7 @@         pretrained,
+         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+         **kwargs
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1209,49 +1213,49 @@ def efficientvit_b0(pretrained=False, **kwargs):
+     model_args = dict(
+         widths=(8, 16, 32, 64, 128), depths=(1, 2, 2, 2, 2), head_dim=16, head_widths=(1024, 1280))
+-    return _create_efficientvit('efficientvit_b0', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientvit('efficientvit_b0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def efficientvit_b1(pretrained=False, **kwargs):
+     model_args = dict(
+         widths=(16, 32, 64, 128, 256), depths=(1, 2, 3, 3, 4), head_dim=16, head_widths=(1536, 1600))
+-    return _create_efficientvit('efficientvit_b1', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientvit('efficientvit_b1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def efficientvit_b2(pretrained=False, **kwargs):
+     model_args = dict(
+         widths=(24, 48, 96, 192, 384), depths=(1, 3, 4, 4, 6), head_dim=32, head_widths=(2304, 2560))
+-    return _create_efficientvit('efficientvit_b2', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientvit('efficientvit_b2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def efficientvit_b3(pretrained=False, **kwargs):
+     model_args = dict(
+         widths=(32, 64, 128, 256, 512), depths=(1, 4, 6, 6, 9), head_dim=32, head_widths=(2304, 2560))
+-    return _create_efficientvit('efficientvit_b3', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientvit('efficientvit_b3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def efficientvit_l1(pretrained=False, **kwargs):
+     model_args = dict(
+         widths=(32, 64, 128, 256, 512), depths=(1, 1, 1, 6, 6), head_dim=32, head_widths=(3072, 3200))
+-    return _create_efficientvit_large('efficientvit_l1', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientvit_large('efficientvit_l1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def efficientvit_l2(pretrained=False, **kwargs):
+     model_args = dict(
+         widths=(32, 64, 128, 256, 512), depths=(1, 2, 2, 8, 8), head_dim=32, head_widths=(3072, 3200))
+-    return _create_efficientvit_large('efficientvit_l2', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientvit_large('efficientvit_l2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def efficientvit_l3(pretrained=False, **kwargs):
+     model_args = dict(
+         widths=(64, 128, 256, 512, 1024), depths=(1, 2, 2, 8, 8), head_dim=32, head_widths=(6144, 6400))
+-    return _create_efficientvit_large('efficientvit_l3', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientvit_large('efficientvit_l3', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ # FIXME will wait for v2 SAM models which are pending

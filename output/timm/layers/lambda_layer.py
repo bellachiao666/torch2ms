@@ -100,13 +100,13 @@ class LambdaLayer(msnn.Cell):
             kernel_size=1,
             bias=qkv_bias,
             **dd,
-        )
-        self.norm_q = nn.BatchNorm2d(num_heads * self.dim_qk, **dd)
-        self.norm_v = nn.BatchNorm2d(self.dim_v, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm_q = nn.BatchNorm2d(num_heads * self.dim_qk, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm_v = nn.BatchNorm2d(self.dim_v, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if r is not None:
             # local lambda convolution for pos
-            self.conv_lambda = nn.Conv3d(1, self.dim_qk, (r, r, 1), padding=(r // 2, r // 2, 0), **dd)
+            self.conv_lambda = nn.Conv3d(1, self.dim_qk, (r, r, 1), padding=(r // 2, r // 2, 0), **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.pos_emb = None
             self.rel_pos_indices = None
         else:
@@ -115,7 +115,7 @@ class LambdaLayer(msnn.Cell):
             feat_size = to_2tuple(feat_size)
             rel_size = [2 * s - 1 for s in feat_size]
             self.conv_lambda = None
-            self.pos_emb = ms.Parameter(mint.empty(rel_size[0], rel_size[1], self.dim_qk, **dd))
+            self.pos_emb = ms.Parameter(mint.empty(rel_size[0], rel_size[1], self.dim_qk, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.register_buffer(
                 'rel_pos_indices',
                 rel_pos_indices(feat_size, device=device),

@@ -75,7 +75,7 @@ def _calc_pad(H: int, W: int, window_size: Tuple[int, int]) -> Tuple[int, int, i
 
 
 class MultiScaleAttention(msnn.Cell):
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -96,8 +96,8 @@ class MultiScaleAttention(msnn.Cell):
         self.fused_attn = use_fused_attn()
 
         self.q_pool = q_pool
-        self.qkv = nn.Linear(dim, dim_out * 3, **dd)
-        self.proj = nn.Linear(dim_out, dim_out, **dd)
+        self.qkv = nn.Linear(dim, dim_out * 3, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.proj = nn.Linear(dim_out, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         B, H, W, _ = x.shape
@@ -161,7 +161,7 @@ class MultiScaleBlock(msnn.Cell):
         self.q_stride = q_stride
 
         if dim != dim_out:
-            self.proj = nn.Linear(dim, dim_out, **dd)
+            self.proj = nn.Linear(dim, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.proj = msnn.Identity()
         self.pool = None
@@ -170,25 +170,25 @@ class MultiScaleBlock(msnn.Cell):
             self.pool = nn.MaxPool2d(
                 kernel_size = q_stride, stride = q_stride, ceil_mode = False)
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = MultiScaleAttention(
             dim,
             dim_out,
             num_heads=num_heads,
             q_pool=deepcopy(self.pool),
             **dd,
-        )
-        self.ls1 = LayerScale(dim_out, init_values, **dd) if init_values is not None else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale(dim_out, init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
 
-        self.norm2 = norm_layer(dim_out, **dd)
+        self.norm2 = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             dim_out,
             int(dim_out * mlp_ratio),
             act_layer=act_layer,
             **dd,
-        )
-        self.ls2 = LayerScale(dim_out, init_values, **dd) if init_values is not None else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale(dim_out, init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -261,7 +261,7 @@ class HieraPatchEmbed(msnn.Cell):
             stride=stride,
             padding=padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.proj(x)
@@ -342,7 +342,7 @@ class HieraDet(msnn.Cell):
                 output_fmt='NHWC',
                 dynamic_img_pad=True,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.patch_embed = HieraPatchEmbed(
                 kernel_size=patch_kernel,
@@ -351,14 +351,14 @@ class HieraDet(msnn.Cell):
                 in_chans=in_chans,
                 embed_dim=embed_dim,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # Which blocks have global att?
         self.global_att_blocks = global_att_blocks
 
         # Windowed positional embedding (https://arxiv.org/abs/2311.05613)
         self.global_pos_size = global_pos_size
-        self.pos_embed = ms.Parameter(mint.zeros(1, embed_dim, *self.global_pos_size, **dd))
-        self.pos_embed_window = ms.Parameter(mint.zeros(1, embed_dim, self.window_spec[0], self.window_spec[0], **dd))
+        self.pos_embed = ms.Parameter(mint.zeros(1, embed_dim, *self.global_pos_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pos_embed_window = ms.Parameter(mint.zeros(1, embed_dim, self.window_spec[0], self.window_spec[0], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
         cur_stage = 0
@@ -390,7 +390,7 @@ class HieraDet(msnn.Cell):
                 act_layer=act_layer,
                 init_values=init_values,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
             embed_dim = dim_out
             self.blocks.append(block)
@@ -406,7 +406,7 @@ class HieraDet(msnn.Cell):
             drop_rate=drop_rate,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Initialize everything
         if self.pos_embed is not None:
@@ -445,22 +445,22 @@ class HieraDet(msnn.Cell):
             rescale(layer.attn.proj.weight.data, layer_id + 1)
             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return ['pos_embed', 'pos_embed_window']
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict:
         return dict(
             stem=r'^pos_embed|pos_embed_window|patch_embed',
             blocks=[(r'^blocks\.(\d+)', None)]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self):
         return self.head.fc
 
@@ -656,25 +656,25 @@ def _create_hiera_det(variant: str, pretrained: bool = False, **kwargs) -> Hiera
         pretrained_filter_fn=partial(checkpoint_filter_fn, prefix=checkpoint_prefix),
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def sam2_hiera_tiny(pretrained=False, **kwargs):
     model_args = dict(stages=(1, 2, 7, 2), global_att_blocks=(5, 7, 9))
-    return _create_hiera_det('sam2_hiera_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera_det('sam2_hiera_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def sam2_hiera_small(pretrained=False, **kwargs):
     model_args = dict(stages=(1, 2, 11, 2), global_att_blocks=(7, 10, 13))
-    return _create_hiera_det('sam2_hiera_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera_det('sam2_hiera_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def sam2_hiera_base_plus(pretrained=False, **kwargs):
     model_args = dict(embed_dim=112, num_heads=2, global_pos_size=(14, 14))
-    return _create_hiera_det('sam2_hiera_base_plus', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera_det('sam2_hiera_base_plus', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -686,13 +686,13 @@ def sam2_hiera_large(pretrained=False, **kwargs):
         global_att_blocks=(23, 33, 43),
         window_spec=(8, 4, 16, 8),
     )
-    return _create_hiera_det('sam2_hiera_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera_det('sam2_hiera_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hieradet_small(pretrained=False, **kwargs):
     model_args = dict(stages=(1, 2, 11, 2), global_att_blocks=(7, 10, 13), window_spec=(8, 4, 16, 8), init_values=1e-5)
-    return _create_hiera_det('hieradet_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_hiera_det('hieradet_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 # @register_model

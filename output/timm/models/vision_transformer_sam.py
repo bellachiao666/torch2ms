@@ -120,7 +120,7 @@ def get_decomposed_rel_pos_bias(
 
 
 class Attention(msnn.Cell):
-    fused_attn: Final[bool]
+    fused_attn: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -145,11 +145,11 @@ class Attention(msnn.Cell):
         self.scale = self.head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
-        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
-        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
         self.use_rel_pos = use_rel_pos
         if self.use_rel_pos:
@@ -158,8 +158,8 @@ class Attention(msnn.Cell):
                 input_size is not None
             ), "Input size must be provided if using relative positional encoding."
             # initialize relative positional embeddings
-            self.rel_pos_h = ms.Parameter(mint.zeros(2 * input_size[0] - 1, self.head_dim, **dd))
-            self.rel_pos_w = ms.Parameter(mint.zeros(2 * input_size[1] - 1, self.head_dim, **dd))
+            self.rel_pos_h = ms.Parameter(mint.zeros(2 * input_size[0] - 1, self.head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.rel_pos_w = ms.Parameter(mint.zeros(2 * input_size[1] - 1, self.head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.rope = rope
 
     def construct(self, x):
@@ -229,7 +229,7 @@ class Block(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.window_size = window_size
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn = Attention(
             dim,
             num_heads=num_heads,
@@ -242,19 +242,19 @@ class Block(msnn.Cell):
             input_size=input_size if window_size == 0 else (window_size, window_size),
             rope=rope,
             **dd,
-        )
-        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = mlp_layer(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
-        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -421,13 +421,13 @@ class VisionTransformerSAM(msnn.Cell):
             embed_dim=embed_dim,
             bias=not pre_norm,  # disable bias if pre-norm is used
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         grid_size = self.patch_embed.grid_size
         r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
 
         if use_abs_pos:
             # Initialize absolute positional embedding with pretrain image size.
-            self.pos_embed = ms.Parameter(mint.zeros(1, grid_size[0], grid_size[1], embed_dim, **dd))
+            self.pos_embed = ms.Parameter(mint.zeros(1, grid_size[0], grid_size[1], embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.pos_embed = None
         self.pos_drop = nn.Dropout(p = pos_drop_rate)
@@ -438,7 +438,7 @@ class VisionTransformerSAM(msnn.Cell):
             )
         else:
             self.patch_drop = msnn.Identity()
-        self.norm_pre = norm_layer(embed_dim, **dd) if pre_norm else msnn.Identity()
+        self.norm_pre = norm_layer(embed_dim, **dd) if pre_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if use_rope:
             assert not use_rel_pos, "ROPE and relative pos embeddings should not be enabled at same time"
@@ -486,7 +486,7 @@ class VisionTransformerSAM(msnn.Cell):
                 rope=self.rope_window if i not in global_attn_indexes else self.rope_global,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
 
@@ -509,14 +509,14 @@ class VisionTransformerSAM(msnn.Cell):
                     **dd,
                 ),
                 LayerNorm2d(neck_chans, **dd),
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = neck_chans
         else:
             if head_hidden_size:
                 self.neck = msnn.Identity()
             else:
                 # should have a final norm with standard ClassifierHead
-                self.neck = LayerNorm2d(embed_dim, **dd)
+                self.neck = LayerNorm2d(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             neck_chans = embed_dim
 
         # Classifier Head
@@ -528,7 +528,7 @@ class VisionTransformerSAM(msnn.Cell):
                 pool_type=global_pool,
                 drop_rate=drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.head = ClassifierHead(
                 neck_chans,
@@ -536,24 +536,24 @@ class VisionTransformerSAM(msnn.Cell):
                 pool_type=global_pool,
                 drop_rate=drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'pos_embed', 'dist_token'}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^pos_embed|patch_embed',  # stem and embed
             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -727,7 +727,7 @@ def _create_vision_transformer(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -739,7 +739,7 @@ def samvit_base_patch16(pretrained=False, **kwargs) -> VisionTransformerSAM:
         window_size=14, use_rel_pos=True, img_size=1024,
     )
     model = _create_vision_transformer(
-        'samvit_base_patch16', pretrained=pretrained, **dict(model_args, **kwargs))
+        'samvit_base_patch16', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -752,7 +752,7 @@ def samvit_large_patch16(pretrained=False, **kwargs) -> VisionTransformerSAM:
         window_size=14, use_rel_pos=True, img_size=1024,
     )
     model = _create_vision_transformer(
-        'samvit_large_patch16', pretrained=pretrained, **dict(model_args, **kwargs))
+        'samvit_large_patch16', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -765,7 +765,7 @@ def samvit_huge_patch16(pretrained=False, **kwargs) -> VisionTransformerSAM:
         window_size=14, use_rel_pos=True, img_size=1024,
     )
     model = _create_vision_transformer(
-        'samvit_huge_patch16', pretrained=pretrained, **dict(model_args, **kwargs))
+        'samvit_huge_patch16', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -778,6 +778,6 @@ def samvit_base_patch16_224(pretrained=False, **kwargs) -> VisionTransformerSAM:
         window_size=14, use_rel_pos=True, use_abs_pos=False, img_size=224, neck_chans=None,
     )
     model = _create_vision_transformer(
-        'samvit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+        'samvit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 

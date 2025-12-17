@@ -67,8 +67,8 @@ class ResNestBottleneck(msnn.Cell):
             avd_stride = 0
         self.radix = radix
 
-        self.conv1 = nn.Conv2d(inplanes, group_width, kernel_size=1, bias=False, **dd)
-        self.bn1 = norm_layer(group_width, **dd)
+        self.conv1 = nn.Conv2d(inplanes, group_width, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn1 = norm_layer(group_width, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer(inplace=True)
         self.avd_first = nn.AvgPool2d(3, avd_stride, padding = 1) if avd_stride > 0 and avd_first else None
 
@@ -85,7 +85,7 @@ class ResNestBottleneck(msnn.Cell):
                 norm_layer=norm_layer,
                 drop_layer=drop_block,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.bn2 = msnn.Identity()
             self.drop_block = msnn.Identity()
             self.act2 = msnn.Identity()
@@ -100,14 +100,14 @@ class ResNestBottleneck(msnn.Cell):
                 groups=cardinality,
                 bias=False,
                 **dd,
-            )
-            self.bn2 = norm_layer(group_width, **dd)
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.bn2 = norm_layer(group_width, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.drop_block = drop_block() if drop_block is not None else msnn.Identity()
             self.act2 = act_layer(inplace=True)
         self.avd_last = nn.AvgPool2d(3, avd_stride, padding = 1) if avd_stride > 0 and not avd_first else None
 
-        self.conv3 = nn.Conv2d(group_width, planes * 4, kernel_size=1, bias=False, **dd)
-        self.bn3 = norm_layer(planes * 4, **dd)
+        self.conv3 = nn.Conv2d(group_width, planes * 4, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.bn3 = norm_layer(planes * 4, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act3 = act_layer(inplace=True)
         self.downsample = downsample
         self.drop_path = drop_path
@@ -154,7 +154,7 @@ def _create_resnest(variant, pretrained=False, **kwargs):
         variant,
         pretrained,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -199,7 +199,7 @@ def resnest14d(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[1, 1, 1, 1],
         stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
         block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest14d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest14d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -210,7 +210,7 @@ def resnest26d(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[2, 2, 2, 2],
         stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
         block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest26d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest26d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -222,7 +222,7 @@ def resnest50d(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[3, 4, 6, 3],
         stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
         block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest50d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest50d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -234,7 +234,7 @@ def resnest101e(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[3, 4, 23, 3],
         stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
         block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest101e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest101e', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -246,7 +246,7 @@ def resnest200e(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[3, 24, 36, 3],
         stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
         block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest200e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest200e', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -258,7 +258,7 @@ def resnest269e(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[3, 30, 48, 8],
         stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
         block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest269e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest269e', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -269,7 +269,7 @@ def resnest50d_4s2x40d(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[3, 4, 6, 3],
         stem_type='deep', stem_width=32, avg_down=True, base_width=40, cardinality=2,
         block_args=dict(radix=4, avd=True, avd_first=True))
-    return _create_resnest('resnest50d_4s2x40d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest50d_4s2x40d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -280,4 +280,4 @@ def resnest50d_1s4x24d(pretrained=False, **kwargs) -> ResNet:
         block=ResNestBottleneck, layers=[3, 4, 6, 3],
         stem_type='deep', stem_width=32, avg_down=True, base_width=24, cardinality=4,
         block_args=dict(radix=1, avd=True, avd_first=True))
-    return _create_resnest('resnest50d_1s4x24d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    return _create_resnest('resnest50d_1s4x24d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

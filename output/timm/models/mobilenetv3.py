@@ -106,8 +106,8 @@ class MobileNetV3(msnn.Cell):
         # Stem
         if not fix_stem:
             stem_size = round_chs_fn(stem_size)
-        self.conv_stem = create_conv2d(in_chans, stem_size, 3, stride=2, padding=pad_type, **dd)
-        self.bn1 = norm_act_layer(stem_size, inplace=True, **dd)
+        self.conv_stem = create_conv2d(in_chans, stem_size, 3, stride=2, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_act_layer(stem_size, inplace=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Middle stages (IR/ER/DS Blocks)
         builder = EfficientNetBuilder(
@@ -122,8 +122,8 @@ class MobileNetV3(msnn.Cell):
             drop_path_rate=drop_path_rate,
             layer_scale_init_value=layer_scale_init_value,
             **dd,
-        )
-        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = builder.features
         self.stage_ends = [f['stage'] for f in self.feature_info]
         self.num_features = builder.in_chs  # features of last stage, output of forward_features()
@@ -141,8 +141,8 @@ class MobileNetV3(msnn.Cell):
                 padding=pad_type,
                 bias=False,  #  never a bias
                 **dd,
-            )
-            self.norm_head = norm_act_layer(self.head_hidden_size, **dd)
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.norm_head = norm_act_layer(self.head_hidden_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.act2 = msnn.Identity()
         else:
             # mobilenet-v3 and others only have an activation after final PW conv
@@ -153,11 +153,11 @@ class MobileNetV3(msnn.Cell):
                 padding=pad_type,
                 bias=head_bias,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.norm_head = msnn.Identity()
             self.act2 = act_layer(inplace=True)
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         efficientnet_init_weights(self)
 
@@ -171,9 +171,9 @@ class MobileNetV3(msnn.Cell):
         layers.extend(self.blocks)
         layers.extend([self.global_pool, self.conv_head, self.norm_head, self.act2])
         layers.extend([mint.flatten(), nn.Dropout(self.drop_rate), self.classifier])
-        return msnn.SequentialCell(*layers)
+        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Group parameters for optimization."""
         return dict(
@@ -181,12 +181,12 @@ class MobileNetV3(msnn.Cell):
             blocks=r'^blocks\.(\d+)' if coarse else r'^blocks\.(\d+)\.(\d+)'
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing."""
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.classifier
@@ -408,8 +408,8 @@ class MobileNetV3Features(msnn.Cell):
         # Stem
         if not fix_stem:
             stem_size = round_chs_fn(stem_size)
-        self.conv_stem = create_conv2d(in_chans, stem_size, 3, stride=2, padding=pad_type, **dd)
-        self.bn1 = norm_layer(stem_size, **dd)
+        self.conv_stem = create_conv2d(in_chans, stem_size, 3, stride=2, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn1 = norm_layer(stem_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act1 = act_layer(inplace=True)
 
         # Middle stages (IR/ER/DS Blocks)
@@ -426,8 +426,8 @@ class MobileNetV3Features(msnn.Cell):
             layer_scale_init_value=layer_scale_init_value,
             feature_location=feature_location,
             **dd,
-        )
-        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = FeatureInfo(builder.features, out_indices)
         self._stage_out_idx = {f['stage']: f['index'] for f in self.feature_info.get_dicts()}
 
@@ -439,7 +439,7 @@ class MobileNetV3Features(msnn.Cell):
             hooks = self.feature_info.get_dicts(keys=('module', 'hook_type'))
             self.feature_hooks = FeatureHooks(hooks, self.named_modules())
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing."""
         self.grad_checkpointing = enable
@@ -504,7 +504,7 @@ def _create_mnv3(variant: str, pretrained: bool = False, **kwargs) -> MobileNetV
         pretrained_strict=features_mode != 'cls',
         kwargs_filter=kwargs_filter,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if features_mode == 'cls':
         model.default_cfg = pretrained_cfg_for_features(model.default_cfg)
     return model
@@ -551,8 +551,8 @@ def _gen_mobilenet_v3_rw(
         act_layer=resolve_act_layer(kwargs, 'hard_swish'),
         se_layer=partial(SqueezeExcite, gate_layer='hard_sigmoid'),
         **kwargs,
-    )
-    model = _create_mnv3(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_mnv3(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -663,8 +663,8 @@ def _gen_mobilenet_v3(
         act_layer=act_layer,
         se_layer=se_layer,
         **kwargs,
-    )
-    model = _create_mnv3(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_mnv3(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -734,8 +734,8 @@ def _gen_fbnetv3(variant: str, channel_multiplier: float = 1.0, pretrained: bool
         act_layer=act_layer,
         se_layer=se_layer,
         **kwargs,
-    )
-    model = _create_mnv3(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_mnv3(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -779,8 +779,8 @@ def _gen_lcnet(variant: str, channel_multiplier: float = 1.0, pretrained: bool =
         se_layer=partial(SqueezeExcite, gate_layer='hard_sigmoid', force_act_layer=nn.ReLU),
         num_features=1280,
         **kwargs,
-    )
-    model = _create_mnv3(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_mnv3(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1038,8 +1038,8 @@ def _gen_mobilenet_v4(
         act_layer=act_layer,
         layer_scale_init_value=layer_scale_init_value,
         **kwargs,
-    )
-    model = _create_mnv3(variant, pretrained, **model_kwargs)
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_mnv3(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1283,40 +1283,40 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def mobilenetv3_large_075(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
-    model = _gen_mobilenet_v3('mobilenetv3_large_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('mobilenetv3_large_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv3_large_100(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
-    model = _gen_mobilenet_v3('mobilenetv3_large_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('mobilenetv3_large_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 @register_model
 def mobilenetv3_large_150d(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
-    model = _gen_mobilenet_v3('mobilenetv3_large_150d', 1.5, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('mobilenetv3_large_150d', 1.5, depth_multiplier=1.2, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 @register_model
 def mobilenetv3_small_050(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
-    model = _gen_mobilenet_v3('mobilenetv3_small_050', 0.50, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('mobilenetv3_small_050', 0.50, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv3_small_075(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
-    model = _gen_mobilenet_v3('mobilenetv3_small_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('mobilenetv3_small_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv3_small_100(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
-    model = _gen_mobilenet_v3('mobilenetv3_small_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('mobilenetv3_small_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1324,7 +1324,7 @@ def mobilenetv3_small_100(pretrained: bool = False, **kwargs) -> MobileNetV3:
 def mobilenetv3_rw(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
-    model = _gen_mobilenet_v3_rw('mobilenetv3_rw', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3_rw('mobilenetv3_rw', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1333,7 +1333,7 @@ def tf_mobilenetv3_large_075(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_mobilenet_v3('tf_mobilenetv3_large_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('tf_mobilenetv3_large_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1342,7 +1342,7 @@ def tf_mobilenetv3_large_100(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_mobilenet_v3('tf_mobilenetv3_large_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('tf_mobilenetv3_large_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1351,7 +1351,7 @@ def tf_mobilenetv3_large_minimal_100(pretrained: bool = False, **kwargs) -> Mobi
     """ MobileNet V3 """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_mobilenet_v3('tf_mobilenetv3_large_minimal_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('tf_mobilenetv3_large_minimal_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1360,7 +1360,7 @@ def tf_mobilenetv3_small_075(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_mobilenet_v3('tf_mobilenetv3_small_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('tf_mobilenetv3_small_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1369,7 +1369,7 @@ def tf_mobilenetv3_small_100(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V3 """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_mobilenet_v3('tf_mobilenetv3_small_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('tf_mobilenetv3_small_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1378,147 +1378,147 @@ def tf_mobilenetv3_small_minimal_100(pretrained: bool = False, **kwargs) -> Mobi
     """ MobileNet V3 """
     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
     kwargs.setdefault('pad_type', 'same')
-    model = _gen_mobilenet_v3('tf_mobilenetv3_small_minimal_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v3('tf_mobilenetv3_small_minimal_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def fbnetv3_b(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ FBNetV3-B """
-    model = _gen_fbnetv3('fbnetv3_b', pretrained=pretrained, **kwargs)
+    model = _gen_fbnetv3('fbnetv3_b', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def fbnetv3_d(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ FBNetV3-D """
-    model = _gen_fbnetv3('fbnetv3_d', pretrained=pretrained, **kwargs)
+    model = _gen_fbnetv3('fbnetv3_d', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def fbnetv3_g(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ FBNetV3-G """
-    model = _gen_fbnetv3('fbnetv3_g', pretrained=pretrained, **kwargs)
+    model = _gen_fbnetv3('fbnetv3_g', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def lcnet_035(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ PP-LCNet 0.35"""
-    model = _gen_lcnet('lcnet_035', 0.35, pretrained=pretrained, **kwargs)
+    model = _gen_lcnet('lcnet_035', 0.35, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def lcnet_050(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ PP-LCNet 0.5"""
-    model = _gen_lcnet('lcnet_050', 0.5, pretrained=pretrained, **kwargs)
+    model = _gen_lcnet('lcnet_050', 0.5, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def lcnet_075(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ PP-LCNet 1.0"""
-    model = _gen_lcnet('lcnet_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_lcnet('lcnet_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def lcnet_100(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ PP-LCNet 1.0"""
-    model = _gen_lcnet('lcnet_100', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_lcnet('lcnet_100', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def lcnet_150(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ PP-LCNet 1.5"""
-    model = _gen_lcnet('lcnet_150', 1.5, pretrained=pretrained, **kwargs)
+    model = _gen_lcnet('lcnet_150', 1.5, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_small_035(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_small_035', 0.35, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_small_035', 0.35, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_small_050(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_small_050', 0.50, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_small_050', 0.50, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_small(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_small', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_small', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_medium(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_medium', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_medium', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_large(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_large', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_large', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_hybrid_medium(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 Hybrid """
-    model = _gen_mobilenet_v4('mobilenetv4_hybrid_medium', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_hybrid_medium', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_hybrid_large(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 Hybrid"""
-    model = _gen_mobilenet_v4('mobilenetv4_hybrid_large', 1.0, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_hybrid_large', 1.0, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_aa_medium(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 w/ AvgPool AA """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_aa_medium', 1.0, pretrained=pretrained, aa_layer='avg', **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_aa_medium', 1.0, pretrained=pretrained, aa_layer='avg', **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_blur_medium(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 Conv w/ Blur AA """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_blur_medium', 1.0, pretrained=pretrained, aa_layer='blurpc', **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_blur_medium', 1.0, pretrained=pretrained, aa_layer='blurpc', **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_conv_aa_large(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 w/ AvgPool AA """
-    model = _gen_mobilenet_v4('mobilenetv4_conv_aa_large', 1.0, pretrained=pretrained, aa_layer='avg', **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_conv_aa_large', 1.0, pretrained=pretrained, aa_layer='avg', **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_hybrid_medium_075(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 Hybrid """
-    model = _gen_mobilenet_v4('mobilenetv4_hybrid_medium_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_hybrid_medium_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv4_hybrid_large_075(pretrained: bool = False, **kwargs) -> MobileNetV3:
     """ MobileNet V4 Hybrid"""
-    model = _gen_mobilenet_v4('mobilenetv4_hybrid_large_075', 0.75, pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v4('mobilenetv4_hybrid_large_075', 0.75, pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

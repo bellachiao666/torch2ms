@@ -84,7 +84,7 @@ def onnx_export(
         )  # 'torch.onnx.dynamo_export' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         export_output.save(output_file)
     else:
-        torch.onnx.export(
+        ms.jit(
             model,
             example_input,
             output_file,
@@ -97,7 +97,7 @@ def onnx_export(
             dynamic_axes=dynamic_axes,
             opset_version=opset,
             operator_export_type=export_type
-        )  # 'torch.onnx.export' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        )
 
     if check:
         onnx_model = onnx.load(output_file)

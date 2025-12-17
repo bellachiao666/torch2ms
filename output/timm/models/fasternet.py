@@ -42,7 +42,7 @@ class Partial_conv3(msnn.Cell):
         super().__init__()
         self.dim_conv3 = dim // n_div
         self.dim_untouched = dim - self.dim_conv3
-        self.partial_conv3 = nn.Conv2d(self.dim_conv3, self.dim_conv3, 3, 1, 1, bias=False, **dd)
+        self.partial_conv3 = nn.Conv2d(self.dim_conv3, self.dim_conv3, 3, 1, 1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if forward == 'slicing':
             self.forward = self.forward_slicing
@@ -88,13 +88,13 @@ class MLPBlock(msnn.Cell):
             norm_layer(mlp_hidden_dim, **dd),
             act_layer(),
             nn.Conv2d(mlp_hidden_dim, dim, 1, bias=False, **dd),
-        ])
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.spatial_mixing = Partial_conv3(dim, n_div, pconv_fw_type, **dd)
+        self.spatial_mixing = Partial_conv3(dim, n_div, pconv_fw_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if layer_scale_init_value > 0:
             self.layer_scale = ms.Parameter(
-                layer_scale_init_value * mint.ones((dim), **dd), requires_grad=True)
+                layer_scale_init_value * mint.ones((dim), **dd), requires_grad=True)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.layer_scale = None
 
@@ -144,13 +144,13 @@ class Block(msnn.Cell):
                 **dd,
             )
             for i in range(depth)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.downsample = PatchMerging(
             dim=dim // 2,
             patch_size=merge_size,
             norm_layer=norm_layer,
             **dd,
-        ) if use_merge else msnn.Identity()
+        ) if use_merge else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.downsample(x)
@@ -173,8 +173,8 @@ class PatchEmbed(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.proj = nn.Conv2d(in_chans, embed_dim, patch_size, patch_size, bias=False, **dd)
-        self.norm = norm_layer(embed_dim, **dd)
+        self.proj = nn.Conv2d(in_chans, embed_dim, patch_size, patch_size, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return self.norm(self.proj(x))
@@ -191,8 +191,8 @@ class PatchMerging(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.reduction = nn.Conv2d(dim, 2 * dim, patch_size, patch_size, bias=False, **dd)
-        self.norm = norm_layer(2 * dim, **dd)
+        self.reduction = nn.Conv2d(dim, 2 * dim, patch_size, patch_size, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(2 * dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return self.norm(self.reduction(x))
@@ -237,7 +237,7 @@ class FasterNet(msnn.Cell):
             patch_size=patch_size,
             norm_layer=norm_layer if patch_norm else msnn.Identity,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # stochastic depth decay rule
         dpr = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
 
@@ -258,19 +258,19 @@ class FasterNet(msnn.Cell):
                 use_merge=False if i == 0 else True,
                 merge_size=merge_size,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stages_list.append(stage)
             self.feature_info += [dict(num_chs=dim, reduction=2**(i+2), module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages_list)
+        self.stages = msnn.SequentialCell(*stages_list)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # building last several layers
         self.num_features = prev_chs = int(embed_dim * 2 ** (self.num_stages - 1))
         self.head_hidden_size = out_chs = feature_dim # 1280
         self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
-        self.conv_head = nn.Conv2d(prev_chs, out_chs, 1, 1, 0, bias=False, **dd)
+        self.conv_head = nn.Conv2d(prev_chs, out_chs, 1, 1, 0, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-        self.classifier = Linear(out_chs, num_classes, bias=True, **dd) if num_classes > 0 else msnn.Identity()
+        self.classifier = Linear(out_chs, num_classes, bias=True, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self._initialize_weights()
 
     def _initialize_weights(self):
@@ -284,11 +284,11 @@ class FasterNet(msnn.Cell):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set:
         return set()
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         matcher = dict(
             stem=r'^patch_embed',  # stem and embed
@@ -300,12 +300,12 @@ class FasterNet(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
@@ -315,7 +315,7 @@ class FasterNet(msnn.Cell):
         # cannot meaningfully change pooling of efficient head after creation
         self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def forward_intermediates(
             self,
@@ -469,41 +469,41 @@ def _create_fasternet(variant: str, pretrained: bool = False, **kwargs: Any) -> 
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def fasternet_t0(pretrained: bool = False, **kwargs: Any) -> FasterNet:
     model_args = dict(embed_dim=40, depths=(1, 2, 8, 2), drop_path_rate=0.0, act_layer=nn.GELU)
-    return _create_fasternet('fasternet_t0', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fasternet('fasternet_t0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def fasternet_t1(pretrained: bool = False, **kwargs: Any) -> FasterNet:
     model_args = dict(embed_dim=64, depths=(1, 2, 8, 2), drop_path_rate=0.02, act_layer=nn.GELU)
-    return _create_fasternet('fasternet_t1', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fasternet('fasternet_t1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def fasternet_t2(pretrained: bool = False, **kwargs: Any) -> FasterNet:
     model_args = dict(embed_dim=96, depths=(1, 2, 8, 2), drop_path_rate=0.05)
-    return _create_fasternet('fasternet_t2', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fasternet('fasternet_t2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def fasternet_s(pretrained: bool = False, **kwargs: Any) -> FasterNet:
     model_args = dict(embed_dim=128, depths=(1, 2, 13, 2), drop_path_rate=0.1)
-    return _create_fasternet('fasternet_s', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fasternet('fasternet_s', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def fasternet_m(pretrained: bool = False, **kwargs: Any) -> FasterNet:
     model_args = dict(embed_dim=144, depths=(3, 4, 18, 3), drop_path_rate=0.2)
-    return _create_fasternet('fasternet_m', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fasternet('fasternet_m', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def fasternet_l(pretrained: bool = False, **kwargs: Any) -> FasterNet:
     model_args = dict(embed_dim=192, depths=(3, 4, 18, 3), drop_path_rate=0.3)
-    return _create_fasternet('fasternet_l', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_fasternet('fasternet_l', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

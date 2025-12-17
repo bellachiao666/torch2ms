@@ -35,9 +35,6 @@ class DistillationTeacher(msnn.Cell):
         dtype: Model dtype (uses float32 if None)
     """
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             model_name: str,
@@ -66,7 +63,7 @@ class DistillationTeacher(msnn.Cell):
             device=device,
             dtype=dtype,
             **pretrained_kwargs,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         model_kd.eval()
         self.model = model_kd
@@ -174,9 +171,6 @@ class LogitDistillationTask(TrainingTask):
         ... )
     """
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             student_model: msnn.Cell,
@@ -274,7 +268,7 @@ class LogitDistillationTask(TrainingTask):
             param.requires_grad = False
 
         # Wrap only student in DDP
-        self.student = DDP(self.student, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        self.student = DDP(self.student, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel.DDP' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         return self
 
     def forward(
@@ -406,9 +400,6 @@ class FeatureDistillationTask(TrainingTask):
         ... )
     """
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             student_model: msnn.Cell,
@@ -542,7 +533,7 @@ class FeatureDistillationTask(TrainingTask):
             param.requires_grad = False
 
         # Wrap trainable module (student + projection) in DDP
-        self.trainable_module = DDP(self.trainable_module, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        self.trainable_module = DDP(self.trainable_module, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel.DDP' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         return self
 
     def forward(

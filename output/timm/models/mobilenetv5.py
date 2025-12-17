@@ -89,9 +89,9 @@ class MobileNetV5MultiScaleFusionAdapter(msnn.Cell):
         noskip=self.noskip,
         layer_scale_init_value=self.layer_scale_init_value,
         **dd,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    self.norm = norm_layer(self.out_channels, **dd)
+    self.norm = norm_layer(self.out_channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
   def construct(self, inputs: List[ms.Tensor]) -> ms.Tensor:
     # Inputs list of [B, C, H, W] tensors
@@ -200,7 +200,7 @@ class MobileNetV5(msnn.Cell):
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Middle stages (IR/ER/DS Blocks)
         builder = EfficientNetBuilder(
@@ -215,8 +215,8 @@ class MobileNetV5(msnn.Cell):
             drop_path_rate=drop_path_rate,
             layer_scale_init_value=layer_scale_init_value,
             **dd,
-        )
-        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = builder.features
         self.stage_ends = [f['stage'] for f in self.feature_info]
         self.num_features = builder.in_chs  # features of last stage, output of forward_features()
@@ -235,7 +235,7 @@ class MobileNetV5(msnn.Cell):
                 norm_layer=norm_layer,
                 act_layer=act_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
             self.conv_head = None
             self.norm_head = None
@@ -246,11 +246,11 @@ class MobileNetV5(msnn.Cell):
             self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
             num_pooled_chs = self.num_features * self.global_pool.feat_mult()
             # mobilenet-v4 style post-pooling PW conv is followed by a norm+act layer
-            self.conv_head = create_conv2d(num_pooled_chs, self.head_hidden_size, 1, padding=pad_type, **dd)
-            self.norm_head = norm_act_layer(self.head_hidden_size, **dd)
+            self.conv_head = create_conv2d(num_pooled_chs, self.head_hidden_size, 1, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.norm_head = norm_act_layer(self.head_hidden_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.flatten = mint.flatten(1) if global_pool else msnn.Identity()  # don't flatten if pooling disabled
-        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.classifier = Linear(self.head_hidden_size, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         efficientnet_init_weights(self)
 
@@ -263,20 +263,20 @@ class MobileNetV5(msnn.Cell):
         if self.norm_head is not None:
             layers.append(self.norm_head)
         layers.extend([mint.flatten(), nn.Dropout(self.drop_rate), self.classifier])
-        return msnn.SequentialCell(*layers)
+        return msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False):
         return dict(
             stem=r'^conv_stem|bn1',
             blocks=r'^blocks\.(\d+)' if coarse else r'^blocks\.(\d+)\.(\d+)'
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.classifier
 
@@ -462,7 +462,7 @@ class MobileNetV5Encoder(msnn.Cell):
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         builder = EfficientNetBuilder(
             output_stride=32,
@@ -476,8 +476,8 @@ class MobileNetV5Encoder(msnn.Cell):
             drop_path_rate=drop_path_rate,
             layer_scale_init_value=layer_scale_init_value,
             **dd,
-        )
-        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*builder(stem_size, block_args))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = builder.features
         self.stage_ends = [f['stage'] for f in self.feature_info]
 
@@ -494,7 +494,7 @@ class MobileNetV5Encoder(msnn.Cell):
             norm_layer=norm_layer,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         efficientnet_init_weights(self)
 
@@ -624,7 +624,7 @@ def _create_mnv5_encoder(variant: str, pretrained: bool = False, **kwargs) -> Mo
         feature_cfg=feature_cfg,
         kwargs_filter=kwargs_filter,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -638,7 +638,7 @@ def _create_mnv5(variant: str, pretrained: bool = False, **kwargs) -> MobileNetV
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=feature_cfg,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -813,11 +813,11 @@ def _gen_mobilenet_v5(
         act_layer=_GELU,
         layer_scale_init_value=1e-5,
     )
-    model_kwargs = dict(model_kwargs, **kwargs)
+    model_kwargs = dict(model_kwargs, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if encoder:
-        model = _create_mnv5_encoder(variant, pretrained, **model_kwargs)
+        model = _create_mnv5_encoder(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     else:
-        model = _create_mnv5(variant, pretrained, **model_kwargs)
+        model = _create_mnv5(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -863,17 +863,17 @@ def mobilenetv5_300m_enc(pretrained: bool = False, **kwargs) -> MobileNetV5Encod
         encoder=True,
         pad_type=pad_type,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv5_300m(pretrained: bool = False, **kwargs) -> MobileNetV5:
-    model = _gen_mobilenet_v5('mobilenetv5_300m', pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v5('mobilenetv5_300m', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def mobilenetv5_base(pretrained: bool = False, **kwargs) -> MobileNetV5:
-    model = _gen_mobilenet_v5('mobilenetv5_base', pretrained=pretrained, **kwargs)
+    model = _gen_mobilenet_v5('mobilenetv5_base', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

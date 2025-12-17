@@ -119,30 +119,30 @@ class WindowAttention(msnn.Cell):
         self.num_heads = num_heads
         self.qkv_bias_separate = qkv_bias_separate
 
-        self.logit_scale = ms.Parameter(mint.log(10 * mint.ones((num_heads, 1, 1), **dd)))
+        self.logit_scale = ms.Parameter(mint.log(10 * mint.ones((num_heads, 1, 1), **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # mlp to generate continuous relative position bias
         self.cpb_mlp = msnn.SequentialCell(
             nn.Linear(2, 512, bias=True, **dd),
             nn.ReLU(),
             nn.Linear(512, num_heads, bias=False, **dd)
-        )  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=False, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if qkv_bias:
-            self.q_bias = ms.Parameter(mint.zeros(dim, **dd))
-            self.register_buffer('k_bias', mint.zeros(dim, **dd), persistent=False)
-            self.v_bias = ms.Parameter(mint.zeros(dim, **dd))
+            self.q_bias = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.register_buffer('k_bias', mint.zeros(dim, **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.v_bias = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.q_bias = None
             self.k_bias = None
             self.v_bias = None
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
         self.softmax = nn.Softmax(dim = -1)
 
-        self._make_pair_wise_relative_positions(**dd)
+        self._make_pair_wise_relative_positions(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def _make_pair_wise_relative_positions(self, device=None, dtype=None) -> None:
         """Create pair-wise relative position index and coordinates table."""
@@ -309,8 +309,8 @@ class SwinTransformerV2Block(msnn.Cell):
             proj_drop=proj_drop,
             pretrained_window_size=to_2tuple(pretrained_window_size),
             **dd,
-        )
-        self.norm1 = norm_layer(dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         self.mlp = Mlp(
@@ -319,19 +319,16 @@ class SwinTransformerV2Block(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
-        self.norm2 = norm_layer(dim, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         self.register_buffer(
             "attn_mask",
             None if self.dynamic_mask else self.get_attn_mask(**dd),
             persistent=False,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
             x: Optional[ms.Tensor] = None,
@@ -514,8 +511,8 @@ class PatchMerging(msnn.Cell):
         super().__init__()
         self.dim = dim
         self.out_dim = out_dim or 2 * dim
-        self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)
-        self.norm = norm_layer(self.out_dim, **dd)
+        self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(self.out_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         B, H, W, C = x.shape
@@ -594,7 +591,7 @@ class SwinTransformerV2Stage(msnn.Cell):
 
         # patch merging / downsample layer
         if downsample:
-            self.downsample = PatchMerging(dim=dim, out_dim=out_dim, norm_layer=norm_layer, **dd)
+            self.downsample = PatchMerging(dim=dim, out_dim=out_dim, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert dim == out_dim
             self.downsample = msnn.Identity()
@@ -619,7 +616,7 @@ class SwinTransformerV2Stage(msnn.Cell):
                 pretrained_window_size=pretrained_window_size,
                 **dd,
             )
-            for i in range(depth)])
+            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def set_input_size(
             self,
@@ -757,7 +754,7 @@ class SwinTransformerV2(msnn.Cell):
             strict_img_size=strict_img_size,
             output_fmt='NHWC',
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         grid_size = self.patch_embed.grid_size
 
         dpr = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
@@ -785,14 +782,14 @@ class SwinTransformerV2(msnn.Cell):
                 norm_layer=norm_layer,
                 pretrained_window_size=pretrained_window_sizes[i],
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_dim = out_dim
             if i > 0:
                 scale *= 2
             self.feature_info += [dict(num_chs=out_dim, reduction=4 * scale, module=f'layers.{i}')]
 
-        self.layers = msnn.SequentialCell(*layers)
-        self.norm = norm_layer(self.num_features, **dd)
+        self.layers = msnn.SequentialCell(*layers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head = ClassifierHead(
             self.num_features,
             num_classes,
@@ -800,7 +797,7 @@ class SwinTransformerV2(msnn.Cell):
             drop_rate=drop_rate,
             input_fmt=self.output_fmt,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.apply(self._init_weights)
         for bly in self.layers:
@@ -849,7 +846,7 @@ class SwinTransformerV2(msnn.Cell):
                 always_partition=always_partition,
             )
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set[str]:
         """Get parameter names that should not use weight decay.
 
@@ -862,7 +859,7 @@ class SwinTransformerV2(msnn.Cell):
                 nod.add(n)
         return nod
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Create parameter group matcher for optimizer parameter groups.
 
@@ -881,7 +878,7 @@ class SwinTransformerV2(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing.
 
@@ -891,7 +888,7 @@ class SwinTransformerV2(msnn.Cell):
         for l in self.layers:
             l.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier head.
 
@@ -1076,7 +1073,7 @@ def _create_swin_transformer_v2(variant: str, pretrained: bool = False, **kwargs
         SwinTransformerV2, variant, pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -1154,7 +1151,7 @@ def swinv2_tiny_window16_256(pretrained: bool = False, **kwargs) -> SwinTransfor
     """Swin-T V2 @ 256x256, window 16x16."""
     model_args = dict(window_size=16, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24))
     return _create_swin_transformer_v2(
-        'swinv2_tiny_window16_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_tiny_window16_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1162,7 +1159,7 @@ def swinv2_tiny_window8_256(pretrained: bool = False, **kwargs) -> SwinTransform
     """Swin-T V2 @ 256x256, window 8x8."""
     model_args = dict(window_size=8, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24))
     return _create_swin_transformer_v2(
-        'swinv2_tiny_window8_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_tiny_window8_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1170,7 +1167,7 @@ def swinv2_small_window16_256(pretrained: bool = False, **kwargs) -> SwinTransfo
     """Swin-S V2 @ 256x256, window 16x16."""
     model_args = dict(window_size=16, embed_dim=96, depths=(2, 2, 18, 2), num_heads=(3, 6, 12, 24))
     return _create_swin_transformer_v2(
-        'swinv2_small_window16_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_small_window16_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1178,7 +1175,7 @@ def swinv2_small_window8_256(pretrained: bool = False, **kwargs) -> SwinTransfor
     """Swin-S V2 @ 256x256, window 8x8."""
     model_args = dict(window_size=8, embed_dim=96, depths=(2, 2, 18, 2), num_heads=(3, 6, 12, 24))
     return _create_swin_transformer_v2(
-        'swinv2_small_window8_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_small_window8_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1186,7 +1183,7 @@ def swinv2_base_window16_256(pretrained: bool = False, **kwargs) -> SwinTransfor
     """Swin-B V2 @ 256x256, window 16x16."""
     model_args = dict(window_size=16, embed_dim=128, depths=(2, 2, 18, 2), num_heads=(4, 8, 16, 32))
     return _create_swin_transformer_v2(
-        'swinv2_base_window16_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_base_window16_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1194,7 +1191,7 @@ def swinv2_base_window8_256(pretrained: bool = False, **kwargs) -> SwinTransform
     """Swin-B V2 @ 256x256, window 8x8."""
     model_args = dict(window_size=8, embed_dim=128, depths=(2, 2, 18, 2), num_heads=(4, 8, 16, 32))
     return _create_swin_transformer_v2(
-        'swinv2_base_window8_256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_base_window8_256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1202,7 +1199,7 @@ def swinv2_base_window12_192(pretrained: bool = False, **kwargs) -> SwinTransfor
     """Swin-B V2 @ 192x192, window 12x12."""
     model_args = dict(window_size=12, embed_dim=128, depths=(2, 2, 18, 2), num_heads=(4, 8, 16, 32))
     return _create_swin_transformer_v2(
-        'swinv2_base_window12_192', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_base_window12_192', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1212,7 +1209,7 @@ def swinv2_base_window12to16_192to256(pretrained: bool = False, **kwargs) -> Swi
         window_size=16, embed_dim=128, depths=(2, 2, 18, 2), num_heads=(4, 8, 16, 32),
         pretrained_window_sizes=(12, 12, 12, 6))
     return _create_swin_transformer_v2(
-        'swinv2_base_window12to16_192to256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_base_window12to16_192to256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1222,7 +1219,7 @@ def swinv2_base_window12to24_192to384(pretrained: bool = False, **kwargs) -> Swi
         window_size=24, embed_dim=128, depths=(2, 2, 18, 2), num_heads=(4, 8, 16, 32),
         pretrained_window_sizes=(12, 12, 12, 6))
     return _create_swin_transformer_v2(
-        'swinv2_base_window12to24_192to384', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_base_window12to24_192to384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1230,7 +1227,7 @@ def swinv2_large_window12_192(pretrained: bool = False, **kwargs) -> SwinTransfo
     """Swin-L V2 @ 192x192, window 12x12."""
     model_args = dict(window_size=12, embed_dim=192, depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48))
     return _create_swin_transformer_v2(
-        'swinv2_large_window12_192', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_large_window12_192', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1240,7 +1237,7 @@ def swinv2_large_window12to16_192to256(pretrained: bool = False, **kwargs) -> Sw
         window_size=16, embed_dim=192, depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48),
         pretrained_window_sizes=(12, 12, 12, 6))
     return _create_swin_transformer_v2(
-        'swinv2_large_window12to16_192to256', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_large_window12to16_192to256', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -1250,7 +1247,7 @@ def swinv2_large_window12to24_192to384(pretrained: bool = False, **kwargs) -> Sw
         window_size=24, embed_dim=192, depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48),
         pretrained_window_sizes=(12, 12, 12, 6))
     return _create_swin_transformer_v2(
-        'swinv2_large_window12to24_192to384', pretrained=pretrained, **dict(model_args, **kwargs))
+        'swinv2_large_window12to24_192to384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 register_model_deprecations(__name__, {

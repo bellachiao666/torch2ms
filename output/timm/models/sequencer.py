@@ -15,8 +15,6 @@ import math
 from functools import partial
 from itertools import accumulate
 from typing import List, Optional, Tuple, Type, Union
-
-# import torch
 # import torch.nn as nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, DEFAULT_CROP_PCT
@@ -98,14 +96,14 @@ class RNN2dBase(msnn.Cell):
         self.fc = None
         if with_fc:
             if union == "cat":
-                self.fc = nn.Linear(2 * self.output_size, input_size, **dd)
+                self.fc = nn.Linear(2 * self.output_size, input_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             elif union == "add":
-                self.fc = nn.Linear(self.output_size, input_size, **dd)
+                self.fc = nn.Linear(self.output_size, input_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             elif union == "vertical":
-                self.fc = nn.Linear(self.output_size, input_size, **dd)
+                self.fc = nn.Linear(self.output_size, input_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
                 self.with_horizontal = False
             elif union == "horizontal":
-                self.fc = nn.Linear(self.output_size, input_size, **dd)
+                self.fc = nn.Linear(self.output_size, input_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
                 self.with_vertical = False
             else:
                 raise ValueError("Unrecognized union: " + union)
@@ -191,7 +189,7 @@ class LSTM2d(RNN2dBase):
                 bias=bias,
                 bidirectional=bidirectional,
                 **dd,
-            )  # 'torch.nn.LSTM' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+            )  # 'torch.nn.LSTM' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if self.with_horizontal:
             self.rnn_h = nn.LSTM(
                 input_size,
@@ -201,7 +199,7 @@ class LSTM2d(RNN2dBase):
                 bias=bias,
                 bidirectional=bidirectional,
                 **dd,
-            )  # 'torch.nn.LSTM' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+            )  # 'torch.nn.LSTM' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class Sequencer2dBlock(msnn.Cell):
@@ -226,7 +224,7 @@ class Sequencer2dBlock(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         channels_dim = int(mlp_ratio * dim)
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.rnn_tokens = rnn_layer(
             dim,
             hidden_size,
@@ -235,10 +233,10 @@ class Sequencer2dBlock(msnn.Cell):
             union=union,
             with_fc=with_fc,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.norm2 = norm_layer(dim, **dd)
-        self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = x + self.drop_path(self.rnn_tokens(self.norm1(x)))
@@ -270,7 +268,7 @@ class Downsample2d(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.down = nn.Conv2d(input_dim, output_dim, kernel_size=patch_size, stride=patch_size, **dd)
+        self.down = nn.Conv2d(input_dim, output_dim, kernel_size=patch_size, stride=patch_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = x.permute(0, 3, 1, 2)
@@ -306,7 +304,7 @@ class Sequencer2dStage(msnn.Cell):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
         if downsample:
-            self.downsample = Downsample2d(dim, dim_out, patch_size, **dd)
+            self.downsample = Downsample2d(dim, dim_out, patch_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert dim == dim_out
             self.downsample = msnn.Identity()
@@ -328,8 +326,8 @@ class Sequencer2dStage(msnn.Cell):
                 drop=drop,
                 drop_path=drop_path[block_idx] if isinstance(drop_path, (list, tuple)) else drop_path,
                 **dd,
-            ))
-        self.blocks = msnn.SequentialCell(*blocks)
+            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -384,7 +382,7 @@ class Sequencer2d(msnn.Cell):
             flatten=False,
             output_fmt='NHWC',
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         assert len(layers) == len(patch_sizes) == len(embed_dims) == len(hidden_sizes) == len(mlp_ratios)
         reductions = list(accumulate(patch_sizes, lambda x, y: x * y))
@@ -411,12 +409,12 @@ class Sequencer2d(msnn.Cell):
                 drop=drop_rate,
                 drop_path=drop_path_rate,
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             prev_dim = embed_dims[i]
             self.feature_info += [dict(num_chs=prev_dim, reduction=reductions[i], module=f'stages.{i}')]
 
-        self.stages = msnn.SequentialCell(*stages)
-        self.norm = norm_layer(embed_dims[-1], **dd)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(embed_dims[-1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head = ClassifierHead(
             self.num_features,
             num_classes,
@@ -424,7 +422,7 @@ class Sequencer2d(msnn.Cell):
             drop_rate=drop_rate,
             input_fmt=self.output_fmt,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.init_weights(nlhb=nlhb)
 
@@ -432,7 +430,7 @@ class Sequencer2d(msnn.Cell):
         head_bias = -math.log(self.num_classes) if nlhb else 0.
         named_apply(partial(_init_weights, head_bias=head_bias), module=self)  # depth-first
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
@@ -446,11 +444,11 @@ class Sequencer2d(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -502,7 +500,7 @@ def _create_sequencer2d(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -538,7 +536,7 @@ def sequencer2d_s(pretrained=False, **kwargs) -> Sequencer2d:
         union="cat",
         with_fc=True,
     )
-    model = _create_sequencer2d('sequencer2d_s', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_sequencer2d('sequencer2d_s', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -554,8 +552,8 @@ def sequencer2d_m(pretrained=False, **kwargs) -> Sequencer2d:
         bidirectional=True,
         union="cat",
         with_fc=True,
-        **kwargs)
-    model = _create_sequencer2d('sequencer2d_m', pretrained=pretrained, **dict(model_args, **kwargs))
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_sequencer2d('sequencer2d_m', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -571,6 +569,6 @@ def sequencer2d_l(pretrained=False, **kwargs) -> Sequencer2d:
         bidirectional=True,
         union="cat",
         with_fc=True,
-        **kwargs)
-    model = _create_sequencer2d('sequencer2d_l', pretrained=pretrained, **dict(model_args, **kwargs))
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_sequencer2d('sequencer2d_l', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

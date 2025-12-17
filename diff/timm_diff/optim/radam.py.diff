@@ -19,14 +19,7 @@
  class RAdamLegacy(Optimizer):
      """ PyTorch RAdam optimizer
  
-@@ -34,7 +40,6 @@     def __setstate__(self, state):
-         super(RAdamLegacy, self).__setstate__(state)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         loss = None
-         if closure is not None:
-@@ -56,8 +61,8 @@ 
+@@ -56,8 +62,8 @@ 
                  if len(state) == 0:
                      state['step'] = 0
 -                    state['exp_avg'] = torch.zeros_like(p_fp32)

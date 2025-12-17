@@ -22,3 +22,17 @@
  
  _NORM_MAP = dict(
      batchnorm=nn.BatchNorm2d,
+@@ -53,7 +58,7 @@ 
+ def create_norm_layer(layer_name, num_features, **kwargs):
+     layer = get_norm_layer(layer_name)
+-    layer_instance = layer(num_features, **kwargs)
++    layer_instance = layer(num_features, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return layer_instance
+ 
+ 
+@@ -77,5 +82,5 @@         norm_layer = norm_layer
+ 
+     if norm_kwargs:
+-        norm_layer = functools.partial(norm_layer, **norm_kwargs)  # bind/rebind args
++        norm_layer = functools.partial(norm_layer, **norm_kwargs)  # bind/rebind args; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return norm_layer

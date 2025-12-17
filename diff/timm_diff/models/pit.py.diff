@@ -47,15 +47,19 @@
          self.pool = pool
 -        self.norm = norm_layer(embed_dim, **dd) if norm_layer else nn.Identity()
 -        self.blocks = nn.Sequential(*[
-+        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()
++        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.blocks = msnn.SequentialCell(*[
              Block(
                  dim=embed_dim,
                  num_heads=heads,
-@@ -73,7 +78,7 @@             )
-             for i in range(depth)])
- 
+@@ -71,9 +76,9 @@                 norm_layer=partial(nn.LayerNorm, eps=1e-6),
+                 **dd,
+             )
+-            for i in range(depth)])
+-
 -    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
++            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
          x, cls_tokens = x
          token_length = cls_tokens.shape[1]
@@ -76,10 +80,16 @@
      def __init__(
              self,
              in_feature: int,
-@@ -118,13 +123,13 @@         )
-         self.fc = nn.Linear(in_feature, out_feature, **dd)
- 
+@@ -115,16 +120,16 @@             padding_mode=padding_mode,
+             groups=in_feature,
+             **dd,
+-        )
+-        self.fc = nn.Linear(in_feature, out_feature, **dd)
+-
 -    def forward(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.fc = nn.Linear(in_feature, out_feature, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +    def construct(self, x, cls_token) -> Tuple[ms.Tensor, ms.Tensor]:
          x = self.conv(x)
          cls_token = self.fc(cls_token)
@@ -91,10 +101,14 @@
      def __init__(
              self,
              in_channels: int,
-@@ -155,12 +160,12 @@             **dd,
-         )
- 
+@@ -153,14 +158,14 @@             padding=padding,
+             bias=True,
+             **dd,
+-        )
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.conv(x)
          return x
@@ -105,41 +119,75 @@
      """ Pooling-based Vision Transformer
  
      A PyTorch implement of 'Rethinking Spatial Dimensions of Vision Transformers'
-@@ -201,9 +206,9 @@         self.feature_info = []
+@@ -200,10 +205,10 @@         self.num_tokens = 2 if distilled else 1
+         self.feature_info = []
  
-         self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)
+-        self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)
 -        self.pos_embed = nn.Parameter(torch.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))
 -        self.cls_token = nn.Parameter(torch.randn(1, self.num_tokens, embed_dim, **dd))
 -        self.pos_drop = nn.Dropout(p=pos_drop_drate)
-+        self.pos_embed = ms.Parameter(mint.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))
-+        self.cls_token = ms.Parameter(mint.randn(1, self.num_tokens, embed_dim, **dd))
++        self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.pos_embed = ms.Parameter(mint.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.cls_token = ms.Parameter(mint.randn(1, self.num_tokens, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.pos_drop = nn.Dropout(p = pos_drop_drate)
  
          transformers = []
          # stochastic depth decay rule
-@@ -239,10 +244,10 @@ 
+@@ -218,7 +223,7 @@                     embed_dim,
+                     stride=2,
+                     **dd,
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             transformers += [Transformer(
+                 base_dims[i],
+                 depth[i],
+@@ -229,20 +234,20 @@                 attn_drop=attn_drop_rate,
+                 drop_path_prob=dpr[i],
+                 **dd,
+-            )]
++            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             prev_dim = embed_dim
+             self.feature_info += [dict(num_chs=prev_dim, reduction=(stride - 1) * 2**i, module=f'transformers.{i}')]
+ 
+-        self.transformers = SequentialTuple(*transformers)
+-        self.norm = nn.LayerNorm(base_dims[-1] * heads[-1], eps=1e-6, **dd)
++        self.transformers = SequentialTuple(*transformers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm = nn.LayerNorm(base_dims[-1] * heads[-1], eps=1e-6, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.num_features = self.head_hidden_size = self.embed_dim = embed_dim
+ 
          # Classifier head
          self.head_drop = nn.Dropout(drop_rate)
 -        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
-+        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
          self.head_dist = None
          if distilled:
 -            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else nn.Identity()
-+            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()
++            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
          self.distilled_training = False  # must set this True to train w/ distillation token
  
          trunc_normal_(self.pos_embed, std=.02)
-@@ -251,8 +256,8 @@ 
+@@ -251,22 +256,22 @@ 
      def _init_weights(self, m):
          if isinstance(m, nn.LayerNorm):
 -            nn.init.constant_(m.bias, 0)
 -            nn.init.constant_(m.weight, 1.0)
+-
+-    @torch.jit.ignore
 +            nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +            nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.jit.ignore
++
++    @ms.jit
      def no_weight_decay(self):
-@@ -266,7 +271,7 @@     def set_grad_checkpointing(self, enable=True):
+         return {'pos_embed', 'cls_token'}
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_distilled_training(self, enable=True):
+         self.distilled_training = enable
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
          assert not enable, 'gradient checkpointing not supported'
  
 -    def get_classifier(self) -> nn.Module:
@@ -194,3 +242,72 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
+@@ -409,7 +414,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(feature_cls='hook', out_indices=out_indices),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -456,7 +461,7 @@         heads=[4, 8, 16],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -469,7 +474,7 @@         heads=[3, 6, 12],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -482,7 +487,7 @@         heads=[2, 4, 8],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -495,7 +500,7 @@         heads=[2, 4, 8],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -509,7 +514,7 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -523,7 +528,7 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -537,7 +542,7 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -551,4 +556,4 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

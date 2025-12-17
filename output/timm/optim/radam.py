@@ -40,6 +40,7 @@ class RAdamLegacy(Optimizer):
     def __setstate__(self, state):
         super(RAdamLegacy, self).__setstate__(state)
 
+    @torch.no_grad()
     def step(self, closure=None):
         loss = None
         if closure is not None:

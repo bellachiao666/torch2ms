@@ -77,12 +77,12 @@ class Attention(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, self.attn_dim * 3, bias=qkv_bias, **dd)
-        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
-        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
+        self.qkv = nn.Linear(dim, self.attn_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else msnn.Identity()
-        self.proj = nn.Linear(self.attn_dim, dim_out, bias=proj_bias, **dd)
+        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = nn.Linear(self.attn_dim, dim_out, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(
@@ -124,7 +124,7 @@ class AttentionRope(msnn.Cell):
      * Attention output (scale) normalization
      * Fused or unfused QKV projection support
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -183,19 +183,19 @@ class AttentionRope(msnn.Cell):
         self.rotate_half = rotate_half
 
         if qkv_fused:
-            self.qkv = nn.Linear(dim, self.attn_dim * 3, bias=qkv_bias, **dd)
+            self.qkv = nn.Linear(dim, self.attn_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.q_proj = self.k_proj = self.v_proj = None
         else:
             self.qkv = None
-            self.q_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
-            self.k_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
-            self.v_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)
+            self.q_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.k_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.v_proj = nn.Linear(dim, self.attn_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
-        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
-        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()
+        self.q_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.k_norm = norm_layer(head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else msnn.Identity()
-        self.proj = nn.Linear(self.attn_dim, dim_out, bias=proj_bias, **dd)
+        self.norm = norm_layer(self.attn_dim, **dd) if scale_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = nn.Linear(self.attn_dim, dim_out, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(

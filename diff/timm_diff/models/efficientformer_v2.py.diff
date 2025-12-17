@@ -24,10 +24,16 @@
      def __init__(
              self,
              in_channels: int,
-@@ -98,14 +103,14 @@         )
-         self.bn = create_norm_layer(norm_layer, out_channels, **norm_kwargs, **dd)
- 
+@@ -95,17 +100,17 @@             groups=groups,
+             bias=bias,
+             **dd,
+-        )
+-        self.bn = create_norm_layer(norm_layer, out_channels, **norm_kwargs, **dd)
+-
 -    def forward(self, x):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bn = create_norm_layer(norm_layer, out_channels, **norm_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          x = self.conv(x)
          x = self.bn(x)
@@ -49,20 +55,40 @@
              stride: Optional[int] = None,
              device=None,
              dtype=None,
-@@ -129,7 +134,7 @@         if stride is not None:
+@@ -128,8 +133,8 @@         resolution = to_2tuple(resolution)
+         if stride is not None:
              resolution = tuple([math.ceil(r / stride) for r in resolution])
-             self.stride_conv = ConvNorm(dim, dim, kernel_size=3, stride=stride, groups=dim, **dd)
+-            self.stride_conv = ConvNorm(dim, dim, kernel_size=3, stride=stride, groups=dim, **dd)
 -            self.upsample = nn.Upsample(scale_factor=stride, mode='bilinear')
++            self.stride_conv = ConvNorm(dim, dim, kernel_size=3, stride=stride, groups=dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +            self.upsample = nn.Upsample(scale_factor = stride, mode = 'bilinear')
          else:
              self.stride_conv = None
              self.upsample = None
-@@ -151,23 +156,24 @@         self.act = act_layer()
-         self.proj = ConvNorm(self.dh, dim, 1, **dd)
+@@ -141,23 +146,23 @@         self.attn_ratio = attn_ratio
+         kh = self.key_dim * self.num_heads
  
+-        self.q = ConvNorm(dim, kh, **dd)
+-        self.k = ConvNorm(dim, kh, **dd)
+-        self.v = ConvNorm(dim, self.dh, **dd)
+-        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, groups=self.dh, **dd)
+-        self.talking_head1 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)
+-        self.talking_head2 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)
++        self.q = ConvNorm(dim, kh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.k = ConvNorm(dim, kh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.v = ConvNorm(dim, self.dh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, groups=self.dh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.talking_head1 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.talking_head2 = nn.Conv2d(self.num_heads, self.num_heads, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+         self.act = act_layer()
+-        self.proj = ConvNorm(self.dh, dim, 1, **dd)
+-
 -        pos = torch.stack(ndgrid(
 -            torch.arange(self.resolution[0], device=device, dtype=torch.long),
 -            torch.arange(self.resolution[1], device=device, dtype=torch.long),
++        self.proj = ConvNorm(self.dh, dim, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +        pos = mint.stack(ndgrid(
 +            mint.arange(self.resolution[0], device=device, dtype=ms.int64),
 +            mint.arange(self.resolution[1], device=device, dtype=ms.int64),
@@ -70,24 +96,19 @@
          rel_pos = (pos[..., :, None] - pos[..., None, :]).abs()
          rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
 -        self.attention_biases = torch.nn.Parameter(torch.zeros(num_heads, self.N, **dd))
-+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
++        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
          self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
  
--    @torch.no_grad()
-     def train(self, mode=True):
-         super().train(mode)
-         if mode and self.attention_bias_cache:
+@@ -167,7 +172,7 @@         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
-+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -176,7 +182,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -176,7 +181,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -95,7 +116,7 @@
          B, C, H, W = x.shape
          if self.stride_conv is not None:
              x = self.stride_conv(x)
-@@ -203,7 +209,7 @@         return x
+@@ -203,7 +208,7 @@         return x
  
  
 -class LocalGlobalQuery(torch.nn.Module):
@@ -103,15 +124,21 @@
      def __init__(
              self,
              in_dim: int,
-@@ -217,7 +223,7 @@         self.local = nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=2, padding=1, groups=in_dim, **dd)
-         self.proj = ConvNorm(in_dim, out_dim, 1, **dd)
- 
+@@ -214,10 +219,10 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         self.pool = nn.AvgPool2d(1, 2, 0)
+-        self.local = nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=2, padding=1, groups=in_dim, **dd)
+-        self.proj = ConvNorm(in_dim, out_dim, 1, **dd)
+-
 -    def forward(self, x):
++        self.local = nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=2, padding=1, groups=in_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.proj = ConvNorm(in_dim, out_dim, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
 +    def construct(self, x):
          local_q = self.local(x)
          pool_q = self.pool(x)
          q = local_q + pool_q
-@@ -225,8 +231,8 @@         return q
+@@ -225,8 +230,8 @@         return q
  
  
 -class Attention2dDownsample(torch.nn.Module):
@@ -121,7 +148,7 @@
  
      def __init__(
              self,
-@@ -236,7 +242,7 @@             attn_ratio: int = 4,
+@@ -236,7 +241,7 @@             attn_ratio: int = 4,
              resolution: Union[int, Tuple[int, int]] = 7,
              out_dim: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -129,14 +156,28 @@
              device=None,
              dtype=None,
      ):
-@@ -265,27 +271,28 @@         self.act = act_layer()
-         self.proj = ConvNorm(self.dh, self.out_dim, 1, **dd)
+@@ -257,22 +262,22 @@         self.out_dim = out_dim or dim
+         kh = self.key_dim * self.num_heads
  
+-        self.q = LocalGlobalQuery(dim, kh, **dd)
+-        self.k = ConvNorm(dim, kh, 1, **dd)
+-        self.v = ConvNorm(dim, self.dh, 1, **dd)
+-        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, stride=2, groups=self.dh, **dd)
++        self.q = LocalGlobalQuery(dim, kh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.k = ConvNorm(dim, kh, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.v = ConvNorm(dim, self.dh, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.v_local = ConvNorm(self.dh, self.dh, kernel_size=3, stride=2, groups=self.dh, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.act = act_layer()
+-        self.proj = ConvNorm(self.dh, self.out_dim, 1, **dd)
+-
 -        self.attention_biases = nn.Parameter(torch.zeros(num_heads, self.N, **dd))
 -        k_pos = torch.stack(ndgrid(
 -            torch.arange(self.resolution[0], device=device, dtype=torch.long),
 -            torch.arange(self.resolution[1], device=device, dtype=torch.long),
-+        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))
++        self.proj = ConvNorm(self.dh, self.out_dim, 1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        self.attention_biases = ms.Parameter(mint.zeros(num_heads, self.N, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        k_pos = mint.stack(ndgrid(
 +            mint.arange(self.resolution[0], device=device, dtype=ms.int64),
 +            mint.arange(self.resolution[1], device=device, dtype=ms.int64),
@@ -150,23 +191,15 @@
          )).flatten(1)
          rel_pos = (q_pos[..., :, None] - k_pos[..., None, :]).abs()
          rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
-         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
-         self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
- 
--    @torch.no_grad()
-     def train(self, mode=True):
-         super().train(mode)
-         if mode and self.attention_bias_cache:
+@@ -285,7 +290,7 @@         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
-+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -294,7 +301,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -294,7 +299,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -174,7 +207,7 @@
          B, C, H, W = x.shape
  
          q = self.q(x).reshape(B, self.num_heads, -1, self.N2).permute(0, 1, 3, 2)
-@@ -314,7 +321,7 @@         return x
+@@ -314,7 +319,7 @@         return x
  
  
 -class Downsample(nn.Module):
@@ -182,7 +215,7 @@
      def __init__(
              self,
              in_chs: int,
-@@ -324,8 +331,8 @@             padding: Union[int, Tuple[int, int]] = 1,
+@@ -324,8 +329,8 @@             padding: Union[int, Tuple[int, int]] = 1,
              resolution: Union[int, Tuple[int, int]] = 7,
              use_attn: bool = False,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -192,7 +225,7 @@
              device=None,
              dtype=None,
      ):
-@@ -335,7 +342,7 @@         kernel_size = to_2tuple(kernel_size)
+@@ -335,7 +340,7 @@         kernel_size = to_2tuple(kernel_size)
          stride = to_2tuple(stride)
          padding = to_2tuple(padding)
 -        norm_layer = norm_layer or nn.Identity()
@@ -200,7 +233,20 @@
          self.conv = ConvNorm(
              in_chs,
              out_chs,
-@@ -357,14 +364,14 @@         else:
+@@ -344,7 +349,7 @@             padding=padding,
+             norm_layer=norm_layer,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         if use_attn:
+             self.attn = Attention2dDownsample(
+@@ -353,18 +358,18 @@                 resolution=resolution,
+                 act_layer=act_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
              self.attn = None
  
 -    def forward(self, x):
@@ -216,7 +262,7 @@
      """
      Implementation of MLP with 1*1 convolutions.
      Input: tensor with shape [B, C, H, W]
-@@ -375,8 +382,8 @@             in_features: int,
+@@ -375,8 +380,8 @@             in_features: int,
              hidden_features: Optional[int] = None,
              out_features: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -226,13 +272,26 @@
              drop: float = 0.,
              mid_conv: bool = False,
              device=None,
-@@ -407,12 +414,12 @@                 **dd,
-             )
-         else:
+@@ -394,7 +399,7 @@             norm_layer=norm_layer,
+             act_layer=act_layer,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if mid_conv:
+             self.mid = ConvNormAct(
+                 hidden_features,
+@@ -405,14 +410,14 @@                 norm_layer=norm_layer,
+                 act_layer=act_layer,
+                 **dd,
+-            )
+-        else:
 -            self.mid = nn.Identity()
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        else:
 +            self.mid = msnn.Identity()
          self.drop1 = nn.Dropout(drop)
-         self.fc2 = ConvNorm(hidden_features, out_features, 1, norm_layer=norm_layer, **dd)
+-        self.fc2 = ConvNorm(hidden_features, out_features, 1, norm_layer=norm_layer, **dd)
++        self.fc2 = ConvNorm(hidden_features, out_features, 1, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.drop2 = nn.Dropout(drop)
  
 -    def forward(self, x):
@@ -240,7 +299,7 @@
          x = self.fc1(x)
          x = self.mid(x)
          x = self.drop1(x)
-@@ -421,13 +428,13 @@         return x
+@@ -421,13 +426,13 @@         return x
  
  
 -class EfficientFormerV2Block(nn.Module):
@@ -256,24 +315,30 @@
              proj_drop: float = 0.,
              drop_path: float = 0.,
              layer_scale_init_value: Optional[float] = 1e-5,
-@@ -449,8 +456,8 @@                 **dd,
-             )
+@@ -447,10 +452,10 @@                 act_layer=act_layer,
+                 stride=stride,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              self.ls1 = LayerScale2d(
 -                dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else nn.Identity()
 -            self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-+                dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()
++                dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +            self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
          else:
              self.token_mixer = None
              self.ls1 = None
-@@ -466,23 +473,23 @@             **dd,
-         )
+@@ -464,25 +469,25 @@             drop=proj_drop,
+             mid_conv=True,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.ls2 = LayerScale2d(
 -            dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else nn.Identity()
 -        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 -
 -    def forward(self, x):
-+            dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()
++            dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 +
 +    def construct(self, x):
@@ -296,15 +361,29 @@
              device=None,
              dtype=None,
      ):
-@@ -512,7 +519,7 @@         )
- 
- 
+@@ -498,7 +503,7 @@             norm_layer=norm_layer,
+             act_layer=act_layer,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.conv2 = ConvNormAct(
+             out_chs // 2,
+             out_chs,
+@@ -509,10 +514,10 @@             norm_layer=norm_layer,
+             act_layer=act_layer,
+             **dd,
+-        )
+-
+-
 -class EfficientFormerV2Stage(nn.Module):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++
 +class EfficientFormerV2Stage(msnn.Cell):
  
      def __init__(
              self,
-@@ -529,8 +536,8 @@             proj_drop: float = .0,
+@@ -529,8 +534,8 @@             proj_drop: float = .0,
              drop_path: Union[float, List[float]] = 0.,
              layer_scale_init_value: Optional[float] = 1e-5,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -314,7 +393,13 @@
              device=None,
              dtype=None,
      ):
-@@ -554,7 +561,7 @@             resolution = tuple([math.ceil(r / 2) for r in resolution])
+@@ -549,12 +554,12 @@                 norm_layer=norm_layer,
+                 act_layer=act_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             dim = dim_out
+             resolution = tuple([math.ceil(r / 2) for r in resolution])
          else:
              assert dim == dim_out
 -            self.downsample = nn.Identity()
@@ -322,19 +407,22 @@
  
          blocks = []
          for block_idx in range(depth):
-@@ -573,9 +580,9 @@                 **dd,
-             )
+@@ -571,11 +576,11 @@                 act_layer=act_layer,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              blocks += [b]
 -        self.blocks = nn.Sequential(*blocks)
 -
 -    def forward(self, x):
-+        self.blocks = msnn.SequentialCell(*blocks)
++        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x = self.downsample(x)
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -584,7 +591,7 @@         return x
+@@ -584,7 +589,7 @@         return x
  
  
 -class EfficientFormerV2(nn.Module):
@@ -342,37 +430,70 @@
      def __init__(
              self,
              depths: Tuple[int, ...],
-@@ -651,16 +658,16 @@             prev_dim = embed_dims[i]
+@@ -617,7 +622,7 @@         norm_layer = partial(get_norm_layer(norm_layer), eps=norm_eps)
+         act_layer = get_act_layer(act_layer)
+ 
+-        self.stem = Stem4(in_chans, embed_dims[0], act_layer=act_layer, norm_layer=norm_layer, **dd)
++        self.stem = Stem4(in_chans, embed_dims[0], act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         prev_dim = embed_dims[0]
+         stride = 4
+ 
+@@ -645,22 +650,22 @@                 act_layer=act_layer,
+                 norm_layer=norm_layer,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             if downsamples[i]:
+                 stride *= 2
+             prev_dim = embed_dims[i]
              self.feature_info += [dict(num_chs=prev_dim, reduction=stride, module=f'stages.{i}')]
              stages.append(stage)
 -        self.stages = nn.Sequential(*stages)
-+        self.stages = msnn.SequentialCell(*stages)
++        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          # Classifier head
          self.num_features = self.head_hidden_size = embed_dims[-1]
-         self.norm = norm_layer(embed_dims[-1], **dd)
+-        self.norm = norm_layer(embed_dims[-1], **dd)
++        self.norm = norm_layer(embed_dims[-1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.head_drop = nn.Dropout(drop_rate)
 -        self.head = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else nn.Identity()
-+        self.head = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()
++        self.head = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
          self.dist = distillation
          if self.dist:
 -            self.head_dist = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else nn.Identity()
-+            self.head_dist = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()
++            self.head_dist = nn.Linear(embed_dims[-1], num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
          else:
              self.head_dist = None
  
-@@ -672,7 +679,7 @@         if isinstance(m, nn.Linear):
+@@ -672,13 +677,13 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
+-
+-    @torch.jit.ignore
 +                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
-     @torch.jit.ignore
++
++    @ms.jit
      def no_weight_decay(self):
-@@ -692,15 +699,15 @@             s.grad_checkpointing = enable
+         return {k for k, _ in self.named_parameters() if 'attention_biases' in k}
  
-     @torch.jit.ignore
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         matcher = dict(
+             stem=r'^stem',  # stem and embed
+@@ -686,35 +691,35 @@         )
+         return matcher
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         for s in self.stages:
+             s.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
 -    def get_classifier(self) -> nn.Module:
++    @ms.jit
 +    def get_classifier(self) -> msnn.Cell:
          return self.head, self.head_dist
  
@@ -382,12 +503,15 @@
              self.global_pool = global_pool
 -        self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
 -        self.head_dist = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
+-
+-    @torch.jit.ignore
 +        self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else msnn.Identity()
 +        self.head_dist = nn.Linear(self.num_features, num_classes) if num_classes > 0 else msnn.Identity()
- 
-     @torch.jit.ignore
++
++    @ms.jit
      def set_distilled_training(self, enable=True):
-@@ -708,13 +715,13 @@ 
+         self.distilled_training = enable
+ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -402,7 +526,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -768,7 +775,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -768,7 +773,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -410,7 +534,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -793,7 +800,7 @@             # during standard train/finetune, inference average the classifier predictions
+@@ -793,7 +798,7 @@             # during standard train/finetune, inference average the classifier predictions
              return (x + x_dist) / 2
  
 -    def forward(self, x):
@@ -418,3 +542,42 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
+@@ -832,7 +837,7 @@     model = build_model_with_cfg(
+         EfficientFormerV2, variant, pretrained,
+         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+-        **kwargs)
++        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -845,7 +850,7 @@         drop_path_rate=0.0,
+         mlp_ratios=EfficientFormer_expansion_ratios['S0'],
+     )
+-    return _create_efficientformerv2('efficientformerv2_s0', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientformerv2('efficientformerv2_s0', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -857,7 +862,7 @@         drop_path_rate=0.0,
+         mlp_ratios=EfficientFormer_expansion_ratios['S1'],
+     )
+-    return _create_efficientformerv2('efficientformerv2_s1', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientformerv2('efficientformerv2_s1', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -869,7 +874,7 @@         drop_path_rate=0.02,
+         mlp_ratios=EfficientFormer_expansion_ratios['S2'],
+     )
+-    return _create_efficientformerv2('efficientformerv2_s2', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_efficientformerv2('efficientformerv2_s2', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -881,5 +886,5 @@         drop_path_rate=0.1,
+         mlp_ratios=EfficientFormer_expansion_ratios['L'],
+     )
+-    return _create_efficientformerv2('efficientformerv2_l', pretrained=pretrained, **dict(model_args, **kwargs))
+-
++    return _create_efficientformerv2('efficientformerv2_l', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++

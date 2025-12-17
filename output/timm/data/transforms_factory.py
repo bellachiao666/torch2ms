@@ -221,9 +221,9 @@ def transforms_imagenet_train(
                     ],
                     p=color_jitter_prob
                 )
-            ]  # 'torchvision.transforms.RandomApply' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+            ]  # 存在 *args/**kwargs，需手动确认参数映射;; 'torchvision.transforms.RandomApply' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         else:
-            secondary_tfl += [ms.dataset.vision.RandomColorAdjust(*color_jitter)]
+            secondary_tfl += [ms.dataset.vision.RandomColorAdjust(*color_jitter)]  # 存在 *args/**kwargs，需手动确认参数映射;
 
     if grayscale_prob:
         secondary_tfl += [transforms.RandomGrayscale(p=grayscale_prob)]  # 'torchvision.transforms.RandomGrayscale' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

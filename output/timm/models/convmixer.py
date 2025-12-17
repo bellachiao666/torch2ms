@@ -55,7 +55,7 @@ class ConvMixer(msnn.Cell):
             nn.Conv2d(in_chans, dim, kernel_size=patch_size, stride=patch_size, **dd),
             act_layer(),
             nn.BatchNorm2d(dim, **dd)
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.blocks = msnn.SequentialCell(
             *[msnn.SequentialCell(
                     Residual(msnn.SequentialCell(
@@ -67,21 +67,21 @@ class ConvMixer(msnn.Cell):
                     act_layer(),
                     nn.BatchNorm2d(dim, **dd)
             ) for i in range(depth)]
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(stem=r'^stem', blocks=r'^blocks\.(\d+)')
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -114,7 +114,7 @@ def _create_convmixer(variant, pretrained=False, **kwargs):
     if kwargs.get('features_only', None):
         raise RuntimeError('features_only not implemented for ConvMixer models.')
 
-    return build_model_with_cfg(ConvMixer, variant, pretrained, **kwargs)
+    return build_model_with_cfg(ConvMixer, variant, pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -138,17 +138,17 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def convmixer_1536_20(pretrained=False, **kwargs) -> ConvMixer:
-    model_args = dict(dim=1536, depth=20, kernel_size=9, patch_size=7, **kwargs)
-    return _create_convmixer('convmixer_1536_20', pretrained, **model_args)
+    model_args = dict(dim=1536, depth=20, kernel_size=9, patch_size=7, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_convmixer('convmixer_1536_20', pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def convmixer_768_32(pretrained=False, **kwargs) -> ConvMixer:
-    model_args = dict(dim=768, depth=32, kernel_size=7, patch_size=7, act_layer=nn.ReLU, **kwargs)
-    return _create_convmixer('convmixer_768_32', pretrained, **model_args)
+    model_args = dict(dim=768, depth=32, kernel_size=7, patch_size=7, act_layer=nn.ReLU, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_convmixer('convmixer_768_32', pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def convmixer_1024_20_ks9_p14(pretrained=False, **kwargs) -> ConvMixer:
-    model_args = dict(dim=1024, depth=20, kernel_size=9, patch_size=14, **kwargs)
-    return _create_convmixer('convmixer_1024_20_ks9_p14', pretrained, **model_args)
+    model_args = dict(dim=1024, depth=20, kernel_size=9, patch_size=14, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    return _create_convmixer('convmixer_1024_20_ks9_p14', pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -33,9 +33,6 @@ class ClassificationTask(TrainingTask):
         >>> result['loss'].backward()
     """
 
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             model: msnn.Cell,
@@ -69,7 +66,7 @@ class ClassificationTask(TrainingTask):
             self (for method chaining)
         """
         # from torch.nn.parallel import DistributedDataParallel as DDP
-        self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)  # 'torch.nn.parallel.DistributedDataParallel.DDP' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         return self
 
     def forward(

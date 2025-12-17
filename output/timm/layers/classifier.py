@@ -182,18 +182,18 @@ class NormMlpClassifierHead(msnn.Cell):
         linear_layer = partial(nn.Conv2d, kernel_size=1) if self.use_conv else nn.Linear
 
         self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
-        self.norm = norm_layer(in_features, **dd)
+        self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.flatten = mint.flatten(1) if pool_type else msnn.Identity()
         if hidden_size:
             self.pre_logits = msnn.SequentialCell(OrderedDict([
                 ('fc', linear_layer(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
-            ]))
+            ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = hidden_size
         else:
             self.pre_logits = msnn.Identity()
         self.drop = nn.Dropout(drop_rate)
-        self.fc = linear_layer(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.fc = linear_layer(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def reset(self, num_classes: int, pool_type: Optional[str] = None):
         # FIXME handle device/dtype on reset
@@ -262,17 +262,17 @@ class ClNormMlpClassifierHead(msnn.Cell):
         norm_layer = get_norm_layer(norm_layer)
         act_layer = get_act_layer(act_layer)
 
-        self.norm = norm_layer(in_features, **dd)
+        self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if hidden_size:
             self.pre_logits = msnn.SequentialCell(OrderedDict([
                 ('fc', nn.Linear(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
-            ]))
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;
             self.num_features = hidden_size
         else:
             self.pre_logits = msnn.Identity()
         self.drop = nn.Dropout(drop_rate)
-        self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def reset(self, num_classes: int, pool_type: Optional[str] = None, reset_other: bool = False):
         # FIXME extract dd on reset

@@ -36,8 +36,8 @@ class LearnableAffineBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.scale = ms.Parameter(ms.Tensor([scale_value], **dd), requires_grad=True)
-        self.bias = ms.Parameter(ms.Tensor([bias_value], **dd), requires_grad=True)
+        self.scale = ms.Parameter(ms.Tensor([scale_value], **dd), requires_grad=True)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(ms.Tensor([bias_value], **dd), requires_grad=True)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.scale * x + self.bias
@@ -69,14 +69,14 @@ class ConvBNAct(msnn.Cell):
             padding=padding,
             groups=groups,
             **dd,
-        )
-        self.bn = nn.BatchNorm2d(out_chs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bn = nn.BatchNorm2d(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if self.use_act:
             self.act = nn.ReLU()
         else:
             self.act = msnn.Identity()
         if self.use_act and self.use_lab:
-            self.lab = LearnableAffineBlock(**dd)
+            self.lab = LearnableAffineBlock(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.lab = msnn.Identity()
 
@@ -108,7 +108,7 @@ class LightConvBNAct(msnn.Cell):
             use_act=False,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv2 = ConvBNAct(
             out_chs,
             out_chs,
@@ -117,7 +117,7 @@ class LightConvBNAct(msnn.Cell):
             use_act=True,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv1(x)
@@ -136,7 +136,7 @@ class EseModule(msnn.Cell):
             stride=1,
             padding=0,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.sigmoid = nn.Sigmoid()
 
     def construct(self, x):
@@ -160,7 +160,7 @@ class StemV1(msnn.Cell):
                 stride=2 if i == 0 else 1,
                 **dd) for i in range(
                 len(stem_chs) - 1)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pool = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
 
     def construct(self, x):
@@ -189,7 +189,7 @@ class StemV2(msnn.Cell):
             stride=2,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.stem2a = ConvBNAct(
             mid_chs,
             mid_chs // 2,
@@ -197,7 +197,7 @@ class StemV2(msnn.Cell):
             stride=1,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.stem2b = ConvBNAct(
             mid_chs // 2,
             mid_chs,
@@ -205,7 +205,7 @@ class StemV2(msnn.Cell):
             stride=1,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.stem3 = ConvBNAct(
             mid_chs * 2,
             mid_chs,
@@ -213,7 +213,7 @@ class StemV2(msnn.Cell):
             stride=2,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.stem4 = ConvBNAct(
             mid_chs,
             out_chs,
@@ -221,7 +221,7 @@ class StemV2(msnn.Cell):
             stride=1,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pool = nn.MaxPool2d(kernel_size = 2, stride = 1, ceil_mode = True)
 
     def construct(self, x):
@@ -268,7 +268,7 @@ class HighPerfGpuBlock(msnn.Cell):
                         use_lab=use_lab,
                         **dd,
                     )
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.layers.append(
                     ConvBNAct(
@@ -279,7 +279,7 @@ class HighPerfGpuBlock(msnn.Cell):
                         use_lab=use_lab,
                         **dd,
                     )
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # feature aggregation
         total_chs = in_chs + layer_num * mid_chs
@@ -291,7 +291,7 @@ class HighPerfGpuBlock(msnn.Cell):
                 stride=1,
                 use_lab=use_lab,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             aggregation_excitation_conv = ConvBNAct(
                 out_chs // 2,
                 out_chs,
@@ -299,7 +299,7 @@ class HighPerfGpuBlock(msnn.Cell):
                 stride=1,
                 use_lab=use_lab,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.aggregation = msnn.SequentialCell(
                 aggregation_squeeze_conv,
                 aggregation_excitation_conv,
@@ -312,8 +312,8 @@ class HighPerfGpuBlock(msnn.Cell):
                 stride=1,
                 use_lab=use_lab,
                 **dd,
-            )
-            att = EseModule(out_chs, **dd)
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            att = EseModule(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.aggregation = msnn.SequentialCell(
                 aggregation_conv,
                 att,
@@ -365,7 +365,7 @@ class HighPerfGpuStage(msnn.Cell):
                 use_act=False,
                 use_lab=use_lab,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.downsample = msnn.Identity()
 
@@ -385,8 +385,8 @@ class HighPerfGpuStage(msnn.Cell):
                     drop_path=drop_path[i] if isinstance(drop_path, (list, tuple)) else drop_path,
                     **dd,
                 )
-            )
-        self.blocks = msnn.SequentialCell(*blocks_list)
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.blocks = msnn.SequentialCell(*blocks_list)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.grad_checkpointing= False
 
     def construct(self, x):
@@ -428,10 +428,10 @@ class ClassifierHead(msnn.Cell):
                 padding=0,
                 bias=False,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
             act = nn.ReLU()
             if use_lab:
-                lab = LearnableAffineBlock(**dd)
+                lab = LearnableAffineBlock(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 self.last_conv = msnn.SequentialCell(last_conv, act, lab)
             else:
                 self.last_conv = msnn.SequentialCell(last_conv, act)
@@ -440,7 +440,7 @@ class ClassifierHead(msnn.Cell):
 
         self.dropout = nn.Dropout(drop_rate)
         self.flatten = mint.flatten(1) if pool_type else msnn.Identity()  # don't flatten if pooling disabled
-        self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def reset(self, num_classes: int, pool_type: Optional[str] = None, device=None, dtype=None):
         dd = {'device': device, 'dtype': dtype}
@@ -450,7 +450,7 @@ class ClassifierHead(msnn.Cell):
             self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
             self.flatten = mint.flatten(1) if pool_type else msnn.Identity()  # don't flatten if pooling disabled
 
-        self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x, pre_logits: bool = False):
         x = self.global_pool(x)
@@ -496,9 +496,9 @@ class HighPerfGpuNet(msnn.Cell):
                 out_chs=stem_chs[1],
                 use_lab=use_lab,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.stem = StemV1([in_chans] + stem_chs, **dd)
+            self.stem = StemV1([in_chans] + stem_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         current_stride = 4
 
@@ -521,12 +521,12 @@ class HighPerfGpuNet(msnn.Cell):
                 agg='ese' if stem_type == 'v1' else 'se',
                 drop_path=dpr[i],
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = out_chs
             if downsample:
                 current_stride *= 2
             self.feature_info += [dict(num_chs=self.num_features, reduction=current_stride, module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.head = ClassifierHead(
             self.num_features,
@@ -536,7 +536,7 @@ class HighPerfGpuNet(msnn.Cell):
             hidden_size=head_hidden_size,
             use_lab=use_lab,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.head_hidden_size = self.head.num_features
 
         for n, m in self.named_modules():
@@ -548,19 +548,19 @@ class HighPerfGpuNet(msnn.Cell):
             elif isinstance(m, nn.Linear):
                 nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
             blocks=r'^stages\.(\d+)' if coarse else r'^stages\.(\d+).blocks\.(\d+)',
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -742,7 +742,7 @@ def _create_hgnet(variant, pretrained=False, **kwargs):
         model_cfg=model_cfgs[variant],
         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url='', **kwargs):
@@ -807,49 +807,49 @@ default_cfgs = generate_default_cfgs({
 
 @register_model
 def hgnet_tiny(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnet_tiny', pretrained=pretrained, **kwargs)
+    return _create_hgnet('hgnet_tiny', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnet_small(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnet_small', pretrained=pretrained, **kwargs)
+    return _create_hgnet('hgnet_small', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnet_base(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnet_base', pretrained=pretrained, **kwargs)
+    return _create_hgnet('hgnet_base', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnetv2_b0(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b0', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet('hgnetv2_b0', pretrained=pretrained, use_lab=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnetv2_b1(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b1', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet('hgnetv2_b1', pretrained=pretrained, use_lab=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnetv2_b2(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b2', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet('hgnetv2_b2', pretrained=pretrained, use_lab=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnetv2_b3(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b3', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet('hgnetv2_b3', pretrained=pretrained, use_lab=True, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnetv2_b4(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b4', pretrained=pretrained, **kwargs)
+    return _create_hgnet('hgnetv2_b4', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnetv2_b5(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b5', pretrained=pretrained, **kwargs)
+    return _create_hgnet('hgnetv2_b5', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def hgnetv2_b6(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b6', pretrained=pretrained, **kwargs)
+    return _create_hgnet('hgnetv2_b6', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

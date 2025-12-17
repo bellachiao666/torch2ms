@@ -90,11 +90,11 @@ class EcaModule(msnn.Cell):
             if rd_channels is None:
                 rd_channels = make_divisible(channels * rd_ratio, divisor=rd_divisor)
             act_layer = act_layer or nn.ReLU
-            self.conv = nn.Conv1d(1, rd_channels, kernel_size=1, padding=0, bias=True, **dd)
+            self.conv = nn.Conv1d(1, rd_channels, kernel_size=1, padding=0, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.act = create_act_layer(act_layer)
-            self.conv2 = nn.Conv1d(rd_channels, 1, kernel_size=kernel_size, padding=padding, bias=True, **dd)
+            self.conv2 = nn.Conv1d(rd_channels, 1, kernel_size=kernel_size, padding=padding, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
-            self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=padding, bias=False, **dd)
+            self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=padding, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.act = None
             self.conv2 = None
         self.gate = create_act_layer(gate_layer)
@@ -159,7 +159,7 @@ class CecaModule(msnn.Cell):
         # see https://github.com/pytorch/pytorch/pull/17240
         # implement manual circular padding
         self.padding = (kernel_size - 1) // 2
-        self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=0, bias=has_act, **dd)
+        self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=0, bias=has_act, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):

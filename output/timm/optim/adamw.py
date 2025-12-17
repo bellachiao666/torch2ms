@@ -103,6 +103,7 @@ class AdamWLegacy(Optimizer):
             group.setdefault('maximize', False)
             group.setdefault('capturable', False)
 
+    @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
 

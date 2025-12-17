@@ -114,21 +114,21 @@ def _dct_kernel_type_2(
 ) -> ms.Tensor:
     """Generate Type-II DCT kernel matrix."""
     dd = dict(device=device, dtype=dtype)
-    x = mint.eye(kernel_size, **dd)
+    x = mint.eye(kernel_size, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     v = x.clone().contiguous().view(-1, kernel_size)
     v = mint.cat([v, v.flip([1])], dim=-1)
     v = torch.fft.fft(v, dim=-1)[:, :kernel_size]  # 'torch.fft.fft' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     try:
-        k = ms.Tensor(-1j, **dd) * torch.pi * mint.arange(kernel_size, **dd)[None, :]
+        k = ms.Tensor(-1j, **dd) * torch.pi * mint.arange(kernel_size, **dd)[None, :]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     except AttributeError:
-        k = ms.Tensor(-1j, **dd) * math.pi * mint.arange(kernel_size, **dd)[None, :]
+        k = ms.Tensor(-1j, **dd) * math.pi * mint.arange(kernel_size, **dd)[None, :]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     k = mint.exp(k / (kernel_size * 2))
     v = v * k
     v = v.real
     if orthonormal:
-        v[:, 0] = v[:, 0] * mint.sqrt(ms.Tensor(1 / (kernel_size * 4), **dd))
-        v[:, 1:] = v[:, 1:] * mint.sqrt(ms.Tensor(1 / (kernel_size * 2), **dd))
-    v = v.contiguous().view(*x.shape)
+        v[:, 0] = v[:, 0] * mint.sqrt(ms.Tensor(1 / (kernel_size * 4), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        v[:, 1:] = v[:, 1:] * mint.sqrt(ms.Tensor(1 / (kernel_size * 2), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    v = v.contiguous().view(*x.shape)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return v
 
 
@@ -156,7 +156,7 @@ class Dct1d(msnn.Cell):
         dd = dict(device=device, dtype=dtype)
         super().__init__()
         kernel = {'2': _dct_kernel_type_2, '3': _dct_kernel_type_3}
-        dct_weights = kernel[f'{kernel_type}'](kernel_size, orthonormal, **dd).T
+        dct_weights = kernel[f'{kernel_type}'](kernel_size, orthonormal, **dd).T  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.register_buffer('weights', dct_weights.contiguous())
         self.register_parameter('bias', None)
 
@@ -177,7 +177,7 @@ class Dct2d(msnn.Cell):
     ) -> None:
         dd = dict(device=device, dtype=dtype)
         super().__init__()
-        self.transform = Dct1d(kernel_size, kernel_type, orthonormal, **dd)
+        self.transform = Dct1d(kernel_size, kernel_type, orthonormal, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return self.transform(self.transform(x).transpose(-1, -2)).transpose(-1, -2)
@@ -215,13 +215,13 @@ class LearnableDct2d(msnn.Cell):
         dd = dict(device=device, dtype=dtype)
         super().__init__()
         self.k = kernel_size
-        self.transform = Dct2d(kernel_size, kernel_type, orthonormal, **dd)
+        self.transform = Dct2d(kernel_size, kernel_type, orthonormal, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.permutation = _zigzag_permutation(kernel_size, kernel_size)
 
         y_ch, cb_ch, cr_ch = _split_out_chs(out_chs, ratio=(24, 4, 4))
-        self.conv_y  = nn.Conv2d(kernel_size ** 2, y_ch,  kernel_size=1, padding=0, **dd)
-        self.conv_cb = nn.Conv2d(kernel_size ** 2, cb_ch, kernel_size=1, padding=0, **dd)
-        self.conv_cr = nn.Conv2d(kernel_size ** 2, cr_ch, kernel_size=1, padding=0, **dd)
+        self.conv_y  = nn.Conv2d(kernel_size ** 2, y_ch,  kernel_size=1, padding=0, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv_cb = nn.Conv2d(kernel_size ** 2, cb_ch, kernel_size=1, padding=0, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.conv_cr = nn.Conv2d(kernel_size ** 2, cr_ch, kernel_size=1, padding=0, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.register_buffer('mean', ms.Tensor(_DCT_MEAN, device=device), persistent=False)
         self.register_buffer('var', ms.Tensor(_DCT_VAR, device=device), persistent=False)
@@ -279,7 +279,7 @@ class Dct2dStats(msnn.Cell):
         dd = dict(device=device, dtype=dtype)
         super().__init__()
         self.k = kernel_size
-        self.transform = Dct2d(kernel_size, kernel_type, orthonormal, **dd)
+        self.transform = Dct2d(kernel_size, kernel_type, orthonormal, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.permutation = _zigzag_permutation(kernel_size, kernel_size)
 
     def construct(self, x: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
@@ -312,14 +312,14 @@ class Block(msnn.Cell):
     ) -> None:
         dd = dict(device=device, dtype=dtype)
         super().__init__()
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim, **dd)
-        self.norm = nn.LayerNorm(dim, eps=1e-6, **dd)
-        self.pwconv1 = nn.Linear(dim, 4 * dim, **dd)
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = nn.LayerNorm(dim, eps=1e-6, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.pwconv1 = nn.Linear(dim, 4 * dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = nn.GELU()
-        self.grn = GlobalResponseNorm(4 * dim, channels_last=True, **dd)
-        self.pwconv2 = nn.Linear(4 * dim, dim, **dd)
+        self.grn = GlobalResponseNorm(4 * dim, channels_last=True, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.pwconv2 = nn.Linear(4 * dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
-        self.attn = SpatialAttention(**dd)
+        self.attn = SpatialAttention(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         shortcut = x
@@ -354,13 +354,13 @@ class SpatialTransformerBlock(msnn.Cell):
         dd = dict(device=device, dtype=dtype)
         super().__init__()
         # Single-head attention with 1-dim q/k/v (no output projection needed)
-        self.pos_embed = PosConv(in_chans=1, **dd)
-        self.norm1 = nn.LayerNorm(1, **dd)
-        self.qkv = nn.Linear(1, 3, bias=False, **dd)
+        self.pos_embed = PosConv(in_chans=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = nn.LayerNorm(1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.qkv = nn.Linear(1, 3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         # Feedforward: 1 -> 4 -> 1
-        self.norm2 = nn.LayerNorm(1, **dd)
-        self.mlp = Mlp(1, 4, 1, act_layer=nn.GELU, **dd)
+        self.norm2 = nn.LayerNorm(1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.mlp = Mlp(1, 4, 1, act_layer=nn.GELU, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         B, C, H, W = x.shape
@@ -401,8 +401,8 @@ class SpatialAttention(msnn.Cell):
         dd = dict(device=device, dtype=dtype)
         super().__init__()
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
-        self.conv = nn.Conv2d(2, 1, kernel_size=7, padding=3, **dd)
-        self.attn = SpatialTransformerBlock(**dd)
+        self.conv = nn.Conv2d(2, 1, kernel_size=7, padding=3, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.attn = SpatialTransformerBlock(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x_avg = x.mean(dim=1, keepdim=True)
@@ -438,14 +438,14 @@ class TransformerBlock(msnn.Cell):
         if self.downsample:
             self.pool1 = nn.MaxPool2d(3, 2, 1)
             self.pool2 = nn.MaxPool2d(3, 2, 1)
-            self.proj = nn.Conv2d(inp, oup, 1, 1, 0, bias=False, **dd)
+            self.proj = nn.Conv2d(inp, oup, 1, 1, 0, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.pool1 = msnn.Identity()
             self.pool2 = msnn.Identity()
             self.proj = msnn.Identity()
 
-        self.pos_embed = PosConv(in_chans=inp, **dd)
-        self.norm1 = nn.LayerNorm(inp, **dd)
+        self.pos_embed = PosConv(in_chans=inp, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = nn.LayerNorm(inp, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn = Attention(
             dim=inp,
             num_heads=num_heads,
@@ -454,11 +454,11 @@ class TransformerBlock(msnn.Cell):
             attn_drop=attn_drop,
             proj_drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = nn.LayerNorm(oup, **dd)
-        self.mlp = Mlp(oup, hidden_dim, oup, act_layer=nn.GELU, drop=proj_drop, **dd)
+        self.norm2 = nn.LayerNorm(oup, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.mlp = Mlp(oup, hidden_dim, oup, act_layer=nn.GELU, drop=proj_drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -504,7 +504,7 @@ class PosConv(msnn.Cell):
     ) -> None:
         dd = dict(device=device, dtype=dtype)
         super().__init__()
-        self.proj = nn.Conv2d(in_chans, in_chans, kernel_size=3, stride=1, padding=1, bias=True, groups=in_chans, **dd)
+        self.proj = nn.Conv2d(in_chans, in_chans, kernel_size=3, stride=1, padding=1, bias=True, groups=in_chans, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor, size: Tuple[int, int]) -> ms.Tensor:
         B, N, C = x.shape
@@ -565,7 +565,7 @@ class CSATv2(msnn.Cell):
             dp_rates += [next(dp_iter) for _ in range(depth - t_depth)]
             dp_rates += [next(dp_iter) if transformer_drop_path else 0. for _ in range(t_depth)]
 
-        self.stem_dct = LearnableDct2d(8, out_chs=dims[0], **dd)
+        self.stem_dct = LearnableDct2d(8, out_chs=dims[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Build stages dynamically
         dp_iter = iter(dp_rates)
@@ -580,11 +580,11 @@ class CSATv2(msnn.Cell):
                 [TransformerBlock(inp=dim, oup=dim, drop_path=next(dp_iter), **dd) for _ in range(t_depth)] +
                 # Trailing LayerNorm (except last stage)
                 ([LayerNorm2d(dim, eps=1e-6, **dd)] if i < len(depths) - 1 else [])
-            )
-            stages.append(msnn.SequentialCell(*layers))
-        self.stages = msnn.SequentialCell(*stages)
+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            stages.append(msnn.SequentialCell(*layers))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.head = NormMlpClassifierHead(dims[-1], num_classes, pool_type=global_pool, **dd)
+        self.head = NormMlpClassifierHead(dims[-1], num_classes, pool_type=global_pool, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.apply(self._init_weights)
 
@@ -594,7 +594,7 @@ class CSATv2(msnn.Cell):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -604,7 +604,7 @@ class CSATv2(msnn.Cell):
             self.global_pool = global_pool
         self.head.reset(num_classes, pool_type=global_pool)
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         self.grad_checkpointing = enable
 
@@ -813,12 +813,12 @@ def _create_csatv2(variant: str, pretrained: bool = False, **kwargs) -> CSATv2:
         feature_cfg=dict(out_indices=out_indices, flatten_sequential=True),
         default_cfg=default_cfgs[variant],
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def csatv2(pretrained: bool = False, **kwargs) -> CSATv2:
-    return _create_csatv2('csatv2', pretrained, **kwargs)
+    return _create_csatv2('csatv2', pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -830,4 +830,4 @@ def csatv2_21m(pretrained: bool = False, **kwargs) -> CSATv2:
         transformer_depths = (0, 0, 4, 3)
 
     )
-    return _create_csatv2('csatv2_21m', pretrained, **dict(model_args, **kwargs))
+    return _create_csatv2('csatv2_21m', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

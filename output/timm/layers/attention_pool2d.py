@@ -34,7 +34,7 @@ class RotAttentionPool2d(msnn.Cell):
     NOTE: While this impl does not require a fixed feature size, performance at differeing resolutions from
     train varies widely and falls off dramatically. I'm not sure if there is a way around this... -RW
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -74,19 +74,19 @@ class RotAttentionPool2d(msnn.Cell):
         self.rope_type = rope_type
 
         if class_token:
-            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))
+            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.cls_token = None
 
         if qkv_separate:
-            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
-            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
-            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
+            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.qkv = None
         else:
-            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)
+            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop_rate)
-        self.proj = nn.Linear(embed_dim, self.out_features, **dd)
+        self.proj = nn.Linear(embed_dim, self.out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.pos_embed = create_rope_embed(
             rope_type=rope_type,
@@ -96,7 +96,7 @@ class RotAttentionPool2d(msnn.Cell):
             ref_feat_shape=ref_feat_size,
             rotate_half=False,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def init_weights(self, zero_init_last: bool = False):
         if self.qkv is None:
@@ -178,7 +178,7 @@ class AttentionPool2d(msnn.Cell):
 
     NOTE: This requires feature size upon construction and well prevent adaptive sizing of the network.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -217,21 +217,21 @@ class AttentionPool2d(msnn.Cell):
         self.fused_attn = use_fused_attn()
 
         if class_token:
-            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))
+            self.cls_token = ms.Parameter(mint.zeros(1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.cls_token = None
 
         if qkv_separate:
-            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
-            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
-            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)
+            self.q = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.k = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.v = nn.Linear(in_features, embed_dim, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
             self.qkv = None
         else:
             self.q = self.k = self.v = None
-            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)
+            self.qkv = nn.Linear(in_features, embed_dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop = nn.Dropout(drop_rate)
-        self.proj = nn.Linear(embed_dim, self.out_features, **dd)
-        self.pos_embed = ms.Parameter(mint.zeros(self.seq_len + 1, in_features, **dd))
+        self.proj = nn.Linear(embed_dim, self.out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.pos_embed = ms.Parameter(mint.zeros(self.seq_len + 1, in_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.init_weights()
 

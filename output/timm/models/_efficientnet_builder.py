@@ -410,25 +410,25 @@ class EfficientNetBuilder:
 
         if bt == 'ir':
             _log_info_if('  InvertedResidual {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
-            block = CondConvResidual(**ba) if ba.get('num_experts', 0) else InvertedResidual(**ba)
+            block = CondConvResidual(**ba) if ba.get('num_experts', 0) else InvertedResidual(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif bt == 'ds' or bt == 'dsa':
             _log_info_if('  DepthwiseSeparable {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
-            block = DepthwiseSeparableConv(**ba)
+            block = DepthwiseSeparableConv(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif bt == 'er':
             _log_info_if('  EdgeResidual {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
-            block = EdgeResidual(**ba)
+            block = EdgeResidual(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif bt == 'cn':
             _log_info_if('  ConvBnAct {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
-            block = ConvBnAct(**ba)
+            block = ConvBnAct(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif bt == 'uir':
             _log_info_if('  UniversalInvertedResidual {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
-            block = UniversalInvertedResidual(**ba, layer_scale_init_value=self.layer_scale_init_value)
+            block = UniversalInvertedResidual(**ba, layer_scale_init_value=self.layer_scale_init_value)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif bt == 'mqa':
             _log_info_if('  MobileMultiQueryAttention {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
-            block = MobileAttention(**ba, use_multi_query=True, layer_scale_init_value=self.layer_scale_init_value)
+            block = MobileAttention(**ba, use_multi_query=True, layer_scale_init_value=self.layer_scale_init_value)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif bt == 'mha':
             _log_info_if('  MobileMultiHeadAttention {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
-            block = MobileAttention(**ba, layer_scale_init_value=self.layer_scale_init_value)
+            block = MobileAttention(**ba, layer_scale_init_value=self.layer_scale_init_value)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert False, 'Unknown block type (%s) while building model.' % bt
 
@@ -520,7 +520,7 @@ class EfficientNetBuilder:
                         stage=stack_idx + 1,
                         reduction=current_stride,
                         **block.feature_info(self.feature_location),
-                    )
+                    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                     leaf_name = feature_info.get('module', '')
                     if leaf_name:
                         feature_info['module'] = '.'.join([f'blocks.{stack_idx}.{block_idx}', leaf_name])
@@ -530,7 +530,7 @@ class EfficientNetBuilder:
                     self.features.append(feature_info)
 
                 total_block_idx += 1  # incr global block idx (across all stacks)
-            stages.append(msnn.SequentialCell(*blocks))
+            stages.append(msnn.SequentialCell(*blocks))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         return stages
 
 

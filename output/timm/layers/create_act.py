@@ -140,9 +140,9 @@ def create_act_layer(
     if act_layer is None:
         return None
     if inplace is None:
-        return act_layer(**kwargs)
+        return act_layer(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     try:
-        return act_layer(inplace=inplace, **kwargs)
+        return act_layer(inplace=inplace, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     except TypeError:
         # recover if act layer doesn't have inplace arg
-        return act_layer(**kwargs)
+        return act_layer(**kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

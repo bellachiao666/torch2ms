@@ -132,7 +132,6 @@ class ResizeToSequence(msnn.Cell):
     This maintains aspect ratio while ensuring the resulting image, when divided into patches,
     will not exceed the specified maximum sequence length.
     """
-    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             patch_size: int,
@@ -291,7 +290,7 @@ class ResizeKeepRatioToSequence(msnn.Cell):
         # Apply random aspect
         if random_aspect_prob > 0 and random.random() < random_aspect_prob:
             log_aspect = (math.log(random_aspect_range[0]), math.log(random_aspect_range[1]))
-            aspect_factor = math.exp(random.uniform(*log_aspect))
+            aspect_factor = math.exp(random.uniform(*log_aspect))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             aspect_factor = math.sqrt(aspect_factor)
             # Apply aspect ratio jittering
             ratio_factor = (ratio_factor[0] / aspect_factor, ratio_factor[1] * aspect_factor)
@@ -540,7 +539,6 @@ class RandomResizedCropToSequence(msnn.Cell):
             to a center crop strategy. Defaults to 10.
     """
 
-    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
         self,
         patch_size: Union[int, Tuple[int, int]] = 16,
@@ -588,7 +586,6 @@ class RandomResizedCropToSequence(msnn.Cell):
             if not (0.0 <= self.final_scale_range[0] <= self.final_scale_range[1] <= 1.0):
                 warnings.warn("final_scale_range values should ideally be between 0.0 and 1.0.")
 
-    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @staticmethod
     def get_params(
             img: ms.Tensor,

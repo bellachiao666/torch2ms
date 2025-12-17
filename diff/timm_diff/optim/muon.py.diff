@@ -14,11 +14,8 @@
  
  from ._types import ParamsT
  from .adamw import adamw
-@@ -104,15 +109,17 @@     return eps * (din / dout) ** 0.5
+@@ -105,14 +110,14 @@ 
  
- 
-+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def zeropower_via_newtonschulz(
 -        G: torch.Tensor,
 +        G: ms.Tensor,
@@ -34,7 +31,7 @@
      """Newton-Schulz quintic iteration to compute the zeroth power / orthogonalization of gradient.
  
      Supports batched operation over leading dimensions.
-@@ -160,13 +167,13 @@         X.div_(X.norm(2, dim=(-2, -1), keepdim=True).mul(safety_factor).clamp_min_(eps))
+@@ -160,13 +165,13 @@         X.div_(X.norm(2, dim=(-2, -1), keepdim=True).mul(safety_factor).clamp_min_(eps))
  
      # Batched vs unbatched fused MM
 -    mm_fn = torch.baddbmm if X.ndim > 2 else torch.addmm
@@ -51,23 +48,7 @@
  
      # Perform Newton-Schulz iterations
      for a, b, c in coeff_sequence:
-@@ -181,6 +188,8 @@     return X
- 
- 
-+# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def get_lr_scale(
-         param_shape: torch.Size,
-         adjust_lr_fn: str = "match_rms_adamw",
-@@ -210,6 +219,8 @@         assert False, f'Invalid scaling function "{adjust_lr_fn}" for Muon'
- 
- 
-+# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- def get_adamuon_lr_scale(
-         param_shape: torch.Size,
-         adjust_lr_fn: str = "match_rms_adamw",
-@@ -238,7 +249,7 @@ 
+@@ -238,7 +243,7 @@ 
  
  def _is_suitable_for_muon(
 -        param: torch.Tensor,
@@ -75,11 +56,8 @@
          min_dim_size: int = 4,
          max_aspect_ratio: float = 128.,
          return_reason: bool = False,
-@@ -309,10 +320,12 @@     return (True, "ok") if return_reason else True
+@@ -310,9 +315,9 @@ 
  
- 
-+# 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+# 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def reshape_for_muon(
 -        tensor: torch.Tensor,
 +        tensor: ms.Tensor,
@@ -89,7 +67,7 @@
      """Reshape high-dimensional tensor for Muon processing.
  
      Args:
-@@ -345,9 +358,9 @@ 
+@@ -345,9 +350,9 @@ 
  
  def muon(
 -        params: List[torch.Tensor],
@@ -101,7 +79,7 @@
          *,
          lr: float,
          weight_decay: float,
-@@ -383,11 +396,11 @@ 
+@@ -383,11 +388,11 @@ 
  
  def adamuon(
 -        params: List[torch.Tensor],
@@ -117,7 +95,7 @@
          *,
          lr: float,
          weight_decay: float,
-@@ -434,9 +447,9 @@ 
+@@ -434,9 +439,9 @@ 
  
  def _single_tensor_muon(
 -        params: List[torch.Tensor],
@@ -129,7 +107,7 @@
          *,
          lr: float,
          weight_decay: float,
-@@ -503,11 +516,11 @@ 
+@@ -503,11 +508,11 @@ 
  
  def _single_tensor_adamuon(
 -        params: List[torch.Tensor],
@@ -145,21 +123,14 @@
          *,
          lr: float,
          weight_decay: float,
-@@ -618,6 +631,7 @@         param.add_(update_adaptive, alpha=-lr * scale)
+@@ -618,6 +623,7 @@         param.add_(update_adaptive, alpha=-lr * scale)
  
  
 +# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class Muon(torch.optim.Optimizer):
      """Muon - MomentUm Orthogonalized by Newton-schulz
  
-@@ -728,7 +742,6 @@             group.setdefault('algo', 'muon')
-             group.setdefault('scale_eps', False)
- 
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Performs a single optimization step."""
-         loss = None
-@@ -808,14 +821,14 @@ 
+@@ -808,14 +814,14 @@ 
                      # State initialization for Muon/AdaMuon
                      if "momentum_buffer" not in state:
 -                        state["momentum_buffer"] = torch.zeros_like(p, memory_format=torch.preserve_format)
@@ -176,7 +147,7 @@
                          muon_exp_avg_sqs.append(state["exp_avg_sq"])
                          muon_state_steps.append(state["step"])
                  else:
-@@ -826,9 +839,9 @@ 
+@@ -826,9 +832,9 @@ 
                      # State initialization for AdamW
                      if "step" not in state:
 -                        state["step"] = torch.tensor(0.)

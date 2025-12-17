@@ -173,7 +173,7 @@ class MaxxVitCfg:
 
 class Attention2d(msnn.Cell):
     """Multi-head attention for 2D NCHW tensors."""
-    fused_attn: Final[bool]
+    fused_attn: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -211,10 +211,10 @@ class Attention2d(msnn.Cell):
         self.scale = dim_head ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Conv2d(dim, dim_attn * 3, 1, bias=bias, **dd)
-        self.rel_pos = rel_pos_cls(num_heads=self.num_heads, **dd) if rel_pos_cls else None
+        self.qkv = nn.Conv2d(dim, dim_attn * 3, 1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.rel_pos = rel_pos_cls(num_heads=self.num_heads, **dd) if rel_pos_cls else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Conv2d(dim_attn, dim_out, 1, bias=bias, **dd)
+        self.proj = nn.Conv2d(dim_attn, dim_out, 1, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x: ms.Tensor, shared_rel_pos: Optional[ms.Tensor] = None) -> ms.Tensor:
@@ -251,7 +251,7 @@ class Attention2d(msnn.Cell):
 
 class AttentionCl(msnn.Cell):
     """Channels-last multi-head attention (B, ..., C)."""
-    fused_attn: Final[bool]
+    fused_attn: Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -290,10 +290,10 @@ class AttentionCl(msnn.Cell):
         self.scale = dim_head ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim_attn * 3, bias=bias, **dd)
-        self.rel_pos = rel_pos_cls(num_heads=self.num_heads, **dd) if rel_pos_cls else None
+        self.qkv = nn.Linear(dim, dim_attn * 3, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.rel_pos = rel_pos_cls(num_heads=self.num_heads, **dd) if rel_pos_cls else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim_attn, dim_out, bias=bias, **dd)
+        self.proj = nn.Linear(dim_attn, dim_out, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
     def construct(self, x: ms.Tensor, shared_rel_pos: Optional[ms.Tensor] = None) -> ms.Tensor:
@@ -446,15 +446,15 @@ class TransformerBlock2d(msnn.Cell):
         act_layer = get_act_layer(cfg.act_layer)
 
         if stride == 2:
-            self.shortcut = Downsample2d(dim, dim_out, pool_type=cfg.pool_type, bias=cfg.shortcut_bias, **dd)
+            self.shortcut = Downsample2d(dim, dim_out, pool_type=cfg.pool_type, bias=cfg.shortcut_bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.norm1 = msnn.SequentialCell(OrderedDict([
                 ('norm', norm_layer(dim, **dd)),
                 ('down', Downsample2d(dim, dim, pool_type=cfg.pool_type, **dd)),
-            ]))
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert dim == dim_out
             self.shortcut = msnn.Identity()
-            self.norm1 = norm_layer(dim, **dd)
+            self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.attn = Attention2d(
             dim,
@@ -466,19 +466,19 @@ class TransformerBlock2d(msnn.Cell):
             attn_drop=cfg.attn_drop,
             proj_drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls1 = LayerScale2d(dim_out, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale2d(dim_out, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim_out, **dd)
+        self.norm2 = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.mlp = ConvMlp(
             in_features=dim_out,
             hidden_features=int(dim_out * cfg.expand_ratio),
             act_layer=act_layer,
             drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls2 = LayerScale2d(dim_out, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale2d(dim_out, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def init_weights(self, scheme: str = '') -> None:
@@ -555,7 +555,7 @@ class MbConvBlock(msnn.Cell):
 
         if stride == 2:
             self.shortcut = Downsample2d(
-                in_chs, out_chs, pool_type=cfg.pool_type, bias=cfg.output_bias, padding=cfg.padding, **dd)
+                in_chs, out_chs, pool_type=cfg.pool_type, bias=cfg.output_bias, padding=cfg.padding, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.shortcut = msnn.Identity()
 
@@ -571,13 +571,13 @@ class MbConvBlock(msnn.Cell):
         else:
             stride_2, dilation_2 = stride, dilation[0]
 
-        self.pre_norm = norm_act_layer(in_chs, apply_act=cfg.pre_norm_act, **dd)
+        self.pre_norm = norm_act_layer(in_chs, apply_act=cfg.pre_norm_act, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if stride_pool > 1:
-            self.down = Downsample2d(in_chs, in_chs, pool_type=cfg.downsample_pool_type, padding=cfg.padding, **dd)
+            self.down = Downsample2d(in_chs, in_chs, pool_type=cfg.downsample_pool_type, padding=cfg.padding, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.down = msnn.Identity()
-        self.conv1_1x1 = create_conv2d(in_chs, mid_chs, 1, stride=stride_1, **dd)
-        self.norm1 = norm_act_layer(mid_chs, **dd)
+        self.conv1_1x1 = create_conv2d(in_chs, mid_chs, 1, stride=stride_1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_act_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.conv2_kxk = create_conv2d(
             mid_chs,
@@ -588,7 +588,7 @@ class MbConvBlock(msnn.Cell):
             groups=groups,
             padding=cfg.padding,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         attn_kwargs = {}
         if isinstance(cfg.attn_layer, str):
@@ -598,15 +598,15 @@ class MbConvBlock(msnn.Cell):
 
         # two different orderings for SE and norm2 (due to some weights and trials using SE before norm2)
         if cfg.attn_early:
-            self.se_early = create_attn(cfg.attn_layer, mid_chs, **attn_kwargs, **dd)
-            self.norm2 = norm_act_layer(mid_chs, **dd)
+            self.se_early = create_attn(cfg.attn_layer, mid_chs, **attn_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.norm2 = norm_act_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.se = None
         else:
             self.se_early = None
-            self.norm2 = norm_act_layer(mid_chs, **dd)
-            self.se = create_attn(cfg.attn_layer, mid_chs, **attn_kwargs, **dd)
+            self.norm2 = norm_act_layer(mid_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.se = create_attn(cfg.attn_layer, mid_chs, **attn_kwargs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.conv3_1x1 = create_conv2d(mid_chs, out_chs, 1, bias=cfg.output_bias, **dd)
+        self.conv3_1x1 = create_conv2d(mid_chs, out_chs, 1, bias=cfg.output_bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def init_weights(self, scheme: str = '') -> None:
@@ -676,9 +676,9 @@ class ConvNeXtBlock(msnn.Cell):
         self.use_conv_mlp = conv_mlp
 
         if stride == 2:
-            self.shortcut = Downsample2d(in_chs, out_chs, **dd)
+            self.shortcut = Downsample2d(in_chs, out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif in_chs != out_chs:
-            self.shortcut = nn.Conv2d(in_chs, out_chs, kernel_size=1, bias=cfg.output_bias, **dd)
+            self.shortcut = nn.Conv2d(in_chs, out_chs, kernel_size=1, bias=cfg.output_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.shortcut = msnn.Identity()
 
@@ -691,7 +691,7 @@ class ConvNeXtBlock(msnn.Cell):
             stride_dw = stride
 
         if stride_pool == 2:
-            self.down = Downsample2d(in_chs, in_chs, pool_type=cfg.downsample_pool_type, **dd)
+            self.down = Downsample2d(in_chs, in_chs, pool_type=cfg.downsample_pool_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.down = msnn.Identity()
 
@@ -704,19 +704,19 @@ class ConvNeXtBlock(msnn.Cell):
             depthwise=True,
             bias=cfg.output_bias,
             **dd,
-        )
-        self.norm = norm_layer(out_chs, **dd)
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.mlp = mlp_layer(
             out_chs,
             int(cfg.expand_ratio * out_chs),
             bias=cfg.output_bias,
             act_layer=act_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if conv_mlp:
-            self.ls = LayerScale2d(out_chs, cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+            self.ls = LayerScale2d(out_chs, cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.ls = LayerScale(out_chs, cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+            self.ls = LayerScale(out_chs, cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -814,7 +814,7 @@ class PartitionAttentionCl(msnn.Cell):
         self.partition_size = to_2tuple(cfg.window_size if self.partition_block else cfg.grid_size)
         rel_pos_cls = get_rel_pos_cls(cfg, self.partition_size)
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn = AttentionCl(
             dim,
             dim,
@@ -825,19 +825,19 @@ class PartitionAttentionCl(msnn.Cell):
             attn_drop=cfg.attn_drop,
             proj_drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls1 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim,
             hidden_features=int(dim * cfg.expand_ratio),
             act_layer=act_layer,
             drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls2 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def _partition_attn(self, x):
@@ -891,7 +891,7 @@ class ParallelPartitionAttention(msnn.Cell):
         self.partition_size = to_2tuple(cfg.window_size)
         rel_pos_cls = get_rel_pos_cls(cfg, self.partition_size)
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_block = AttentionCl(
             dim,
             dim // 2,
@@ -902,7 +902,7 @@ class ParallelPartitionAttention(msnn.Cell):
             attn_drop=cfg.attn_drop,
             proj_drop=cfg.proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.attn_grid = AttentionCl(
             dim,
             dim // 2,
@@ -913,11 +913,11 @@ class ParallelPartitionAttention(msnn.Cell):
             attn_drop=cfg.attn_drop,
             proj_drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls1 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim,
             hidden_features=int(dim * cfg.expand_ratio),
@@ -925,8 +925,8 @@ class ParallelPartitionAttention(msnn.Cell):
             act_layer=act_layer,
             drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls2 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def _partition_attn(self, x: ms.Tensor) -> ms.Tensor:
@@ -1019,7 +1019,7 @@ class PartitionAttention2d(msnn.Cell):
         self.partition_size = to_2tuple(cfg.window_size if self.partition_block else cfg.grid_size)
         rel_pos_cls = get_rel_pos_cls(cfg, self.partition_size)
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn = Attention2d(
             dim,
             dim,
@@ -1030,19 +1030,19 @@ class PartitionAttention2d(msnn.Cell):
             attn_drop=cfg.attn_drop,
             proj_drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls1 = LayerScale2d(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls1 = LayerScale2d(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.mlp = ConvMlp(
             in_features=dim,
             hidden_features=int(dim * cfg.expand_ratio),
             act_layer=act_layer,
             drop=cfg.proj_drop,
             **dd,
-        )
-        self.ls2 = LayerScale2d(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.ls2 = LayerScale2d(dim, init_values=cfg.init_values, **dd) if cfg.init_values else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def _partition_attn(self, x: ms.Tensor) -> ms.Tensor:
@@ -1095,12 +1095,12 @@ class MaxxVitBlock(msnn.Cell):
         self.nchw_attn = transformer_cfg.use_nchw_attn
 
         conv_cls = ConvNeXtBlock if conv_cfg.block_type == 'convnext' else MbConvBlock
-        self.conv = conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)
+        self.conv = conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        attn_kwargs = dict(dim=dim_out, cfg=transformer_cfg, drop_path=drop_path, **dd)
+        attn_kwargs = dict(dim=dim_out, cfg=transformer_cfg, drop_path=drop_path, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         partition_layer = PartitionAttention2d if self.nchw_attn else PartitionAttentionCl
-        self.attn_block = None if transformer_cfg.no_block_attn else partition_layer(**attn_kwargs)
-        self.attn_grid = partition_layer(partition_type='grid', **attn_kwargs)
+        self.attn_block = None if transformer_cfg.no_block_attn else partition_layer(**attn_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn_grid = partition_layer(partition_type='grid', **attn_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def init_weights(self, scheme=''):
         if self.attn_block is not None:
@@ -1155,12 +1155,12 @@ class ParallelMaxxVitBlock(msnn.Cell):
 
         conv_cls = ConvNeXtBlock if conv_cfg.block_type == 'convnext' else MbConvBlock
         if num_conv > 1:
-            convs = [conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)]
-            convs += [conv_cls(dim_out, dim_out, cfg=conv_cfg, drop_path=drop_path, **dd)] * (num_conv - 1)
-            self.conv = msnn.SequentialCell(*convs)
+            convs = [conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            convs += [conv_cls(dim_out, dim_out, cfg=conv_cfg, drop_path=drop_path, **dd)] * (num_conv - 1)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.conv = msnn.SequentialCell(*convs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.conv = conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)
-        self.attn = ParallelPartitionAttention(dim=dim_out, cfg=transformer_cfg, drop_path=drop_path, **dd)
+            self.conv = conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.attn = ParallelPartitionAttention(dim=dim_out, cfg=transformer_cfg, drop_path=drop_path, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def init_weights(self, scheme: str = '') -> None:
         named_apply(partial(_init_transformer, scheme=scheme), self.attn)
@@ -1221,7 +1221,7 @@ class MaxxVitStage(msnn.Cell):
                     cfg=conv_cfg,
                     drop_path=drop_path[i],
                     **dd,
-                )]
+                )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             elif t == 'T':
                 rel_pos_cls = get_rel_pos_cls(transformer_cfg, feat_size)
                 blocks += [TransformerBlock2d(
@@ -1232,7 +1232,7 @@ class MaxxVitStage(msnn.Cell):
                     cfg=transformer_cfg,
                     drop_path=drop_path[i],
                     **dd,
-                )]
+                )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             elif t == 'M':
                 blocks += [MaxxVitBlock(
                     in_chs,
@@ -1242,7 +1242,7 @@ class MaxxVitStage(msnn.Cell):
                     transformer_cfg=transformer_cfg,
                     drop_path=drop_path[i],
                     **dd,
-                )]
+                )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             elif t == 'PM':
                 blocks += [ParallelMaxxVitBlock(
                     in_chs,
@@ -1252,9 +1252,9 @@ class MaxxVitStage(msnn.Cell):
                     transformer_cfg=transformer_cfg,
                     drop_path=drop_path[i],
                     **dd,
-                )]
+                )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             in_chs = out_chs
-        self.blocks = msnn.SequentialCell(*blocks)
+        self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         if self.grad_checkpointing and not torch.jit.is_scripting():
@@ -1300,9 +1300,9 @@ class Stem(msnn.Cell):
         self.out_chs = out_chs[-1]
         self.stride = 2
 
-        self.conv1 = create_conv2d(in_chs, out_chs[0], kernel_size, stride=2, padding=padding, bias=bias, **dd)
-        self.norm1 = norm_act_layer(out_chs[0], **dd)
-        self.conv2 = create_conv2d(out_chs[0], out_chs[1], kernel_size, stride=1, padding=padding, bias=bias, **dd)
+        self.conv1 = create_conv2d(in_chs, out_chs[0], kernel_size, stride=2, padding=padding, bias=bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm1 = norm_act_layer(out_chs[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.conv2 = create_conv2d(out_chs[0], out_chs[1], kernel_size, stride=1, padding=padding, bias=bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def init_weights(self, scheme: str = '') -> None:
         named_apply(partial(_init_conv, scheme=scheme), self)
@@ -1341,7 +1341,7 @@ def _overlay_kwargs(cfg: MaxxVitCfg, **kwargs: Any) -> MaxxVitCfg:
         transformer_cfg=replace(cfg.transformer_cfg, **transformer_kwargs),
         conv_cfg=replace(cfg.conv_cfg, **conv_kwargs),
         **base_kwargs
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return cfg
 
 
@@ -1379,7 +1379,7 @@ class MaxxVit(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         img_size = to_2tuple(img_size)
         if kwargs:
-            cfg = _overlay_kwargs(cfg, **kwargs)
+            cfg = _overlay_kwargs(cfg, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         transformer_cfg = cfg_window_size(cfg.transformer_cfg, img_size)
         self.num_classes = num_classes
         self.global_pool = global_pool
@@ -1397,7 +1397,7 @@ class MaxxVit(msnn.Cell):
             norm_layer=cfg.conv_cfg.norm_layer,
             norm_eps=cfg.conv_cfg.norm_eps,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         stride = self.stem.stride
         self.feature_info += [dict(num_chs=self.stem.out_chs, reduction=2, module='stem')]
         feat_size = tuple([i // s for i, s in zip(img_size, to_2tuple(stride))])
@@ -1421,11 +1421,11 @@ class MaxxVit(msnn.Cell):
                 feat_size=feat_size,
                 drop_path=dpr[i],
                 **dd,
-            )]
+            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stride *= stage_stride
             in_chs = out_chs
             self.feature_info += [dict(num_chs=out_chs, reduction=stride, module=f'stages.{i}')]
-        self.stages = msnn.SequentialCell(*stages)
+        self.stages = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         final_norm_layer = partial(get_norm_layer(cfg.transformer_cfg.norm_layer), eps=cfg.transformer_cfg.norm_eps)
         if cfg.head_hidden_size:
@@ -1439,18 +1439,18 @@ class MaxxVit(msnn.Cell):
                 drop_rate=drop_rate,
                 norm_layer=final_norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             # standard classifier head w/ norm, pooling, fc classifier
             self.head_hidden_size = self.num_features
-            self.norm = final_norm_layer(self.num_features, **dd)
+            self.norm = final_norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.head = ClassifierHead(
                 self.num_features,
                 num_classes,
                 pool_type=global_pool,
                 drop_rate=drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Weight init (default PyTorch init works well for AdamW if scheme not set)
         assert cfg.weight_init in ('', 'normal', 'trunc_normal', 'xavier_normal', 'vit_eff')
@@ -1464,13 +1464,13 @@ class MaxxVit(msnn.Cell):
             except TypeError:
                 module.init_weights()
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self) -> Set[str]:
         return {
             k for k, _ in self.named_parameters()
             if any(n in k for n in ["relative_position_bias_table", "rel_pos.mlp"])}
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         matcher = dict(
             stem=r'^stem',  # stem and embed
@@ -1478,12 +1478,12 @@ class MaxxVit(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -2102,7 +2102,7 @@ model_cfgs = dict(
         head_hidden_size=1536,
         **_tf_cfg(),
     ),
-)
+)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell) -> Dict[str, ms.Tensor]:
@@ -2139,7 +2139,7 @@ def _create_maxxvit(variant: str, cfg_variant: Optional[str] = None, pretrained:
         model_cfg=model_cfgs[cfg_variant],
         feature_cfg=dict(flatten_sequential=True),
         pretrained_filter_fn=checkpoint_filter_fn,
-        **kwargs)
+        **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
@@ -2376,334 +2376,334 @@ default_cfgs = generate_default_cfgs({
 @register_model
 def coatnet_pico_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Pico model with RW configuration."""
-    return _create_maxxvit('coatnet_pico_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_pico_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_nano_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Nano model with RW configuration."""
-    return _create_maxxvit('coatnet_nano_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_nano_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_0_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model with RW configuration."""
-    return _create_maxxvit('coatnet_0_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_0_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_1_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model with RW configuration."""
-    return _create_maxxvit('coatnet_1_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_1_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_2_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model with RW configuration."""
-    return _create_maxxvit('coatnet_2_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_2_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_3_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-3 model with RW configuration."""
-    return _create_maxxvit('coatnet_3_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_3_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_bn_0_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model with BatchNorm and RW configuration."""
-    return _create_maxxvit('coatnet_bn_0_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_bn_0_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_rmlp_nano_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Nano model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_nano_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_rmlp_nano_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_rmlp_0_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_0_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_rmlp_0_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_rmlp_1_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_1_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_rmlp_1_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_rmlp_1_rw2_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model with Relative Position MLP v2."""
-    return _create_maxxvit('coatnet_rmlp_1_rw2_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_rmlp_1_rw2_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_rmlp_2_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_2_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_rmlp_2_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_rmlp_2_rw_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model with Relative Position MLP at 384x384."""
-    return _create_maxxvit('coatnet_rmlp_2_rw_384', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_rmlp_2_rw_384', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_rmlp_3_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-3 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_3_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_rmlp_3_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_nano_cc_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Nano model with ConvNeXt blocks."""
-    return _create_maxxvit('coatnet_nano_cc_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_nano_cc_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnext_nano_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoAtNeXt Nano model with RW configuration."""
-    return _create_maxxvit('coatnext_nano_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnext_nano_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_0_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model."""
-    return _create_maxxvit('coatnet_0_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_0_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_1_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model."""
-    return _create_maxxvit('coatnet_1_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_1_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_2_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model."""
-    return _create_maxxvit('coatnet_2_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_2_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_3_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-3 model."""
-    return _create_maxxvit('coatnet_3_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_3_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_4_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-4 model."""
-    return _create_maxxvit('coatnet_4_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_4_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def coatnet_5_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-5 model."""
-    return _create_maxxvit('coatnet_5_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('coatnet_5_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_pico_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Pico model with RW configuration."""
-    return _create_maxxvit('maxvit_pico_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_pico_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Nano model with RW configuration."""
-    return _create_maxxvit('maxvit_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_nano_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_tiny_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model with RW configuration."""
-    return _create_maxxvit('maxvit_tiny_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_tiny_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_tiny_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model with RW configuration at 256x256."""
-    return _create_maxxvit('maxvit_tiny_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_tiny_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_rmlp_pico_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Pico RW 256x256 model."""
-    return _create_maxxvit('maxvit_rmlp_pico_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_rmlp_pico_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_rmlp_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Nano RW 256x256 model."""
-    return _create_maxxvit('maxvit_rmlp_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_rmlp_nano_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_rmlp_tiny_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Tiny RW 256x256 model."""
-    return _create_maxxvit('maxvit_rmlp_tiny_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_rmlp_tiny_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_rmlp_small_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Small RW 224x224 model."""
-    return _create_maxxvit('maxvit_rmlp_small_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_rmlp_small_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_rmlp_small_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model with Relative Position MLP at 256x256."""
-    return _create_maxxvit('maxvit_rmlp_small_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_rmlp_small_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_rmlp_base_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model with Relative Position MLP."""
-    return _create_maxxvit('maxvit_rmlp_base_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_rmlp_base_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_rmlp_base_rw_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model with Relative Position MLP at 384x384."""
-    return _create_maxxvit('maxvit_rmlp_base_rw_384', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_rmlp_base_rw_384', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_tiny_pm_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model with parallel blocks."""
-    return _create_maxxvit('maxvit_tiny_pm_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_tiny_pm_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxxvit_rmlp_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT Relative Position MLP Nano RW 256x256 model."""
-    return _create_maxxvit('maxxvit_rmlp_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxxvit_rmlp_nano_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxxvit_rmlp_tiny_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT Tiny model with Relative Position MLP."""
-    return _create_maxxvit('maxxvit_rmlp_tiny_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxxvit_rmlp_tiny_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxxvit_rmlp_small_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT Small model with Relative Position MLP."""
-    return _create_maxxvit('maxxvit_rmlp_small_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxxvit_rmlp_small_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxxvitv2_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Nano model."""
-    return _create_maxxvit('maxxvitv2_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxxvitv2_nano_rw_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxxvitv2_rmlp_base_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Base model with Relative Position MLP."""
-    return _create_maxxvit('maxxvitv2_rmlp_base_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxxvitv2_rmlp_base_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxxvitv2_rmlp_base_rw_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Base model with Relative Position MLP at 384x384."""
-    return _create_maxxvit('maxxvitv2_rmlp_base_rw_384', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxxvitv2_rmlp_base_rw_384', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxxvitv2_rmlp_large_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Large model with Relative Position MLP."""
-    return _create_maxxvit('maxxvitv2_rmlp_large_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxxvitv2_rmlp_large_rw_224', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_tiny_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model from TensorFlow."""
-    return _create_maxxvit('maxvit_tiny_tf_224', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_tiny_tf_224', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_tiny_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_tiny_tf_384', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_tiny_tf_384', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_tiny_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_tiny_tf_512', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_tiny_tf_512', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_small_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model from TensorFlow."""
-    return _create_maxxvit('maxvit_small_tf_224', 'maxvit_small_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_small_tf_224', 'maxvit_small_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_small_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_small_tf_384', 'maxvit_small_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_small_tf_384', 'maxvit_small_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_small_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_small_tf_512', 'maxvit_small_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_small_tf_512', 'maxvit_small_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_base_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model from TensorFlow."""
-    return _create_maxxvit('maxvit_base_tf_224', 'maxvit_base_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_base_tf_224', 'maxvit_base_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_base_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_base_tf_384', 'maxvit_base_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_base_tf_384', 'maxvit_base_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_base_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_base_tf_512', 'maxvit_base_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_base_tf_512', 'maxvit_base_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_large_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Large model from TensorFlow."""
-    return _create_maxxvit('maxvit_large_tf_224', 'maxvit_large_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_large_tf_224', 'maxvit_large_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_large_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Large model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_large_tf_384', 'maxvit_large_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_large_tf_384', 'maxvit_large_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_large_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Large model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_large_tf_512', 'maxvit_large_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_large_tf_512', 'maxvit_large_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_xlarge_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT XLarge model from TensorFlow."""
-    return _create_maxxvit('maxvit_xlarge_tf_224', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_xlarge_tf_224', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_xlarge_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT XLarge model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_xlarge_tf_384', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_xlarge_tf_384', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def maxvit_xlarge_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT XLarge model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_xlarge_tf_512', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit('maxvit_xlarge_tf_512', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -53,16 +53,15 @@ class DenseLayer(msnn.Cell):
         """
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.add_module('norm1', norm_layer(num_input_features, **dd)),
+        self.add_module('norm1', norm_layer(num_input_features, **dd)),  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('conv1', nn.Conv2d(
-            num_input_features, bn_size * growth_rate, kernel_size=1, stride=1, bias=False, **dd)),
-        self.add_module('norm2', norm_layer(bn_size * growth_rate, **dd)),
+            num_input_features, bn_size * growth_rate, kernel_size=1, stride=1, bias=False, **dd)),  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.add_module('norm2', norm_layer(bn_size * growth_rate, **dd)),  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('conv2', nn.Conv2d(
-            bn_size * growth_rate, growth_rate, kernel_size=3, stride=1, padding=1, bias=False, **dd)),
+            bn_size * growth_rate, growth_rate, kernel_size=3, stride=1, padding=1, bias=False, **dd)),  # 存在 *args/**kwargs，需手动确认参数映射;
         self.drop_rate = float(drop_rate)
         self.grad_checkpointing = grad_checkpointing
 
-    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def bottleneck_fn(self, xs: List[ms.Tensor]) -> ms.Tensor:
         """Bottleneck function for concatenated features."""
         concated_features = mint.cat(xs, 1)
@@ -70,7 +69,6 @@ class DenseLayer(msnn.Cell):
         return bottleneck_output
 
     # todo: rewrite when torchscript supports any
-    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def any_requires_grad(self, x: List[ms.Tensor]) -> bool:
         """Check if any tensor in list requires gradient."""
         for tensor in x:
@@ -78,14 +76,13 @@ class DenseLayer(msnn.Cell):
                 return True
         return False
 
-    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.unused  # noqa: T484
     def call_checkpoint_bottleneck(self, x: List[ms.Tensor]) -> ms.Tensor:
         """Call bottleneck function with gradient checkpointing."""
         def closure(*xs):
             return self.bottleneck_fn(xs)
 
-        return checkpoint(closure, *x)
+        return checkpoint(closure, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
@@ -99,7 +96,6 @@ class DenseLayer(msnn.Cell):
 
     # torchscript does not yet support *args, so we overload method
     # allowing it to take either a List[Tensor] or single Tensor
-    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def construct(self, x: Union[ms.Tensor, List[ms.Tensor]]) -> ms.Tensor:  # noqa: F811
         """Forward pass.
 
@@ -169,7 +165,7 @@ class DenseBlock(nn.ModuleDict):
                 drop_rate=drop_rate,
                 grad_checkpointing=grad_checkpointing,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.add_module('denselayer%d' % (i + 1), layer)
 
     def forward(self, init_features: ms.Tensor) -> ms.Tensor:
@@ -213,11 +209,11 @@ class DenseTransition(msnn.SequentialCell):
         """
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.add_module('norm', norm_layer(num_input_features, **dd))
+        self.add_module('norm', norm_layer(num_input_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.add_module('conv', nn.Conv2d(
-            num_input_features, num_output_features, kernel_size=1, stride=1, bias=False, **dd))
+            num_input_features, num_output_features, kernel_size=1, stride=1, bias=False, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
         if aa_layer is not None:
-            self.add_module('pool', aa_layer(num_output_features, stride=2, **dd))
+            self.add_module('pool', aa_layer(num_output_features, stride=2, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.add_module('pool', nn.AvgPool2d(kernel_size = 2, stride = 2))
 
@@ -289,7 +285,7 @@ class DenseNet(msnn.Cell):
         else:
             stem_pool = msnn.SequentialCell(*[
                 nn.MaxPool2d(kernel_size = 3, stride = 1, padding = 1),
-                aa_layer(channels=num_init_features, stride=2, **dd)])
+                aa_layer(channels=num_init_features, stride=2, **dd)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if deep_stem:
             stem_chs_1 = stem_chs_2 = growth_rate
             if 'tiered' in stem_type:
@@ -303,13 +299,13 @@ class DenseNet(msnn.Cell):
                 ('conv2', nn.Conv2d(stem_chs_2, num_init_features, 3, stride=1, padding=1, bias=False, **dd)),
                 ('norm2', norm_layer(num_init_features, **dd)),
                 ('pool0', stem_pool),
-            ]))
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.features = msnn.SequentialCell(OrderedDict([
                 ('conv0', nn.Conv2d(in_chans, num_init_features, kernel_size=7, stride=2, padding=3, bias=False, **dd)),
                 ('norm0', norm_layer(num_init_features, **dd)),
                 ('pool0', stem_pool),
-            ]))
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(num_chs=num_init_features, reduction=2, module=f'features.norm{2 if deep_stem else 0}')]
         current_stride = 4
@@ -326,7 +322,7 @@ class DenseNet(msnn.Cell):
                 drop_rate=proj_drop_rate,
                 grad_checkpointing=memory_efficient,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             module_name = f'denseblock{(i + 1)}'
             self.features.add_module(module_name, block)
             num_features = num_features + num_layers * growth_rate
@@ -341,12 +337,12 @@ class DenseNet(msnn.Cell):
                     norm_layer=norm_layer,
                     aa_layer=transition_aa_layer,
                     **dd,
-                )
+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 self.features.add_module(f'transition{i + 1}', trans)
                 num_features = num_features // 2
 
         # Final batch norm
-        self.features.add_module('norm5', norm_layer(num_features, **dd))
+        self.features.add_module('norm5', norm_layer(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.feature_info += [dict(num_chs=num_features, reduction=current_stride, module='features.norm5')]
         self.num_features = self.head_hidden_size = num_features
@@ -357,7 +353,7 @@ class DenseNet(msnn.Cell):
             self.num_classes,
             pool_type=global_pool,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.global_pool = global_pool
         self.head_drop = nn.Dropout(drop_rate)
         self.classifier = classifier
@@ -372,7 +368,7 @@ class DenseNet(msnn.Cell):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
         """Group parameters for optimization."""
         matcher = dict(
@@ -384,14 +380,14 @@ class DenseNet(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable: bool = True) -> None:
         """Enable or disable gradient checkpointing."""
         for b in self.features.modules():
             if isinstance(b, DenseLayer):
                 b.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         """Get the classifier head."""
         return self.classifier
@@ -488,7 +484,7 @@ def _create_densenet(
         feature_cfg=dict(flatten_sequential=True),
         pretrained_filter_fn=_filter_torchvision_pretrained,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
@@ -523,7 +519,7 @@ def densenet121(pretrained=False, **kwargs) -> DenseNet:
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`
     """
     model_args = dict(growth_rate=32, block_config=(6, 12, 24, 16))
-    model = _create_densenet('densenet121', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_densenet('densenet121', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -533,7 +529,7 @@ def densenetblur121d(pretrained=False, **kwargs) -> DenseNet:
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`
     """
     model_args = dict(growth_rate=32, block_config=(6, 12, 24, 16), stem_type='deep', aa_layer=BlurPool2d)
-    model = _create_densenet('densenetblur121d', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_densenet('densenetblur121d', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -543,7 +539,7 @@ def densenet169(pretrained=False, **kwargs) -> DenseNet:
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`
     """
     model_args = dict(growth_rate=32, block_config=(6, 12, 32, 32))
-    model = _create_densenet('densenet169', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_densenet('densenet169', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -553,7 +549,7 @@ def densenet201(pretrained=False, **kwargs) -> DenseNet:
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`
     """
     model_args = dict(growth_rate=32, block_config=(6, 12, 48, 32))
-    model = _create_densenet('densenet201', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_densenet('densenet201', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -563,7 +559,7 @@ def densenet161(pretrained=False, **kwargs) -> DenseNet:
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`
     """
     model_args = dict(growth_rate=48, block_config=(6, 12, 36, 24))
-    model = _create_densenet('densenet161', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_densenet('densenet161', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -573,7 +569,7 @@ def densenet264d(pretrained=False, **kwargs) -> DenseNet:
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`
     """
     model_args = dict(growth_rate=48, block_config=(6, 12, 64, 48), stem_type='deep')
-    model = _create_densenet('densenet264d', pretrained=pretrained, **dict(model_args, **kwargs))
+    model = _create_densenet('densenet264d', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 

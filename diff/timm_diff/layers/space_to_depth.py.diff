@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,8 +1,12 @@-import torch
+--- pytorch+++ mindspore@@ -1,16 +1,20 @@-import torch
 -import torch.nn as nn
 +import mindspore as ms
 +import mindspore.nn as msnn
@@ -9,11 +9,13 @@
  
  
 -class SpaceToDepth(nn.Module):
+-    bs: torch.jit.Final[int]
 +class SpaceToDepth(msnn.Cell):
-     bs: torch.jit.Final[int]
++    bs: torch.jit.Final[int]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  
      def __init__(self, block_size: int = 4):
-@@ -10,7 +14,7 @@         assert block_size == 4
+         super().__init__()
+         assert block_size == 4
          self.bs = block_size
  
 -    def forward(self, x):

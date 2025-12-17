@@ -73,7 +73,7 @@ class ConvRelPosEnc(msnn.Cell):
                 dilation=(dilation, dilation),
                 groups=cur_head_split * head_chs,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，需手动确认参数映射;
             self.conv_list.append(cur_conv)
             self.head_splits.append(cur_head_split)
         self.channel_splits = [x * head_chs for x in self.head_splits]
@@ -119,9 +119,9 @@ class FactorAttnConvRelPosEnc(msnn.Cell):
         head_dim = dim // num_heads
         self.scale = head_dim ** -0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)  # Note: attn_drop is actually not used.
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
         # Shared convolutional relative position encoding.
@@ -166,7 +166,7 @@ class ConvPosEnc(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.proj = nn.Conv2d(dim, dim, k, 1, k//2, groups=dim, **dd)
+        self.proj = nn.Conv2d(dim, dim, k, 1, k//2, groups=dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x, size: Tuple[int, int]):
         B, N, C = x.shape
@@ -212,7 +212,7 @@ class SerialBlock(msnn.Cell):
         # Conv-Attention.
         self.cpe = shared_cpe
 
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.factoratt_crpe = FactorAttnConvRelPosEnc(
             dim,
             num_heads=num_heads,
@@ -221,11 +221,11 @@ class SerialBlock(msnn.Cell):
             proj_drop=proj_drop,
             shared_crpe=shared_crpe,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         # MLP.
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(
             in_features=dim,
@@ -233,7 +233,7 @@ class SerialBlock(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x, size: Tuple[int, int]):
         # Conv-Attention.
@@ -273,9 +273,9 @@ class ParallelBlock(msnn.Cell):
             mlp_ratios = []
 
         # Conv-Attention.
-        self.norm12 = norm_layer(dims[1], **dd)
-        self.norm13 = norm_layer(dims[2], **dd)
-        self.norm14 = norm_layer(dims[3], **dd)
+        self.norm12 = norm_layer(dims[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm13 = norm_layer(dims[2], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm14 = norm_layer(dims[3], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.factoratt_crpe2 = FactorAttnConvRelPosEnc(
             dims[1],
             num_heads=num_heads,
@@ -284,7 +284,7 @@ class ParallelBlock(msnn.Cell):
             proj_drop=proj_drop,
             shared_crpe=shared_crpes[1],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.factoratt_crpe3 = FactorAttnConvRelPosEnc(
             dims[2],
             num_heads=num_heads,
@@ -293,7 +293,7 @@ class ParallelBlock(msnn.Cell):
             proj_drop=proj_drop,
             shared_crpe=shared_crpes[2],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.factoratt_crpe4 = FactorAttnConvRelPosEnc(
             dims[3],
             num_heads=num_heads,
@@ -302,13 +302,13 @@ class ParallelBlock(msnn.Cell):
             proj_drop=proj_drop,
             shared_crpe=shared_crpes[3],
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
         # MLP.
-        self.norm22 = norm_layer(dims[1], **dd)
-        self.norm23 = norm_layer(dims[2], **dd)
-        self.norm24 = norm_layer(dims[3], **dd)
+        self.norm22 = norm_layer(dims[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm23 = norm_layer(dims[2], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.norm24 = norm_layer(dims[3], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         # In parallel block, we assume dimensions are the same and share the linear transformation.
         assert dims[1] == dims[2] == dims[3]
         assert mlp_ratios[1] == mlp_ratios[2] == mlp_ratios[3]
@@ -319,7 +319,7 @@ class ParallelBlock(msnn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def upsample(self, x, factor: float, size: Tuple[int, int]):
         """ Feature map up-sampling. """
@@ -423,34 +423,34 @@ class CoaT(msnn.Cell):
         img_size = to_2tuple(img_size)
         self.patch_embed1 = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=in_chans,
-            embed_dim=embed_dims[0], norm_layer=nn.LayerNorm, **dd)
+            embed_dim=embed_dims[0], norm_layer=nn.LayerNorm, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.patch_embed2 = PatchEmbed(
             img_size=[x // 4 for x in img_size], patch_size=2, in_chans=embed_dims[0],
-            embed_dim=embed_dims[1], norm_layer=nn.LayerNorm, **dd)
+            embed_dim=embed_dims[1], norm_layer=nn.LayerNorm, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.patch_embed3 = PatchEmbed(
             img_size=[x // 8 for x in img_size], patch_size=2, in_chans=embed_dims[1],
-            embed_dim=embed_dims[2], norm_layer=nn.LayerNorm, **dd)
+            embed_dim=embed_dims[2], norm_layer=nn.LayerNorm, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.patch_embed4 = PatchEmbed(
             img_size=[x // 16 for x in img_size], patch_size=2, in_chans=embed_dims[2],
-            embed_dim=embed_dims[3], norm_layer=nn.LayerNorm, **dd)
+            embed_dim=embed_dims[3], norm_layer=nn.LayerNorm, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Class tokens.
-        self.cls_token1 = ms.Parameter(mint.zeros(1, 1, embed_dims[0], **dd))
-        self.cls_token2 = ms.Parameter(mint.zeros(1, 1, embed_dims[1], **dd))
-        self.cls_token3 = ms.Parameter(mint.zeros(1, 1, embed_dims[2], **dd))
-        self.cls_token4 = ms.Parameter(mint.zeros(1, 1, embed_dims[3], **dd))
+        self.cls_token1 = ms.Parameter(mint.zeros(1, 1, embed_dims[0], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.cls_token2 = ms.Parameter(mint.zeros(1, 1, embed_dims[1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.cls_token3 = ms.Parameter(mint.zeros(1, 1, embed_dims[2], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.cls_token4 = ms.Parameter(mint.zeros(1, 1, embed_dims[3], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Convolutional position encodings.
-        self.cpe1 = ConvPosEnc(dim=embed_dims[0], k=3, **dd)
-        self.cpe2 = ConvPosEnc(dim=embed_dims[1], k=3, **dd)
-        self.cpe3 = ConvPosEnc(dim=embed_dims[2], k=3, **dd)
-        self.cpe4 = ConvPosEnc(dim=embed_dims[3], k=3, **dd)
+        self.cpe1 = ConvPosEnc(dim=embed_dims[0], k=3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.cpe2 = ConvPosEnc(dim=embed_dims[1], k=3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.cpe3 = ConvPosEnc(dim=embed_dims[2], k=3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.cpe4 = ConvPosEnc(dim=embed_dims[3], k=3, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Convolutional relative position encodings.
-        self.crpe1 = ConvRelPosEnc(head_chs=embed_dims[0] // num_heads, num_heads=num_heads, window=crpe_window, **dd)
-        self.crpe2 = ConvRelPosEnc(head_chs=embed_dims[1] // num_heads, num_heads=num_heads, window=crpe_window, **dd)
-        self.crpe3 = ConvRelPosEnc(head_chs=embed_dims[2] // num_heads, num_heads=num_heads, window=crpe_window, **dd)
-        self.crpe4 = ConvRelPosEnc(head_chs=embed_dims[3] // num_heads, num_heads=num_heads, window=crpe_window, **dd)
+        self.crpe1 = ConvRelPosEnc(head_chs=embed_dims[0] // num_heads, num_heads=num_heads, window=crpe_window, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.crpe2 = ConvRelPosEnc(head_chs=embed_dims[1] // num_heads, num_heads=num_heads, window=crpe_window, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.crpe3 = ConvRelPosEnc(head_chs=embed_dims[2] // num_heads, num_heads=num_heads, window=crpe_window, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.crpe4 = ConvRelPosEnc(head_chs=embed_dims[3] // num_heads, num_heads=num_heads, window=crpe_window, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dpr = drop_path_rate
         skwargs = dict(
@@ -473,7 +473,7 @@ class CoaT(msnn.Cell):
                 **dd,
             )
             for _ in range(serial_depths[0])]
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Serial blocks 2.
         self.serial_blocks2 = msnn.CellList([
@@ -486,7 +486,7 @@ class CoaT(msnn.Cell):
                 **dd,
             )
             for _ in range(serial_depths[1])]
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Serial blocks 3.
         self.serial_blocks3 = msnn.CellList([
@@ -499,7 +499,7 @@ class CoaT(msnn.Cell):
                 **dd,
             )
             for _ in range(serial_depths[2])]
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Serial blocks 4.
         self.serial_blocks4 = msnn.CellList([
@@ -512,7 +512,7 @@ class CoaT(msnn.Cell):
                 **dd,
             )
             for _ in range(serial_depths[3])]
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Parallel blocks.
         self.parallel_depth = parallel_depth
@@ -526,30 +526,30 @@ class CoaT(msnn.Cell):
                     **dd,
                 )
                 for _ in range(parallel_depth)]
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.parallel_blocks = None
 
         # Classification head(s).
         if not self.return_interm_layers:
             if self.parallel_blocks is not None:
-                self.norm2 = norm_layer(embed_dims[1], **dd)
-                self.norm3 = norm_layer(embed_dims[2], **dd)
+                self.norm2 = norm_layer(embed_dims[1], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                self.norm3 = norm_layer(embed_dims[2], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.norm2 = self.norm3 = None
-            self.norm4 = norm_layer(embed_dims[3], **dd)
+            self.norm4 = norm_layer(embed_dims[3], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
             if self.parallel_depth > 0:
                 # CoaT series: Aggregate features of last three scales for classification.
                 assert embed_dims[1] == embed_dims[2] == embed_dims[3]
-                self.aggregate = nn.Conv1d(in_channels=3, out_channels=1, kernel_size=1, **dd)
+                self.aggregate = nn.Conv1d(in_channels=3, out_channels=1, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
                 self.head_drop = nn.Dropout(drop_rate)
-                self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+                self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
             else:
                 # CoaT-Lite series: Use feature of last scale for classification.
                 self.aggregate = None
                 self.head_drop = nn.Dropout(drop_rate)
-                self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+                self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         # Initialize weights.
         trunc_normal_(self.cls_token1, std=.02)
@@ -567,15 +567,15 @@ class CoaT(msnn.Cell):
             nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return {'cls_token1', 'cls_token2', 'cls_token3', 'cls_token4'}
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem1=r'^cls_token1|patch_embed1|crpe1|cpe1',
@@ -593,7 +593,7 @@ class CoaT(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -747,7 +747,7 @@ def _create_coat(variant, pretrained=False, default_cfg=None, **kwargs):
         pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -782,7 +782,7 @@ default_cfgs = generate_default_cfgs({
 def coat_tiny(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
         patch_size=4, embed_dims=[152, 152, 152, 152], serial_depths=[2, 2, 2, 2], parallel_depth=6)
-    model = _create_coat('coat_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_coat('coat_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -790,15 +790,15 @@ def coat_tiny(pretrained=False, **kwargs) -> CoaT:
 def coat_mini(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
         patch_size=4, embed_dims=[152, 216, 216, 216], serial_depths=[2, 2, 2, 2], parallel_depth=6)
-    model = _create_coat('coat_mini', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_coat('coat_mini', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
 @register_model
 def coat_small(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
-        patch_size=4, embed_dims=[152, 320, 320, 320], serial_depths=[2, 2, 2, 2], parallel_depth=6, **kwargs)
-    model = _create_coat('coat_small', pretrained=pretrained, **dict(model_cfg, **kwargs))
+        patch_size=4, embed_dims=[152, 320, 320, 320], serial_depths=[2, 2, 2, 2], parallel_depth=6, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+    model = _create_coat('coat_small', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -806,7 +806,7 @@ def coat_small(pretrained=False, **kwargs) -> CoaT:
 def coat_lite_tiny(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
         patch_size=4, embed_dims=[64, 128, 256, 320], serial_depths=[2, 2, 2, 2], mlp_ratios=[8, 8, 4, 4])
-    model = _create_coat('coat_lite_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_coat('coat_lite_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -814,7 +814,7 @@ def coat_lite_tiny(pretrained=False, **kwargs) -> CoaT:
 def coat_lite_mini(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
         patch_size=4, embed_dims=[64, 128, 320, 512], serial_depths=[2, 2, 2, 2], mlp_ratios=[8, 8, 4, 4])
-    model = _create_coat('coat_lite_mini', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_coat('coat_lite_mini', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -822,7 +822,7 @@ def coat_lite_mini(pretrained=False, **kwargs) -> CoaT:
 def coat_lite_small(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
         patch_size=4, embed_dims=[64, 128, 320, 512], serial_depths=[3, 4, 6, 3], mlp_ratios=[8, 8, 4, 4])
-    model = _create_coat('coat_lite_small', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_coat('coat_lite_small', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -830,7 +830,7 @@ def coat_lite_small(pretrained=False, **kwargs) -> CoaT:
 def coat_lite_medium(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
         patch_size=4, embed_dims=[128, 256, 320, 512], serial_depths=[3, 6, 10, 8])
-    model = _create_coat('coat_lite_medium', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_coat('coat_lite_medium', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -838,5 +838,5 @@ def coat_lite_medium(pretrained=False, **kwargs) -> CoaT:
 def coat_lite_medium_384(pretrained=False, **kwargs) -> CoaT:
     model_cfg = dict(
         img_size=384, patch_size=4, embed_dims=[128, 256, 320, 512], serial_depths=[3, 6, 10, 8])
-    model = _create_coat('coat_lite_medium_384', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model = _create_coat('coat_lite_medium_384', pretrained=pretrained, **dict(model_cfg, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model

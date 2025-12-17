@@ -18,21 +18,20 @@
  
  
  class MultiTensorApply(object):
-@@ -43,6 +48,7 @@         return op(self.chunk_size, noop_flag_buffer, tensor_lists, *args)
+@@ -40,9 +45,10 @@             MultiTensorApply.import_err = err
  
- 
+     def __call__(self, op, noop_flag_buffer, tensor_lists, *args):
+-        return op(self.chunk_size, noop_flag_buffer, tensor_lists, *args)
+-
+-
++        return op(self.chunk_size, noop_flag_buffer, tensor_lists, *args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++
 +# 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class Adan(Optimizer):
      """ Implements a pytorch variant of Adan.
  
-@@ -98,7 +104,6 @@             group.setdefault('no_prox', False)
-             group.setdefault('caution', False)
- 
--    @torch.no_grad()
-     def restart_opt(self):
-         for group in self.param_groups:
-             group['step'] = 0
-@@ -108,13 +113,12 @@                     # State initialization
+@@ -108,11 +114,11 @@                     # State initialization
  
                      # Exponential moving average of gradient values
 -                    state['exp_avg'] = torch.zeros_like(p)
@@ -42,14 +41,11 @@
 +                    state['exp_avg_sq'] = mint.zeros_like(p)
                      # Exponential moving average of gradient difference
 -                    state['exp_avg_diff'] = torch.zeros_like(p)
--
--    @torch.no_grad()
 +                    state['exp_avg_diff'] = mint.zeros_like(p)
-+
+ 
+     @torch.no_grad()
      def step(self, closure=None):
-         """Performs a single optimization step."""
-         loss = None
-@@ -123,7 +127,7 @@                 loss = closure()
+@@ -123,7 +129,7 @@                 loss = closure()
  
          try:
 -            has_scalar_maximum = 'Scalar' in torch.ops.aten._foreach_maximum_.overloads()
@@ -57,7 +53,7 @@
          except:
              has_scalar_maximum = False
  
-@@ -155,9 +159,9 @@ 
+@@ -155,9 +161,9 @@ 
                  state = self.state[p]
                  if len(state) == 0:
 -                    state['exp_avg'] = torch.zeros_like(p)
@@ -69,7 +65,7 @@
  
                  if 'neg_pre_grad' not in state or group['step'] == 1:
                      state['neg_pre_grad'] = -p.grad.clone()
-@@ -204,12 +208,12 @@ 
+@@ -204,12 +210,12 @@ 
  
  def _single_tensor_adan(
 -        params: List[Tensor],
@@ -87,7 +83,7 @@
          *,
          beta1: float,
          beta2: float,
-@@ -262,12 +266,12 @@ 
+@@ -262,12 +268,12 @@ 
  
  def _multi_tensor_adan(
 -        params: List[Tensor],
@@ -105,7 +101,7 @@
          *,
          beta1: float,
          beta2: float,
-@@ -285,43 +289,43 @@         return
+@@ -285,43 +291,43 @@         return
  
      # for memory saving, we use `neg_pre_grads` to get some temp variable in a inplace way
 -    torch._foreach_add_(neg_pre_grads, grads)

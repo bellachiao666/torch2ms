@@ -87,18 +87,18 @@ class MaxPool2dSame(nn.MaxPool2d):
 def create_pool2d(pool_type, kernel_size, stride=None, **kwargs):
     stride = stride or kernel_size
     padding = kwargs.pop('padding', '')
-    padding, is_dynamic = get_padding_value(padding, kernel_size, stride=stride, **kwargs)
+    padding, is_dynamic = get_padding_value(padding, kernel_size, stride=stride, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     if is_dynamic:
         if pool_type == 'avg':
-            return AvgPool2dSame(kernel_size, stride=stride, **kwargs)
+            return AvgPool2dSame(kernel_size, stride=stride, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif pool_type == 'max':
-            return MaxPool2dSame(kernel_size, stride=stride, **kwargs)
+            return MaxPool2dSame(kernel_size, stride=stride, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert False, f'Unsupported pool type {pool_type}'
     else:
         if pool_type == 'avg':
-            return nn.AvgPool2d(kernel_size, stride=stride, padding=padding, **kwargs)
+            return nn.AvgPool2d(kernel_size, stride=stride, padding=padding, **kwargs)  # 存在 *args/**kwargs，需手动确认参数映射;
         elif pool_type == 'max':
-            return nn.MaxPool2d(kernel_size, stride=stride, padding=padding, **kwargs)
+            return nn.MaxPool2d(kernel_size, stride=stride, padding=padding, **kwargs)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             assert False, f'Unsupported pool type {pool_type}'

@@ -48,8 +48,8 @@ class Stem(msnn.Cell):
             stride=2,
             padding=1,
             **dd,
-        )
-        self.norm1 = norm_layer(out_chs // 2, **dd) if mid_norm else None
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm1 = norm_layer(out_chs // 2, **dd) if mid_norm else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.act = act_layer()
         self.conv2 = nn.Conv2d(
             out_chs // 2,
@@ -58,8 +58,8 @@ class Stem(msnn.Cell):
             stride=2,
             padding=1,
             **dd,
-        )
-        self.norm2 = norm_layer(out_chs, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm2 = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.conv1(x)
@@ -86,7 +86,7 @@ class DownsampleNormFirst(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm = norm_layer(in_chs, **dd)
+        self.norm = norm_layer(in_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.conv = nn.Conv2d(
             in_chs,
             out_chs,
@@ -94,7 +94,7 @@ class DownsampleNormFirst(msnn.Cell):
             stride=2,
             padding=1,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         x = self.norm(x)
@@ -123,8 +123,8 @@ class Downsample(msnn.Cell):
             stride=2,
             padding=1,
             **dd,
-        )
-        self.norm = norm_layer(out_chs, **dd)
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = norm_layer(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = x.permute(0, 3, 1, 2)
@@ -161,19 +161,19 @@ class MlpHead(msnn.Cell):
         self.in_features = in_features
         self.hidden_size = hidden_size or in_features
 
-        self.norm = norm_layer(in_features, **dd)
+        self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if hidden_size:
             self.pre_logits = msnn.SequentialCell(OrderedDict([
                 ('fc', nn.Linear(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
                 ('norm', norm_layer(hidden_size, **dd))
-            ]))
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = hidden_size
         else:
             self.num_features = in_features
             self.pre_logits = msnn.Identity()
 
-        self.fc = nn.Linear(self.num_features, num_classes, bias=bias, **dd) if num_classes > 0 else msnn.Identity()
+        self.fc = nn.Linear(self.num_features, num_classes, bias=bias, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
         self.head_dropout = nn.Dropout(drop_rate)
 
     def reset(self, num_classes: int, pool_type: Optional[str] = None, reset_other: bool = False):
@@ -222,9 +222,9 @@ class GatedConvBlock(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.norm = norm_layer(dim, **dd)
+        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         hidden = int(expansion_ratio * dim)
-        self.fc1 = nn.Linear(dim, hidden * 2, **dd)
+        self.fc1 = nn.Linear(dim, hidden * 2, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = act_layer()
         conv_channels = int(conv_ratio * dim)
         self.split_indices = (hidden, hidden - conv_channels, conv_channels)
@@ -235,9 +235,9 @@ class GatedConvBlock(msnn.Cell):
             padding=kernel_size // 2,
             groups=conv_channels,
             **dd,
-        )
-        self.fc2 = nn.Linear(hidden, dim, **dd)
-        self.ls = LayerScale(dim, **dd) if ls_init_value is not None else msnn.Identity()
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.fc2 = nn.Linear(hidden, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.ls = LayerScale(dim, **dd) if ls_init_value is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x):
@@ -278,9 +278,9 @@ class MambaOutStage(msnn.Cell):
         self.grad_checkpointing = False
 
         if downsample == 'conv':
-            self.downsample = Downsample(dim, dim_out, norm_layer=norm_layer, **dd)
+            self.downsample = Downsample(dim, dim_out, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif downsample == 'conv_nf':
-            self.downsample = DownsampleNormFirst(dim, dim_out, norm_layer=norm_layer, **dd)
+            self.downsample = DownsampleNormFirst(dim, dim_out, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert dim == dim_out
             self.downsample = msnn.Identity()
@@ -298,7 +298,7 @@ class MambaOutStage(msnn.Cell):
                 **dd,
             )
             for j in range(depth)
-        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x = self.downsample(x)
@@ -369,7 +369,7 @@ class MambaOut(msnn.Cell):
             act_layer=act_layer,
             norm_layer=norm_layer,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         prev_dim = dims[0]
         dp_rates = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
         cur = 0
@@ -392,7 +392,7 @@ class MambaOut(msnn.Cell):
                 act_layer=act_layer,
                 drop_path=dp_rates[i],
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.stages.append(stage)
             prev_dim = dim
             # NOTE feature_info use currently assumes stage 0 == stride 1, rest are stride 2
@@ -408,7 +408,7 @@ class MambaOut(msnn.Cell):
                 drop_rate=drop_rate,
                 norm_layer=norm_layer,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             # more typical norm -> pool -> fc -> act -> fc
             self.head = ClNormMlpClassifierHead(
@@ -419,7 +419,7 @@ class MambaOut(msnn.Cell):
                 norm_layer=norm_layer,
                 drop_rate=drop_rate,
                 **dd,
-            )
+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_features = prev_dim
         self.head_hidden_size = self.head.num_features
 
@@ -431,7 +431,7 @@ class MambaOut(msnn.Cell):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         return dict(
             stem=r'^stem',
@@ -441,12 +441,12 @@ class MambaOut(msnn.Cell):
             ]
         )
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         for s in self.stages:
             s.grad_checkpointing = enable
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head.fc
 
@@ -617,7 +617,7 @@ def _create_mambaout(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -625,30 +625,30 @@ def _create_mambaout(variant, pretrained=False, **kwargs):
 @register_model
 def mambaout_femto(pretrained=False, **kwargs):
     model_args = dict(depths=(3, 3, 9, 3), dims=(48, 96, 192, 288))
-    return _create_mambaout('mambaout_femto', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_femto', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 # Kobe Memorial Version with 24 Gated CNN blocks
 @register_model
 def mambaout_kobe(pretrained=False, **kwargs):
     model_args = dict(depths=[3, 3, 15, 3], dims=[48, 96, 192, 288])
-    return _create_mambaout('mambaout_kobe', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_kobe', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 @register_model
 def mambaout_tiny(pretrained=False, **kwargs):
     model_args = dict(depths=[3, 3, 9, 3], dims=[96, 192, 384, 576])
-    return _create_mambaout('mambaout_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mambaout_small(pretrained=False, **kwargs):
     model_args = dict(depths=[3, 4, 27, 3], dims=[96, 192, 384, 576])
-    return _create_mambaout('mambaout_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
 def mambaout_base(pretrained=False, **kwargs):
     model_args = dict(depths=[3, 4, 27, 3], dims=[128, 256, 512, 768])
-    return _create_mambaout('mambaout_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -661,7 +661,7 @@ def mambaout_small_rw(pretrained=False, **kwargs):
         ls_init_value=1e-6,
         head_fn='norm_mlp',
     )
-    return _create_mambaout('mambaout_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -676,7 +676,7 @@ def mambaout_base_short_rw(pretrained=False, **kwargs):
         ls_init_value=1e-6,
         head_fn='norm_mlp',
     )
-    return _create_mambaout('mambaout_base_short_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_base_short_rw', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -691,7 +691,7 @@ def mambaout_base_tall_rw(pretrained=False, **kwargs):
         ls_init_value=1e-6,
         head_fn='norm_mlp',
     )
-    return _create_mambaout('mambaout_base_tall_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_base_tall_rw', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -707,7 +707,7 @@ def mambaout_base_wide_rw(pretrained=False, **kwargs):
         act_layer='silu',
         head_fn='norm_mlp',
     )
-    return _create_mambaout('mambaout_base_wide_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_base_wide_rw', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -723,7 +723,7 @@ def mambaout_base_plus_rw(pretrained=False, **kwargs):
         act_layer='silu',
         head_fn='norm_mlp',
     )
-    return _create_mambaout('mambaout_base_plus_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('mambaout_base_plus_rw', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -738,4 +738,4 @@ def test_mambaout(pretrained=False, **kwargs):
         act_layer='silu',
         head_fn='norm_mlp',
     )
-    return _create_mambaout('test_mambaout', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_mambaout('test_mambaout', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

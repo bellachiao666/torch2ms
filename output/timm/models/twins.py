@@ -41,7 +41,7 @@ Size_ = Tuple[int, int]
 class LocallyGroupedAttn(msnn.Cell):
     """ LSA: self attention within a group
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -64,9 +64,9 @@ class LocallyGroupedAttn(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=True, **dd)
+        self.qkv = nn.Linear(dim, dim * 3, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
         self.ws = ws
 
@@ -148,7 +148,7 @@ class LocallyGroupedAttn(msnn.Cell):
 class GlobalSubSampleAttn(msnn.Cell):
     """ GSA: using a  key to summarize the information for a group to be efficient.
     """
-    fused_attn: torch.jit.Final[bool]
+    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -170,16 +170,16 @@ class GlobalSubSampleAttn(msnn.Cell):
         self.scale = head_dim ** -0.5
         self.fused_attn = use_fused_attn()
 
-        self.q = nn.Linear(dim, dim, bias=True, **dd)
-        self.kv = nn.Linear(dim, dim * 2, bias=True, **dd)
+        self.q = nn.Linear(dim, dim, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.kv = nn.Linear(dim, dim * 2, bias=True, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim, **dd)
+        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.proj_drop = nn.Dropout(proj_drop)
 
         self.sr_ratio = sr_ratio
         if sr_ratio > 1:
-            self.sr = nn.Conv2d(dim, dim, kernel_size=sr_ratio, stride=sr_ratio, **dd)
-            self.norm = nn.LayerNorm(dim, **dd)
+            self.sr = nn.Conv2d(dim, dim, kernel_size=sr_ratio, stride=sr_ratio, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+            self.norm = nn.LayerNorm(dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.sr = None
             self.norm = None
@@ -189,7 +189,7 @@ class GlobalSubSampleAttn(msnn.Cell):
         q = self.q(x).reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
 
         if self.sr is not None:
-            x = x.permute(0, 2, 1).reshape(B, C, *size)
+            x = x.permute(0, 2, 1).reshape(B, C, *size)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             x = self.sr(x).reshape(B, C, -1).permute(0, 2, 1)
             x = self.norm(x)
         kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
@@ -233,23 +233,23 @@ class Block(msnn.Cell):
     ):
         super().__init__()
         dd = {'device': device, 'dtype': dtype}
-        self.norm1 = norm_layer(dim, **dd)
+        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if ws is None:
-            self.attn = Attention(dim, num_heads, False, None, attn_drop, proj_drop, **dd)
+            self.attn = Attention(dim, num_heads, False, None, attn_drop, proj_drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif ws == 1:
-            self.attn = GlobalSubSampleAttn(dim, num_heads, attn_drop, proj_drop, sr_ratio, **dd)
+            self.attn = GlobalSubSampleAttn(dim, num_heads, attn_drop, proj_drop, sr_ratio, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.attn = LocallyGroupedAttn(dim, num_heads, attn_drop, proj_drop, ws, **dd)
+            self.attn = LocallyGroupedAttn(dim, num_heads, attn_drop, proj_drop, ws, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
-        self.norm2 = norm_layer(dim, **dd)
+        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.mlp = Mlp(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
             act_layer=act_layer,
             drop=proj_drop,
             **dd,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
 
     def construct(self, x, size: Size_):
@@ -272,12 +272,12 @@ class PosConv(msnn.Cell):
         super().__init__()
         self.proj = msnn.SequentialCell(
             nn.Conv2d(in_chans, embed_dim, 3, stride, 1, bias=True, groups=embed_dim, **dd),
-        )
+        )  # 存在 *args/**kwargs，需手动确认参数映射;
         self.stride = stride
 
     def construct(self, x, size: Size_):
         B, N, C = x.shape
-        cnn_feat_token = x.transpose(1, 2).view(B, C, *size)
+        cnn_feat_token = x.transpose(1, 2).view(B, C, *size)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         x = self.proj(cnn_feat_token)
         if self.stride == 1:
             x += cnn_feat_token
@@ -312,8 +312,8 @@ class PatchEmbed(msnn.Cell):
             f"img_size {img_size} should be divided by patch_size {patch_size}."
         self.H, self.W = img_size[0] // patch_size[0], img_size[1] // patch_size[1]
         self.num_patches = self.H * self.W
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
-        self.norm = nn.LayerNorm(embed_dim, **dd)
+        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+        self.norm = nn.LayerNorm(embed_dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x) -> Tuple[ms.Tensor, Size_]:
         B, C, H, W = x.shape
@@ -367,7 +367,7 @@ class Twins(msnn.Cell):
         self.patch_embeds = msnn.CellList()
         self.pos_drops = msnn.CellList()
         for i in range(len(depths)):
-            self.patch_embeds.append(PatchEmbed(img_size, patch_size, prev_chs, embed_dims[i], **dd))
+            self.patch_embeds.append(PatchEmbed(img_size, patch_size, prev_chs, embed_dims[i], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.pos_drops.append(nn.Dropout(p = pos_drop_rate))
             prev_chs = embed_dims[i]
             img_size = tuple(t // patch_size for t in img_size)
@@ -389,27 +389,27 @@ class Twins(msnn.Cell):
                 sr_ratio=sr_ratios[k],
                 ws=1 if wss is None or i % 2 == 1 else wss[k],
                 **dd,
-            ) for i in range(depths[k])])
+            ) for i in range(depths[k])])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.blocks.append(_block)
             self.feature_info += [dict(module=f'block.{k}', num_chs=embed_dims[k], reduction=2**(2+k))]
             cur += depths[k]
 
-        self.pos_block = msnn.CellList([PosConv(embed_dim, embed_dim, **dd) for embed_dim in embed_dims])
+        self.pos_block = msnn.CellList([PosConv(embed_dim, embed_dim, **dd) for embed_dim in embed_dims])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
-        self.norm = norm_layer(self.num_features, **dd)
+        self.norm = norm_layer(self.num_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # classification head
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()
+        self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         # init weights
         self.apply(self._init_weights)
 
-    @torch.jit.ignore
+    @ms.jit
     def no_weight_decay(self):
         return set(['pos_block.' + n for n, p in self.pos_block.named_parameters()])
 
-    @torch.jit.ignore
+    @ms.jit
     def group_matcher(self, coarse=False):
         matcher = dict(
             stem=r'^patch_embeds.0',  # stem and embed
@@ -424,11 +424,11 @@ class Twins(msnn.Cell):
         )
         return matcher
 
-    @torch.jit.ignore
+    @ms.jit
     def set_grad_checkpointing(self, enable=True):
         assert not enable, 'gradient checkpointing not supported'
 
-    @torch.jit.ignore
+    @ms.jit
     def get_classifier(self) -> msnn.Cell:
         return self.head
 
@@ -495,14 +495,14 @@ class Twins(msnn.Cell):
                     x = pos_blk(x, size)  # PEG here
 
             if i < len(self.depths) - 1:
-                x = x.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous()
+                x = x.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
                 if i in take_indices:
                     intermediates.append(x)
             else:
                 if i in take_indices:
                     # only last feature can be normed
                     x_feat = self.norm(x) if norm else x
-                    intermediates.append(x_feat.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous())
+                    intermediates.append(x_feat.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous())  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         if intermediates_only:
             return intermediates
@@ -538,7 +538,7 @@ class Twins(msnn.Cell):
                 if j == 0:
                     x = pos_blk(x, size)  # PEG here
             if i < len(self.depths) - 1:
-                x = x.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous()
+                x = x.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         x = self.norm(x)
         return x
 
@@ -560,7 +560,7 @@ def _create_twins(variant, pretrained=False, **kwargs):
         Twins, variant, pretrained,
         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
         **kwargs,
-    )
+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
     return model
 
 
@@ -591,7 +591,7 @@ def twins_pcpvt_small(pretrained=False, **kwargs) -> Twins:
     model_args = dict(
         patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
         depths=[3, 4, 6, 3], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_pcpvt_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_twins('twins_pcpvt_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -599,7 +599,7 @@ def twins_pcpvt_base(pretrained=False, **kwargs) -> Twins:
     model_args = dict(
         patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
         depths=[3, 4, 18, 3], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_pcpvt_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_twins('twins_pcpvt_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -607,7 +607,7 @@ def twins_pcpvt_large(pretrained=False, **kwargs) -> Twins:
     model_args = dict(
         patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
         depths=[3, 8, 27, 3], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_pcpvt_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_twins('twins_pcpvt_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -615,7 +615,7 @@ def twins_svt_small(pretrained=False, **kwargs) -> Twins:
     model_args = dict(
         patch_size=4, embed_dims=[64, 128, 256, 512], num_heads=[2, 4, 8, 16], mlp_ratios=[4, 4, 4, 4],
         depths=[2, 2, 10, 4], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_svt_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_twins('twins_svt_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -623,7 +623,7 @@ def twins_svt_base(pretrained=False, **kwargs) -> Twins:
     model_args = dict(
         patch_size=4, embed_dims=[96, 192, 384, 768], num_heads=[3, 6, 12, 24], mlp_ratios=[4, 4, 4, 4],
         depths=[2, 2, 18, 2], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_svt_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_twins('twins_svt_base', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 @register_model
@@ -631,4 +631,4 @@ def twins_svt_large(pretrained=False, **kwargs) -> Twins:
     model_args = dict(
         patch_size=4, embed_dims=[128, 256, 512, 1024], num_heads=[4, 8, 16, 32], mlp_ratios=[4, 4, 4, 4],
         depths=[2, 2, 18, 2], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_svt_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    return _create_twins('twins_svt_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -108,14 +108,7 @@
  
              exp_avgs.append(state["exp_avg"])
              exp_avg_sqs.append(state["exp_avg_sq"])
-@@ -185,7 +191,6 @@         return has_complex
- 
-     #@_use_grad_for_differentiable  # FIXME internal context mgr, can't use
--    @torch.no_grad()
-     def step(self, closure=None):
-         """Perform a single optimization step.
- 
-@@ -201,11 +206,11 @@                 loss = closure()
+@@ -201,11 +207,11 @@                 loss = closure()
  
          for group in self.param_groups:
 -            params_with_grad: List[Tensor] = []
@@ -131,7 +124,7 @@
              beta1, beta2 = group["betas"]
  
              has_complex = self._init_group(
-@@ -245,18 +250,18 @@ 
+@@ -245,18 +251,18 @@ 
  
  def _single_tensor_adopt(
 -        params: List[Tensor],
@@ -157,7 +150,7 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -283,8 +288,8 @@ 
+@@ -283,8 +289,8 @@ 
          # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
          if capturable and not _is_compiling():
 -            from torch.optim.optimizer import _get_capturable_supported_devices
@@ -167,7 +160,7 @@
              assert param.device.type == step_t.device.type and param.device.type in capturable_supported_devices,\
                  f"If capturable=True, params and state_steps must be on supported devices: {capturable_supported_devices}."
  
-@@ -292,12 +297,12 @@         step_t += 1
+@@ -292,12 +298,12 @@         step_t += 1
  
          if torch.is_complex(param):
 -            grad = torch.view_as_real(grad)
@@ -183,7 +176,7 @@
  
          if weight_decay != 0 and not decoupled:
              grad = grad.add(param, alpha=weight_decay)
-@@ -311,7 +316,7 @@             wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
+@@ -311,7 +317,7 @@             wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
              param.add_(param, alpha=-wd_scale * weight_decay)
  
 -        denom = torch.clamp(exp_avg_sq.sqrt(), eps)
@@ -191,7 +184,7 @@
          normed_grad = grad.div(denom)
  
          if clip_exp is not None:
-@@ -332,18 +337,18 @@ 
+@@ -332,18 +338,18 @@ 
  
  def _multi_tensor_adopt(
 -        params: List[Tensor],
@@ -217,7 +210,7 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -364,10 +369,10 @@ 
+@@ -364,10 +370,10 @@ 
      # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
      if capturable and not _is_compiling():
 -        from torch.optim.optimizer import _get_capturable_supported_devices
@@ -229,7 +222,7 @@
          assert all(
              p.device.type == step.device.type and p.device.type in capturable_supported_devices
              for p, step in zip(params, state_steps)
-@@ -379,7 +384,7 @@ 
+@@ -379,7 +385,7 @@ 
      grouped_tensors = Optimizer._group_tensors_by_device_and_dtype(
          [params, grads, exp_avgs, exp_avg_sqs, state_steps]  # type: ignore[list-item]
 -    )
@@ -237,7 +230,7 @@
      for (
              device_params_,
              device_grads_,
-@@ -398,78 +403,78 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
+@@ -398,78 +404,78 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
  
          if maximize:
 -            device_grads = torch._foreach_neg(device_grads)  # type: ignore[assignment]
@@ -348,7 +341,7 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -486,7 +491,7 @@ 
+@@ -486,7 +492,7 @@ 
      # this check is slow during compilation, so we skip it
      # if it's strictly needed we can add this check back in dynamo
 -    if not _is_compiling() and not all(isinstance(t, torch.Tensor) for t in state_steps):

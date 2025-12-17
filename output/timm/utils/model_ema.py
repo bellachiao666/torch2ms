@@ -131,7 +131,7 @@ class ModelEmaV2(msnn.Cell):
         self._update(model, update_fn=lambda e, m: m)
 
     def construct(self, *args, **kwargs):
-        return self.module(*args, **kwargs)
+        return self.module(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class ModelEmaV3(msnn.Cell):
@@ -157,8 +157,6 @@ class ModelEmaV3(msnn.Cell):
     This class is sensitive where it is initialized in the sequence of model init,
     GPU assignment and distributed training wrappers.
     """
-    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    # 'torch' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             model,
@@ -208,6 +206,7 @@ class ModelEmaV3(msnn.Cell):
 
         return decay
 
+    @torch.no_grad()
     def update(self, model, step: Optional[int] = None):
         decay = self.get_decay(step)
         if self.exclude_buffers:
@@ -256,9 +255,10 @@ class ModelEmaV3(msnn.Cell):
         for ema_b, model_b in zip(self.module.buffers(), model.buffers()):
             ema_b.copy_(model_b.to(device=self.device))
 
+    @torch.no_grad()
     def set(self, model):
         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
             ema_v.copy_(model_v.to(device=self.device))
 
     def construct(self, *args, **kwargs):
-        return self.module(*args, **kwargs)
+        return self.module(*args, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

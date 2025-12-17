@@ -144,7 +144,7 @@ def create_model(
             pretrained_cfg_overlay=pretrained_cfg_overlay,
             cache_dir=cache_dir,
             **kwargs,
-        )
+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     if checkpoint_path:
         load_checkpoint(model, checkpoint_path)
