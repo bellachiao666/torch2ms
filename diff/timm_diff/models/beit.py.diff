@@ -360,7 +360,7 @@
          """Forward pass that returns intermediate feature maps.
  
          Args:
-@@ -639,7 +644,7 @@         # forward pass
+@@ -639,17 +644,19 @@         # forward pass
          B, _, height, width = x.shape
          x = self.patch_embed(x)
 -        x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
@@ -368,7 +368,26 @@
          if self.pos_embed is not None:
              x = x + self.pos_embed
          x = self.pos_drop(x)
-@@ -697,13 +702,13 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+ 
+         rel_pos_bias = self.rel_pos_bias() if self.rel_pos_bias is not None else None
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, shared_rel_pos_bias=rel_pos_bias)
+             else:
+@@ -667,6 +674,7 @@             # reshape to BCHW output format
+             H, W = self.patch_embed.dynamic_feat_size((height, width))
+             intermediates = [y.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous() for y in intermediates]
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if not torch.jit.is_scripting() and return_prefix_tokens:
+             # return_prefix not support in torchscript due to poor type handling
+             intermediates = list(zip(intermediates, prefix_tokens))
+@@ -697,13 +705,13 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -384,7 +403,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -713,7 +718,7 @@             Feature tensor of shape (batch_size, num_tokens, embed_dim).
+@@ -713,13 +721,14 @@             Feature tensor of shape (batch_size, num_tokens, embed_dim).
          """
          x = self.patch_embed(x)
 -        x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
@@ -392,7 +411,14 @@
          if self.pos_embed is not None:
              x = x + self.pos_embed
          x = self.pos_drop(x)
-@@ -727,7 +732,7 @@         x = self.norm(x)
+ 
+         rel_pos_bias = self.rel_pos_bias() if self.rel_pos_bias is not None else None
+         for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, shared_rel_pos_bias=rel_pos_bias)
+             else:
+@@ -727,7 +736,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -400,7 +426,7 @@
          """Forward pass through classification head.
  
          Args:
-@@ -743,7 +748,7 @@         x = self.head_drop(x)
+@@ -743,7 +752,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -408,7 +434,7 @@
          """Forward pass through the model.
  
          Args:
-@@ -844,7 +849,7 @@ })
+@@ -844,7 +853,7 @@ })
  
  
 -def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module, interpolation: str = 'bicubic', antialias: bool = True) -> Dict[str, torch.Tensor]:
@@ -416,7 +442,7 @@
      """Filter and process checkpoint state dict for loading.
  
      Handles resizing of patch embeddings, position embeddings, and relative position
-@@ -917,7 +922,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -917,7 +926,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -424,7 +450,7 @@
      return model
  
  
-@@ -927,7 +932,7 @@     model_args = dict(
+@@ -927,7 +936,7 @@     model_args = dict(
          patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
          use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=0.1)
 -    model = _create_beit('beit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -432,7 +458,7 @@
      return model
  
  
-@@ -937,7 +942,7 @@     model_args = dict(
+@@ -937,7 +946,7 @@     model_args = dict(
          img_size=384, patch_size=16, embed_dim=768, depth=12, num_heads=12,
          use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=0.1)
 -    model = _create_beit('beit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -440,7 +466,7 @@
      return model
  
  
-@@ -947,7 +952,7 @@     model_args = dict(
+@@ -947,7 +956,7 @@     model_args = dict(
          patch_size=16, embed_dim=1024, depth=24, num_heads=16,
          use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
 -    model = _create_beit('beit_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -448,7 +474,7 @@
      return model
  
  
-@@ -957,7 +962,7 @@     model_args = dict(
+@@ -957,7 +966,7 @@     model_args = dict(
          img_size=384, patch_size=16, embed_dim=1024, depth=24, num_heads=16,
          use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
 -    model = _create_beit('beit_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -456,7 +482,7 @@
      return model
  
  
-@@ -967,7 +972,7 @@     model_args = dict(
+@@ -967,7 +976,7 @@     model_args = dict(
          img_size=512, patch_size=16, embed_dim=1024, depth=24, num_heads=16,
          use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
 -    model = _create_beit('beit_large_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -464,7 +490,7 @@
      return model
  
  
-@@ -977,7 +982,7 @@     model_args = dict(
+@@ -977,7 +986,7 @@     model_args = dict(
          patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
          use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
 -    model = _create_beit('beitv2_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -472,7 +498,7 @@
      return model
  
  
-@@ -987,5 +992,5 @@     model_args = dict(
+@@ -987,5 +996,5 @@     model_args = dict(
          patch_size=16, embed_dim=1024, depth=24, num_heads=16,
          use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
 -    model = _create_beit('beitv2_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))

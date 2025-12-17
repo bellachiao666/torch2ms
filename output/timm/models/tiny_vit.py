@@ -52,6 +52,8 @@ class ConvNorm(msnn.SequentialCell):
         torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         torch.nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         c, bn = self.conv, self.bn
@@ -263,13 +265,17 @@ class Attention(msnn.Cell):
         )
         self.attention_bias_cache = {}
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
+        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
         else:
@@ -645,12 +651,14 @@ class TinyVit(msnn.Cell):
 
         # forward pass
         x = self.patch_embed(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -679,6 +687,7 @@ class TinyVit(msnn.Cell):
 
     def forward_features(self, x):
         x = self.patch_embed(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

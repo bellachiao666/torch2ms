@@ -335,7 +335,8 @@ class LiteMLA(msnn.Cell):
         )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.aggreg = msnn.CellList([
             msnn.SequentialCell(
-                nn.Conv2d(
+                [
+            nn.Conv2d(
                     3 * total_dim,
                     3 * total_dim,
                     scale,
@@ -344,8 +345,8 @@ class LiteMLA(msnn.Cell):
                     bias=use_bias[0],
                     **dd,
                 ),
-                nn.Conv2d(3 * total_dim, 3 * total_dim, 1, groups=3 * heads, bias=use_bias[0], **dd),
-            )
+            nn.Conv2d(3 * total_dim, 3 * total_dim, 1, groups=3 * heads, bias=use_bias[0], **dd)
+        ])
             for scale in scales
         ])  # 存在 *args/**kwargs，需手动确认参数映射;
         self.kernel_func = kernel_func(inplace=False)
@@ -385,7 +386,9 @@ class LiteMLA(msnn.Cell):
         k = self.kernel_func(k)
         v = nn.functional.pad(v, (0, 1), mode = "constant", value = 1.)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting():
+            # 'torch.autocast' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.autocast(device_type=v.device.type, enabled=False):
                 out = self._attn(q, k, v)
         else:
@@ -728,12 +731,13 @@ class ClassifierHead(msnn.Cell):
         self.in_conv = ConvNormAct(in_channels, widths[0], 1, norm_layer=norm_layer, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.global_pool = SelectAdaptivePool2d(pool_type=pool_type, flatten=True)
         self.classifier = msnn.SequentialCell(
+            [
             nn.Linear(widths[0], widths[1], bias=False, **dd),
             nn.LayerNorm(widths[1], eps=norm_eps, **dd),
             act_layer(inplace=True) if act_layer is not None else msnn.Identity(),
             nn.Dropout(dropout, inplace = False),
-            nn.Linear(widths[1], num_classes, bias=True, **dd) if num_classes > 0 else msnn.Identity(),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            nn.Linear(widths[1], num_classes, bias=True, **dd) if num_classes > 0 else msnn.Identity()
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def reset(self, num_classes: int, pool_type: Optional[str] = None):
         if pool_type is not None:
@@ -867,12 +871,14 @@ class EfficientVit(msnn.Cell):
         # forward pass
         x = self.stem(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint_seq(stages, x)
             else:
@@ -901,6 +907,7 @@ class EfficientVit(msnn.Cell):
 
     def forward_features(self, x):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:
@@ -1029,12 +1036,14 @@ class EfficientVitLarge(msnn.Cell):
         # forward pass
         x = self.stem(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint_seq(stages, x)
             else:
@@ -1063,6 +1072,7 @@ class EfficientVitLarge(msnn.Cell):
 
     def forward_features(self, x):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

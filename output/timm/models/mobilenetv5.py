@@ -331,6 +331,7 @@ class MobileNetV5(msnn.Cell):
         if feat_idx in take_indices:
             intermediates.append(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
@@ -390,6 +391,7 @@ class MobileNetV5(msnn.Cell):
             x = self.msfa(intermediates)
         else:
             x = self.conv_stem(x)
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint_seq(self.blocks, x, flatten=True)
             else:
@@ -549,6 +551,7 @@ class MobileNetV5Encoder(msnn.Cell):
         if feat_idx in self.msfa_indices:
             msfa_intermediates.append(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:

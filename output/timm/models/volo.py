@@ -533,6 +533,7 @@ class PatchEmbed(msnn.Cell):
         assert patch_size in [4, 8, 16]
         if stem_conv:
             self.conv = msnn.SequentialCell(
+                [
                 nn.Conv2d(in_chans, hidden_dim, kernel_size=7, stride=stem_stride, padding=3, bias=False, **dd),
                 nn.BatchNorm2d(hidden_dim, **dd),
                 nn.ReLU(),
@@ -541,8 +542,8 @@ class PatchEmbed(msnn.Cell):
                 nn.ReLU(),
                 nn.Conv2d(hidden_dim, hidden_dim, kernel_size=3, stride=1, padding=1, bias=False, **dd),
                 nn.BatchNorm2d(hidden_dim, **dd),
-                nn.ReLU(),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                nn.ReLU()
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         else:
             self.conv = None
 
@@ -972,6 +973,7 @@ class VOLO(msnn.Cell):
                 # add positional encoding after outlooker blocks
                 x = x + self.pos_embed
                 x = self.pos_drop(x)
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(block, x)
             else:
@@ -994,6 +996,7 @@ class VOLO(msnn.Cell):
         cls_tokens = self.cls_token.expand(B, -1, -1)
         x = mint.cat([cls_tokens, x], dim=1)
         for block in self.post_network:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(block, x)
             else:
@@ -1093,6 +1096,7 @@ class VOLO(msnn.Cell):
         x = self.patch_embed(x).permute(0, 2, 3, 1)  # B,C,H,W-> B,H,W,C
 
         # step2: tokens learning in the two stages
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             network = self.network
         else:
@@ -1102,6 +1106,7 @@ class VOLO(msnn.Cell):
                 # add positional encoding after outlooker blocks
                 x = x + self.pos_embed
                 x = self.pos_drop(x)
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(block, x)
             else:

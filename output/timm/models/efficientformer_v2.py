@@ -166,13 +166,17 @@ class Attention2d(msnn.Cell):
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
         self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
+        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
         else:
@@ -284,13 +288,17 @@ class Attention2dDownsample(msnn.Cell):
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
         self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
+        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
         else:
@@ -582,6 +590,7 @@ class EfficientFormerV2Stage(msnn.Cell):
 
     def construct(self, x):
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -740,6 +749,7 @@ class EfficientFormerV2(msnn.Cell):
         x = self.stem(x)
 
         last_idx = len(self.stages) - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
@@ -791,6 +801,7 @@ class EfficientFormerV2(msnn.Cell):
         if pre_logits:
             return x
         x, x_dist = self.head(x), self.head_dist(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.distilled_training and self.training and not torch.jit.is_scripting():
             # only return separate classification predictions when training in distilled mode
             return x, x_dist

@@ -68,6 +68,7 @@ def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
         >>> w = torch.empty(3, 5)
         >>> nn.init.trunc_normal_(w)
     """
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.no_grad():
         return _trunc_normal_(tensor, mean, std, a, b)
 
@@ -95,6 +96,7 @@ def trunc_normal_tf_(tensor, mean=0., std=1., a=-2., b=2.):
         >>> w = torch.empty(3, 5)
         >>> nn.init.trunc_normal_(w)
     """
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.no_grad():
         _trunc_normal_(tensor, 0, 1.0, a, b)
         tensor.mul_(std).add_(mean)
@@ -116,10 +118,12 @@ def variance_scaling_(tensor, scale=1.0, mode='fan_in', distribution='normal'):
         # constant is stddev of standard normal truncated to (-2, 2)
         trunc_normal_tf_(tensor, std=math.sqrt(variance) / .87962566103423978)
     elif distribution == "normal":
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             tensor.normal_(std=math.sqrt(variance))
     elif distribution == "uniform":
         bound = math.sqrt(3 * variance)
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             tensor.uniform_(-bound, bound)
     else:

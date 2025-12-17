@@ -271,8 +271,9 @@ class PosConv(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.proj = msnn.SequentialCell(
-            nn.Conv2d(in_chans, embed_dim, 3, stride, 1, bias=True, groups=embed_dim, **dd),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            [
+            nn.Conv2d(in_chans, embed_dim, 3, stride, 1, bias=True, groups=embed_dim, **dd)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
         self.stride = stride
 
     def construct(self, x, size: Size_):

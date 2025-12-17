@@ -447,10 +447,12 @@ class TransformerBlock2d(msnn.Cell):
 
         if stride == 2:
             self.shortcut = Downsample2d(dim, dim_out, pool_type=cfg.pool_type, bias=cfg.shortcut_bias, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-            self.norm1 = msnn.SequentialCell(OrderedDict([
+            self.norm1 = msnn.SequentialCell([
+                OrderedDict([
                 ('norm', norm_layer(dim, **dd)),
                 ('down', Downsample2d(dim, dim, pool_type=cfg.pool_type, **dd)),
-            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            ])
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             assert dim == dim_out
             self.shortcut = msnn.Identity()
@@ -1257,6 +1259,7 @@ class MaxxVitStage(msnn.Cell):
         self.blocks = msnn.SequentialCell(*blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -1523,6 +1526,7 @@ class MaxxVit(msnn.Cell):
             intermediates.append(x)
 
         last_idx = len(self.stages)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

@@ -259,10 +259,11 @@ class Visformer(msnn.Cell):
                 img_size = [x // (patch_size // 2) for x in img_size]
             else:
                 self.stem = msnn.SequentialCell(
+                    [
                     nn.Conv2d(in_chans, self.init_channels, 7, stride=2, padding=3, bias=False, **dd),
                     nn.BatchNorm2d(self.init_channels, **dd),
                     nn.ReLU()
-                )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
                 img_size = [x // 2 for x in img_size]
                 self.patch_embed1 = PatchEmbed(
                     img_size=img_size,
@@ -444,6 +445,7 @@ class Visformer(msnn.Cell):
         x = self.patch_embed1(x)
         if self.pos_embed1 is not None:
             x = self.pos_drop(x + self.pos_embed1)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stage1, x)
         else:
@@ -454,6 +456,7 @@ class Visformer(msnn.Cell):
             x = self.patch_embed2(x)
             if self.pos_embed2 is not None:
                 x = self.pos_drop(x + self.pos_embed2)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stage2, x)
         else:
@@ -464,6 +467,7 @@ class Visformer(msnn.Cell):
             x = self.patch_embed3(x)
             if self.pos_embed3 is not None:
                 x = self.pos_drop(x + self.pos_embed3)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stage3, x)
         else:

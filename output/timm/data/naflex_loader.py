@@ -32,6 +32,9 @@ from .transforms_factory import create_transform
 class NaFlexPrefetchLoader:
     """Data prefetcher for NaFlex format which normalizes patches."""
 
+    # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             loader: torch.utils.data.DataLoader,
@@ -193,6 +196,9 @@ class NaFlexPrefetchLoader:
         return self.loader.dataset
 
 
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_naflex_loader(
         dataset,
         patch_size: Optional[Union[Tuple[int, int], int]] = None,

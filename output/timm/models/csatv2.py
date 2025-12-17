@@ -610,6 +610,7 @@ class CSATv2(msnn.Cell):
 
     def forward_features(self, x: ms.Tensor) -> ms.Tensor:
         x = self.stem_dct(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:
@@ -647,6 +648,7 @@ class CSATv2(msnn.Cell):
         if 0 in take_indices:
             intermediates.append(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:
             stages = self.stages
         else:
@@ -654,6 +656,7 @@ class CSATv2(msnn.Cell):
             stages = self.stages[:max_index] if max_index > 0 else []
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:

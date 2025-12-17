@@ -228,6 +228,7 @@ class OptimizerRegistry:
 
         return opt_class
 
+    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def create_optimizer(
             self,
             model_or_params: Union[msnn.Cell, ParamsT],
@@ -1184,6 +1185,7 @@ def get_optimizer_class(
     return default_registry.get_optimizer_class(name, bind_defaults=bind_defaults)
 
 
+# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_optimizer_v2(
         model_or_params: Union[msnn.Cell, ParamsT],
         opt: str = 'sgd',
@@ -1311,6 +1313,7 @@ def optimizer_kwargs(cfg):
     return kwargs
 
 
+# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_optimizer(
         args,
         model: Union[msnn.Cell, ParamsT],

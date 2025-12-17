@@ -301,7 +301,20 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -539,7 +541,7 @@             self.head.reset(0, reset_other=prune_norm)
+@@ -502,11 +504,13 @@         x = self._pos_embed(x)
+ 
+         intermediates = []
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -539,21 +543,22 @@             self.head.reset(0, reset_other=prune_norm)
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -309,7 +322,11 @@
          x = self.patch_embed(x)  # BHWC
          x = self._pos_embed(x)
          for blk in self.blocks:
-@@ -549,11 +551,11 @@                 x = blk(x)
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+                 x = blk(x)
          return x
  
 -    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
@@ -322,7 +339,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -654,25 +656,25 @@         pretrained_filter_fn=partial(checkpoint_filter_fn, prefix=checkpoint_prefix),
+@@ -654,25 +659,25 @@         pretrained_filter_fn=partial(checkpoint_filter_fn, prefix=checkpoint_prefix),
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -351,7 +368,7 @@
  
  
  @register_model
-@@ -684,13 +686,13 @@         global_att_blocks=(23, 33, 43),
+@@ -684,13 +689,13 @@         global_att_blocks=(23, 33, 43),
          window_spec=(8, 4, 16, 8),
      )
 -    return _create_hiera_det('sam2_hiera_large', pretrained=pretrained, **dict(model_args, **kwargs))

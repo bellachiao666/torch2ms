@@ -285,7 +285,14 @@
          """Forward pass through all blocks in the stage.
  
          Args:
-@@ -550,7 +555,7 @@         return x
+@@ -542,6 +547,7 @@         Returns:
+             Output tensor.
+         """
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.children(), x)
+         else:
+@@ -550,7 +556,7 @@         return x
  
  
 -class RegNet(nn.Module):
@@ -293,7 +300,7 @@
      """RegNet-X, Y, and Z Models.
  
      Paper: https://arxiv.org/abs/2003.13678
-@@ -589,15 +594,15 @@         self.num_classes = num_classes
+@@ -589,15 +595,15 @@         self.num_classes = num_classes
          self.drop_rate = drop_rate
          assert output_stride in (8, 16, 32)
 -        cfg = replace(cfg, **kwargs)  # update cfg with extra passed kwargs
@@ -311,7 +318,7 @@
          self.feature_info = [dict(num_chs=stem_width, reduction=2, module='stem')]
  
          # Construct the stages
-@@ -621,18 +626,18 @@                     **common_args,
+@@ -621,18 +627,18 @@                     **common_args,
                      **dd,
                  )
 -            )
@@ -332,7 +339,7 @@
              self.num_features = prev_width
          self.head_hidden_size = self.num_features
          self.head = ClassifierHead(
-@@ -641,7 +646,7 @@             pool_type=global_pool,
+@@ -641,7 +647,7 @@             pool_type=global_pool,
              drop_rate=drop_rate,
              **dd,
 -        )
@@ -340,7 +347,7 @@
  
          named_apply(partial(_init_weights, zero_init_last=zero_init_last), self)
  
-@@ -667,7 +672,7 @@         widths, num_stages, stage_gs = generate_regnet(cfg.wa, cfg.w0, cfg.wm, cfg.depth, cfg.group_size)
+@@ -667,7 +673,7 @@         widths, num_stages, stage_gs = generate_regnet(cfg.wa, cfg.w0, cfg.wm, cfg.depth, cfg.group_size)
  
          # Convert to per stage format
 -        stage_widths, stage_depths = torch.unique(torch.tensor(widths), return_counts=True)
@@ -348,7 +355,7 @@
          stage_widths, stage_depths = stage_widths.tolist(), stage_depths.tolist()
          stage_br = [cfg.bottle_ratio for _ in range(num_stages)]
          stage_strides = []
-@@ -701,7 +706,7 @@         )
+@@ -701,7 +707,7 @@         )
          return per_stage_args, common_args
  
 -    @torch.jit.ignore
@@ -356,7 +363,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
          """Group parameters for optimization."""
          return dict(
-@@ -709,14 +714,14 @@             blocks=r'^s(\d+)' if coarse else r'^s(\d+)\.b(\d+)',
+@@ -709,14 +715,14 @@             blocks=r'^s(\d+)' if coarse else r'^s(\d+)\.b(\d+)',
          )
  
 -    @torch.jit.ignore
@@ -373,7 +380,7 @@
          """Get the classifier head."""
          return self.head.fc
  
-@@ -732,13 +737,13 @@ 
+@@ -732,13 +738,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -388,7 +395,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -798,14 +803,14 @@         layer_names = ('s1', 's2', 's3', 's4')
+@@ -798,14 +804,14 @@         layer_names = ('s1', 's2', 's3', 's4')
          layer_names = layer_names[max_index:]
          for n in layer_names:
 -            setattr(self, n, nn.Identity())
@@ -405,7 +412,7 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -822,7 +827,7 @@         x = self.final_conv(x)
+@@ -822,7 +828,7 @@         x = self.final_conv(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -413,7 +420,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -834,7 +839,7 @@         """
+@@ -834,7 +840,7 @@         """
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -421,7 +428,7 @@
          """Forward pass.
  
          Args:
-@@ -848,7 +853,7 @@         return x
+@@ -848,7 +854,7 @@         return x
  
  
 -def _init_weights(module: nn.Module, name: str = '', zero_init_last: bool = False) -> None:
@@ -429,7 +436,7 @@
      """Initialize module weights.
  
      Args:
-@@ -863,9 +868,9 @@         if module.bias is not None:
+@@ -863,9 +869,9 @@         if module.bias is not None:
              module.bias.data.zero_()
      elif isinstance(module, nn.Linear):
 -        nn.init.normal_(module.weight, mean=0.0, std=0.01)
@@ -440,7 +447,7 @@
      elif zero_init_last and hasattr(module, 'zero_init_last'):
          module.zero_init_last()
  
-@@ -1015,7 +1020,7 @@         RegNet, variant, pretrained,
+@@ -1015,7 +1021,7 @@         RegNet, variant, pretrained,
          model_cfg=model_cfgs[variant],
          pretrained_filter_fn=_filter_fn,
 -        **kwargs)
@@ -448,7 +455,7 @@
  
  
  def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
-@@ -1262,199 +1267,199 @@ @register_model
+@@ -1262,199 +1268,199 @@ @register_model
  def regnetx_002(pretrained: bool = False, **kwargs) -> RegNet:
      """RegNetX-200MF"""
 -    return _create_regnet('regnetx_002', pretrained, **kwargs)
@@ -680,7 +687,7 @@
  
  
  @register_model
-@@ -1463,7 +1468,7 @@     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
+@@ -1463,7 +1469,7 @@     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
      but it's not clear it is equivalent to paper model as not detailed in the paper.
      """
 -    return _create_regnet('regnetz_005', pretrained, zero_init_last=False, **kwargs)
@@ -688,7 +695,7 @@
  
  
  @register_model
-@@ -1472,7 +1477,7 @@     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
+@@ -1472,7 +1478,7 @@     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
      but it's not clear it is equivalent to paper model as not detailed in the paper.
      """
 -    return _create_regnet('regnetz_040', pretrained, zero_init_last=False, **kwargs)
@@ -696,7 +703,7 @@
  
  
  @register_model
-@@ -1481,7 +1486,7 @@     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
+@@ -1481,7 +1487,7 @@     NOTE: config found in https://github.com/facebookresearch/ClassyVision/blob/main/classy_vision/models/regnet.py
      but it's not clear it is equivalent to paper model as not detailed in the paper.
      """
 -    return _create_regnet('regnetz_040_h', pretrained, zero_init_last=False, **kwargs)

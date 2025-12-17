@@ -123,10 +123,11 @@ class WindowAttention(msnn.Cell):
 
         # mlp to generate continuous relative position bias
         self.cpb_mlp = msnn.SequentialCell(
+            [
             nn.Linear(2, 512, bias=True, **dd),
             nn.ReLU(),
             nn.Linear(512, num_heads, bias=False, **dd)
-        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         self.qkv = nn.Linear(dim, dim * 3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         if qkv_bias:
@@ -329,6 +330,8 @@ class SwinTransformerV2Block(msnn.Cell):
             persistent=False,
         )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
             x: Optional[ms.Tensor] = None,
@@ -656,6 +659,7 @@ class SwinTransformerV2Stage(msnn.Cell):
         x = self.downsample(x)
 
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:
@@ -936,6 +940,7 @@ class SwinTransformerV2(msnn.Cell):
         x = self.patch_embed(x)
 
         num_stages = len(self.layers)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.layers
         else:

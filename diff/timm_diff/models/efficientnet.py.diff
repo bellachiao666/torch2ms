@@ -119,7 +119,20 @@
          """Forward features that returns intermediates.
  
          Args:
-@@ -309,13 +313,13 @@             max_index = self.stage_ends[max_index]
+@@ -263,11 +267,13 @@         if feat_idx in take_indices:
+             intermediates.append(x)
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index]
+         for feat_idx, blk in enumerate(blocks, start=1):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint_seq(blk, x)
+             else:
+@@ -309,16 +315,17 @@             max_index = self.stage_ends[max_index]
          self.blocks = self.blocks[:max_index]  # truncate blocks w/ stem as idx 0
          if prune_norm or max_index < len(self.blocks):
 -            self.conv_head = nn.Identity()
@@ -135,7 +148,11 @@
          """Forward pass through feature extraction layers."""
          x = self.conv_stem(x)
          x = self.bn1(x)
-@@ -327,7 +331,7 @@         x = self.bn2(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.blocks, x, flatten=True)
+         else:
+@@ -327,7 +334,7 @@         x = self.bn2(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -143,7 +160,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -339,17 +343,17 @@         """
+@@ -339,17 +346,17 @@         """
          x = self.global_pool(x)
          if self.drop_rate > 0.:
 -            x = F.dropout(x, p=self.drop_rate, training=self.training)
@@ -163,7 +180,7 @@
      """ EfficientNet Feature Extractor
  
      A work-in-progress feature extraction module for EfficientNet, to use as a backbone for segmentation
-@@ -389,8 +393,8 @@         # Stem
+@@ -389,8 +396,8 @@         # Stem
          if not fix_stem:
              stem_size = round_chs_fn(stem_size)
 -        self.conv_stem = create_conv2d(in_chans, stem_size, stem_kernel_size, stride=2, padding=pad_type, **dd)
@@ -173,7 +190,7 @@
  
          # Middle stages (IR/ER/DS Blocks)
          builder = EfficientNetBuilder(
-@@ -404,8 +408,8 @@             drop_path_rate=drop_path_rate,
+@@ -404,8 +411,8 @@             drop_path_rate=drop_path_rate,
              feature_location=feature_location,
              **dd,
 -        )
@@ -183,7 +200,7 @@
          self.feature_info = FeatureInfo(builder.features, out_indices)
          self._stage_out_idx = {f['stage']: f['index'] for f in self.feature_info.get_dicts()}
  
-@@ -417,7 +421,7 @@             hooks = self.feature_info.get_dicts(keys=('module', 'hook_type'))
+@@ -417,7 +424,7 @@             hooks = self.feature_info.get_dicts(keys=('module', 'hook_type'))
              self.feature_hooks = FeatureHooks(hooks, self.named_modules())
  
 -    @torch.jit.ignore
@@ -191,7 +208,7 @@
      def set_grad_checkpointing(self, enable: bool = True) -> None:
          """Enable or disable gradient checkpointing.
  
-@@ -426,7 +430,7 @@         """
+@@ -426,7 +433,7 @@         """
          self.grad_checkpointing = enable
  
 -    def forward(self, x) -> List[torch.Tensor]:
@@ -199,7 +216,14 @@
          x = self.conv_stem(x)
          x = self.bn1(x)
          if self.feature_hooks is None:
-@@ -468,7 +472,7 @@         pretrained_strict=pretrained_strict and features_mode != 'cls',
+@@ -434,6 +441,7 @@             if 0 in self._stage_out_idx:
+                 features.append(x)  # add stem out
+             for i, b in enumerate(self.blocks):
++                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if self.grad_checkpointing and not torch.jit.is_scripting():
+                     x = checkpoint(b, x)
+                 else:
+@@ -468,7 +476,7 @@         pretrained_strict=pretrained_strict and features_mode != 'cls',
          kwargs_filter=kwargs_filter,
          **kwargs,
 -    )
@@ -207,7 +231,7 @@
      if features_mode == 'cls':
          model.pretrained_cfg = model.default_cfg = pretrained_cfg_for_features(model.pretrained_cfg)
      return model
-@@ -505,8 +509,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
+@@ -505,8 +513,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs
 -    )
@@ -217,7 +241,7 @@
      return model
  
  
-@@ -541,8 +545,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
+@@ -541,8 +549,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs
 -    )
@@ -227,7 +251,7 @@
      return model
  
  
-@@ -570,8 +574,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
+@@ -570,8 +578,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs
 -    )
@@ -237,7 +261,7 @@
      return model
  
  
-@@ -606,8 +610,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -606,8 +614,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'relu6'),
          **kwargs
 -    )
@@ -247,7 +271,7 @@
      return model
  
  
-@@ -643,8 +647,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -643,8 +651,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'relu6'),
          **kwargs
 -    )
@@ -257,7 +281,7 @@
      return model
  
  
-@@ -673,8 +677,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
+@@ -673,8 +681,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs
 -    )
@@ -267,7 +291,7 @@
      return model
  
  
-@@ -708,8 +712,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
+@@ -708,8 +716,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs
 -    )
@@ -277,7 +301,7 @@
      return model
  
  
-@@ -758,8 +762,8 @@         act_layer=resolve_act_layer(kwargs, 'swish'),
+@@ -758,8 +766,8 @@         act_layer=resolve_act_layer(kwargs, 'swish'),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs,
 -    )
@@ -287,7 +311,7 @@
      return model
  
  
-@@ -790,8 +794,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -790,8 +798,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'relu'),
          **kwargs,
 -    )
@@ -297,7 +321,7 @@
      return model
  
  
-@@ -822,8 +826,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -822,8 +830,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'swish'),
          **kwargs,
 -    )
@@ -307,7 +331,7 @@
      return model
  
  
-@@ -863,8 +867,8 @@         act_layer=resolve_act_layer(kwargs, 'relu6'),
+@@ -863,8 +871,8 @@         act_layer=resolve_act_layer(kwargs, 'relu6'),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs,
 -    )
@@ -317,7 +341,7 @@
      return model
  
  
-@@ -893,8 +897,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -893,8 +901,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'silu'),
          **kwargs,
 -    )
@@ -327,7 +351,7 @@
      return model
  
  
-@@ -933,8 +937,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -933,8 +941,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'silu'),
          **kwargs,
 -    )
@@ -337,7 +361,7 @@
      return model
  
  
-@@ -965,8 +969,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -965,8 +973,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'silu'),
          **kwargs,
 -    )
@@ -347,7 +371,7 @@
      return model
  
  
-@@ -997,8 +1001,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -997,8 +1005,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'silu'),
          **kwargs,
 -    )
@@ -357,7 +381,7 @@
      return model
  
  
-@@ -1029,8 +1033,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -1029,8 +1037,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'silu'),
          **kwargs,
 -    )
@@ -367,7 +391,7 @@
      return model
  
  
-@@ -1112,8 +1116,8 @@         act_layer=resolve_act_layer(kwargs, 'silu'),
+@@ -1112,8 +1120,8 @@         act_layer=resolve_act_layer(kwargs, 'silu'),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs,
 -    )
@@ -377,17 +401,7 @@
      return model
  
  
-@@ -1145,8 +1149,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
-         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
-         **kwargs
--    )
--    model = _create_effnet(variant, pretrained, **model_kwargs)
-+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-+    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-     return model
- 
- 
-@@ -1178,8 +1182,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
+@@ -1145,8 +1153,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs
 -    )
@@ -397,7 +411,17 @@
      return model
  
  
-@@ -1201,8 +1205,8 @@         act_layer=resolve_act_layer(kwargs, 'swish'),
+@@ -1178,8 +1186,8 @@         round_chs_fn=partial(round_channels, multiplier=channel_multiplier),
+         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+         **kwargs
+-    )
+-    model = _create_effnet(variant, pretrained, **model_kwargs)
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_effnet(variant, pretrained, **model_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1201,8 +1209,8 @@         act_layer=resolve_act_layer(kwargs, 'swish'),
          norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          **kwargs,
 -    )
@@ -407,7 +431,7 @@
      return model
  
  
-@@ -1290,8 +1294,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -1290,8 +1298,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=act_layer,
          **kwargs,
 -    )
@@ -417,7 +441,7 @@
      return model
  
  
-@@ -1314,8 +1318,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
+@@ -1314,8 +1322,8 @@         norm_layer=kwargs.pop('norm_layer', None) or partial(nn.BatchNorm2d, **resolve_bn_args(kwargs)),
          act_layer=resolve_act_layer(kwargs, 'silu'),
          **kwargs,
 -    )
@@ -427,7 +451,7 @@
      return model
  
  
-@@ -1920,119 +1924,119 @@ @register_model
+@@ -1920,119 +1928,119 @@ @register_model
  def mnasnet_050(pretrained=False, **kwargs) -> EfficientNet:
      """ MNASNet B1, depth multiplier of 0.5. """
 -    model = _gen_mnasnet_b1('mnasnet_050', 0.5, pretrained=pretrained, **kwargs)
@@ -563,7 +587,7 @@
      return model
  
  
-@@ -2040,7 +2044,7 @@ def mobilenetv2_110d(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2040,7 +2048,7 @@ def mobilenetv2_110d(pretrained=False, **kwargs) -> EfficientNet:
      """ MobileNet V2 w/ 1.1 channel, 1.2 depth multipliers"""
      model = _gen_mobilenet_v2(
 -        'mobilenetv2_110d', 1.1, depth_multiplier=1.2, fix_stem_head=True, pretrained=pretrained, **kwargs)
@@ -571,7 +595,7 @@
      return model
  
  
-@@ -2048,7 +2052,7 @@ def mobilenetv2_120d(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2048,7 +2056,7 @@ def mobilenetv2_120d(pretrained=False, **kwargs) -> EfficientNet:
      """ MobileNet V2 w/ 1.2 channel, 1.4 depth multipliers """
      model = _gen_mobilenet_v2(
 -        'mobilenetv2_120d', 1.2, depth_multiplier=1.4, fix_stem_head=True, pretrained=pretrained, **kwargs)
@@ -579,7 +603,7 @@
      return model
  
  
-@@ -2058,14 +2062,14 @@     if pretrained:
+@@ -2058,14 +2066,14 @@     if pretrained:
          # pretrained model trained with non-default BN epsilon
          kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
 -    model = _gen_fbnetc('fbnetc_100', 1.0, pretrained=pretrained, **kwargs)
@@ -595,7 +619,7 @@
      return model
  
  
-@@ -2074,7 +2078,7 @@     """ EfficientNet-B0 """
+@@ -2074,7 +2082,7 @@     """ EfficientNet-B0 """
      # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -603,7 +627,7 @@
      return model
  
  
-@@ -2083,7 +2087,7 @@     """ EfficientNet-B1 """
+@@ -2083,7 +2091,7 @@     """ EfficientNet-B1 """
      # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
@@ -611,7 +635,7 @@
      return model
  
  
-@@ -2092,7 +2096,7 @@     """ EfficientNet-B2 """
+@@ -2092,7 +2100,7 @@     """ EfficientNet-B2 """
      # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
@@ -619,7 +643,7 @@
      return model
  
  
-@@ -2101,7 +2105,7 @@     """ EfficientNet-B3 """
+@@ -2101,7 +2109,7 @@     """ EfficientNet-B3 """
      # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -627,7 +651,7 @@
      return model
  
  
-@@ -2110,7 +2114,7 @@     """ EfficientNet-B4 """
+@@ -2110,7 +2118,7 @@     """ EfficientNet-B4 """
      # NOTE for train, drop_rate should be 0.4, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
@@ -635,7 +659,7 @@
      return model
  
  
-@@ -2119,7 +2123,7 @@     """ EfficientNet-B5 """
+@@ -2119,7 +2127,7 @@     """ EfficientNet-B5 """
      # NOTE for train, drop_rate should be 0.4, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)
@@ -643,7 +667,7 @@
      return model
  
  
-@@ -2128,7 +2132,7 @@     """ EfficientNet-B6 """
+@@ -2128,7 +2136,7 @@     """ EfficientNet-B6 """
      # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b6', channel_multiplier=1.8, depth_multiplier=2.6, pretrained=pretrained, **kwargs)
@@ -651,7 +675,7 @@
      return model
  
  
-@@ -2137,7 +2141,7 @@     """ EfficientNet-B7 """
+@@ -2137,7 +2145,7 @@     """ EfficientNet-B7 """
      # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b7', channel_multiplier=2.0, depth_multiplier=3.1, pretrained=pretrained, **kwargs)
@@ -659,7 +683,7 @@
      return model
  
  
-@@ -2146,7 +2150,7 @@     """ EfficientNet-B8 """
+@@ -2146,7 +2154,7 @@     """ EfficientNet-B8 """
      # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_b8', channel_multiplier=2.2, depth_multiplier=3.6, pretrained=pretrained, **kwargs)
@@ -667,7 +691,7 @@
      return model
  
  
-@@ -2155,7 +2159,7 @@     """ EfficientNet-L2."""
+@@ -2155,7 +2163,7 @@     """ EfficientNet-L2."""
      # NOTE for train, drop_rate should be 0.5, drop_path_rate should be 0.2
      model = _gen_efficientnet(
 -        'efficientnet_l2', channel_multiplier=4.3, depth_multiplier=5.3, pretrained=pretrained, **kwargs)
@@ -675,7 +699,7 @@
      return model
  
  
-@@ -2164,7 +2168,7 @@ def efficientnet_b0_gn(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2164,7 +2172,7 @@ def efficientnet_b0_gn(pretrained=False, **kwargs) -> EfficientNet:
      """ EfficientNet-B0 + GroupNorm"""
      model = _gen_efficientnet(
 -        'efficientnet_b0_gn', norm_layer=partial(GroupNormAct, group_size=8), pretrained=pretrained, **kwargs)
@@ -683,7 +707,7 @@
      return model
  
  
-@@ -2173,7 +2177,7 @@     """ EfficientNet-B0 w/ group conv + GroupNorm"""
+@@ -2173,7 +2181,7 @@     """ EfficientNet-B0 w/ group conv + GroupNorm"""
      model = _gen_efficientnet(
          'efficientnet_b0_g8_gn', group_size=8, norm_layer=partial(GroupNormAct, group_size=8),
 -        pretrained=pretrained, **kwargs)
@@ -691,7 +715,7 @@
      return model
  
  
-@@ -2182,7 +2186,7 @@     """ EfficientNet-B0 w/ group 16 conv + EvoNorm"""
+@@ -2182,7 +2190,7 @@     """ EfficientNet-B0 w/ group 16 conv + EvoNorm"""
      model = _gen_efficientnet(
          'efficientnet_b0_g16_evos', group_size=16, channel_divisor=16,
 -        pretrained=pretrained, **kwargs) #norm_layer=partial(EvoNorm2dS0, group_size=16),
@@ -699,7 +723,7 @@
      return model
  
  
-@@ -2192,7 +2196,7 @@     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
+@@ -2192,7 +2200,7 @@     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
      model = _gen_efficientnet(
          'efficientnet_b3_gn', channel_multiplier=1.2, depth_multiplier=1.4, channel_divisor=16,
 -        norm_layer=partial(GroupNormAct, group_size=16), pretrained=pretrained, **kwargs)
@@ -707,7 +731,7 @@
      return model
  
  
-@@ -2202,7 +2206,7 @@     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
+@@ -2202,7 +2210,7 @@     # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
      model = _gen_efficientnet(
          'efficientnet_b3_g8_gn', channel_multiplier=1.2, depth_multiplier=1.4, group_size=8, channel_divisor=16,
 -        norm_layer=partial(GroupNormAct, group_size=16), pretrained=pretrained, **kwargs)
@@ -715,7 +739,7 @@
      return model
  
  
-@@ -2213,7 +2217,7 @@     model = _gen_efficientnet(
+@@ -2213,7 +2221,7 @@     model = _gen_efficientnet(
          'efficientnet_blur_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained,
          aa_layer='blurpc', **kwargs
 -    )
@@ -723,7 +747,7 @@
      return model
  
  
-@@ -2221,7 +2225,7 @@ def efficientnet_es(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2221,7 +2229,7 @@ def efficientnet_es(pretrained=False, **kwargs) -> EfficientNet:
      """ EfficientNet-Edge Small. """
      model = _gen_efficientnet_edge(
 -        'efficientnet_es', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -731,7 +755,7 @@
      return model
  
  
-@@ -2229,14 +2233,14 @@ def efficientnet_es_pruned(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2229,14 +2237,14 @@ def efficientnet_es_pruned(pretrained=False, **kwargs) -> EfficientNet:
      """ EfficientNet-Edge Small Pruned. For more info: https://github.com/DeGirum/pruned-models/releases/tag/efficientnet_v1.0"""
      model = _gen_efficientnet_edge(
 -        'efficientnet_es_pruned', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -747,7 +771,7 @@
      return model
  
  
-@@ -2244,14 +2248,14 @@ def efficientnet_el(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2244,14 +2252,14 @@ def efficientnet_el(pretrained=False, **kwargs) -> EfficientNet:
      """ EfficientNet-Edge-Large. """
      model = _gen_efficientnet_edge(
 -        'efficientnet_el', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -763,7 +787,7 @@
      return model
  
  @register_model
-@@ -2259,7 +2263,7 @@     """ EfficientNet-CondConv-B0 w/ 8 Experts """
+@@ -2259,7 +2267,7 @@     """ EfficientNet-CondConv-B0 w/ 8 Experts """
      # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
      model = _gen_efficientnet_condconv(
 -        'efficientnet_cc_b0_4e', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -771,7 +795,7 @@
      return model
  
  
-@@ -2269,7 +2273,7 @@     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
+@@ -2269,7 +2277,7 @@     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
      model = _gen_efficientnet_condconv(
          'efficientnet_cc_b0_8e', channel_multiplier=1.0, depth_multiplier=1.0, experts_multiplier=2,
 -        pretrained=pretrained, **kwargs)
@@ -779,7 +803,7 @@
      return model
  
  
-@@ -2279,7 +2283,7 @@     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
+@@ -2279,7 +2287,7 @@     # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
      model = _gen_efficientnet_condconv(
          'efficientnet_cc_b1_8e', channel_multiplier=1.0, depth_multiplier=1.1, experts_multiplier=2,
 -        pretrained=pretrained, **kwargs)
@@ -787,7 +811,7 @@
      return model
  
  
-@@ -2288,7 +2292,7 @@     """ EfficientNet-Lite0 """
+@@ -2288,7 +2296,7 @@     """ EfficientNet-Lite0 """
      # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
      model = _gen_efficientnet_lite(
 -        'efficientnet_lite0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -795,7 +819,7 @@
      return model
  
  
-@@ -2297,7 +2301,7 @@     """ EfficientNet-Lite1 """
+@@ -2297,7 +2305,7 @@     """ EfficientNet-Lite1 """
      # NOTE for train, drop_rate should be 0.2, drop_path_rate should be 0.2
      model = _gen_efficientnet_lite(
 -        'efficientnet_lite1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
@@ -803,7 +827,7 @@
      return model
  
  
-@@ -2306,7 +2310,7 @@     """ EfficientNet-Lite2 """
+@@ -2306,7 +2314,7 @@     """ EfficientNet-Lite2 """
      # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
      model = _gen_efficientnet_lite(
 -        'efficientnet_lite2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
@@ -811,7 +835,7 @@
      return model
  
  
-@@ -2315,7 +2319,7 @@     """ EfficientNet-Lite3 """
+@@ -2315,7 +2323,7 @@     """ EfficientNet-Lite3 """
      # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
      model = _gen_efficientnet_lite(
 -        'efficientnet_lite3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -819,7 +843,7 @@
      return model
  
  
-@@ -2324,7 +2328,7 @@     """ EfficientNet-Lite4 """
+@@ -2324,7 +2332,7 @@     """ EfficientNet-Lite4 """
      # NOTE for train, drop_rate should be 0.4, drop_path_rate should be 0.2
      model = _gen_efficientnet_lite(
 -        'efficientnet_lite4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
@@ -827,7 +851,7 @@
      return model
  
  
-@@ -2335,7 +2339,7 @@     kwargs.setdefault('pad_type', 'same')
+@@ -2335,7 +2343,7 @@     kwargs.setdefault('pad_type', 'same')
      variant = 'efficientnet_b1_pruned'
      model = _gen_efficientnet(
 -        variant, channel_multiplier=1.0, depth_multiplier=1.1, pruned=True, pretrained=pretrained, **kwargs)
@@ -835,7 +859,7 @@
      return model
  
  
-@@ -2346,7 +2350,7 @@     kwargs.setdefault('pad_type', 'same')
+@@ -2346,7 +2354,7 @@     kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
          'efficientnet_b2_pruned', channel_multiplier=1.1, depth_multiplier=1.2, pruned=True,
 -        pretrained=pretrained, **kwargs)
@@ -843,7 +867,7 @@
      return model
  
  
-@@ -2357,7 +2361,7 @@     kwargs.setdefault('pad_type', 'same')
+@@ -2357,7 +2365,7 @@     kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
          'efficientnet_b3_pruned', channel_multiplier=1.2, depth_multiplier=1.4, pruned=True,
 -        pretrained=pretrained, **kwargs)
@@ -851,7 +875,7 @@
      return model
  
  
-@@ -2365,7 +2369,7 @@ def efficientnetv2_rw_t(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2365,7 +2373,7 @@ def efficientnetv2_rw_t(pretrained=False, **kwargs) -> EfficientNet:
      """ EfficientNet-V2 Tiny (Custom variant, tiny not in paper). """
      model = _gen_efficientnetv2_s(
 -        'efficientnetv2_rw_t', channel_multiplier=0.8, depth_multiplier=0.9, rw=False, pretrained=pretrained, **kwargs)
@@ -859,7 +883,7 @@
      return model
  
  
-@@ -2374,7 +2378,7 @@     """ EfficientNet-V2 Tiny w/ Global Context Attn (Custom variant, tiny not in paper). """
+@@ -2374,7 +2382,7 @@     """ EfficientNet-V2 Tiny w/ Global Context Attn (Custom variant, tiny not in paper). """
      model = _gen_efficientnetv2_s(
          'gc_efficientnetv2_rw_t', channel_multiplier=0.8, depth_multiplier=0.9,
 -        rw=False, se_layer='gc', pretrained=pretrained, **kwargs)
@@ -867,7 +891,7 @@
      return model
  
  
-@@ -2384,7 +2388,7 @@     NOTE: This is my initial (pre official code release) w/ some differences.
+@@ -2384,7 +2392,7 @@     NOTE: This is my initial (pre official code release) w/ some differences.
      See efficientnetv2_s and tf_efficientnetv2_s for versions that match the official w/ PyTorch vs TF padding
      """
 -    model = _gen_efficientnetv2_s('efficientnetv2_rw_s', rw=True, pretrained=pretrained, **kwargs)
@@ -875,7 +899,7 @@
      return model
  
  
-@@ -2394,35 +2398,35 @@     """
+@@ -2394,35 +2402,35 @@     """
      model = _gen_efficientnetv2_s(
          'efficientnetv2_rw_m', channel_multiplier=1.2, depth_multiplier=(1.2,) * 4 + (1.6,) * 2, rw=True,
 -        pretrained=pretrained, **kwargs)
@@ -915,7 +939,7 @@
      return model
  
  
-@@ -2432,7 +2436,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2432,7 +2440,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -923,7 +947,7 @@
      return model
  
  
-@@ -2442,7 +2446,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2442,7 +2450,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
@@ -931,7 +955,7 @@
      return model
  
  
-@@ -2452,7 +2456,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2452,7 +2460,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
@@ -939,7 +963,7 @@
      return model
  
  
-@@ -2462,7 +2466,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2462,7 +2470,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -947,7 +971,7 @@
      return model
  
  
-@@ -2472,7 +2476,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2472,7 +2480,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
@@ -955,7 +979,7 @@
      return model
  
  
-@@ -2482,7 +2486,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2482,7 +2490,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)
@@ -963,7 +987,7 @@
      return model
  
  
-@@ -2493,7 +2497,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2493,7 +2501,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b6', channel_multiplier=1.8, depth_multiplier=2.6, pretrained=pretrained, **kwargs)
@@ -971,7 +995,7 @@
      return model
  
  
-@@ -2504,7 +2508,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2504,7 +2512,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b7', channel_multiplier=2.0, depth_multiplier=3.1, pretrained=pretrained, **kwargs)
@@ -979,7 +1003,7 @@
      return model
  
  
-@@ -2515,7 +2519,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2515,7 +2523,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_b8', channel_multiplier=2.2, depth_multiplier=3.6, pretrained=pretrained, **kwargs)
@@ -987,7 +1011,7 @@
      return model
  
  
-@@ -2526,7 +2530,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2526,7 +2534,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet(
 -        'tf_efficientnet_l2', channel_multiplier=4.3, depth_multiplier=5.3, pretrained=pretrained, **kwargs)
@@ -995,7 +1019,7 @@
      return model
  
  
-@@ -2536,7 +2540,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2536,7 +2544,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_edge(
 -        'tf_efficientnet_es', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -1003,7 +1027,7 @@
      return model
  
  
-@@ -2546,7 +2550,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2546,7 +2554,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_edge(
 -        'tf_efficientnet_em', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
@@ -1011,7 +1035,7 @@
      return model
  
  
-@@ -2556,7 +2560,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2556,7 +2564,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_edge(
 -        'tf_efficientnet_el', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -1019,7 +1043,7 @@
      return model
  
  
-@@ -2567,7 +2571,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2567,7 +2575,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_condconv(
 -        'tf_efficientnet_cc_b0_4e', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -1027,7 +1051,7 @@
      return model
  
  
-@@ -2579,7 +2583,7 @@     kwargs.setdefault('pad_type', 'same')
+@@ -2579,7 +2587,7 @@     kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_condconv(
          'tf_efficientnet_cc_b0_8e', channel_multiplier=1.0, depth_multiplier=1.0, experts_multiplier=2,
 -        pretrained=pretrained, **kwargs)
@@ -1035,7 +1059,7 @@
      return model
  
  
-@@ -2591,7 +2595,7 @@     kwargs.setdefault('pad_type', 'same')
+@@ -2591,7 +2599,7 @@     kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_condconv(
          'tf_efficientnet_cc_b1_8e', channel_multiplier=1.0, depth_multiplier=1.1, experts_multiplier=2,
 -        pretrained=pretrained, **kwargs)
@@ -1043,7 +1067,7 @@
      return model
  
  
-@@ -2602,7 +2606,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2602,7 +2610,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_lite(
 -        'tf_efficientnet_lite0', channel_multiplier=1.0, depth_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -1051,7 +1075,7 @@
      return model
  
  
-@@ -2613,7 +2617,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2613,7 +2621,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_lite(
 -        'tf_efficientnet_lite1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
@@ -1059,7 +1083,7 @@
      return model
  
  
-@@ -2624,7 +2628,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2624,7 +2632,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_lite(
 -        'tf_efficientnet_lite2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
@@ -1067,7 +1091,7 @@
      return model
  
  
-@@ -2635,7 +2639,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2635,7 +2643,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_lite(
 -        'tf_efficientnet_lite3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -1075,7 +1099,7 @@
      return model
  
  
-@@ -2646,7 +2650,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2646,7 +2654,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnet_lite(
 -        'tf_efficientnet_lite4', channel_multiplier=1.4, depth_multiplier=1.8, pretrained=pretrained, **kwargs)
@@ -1083,7 +1107,7 @@
      return model
  
  
-@@ -2655,7 +2659,7 @@     """ EfficientNet-V2 Small. Tensorflow compatible variant  """
+@@ -2655,7 +2663,7 @@     """ EfficientNet-V2 Small. Tensorflow compatible variant  """
      kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
 -    model = _gen_efficientnetv2_s('tf_efficientnetv2_s', pretrained=pretrained, **kwargs)
@@ -1091,7 +1115,7 @@
      return model
  
  
-@@ -2664,7 +2668,7 @@     """ EfficientNet-V2 Medium. Tensorflow compatible variant  """
+@@ -2664,7 +2672,7 @@     """ EfficientNet-V2 Medium. Tensorflow compatible variant  """
      kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
 -    model = _gen_efficientnetv2_m('tf_efficientnetv2_m', pretrained=pretrained, **kwargs)
@@ -1099,7 +1123,7 @@
      return model
  
  
-@@ -2673,7 +2677,7 @@     """ EfficientNet-V2 Large. Tensorflow compatible variant  """
+@@ -2673,7 +2681,7 @@     """ EfficientNet-V2 Large. Tensorflow compatible variant  """
      kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
 -    model = _gen_efficientnetv2_l('tf_efficientnetv2_l', pretrained=pretrained, **kwargs)
@@ -1107,7 +1131,7 @@
      return model
  
  
-@@ -2683,7 +2687,7 @@     """
+@@ -2683,7 +2691,7 @@     """
      kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
 -    model = _gen_efficientnetv2_xl('tf_efficientnetv2_xl', pretrained=pretrained, **kwargs)
@@ -1115,7 +1139,7 @@
      return model
  
  
-@@ -2692,7 +2696,7 @@     """ EfficientNet-V2-B0. Tensorflow compatible variant  """
+@@ -2692,7 +2700,7 @@     """ EfficientNet-V2-B0. Tensorflow compatible variant  """
      kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
 -    model = _gen_efficientnetv2_base('tf_efficientnetv2_b0', pretrained=pretrained, **kwargs)
@@ -1123,7 +1147,7 @@
      return model
  
  
-@@ -2702,7 +2706,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2702,7 +2710,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnetv2_base(
 -        'tf_efficientnetv2_b1', channel_multiplier=1.0, depth_multiplier=1.1, pretrained=pretrained, **kwargs)
@@ -1131,7 +1155,7 @@
      return model
  
  
-@@ -2712,7 +2716,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2712,7 +2720,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnetv2_base(
 -        'tf_efficientnetv2_b2', channel_multiplier=1.1, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
@@ -1139,7 +1163,7 @@
      return model
  
  
-@@ -2722,7 +2726,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2722,7 +2730,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_efficientnetv2_base(
 -        'tf_efficientnetv2_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -1147,7 +1171,7 @@
      return model
  
  
-@@ -2731,7 +2735,7 @@     """ EfficientNet-B3 """
+@@ -2731,7 +2739,7 @@     """ EfficientNet-B3 """
      # NOTE for train, drop_rate should be 0.3, drop_path_rate should be 0.2
      model = _gen_efficientnet_x(
 -        'efficientnet_x_b3', channel_multiplier=1.2, depth_multiplier=1.4, pretrained=pretrained, **kwargs)
@@ -1155,7 +1179,7 @@
      return model
  
  
-@@ -2739,7 +2743,7 @@ def efficientnet_x_b5(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2739,7 +2747,7 @@ def efficientnet_x_b5(pretrained=False, **kwargs) -> EfficientNet:
      """ EfficientNet-B5 """
      model = _gen_efficientnet_x(
 -        'efficientnet_x_b5', channel_multiplier=1.6, depth_multiplier=2.2, pretrained=pretrained, **kwargs)
@@ -1163,7 +1187,7 @@
      return model
  
  
-@@ -2747,7 +2751,7 @@ def efficientnet_h_b5(pretrained=False, **kwargs) -> EfficientNet:
+@@ -2747,7 +2755,7 @@ def efficientnet_h_b5(pretrained=False, **kwargs) -> EfficientNet:
      """ EfficientNet-B5 """
      model = _gen_efficientnet_x(
 -        'efficientnet_h_b5', channel_multiplier=1.92, depth_multiplier=2.2, version=2, pretrained=pretrained, **kwargs)
@@ -1171,7 +1195,7 @@
      return model
  
  
-@@ -2756,7 +2760,7 @@     """Creates a MixNet Small model.
+@@ -2756,7 +2764,7 @@     """Creates a MixNet Small model.
      """
      model = _gen_mixnet_s(
 -        'mixnet_s', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -1179,7 +1203,7 @@
      return model
  
  
-@@ -2765,7 +2769,7 @@     """Creates a MixNet Medium model.
+@@ -2765,7 +2773,7 @@     """Creates a MixNet Medium model.
      """
      model = _gen_mixnet_m(
 -        'mixnet_m', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -1187,7 +1211,7 @@
      return model
  
  
-@@ -2774,7 +2778,7 @@     """Creates a MixNet Large model.
+@@ -2774,7 +2782,7 @@     """Creates a MixNet Large model.
      """
      model = _gen_mixnet_m(
 -        'mixnet_l', channel_multiplier=1.3, pretrained=pretrained, **kwargs)
@@ -1195,7 +1219,7 @@
      return model
  
  
-@@ -2784,7 +2788,7 @@     Not a paper spec, experimental def by RW w/ depth scaling.
+@@ -2784,7 +2792,7 @@     Not a paper spec, experimental def by RW w/ depth scaling.
      """
      model = _gen_mixnet_m(
 -        'mixnet_xl', channel_multiplier=1.6, depth_multiplier=1.2, pretrained=pretrained, **kwargs)
@@ -1203,7 +1227,7 @@
      return model
  
  
-@@ -2794,7 +2798,7 @@     Not a paper spec, experimental def by RW w/ depth scaling.
+@@ -2794,7 +2802,7 @@     Not a paper spec, experimental def by RW w/ depth scaling.
      """
      model = _gen_mixnet_m(
 -        'mixnet_xxl', channel_multiplier=2.4, depth_multiplier=1.3, pretrained=pretrained, **kwargs)
@@ -1211,7 +1235,7 @@
      return model
  
  
-@@ -2805,7 +2809,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2805,7 +2813,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_mixnet_s(
 -        'tf_mixnet_s', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -1219,7 +1243,7 @@
      return model
  
  
-@@ -2816,7 +2820,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2816,7 +2824,7 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_mixnet_m(
 -        'tf_mixnet_m', channel_multiplier=1.0, pretrained=pretrained, **kwargs)
@@ -1227,7 +1251,7 @@
      return model
  
  
-@@ -2827,78 +2831,78 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
+@@ -2827,78 +2835,78 @@     kwargs.setdefault('bn_eps', BN_EPS_TF_DEFAULT)
      kwargs.setdefault('pad_type', 'same')
      model = _gen_mixnet_m(
 -        'tf_mixnet_l', channel_multiplier=1.3, pretrained=pretrained, **kwargs)
@@ -1317,7 +1341,7 @@
      return model
  
  
-@@ -2910,7 +2914,7 @@         pretrained=pretrained,
+@@ -2910,7 +2918,7 @@         pretrained=pretrained,
          norm_layer=kwargs.pop('norm_layer', partial(GroupNormAct, group_size=8)),
          **kwargs
 -    )
@@ -1325,7 +1349,7 @@
      return model
  
  
-@@ -2921,7 +2925,7 @@         pretrained=pretrained,
+@@ -2921,7 +2929,7 @@         pretrained=pretrained,
          norm_layer=kwargs.pop('norm_layer', LayerNormAct2d),
          **kwargs
 -    )
@@ -1333,7 +1357,7 @@
      return model
  
  
-@@ -2932,7 +2936,7 @@         pretrained=pretrained,
+@@ -2932,7 +2940,7 @@         pretrained=pretrained,
          norm_layer=kwargs.pop('norm_layer', partial(EvoNorm2dS0, group_size=8)),
          **kwargs
 -    )

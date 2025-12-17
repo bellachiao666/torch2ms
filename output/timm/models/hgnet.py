@@ -301,9 +301,10 @@ class HighPerfGpuBlock(msnn.Cell):
                 **dd,
             )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.aggregation = msnn.SequentialCell(
+                [
                 aggregation_squeeze_conv,
-                aggregation_excitation_conv,
-            )
+                aggregation_excitation_conv
+            ])
         else:
             aggregation_conv = ConvBNAct(
                 total_chs,
@@ -315,9 +316,10 @@ class HighPerfGpuBlock(msnn.Cell):
             )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             att = EseModule(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.aggregation = msnn.SequentialCell(
+                [
                 aggregation_conv,
-                att,
-            )
+                att
+            ])
 
         self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
 
@@ -391,6 +393,7 @@ class HighPerfGpuStage(msnn.Cell):
 
     def construct(self, x):
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -432,9 +435,16 @@ class ClassifierHead(msnn.Cell):
             act = nn.ReLU()
             if use_lab:
                 lab = LearnableAffineBlock(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-                self.last_conv = msnn.SequentialCell(last_conv, act, lab)
+                self.last_conv = msnn.SequentialCell([
+                    last_conv,
+                    act,
+                    lab
+                ])
             else:
-                self.last_conv = msnn.SequentialCell(last_conv, act)
+                self.last_conv = msnn.SequentialCell([
+                    last_conv,
+                    act
+                ])
         else:
             self.last_conv = msnn.Identity()
 
@@ -595,6 +605,7 @@ class HighPerfGpuNet(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

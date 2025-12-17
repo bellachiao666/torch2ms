@@ -23,7 +23,14 @@
          assert isinstance(checkpoint, dict)
          if 'state_dict_ema' in checkpoint:
              new_state_dict = OrderedDict()
-@@ -80,7 +84,7 @@                 ema_v.copy_(ema_v * self.decay + (1. - self.decay) * model_v)
+@@ -69,6 +73,7 @@     def update(self, model):
+         # correct a mismatch in state dict keys
+         needs_module = hasattr(model, 'module') and not self.ema_has_module
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             msd = model.state_dict()
+             for k, ema_v in self.ema.state_dict().items():
+@@ -80,7 +85,7 @@                 ema_v.copy_(ema_v * self.decay + (1. - self.decay) * model_v)
  
  
 -class ModelEmaV2(nn.Module):
@@ -31,7 +38,14 @@
      """ Model Exponential Moving Average V2
  
      Keep a moving average of everything in the model state_dict (parameters and buffers).
-@@ -126,11 +130,11 @@     def set(self, model):
+@@ -114,6 +119,7 @@             self.module.to(device=device)
+ 
+     def _update(self, model, update_fn):
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
+                 if self.device is not None:
+@@ -126,11 +132,11 @@     def set(self, model):
          self._update(model, update_fn=lambda e, m: m)
  
 -    def forward(self, *args, **kwargs):
@@ -47,7 +61,22 @@
      """ Model Exponential Moving Average V3
  
      Keep a moving average of everything in the model state_dict (parameters and buffers).
-@@ -223,10 +227,10 @@                     ema_v.copy_(model_v)
+@@ -153,6 +159,7 @@     This class is sensitive where it is initialized in the sequence of model init,
+     GPU assignment and distributed training wrappers.
+     """
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             model,
+@@ -202,6 +209,8 @@ 
+         return decay
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def update(self, model, step: Optional[int] = None):
+         decay = self.get_decay(step)
+@@ -223,10 +232,10 @@                     ema_v.copy_(model_v)
  
              if hasattr(torch, '_foreach_lerp_'):
 -                torch._foreach_lerp_(ema_lerp_values, model_lerp_values, weight=1. - decay)
@@ -60,7 +89,7 @@
          else:
              for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
                  if ema_v.is_floating_point():
-@@ -240,10 +244,10 @@         model_params = tuple(model.parameters())
+@@ -240,10 +249,10 @@         model_params = tuple(model.parameters())
          if self.foreach:
              if hasattr(torch, '_foreach_lerp_'):
 -                torch._foreach_lerp_(ema_params, model_params, weight=1. - decay)
@@ -73,7 +102,14 @@
          else:
              for ema_p, model_p in zip(ema_params, model_params):
                  ema_p.lerp_(model_p.to(device=self.device), weight=1. - decay)
-@@ -256,5 +260,5 @@         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
+@@ -251,10 +260,12 @@         for ema_b, model_b in zip(self.module.buffers(), model.buffers()):
+             ema_b.copy_(model_b.to(device=self.device))
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def set(self, model):
+         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
              ema_v.copy_(model_v.to(device=self.device))
  
 -    def forward(self, *args, **kwargs):

@@ -207,22 +207,25 @@
      """Build convolutional stem with MobileOne blocks.
  
      Args:
-@@ -466,7 +470,7 @@         nn.Sequential object with stem elements.
+@@ -466,7 +470,8 @@         nn.Sequential object with stem elements.
      """
      dd = {'device': device, 'dtype': dtype}
 -    return nn.Sequential(
 +    return msnn.SequentialCell(
++        [
          MobileOneBlock(
              in_chs=in_chs,
              out_chs=out_chs,
-@@ -498,16 +502,16 @@             use_scale_branch=use_scale_branch,
+@@ -497,17 +502,17 @@             inference_mode=inference_mode,
+             use_scale_branch=use_scale_branch,
              **dd,
-         ),
+-        ),
 -    )
 -
 -
 -class Attention(nn.Module):
-+    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        )
++    ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +
 +class Attention(msnn.Cell):
@@ -236,7 +239,7 @@
  
      def __init__(
              self,
-@@ -536,12 +540,12 @@         self.scale = head_dim ** -0.5
+@@ -536,12 +541,12 @@         self.scale = head_dim ** -0.5
          self.fused_attn = use_fused_attn()
  
 -        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
@@ -251,7 +254,7 @@
          B, C, H, W = x.shape
          N = H * W
          x = x.flatten(2).transpose(-2, -1)  # (B, N, C)
-@@ -556,7 +560,7 @@             x = torch.nn.functional.scaled_dot_product_attention(
+@@ -556,7 +561,7 @@             x = torch.nn.functional.scaled_dot_product_attention(
                  q, k, v,
                  dropout_p=self.attn_drop.p if self.training else 0.,
 -            )
@@ -259,7 +262,7 @@
          else:
              q = q * self.scale
              attn = q @ k.transpose(-2, -1)
-@@ -572,7 +576,7 @@         return x
+@@ -572,7 +577,7 @@         return x
  
  
 -class PatchEmbed(nn.Module):
@@ -267,7 +270,7 @@
      """Convolutional patch embedding layer."""
  
      def __init__(
-@@ -581,7 +585,7 @@             stride: int,
+@@ -581,7 +586,7 @@             stride: int,
              in_chs: int,
              embed_dim: int,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -275,21 +278,22 @@
              lkc_use_act: bool = False,
              use_se: bool = False,
              inference_mode: bool = False,
-@@ -599,7 +603,7 @@         """
+@@ -599,7 +604,8 @@         """
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.proj = nn.Sequential(
 +        self.proj = msnn.SequentialCell(
++            [
              ReparamLargeKernelConv(
                  in_chs=in_chs,
                  out_chs=embed_dim,
-@@ -622,14 +626,14 @@                 inference_mode=inference_mode,
+@@ -622,14 +628,14 @@                 inference_mode=inference_mode,
                  **dd,
              )
 -        )
 -
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          x = self.proj(x)
@@ -301,7 +305,7 @@
      def __init__(
              self,
              dim: int,
-@@ -640,13 +644,13 @@     ):
+@@ -640,13 +646,13 @@     ):
          super().__init__()
          self.inplace = inplace
 -        self.gamma = nn.Parameter(init_values * torch.ones(dim, 1, 1, device=device, dtype=dtype))
@@ -318,7 +322,7 @@
      """Reparameterizable token mixer.
  
      For more details, please refer to our paper:
-@@ -686,7 +690,7 @@                 groups=self.dim,
+@@ -686,7 +692,7 @@                 groups=self.dim,
                  bias=True,
                  **dd,
 -            )
@@ -326,7 +330,7 @@
          else:
              self.reparam_conv = None
              self.norm = MobileOneBlock(
-@@ -698,7 +702,7 @@                 use_scale_branch=False,
+@@ -698,7 +704,7 @@                 use_scale_branch=False,
                  num_conv_branches=0,
                  **dd,
 -            )
@@ -334,7 +338,7 @@
              self.mixer = MobileOneBlock(
                  dim,
                  dim,
-@@ -706,13 +710,13 @@                 group_size=1,
+@@ -706,13 +712,13 @@                 group_size=1,
                  use_act=False,
                  **dd,
 -            )
@@ -352,7 +356,7 @@
          if self.reparam_conv is not None:
              x = self.reparam_conv(x)
          else:
-@@ -733,7 +737,7 @@             w = self.mixer.id_tensor + self.layer_scale.gamma.unsqueeze(-1) * (
+@@ -733,7 +739,7 @@             w = self.mixer.id_tensor + self.layer_scale.gamma.unsqueeze(-1) * (
                  self.mixer.reparam_conv.weight - self.norm.reparam_conv.weight
              )
 -            b = torch.squeeze(self.layer_scale.gamma) * (
@@ -360,7 +364,7 @@
                  self.mixer.reparam_conv.bias - self.norm.reparam_conv.bias
              )
          else:
-@@ -764,7 +768,7 @@         self.__delattr__("layer_scale")
+@@ -764,7 +770,7 @@         self.__delattr__("layer_scale")
  
  
 -class ConvMlp(nn.Module):
@@ -368,7 +372,7 @@
      """Convolutional FFN Module."""
  
      def __init__(
-@@ -772,7 +776,7 @@             in_chs: int,
+@@ -772,7 +778,7 @@             in_chs: int,
              hidden_channels: Optional[int] = None,
              out_chs: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -376,7 +380,7 @@
              drop: float = 0.0,
              device=None,
              dtype=None,
-@@ -797,20 +801,20 @@             groups=in_chs,
+@@ -797,20 +803,20 @@             groups=in_chs,
              apply_act=False,
              **dd,
 -        )
@@ -403,7 +407,7 @@
          x = self.conv(x)
          x = self.fc1(x)
          x = self.act(x)
-@@ -820,7 +824,7 @@         return x
+@@ -820,7 +826,7 @@         return x
  
  
 -class RepConditionalPosEnc(nn.Module):
@@ -411,7 +415,7 @@
      """Implementation of conditional positional encoding.
  
      For more details refer to paper:
-@@ -874,7 +878,7 @@                 groups=self.groups,
+@@ -874,7 +880,7 @@                 groups=self.groups,
                  bias=True,
                  **dd,
 -            )
@@ -419,7 +423,7 @@
          else:
              self.reparam_conv = None
              self.pos_enc = nn.Conv2d(
-@@ -886,9 +890,9 @@                 groups=self.groups,
+@@ -886,9 +892,9 @@                 groups=self.groups,
                  bias=True,
                  **dd,
 -            )
@@ -431,7 +435,7 @@
          if self.reparam_conv is not None:
              x = self.reparam_conv(x)
          else:
-@@ -898,7 +902,7 @@     def reparameterize(self) -> None:
+@@ -898,7 +904,7 @@     def reparameterize(self) -> None:
          # Build equivalent Id tensor
          input_dim = self.dim // self.groups
 -        kernel_value = torch.zeros(
@@ -439,7 +443,7 @@
              (
                  self.dim,
                  input_dim,
-@@ -923,14 +927,7 @@ 
+@@ -923,14 +929,7 @@ 
          # Introduce reparam conv
          self.reparam_conv = nn.Conv2d(
 -            self.dim,
@@ -454,7 +458,7 @@
          self.reparam_conv.weight.data = w_final
          self.reparam_conv.bias.data = b_final
  
-@@ -941,7 +938,7 @@         self.__delattr__("pos_enc")
+@@ -941,7 +940,7 @@         self.__delattr__("pos_enc")
  
  
 -class RepMixerBlock(nn.Module):
@@ -462,7 +466,7 @@
      """Implementation of Metaformer block with RepMixer as token mixer.
  
      For more details on Metaformer structure, please refer to:
-@@ -953,7 +950,7 @@             dim: int,
+@@ -953,7 +952,7 @@             dim: int,
              kernel_size: int = 3,
              mlp_ratio: float = 4.0,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -470,7 +474,7 @@
              proj_drop: float = 0.0,
              drop_path: float = 0.0,
              layer_scale_init_value: float = 1e-5,
-@@ -982,7 +979,7 @@             layer_scale_init_value=layer_scale_init_value,
+@@ -982,7 +981,7 @@             layer_scale_init_value=layer_scale_init_value,
              inference_mode=inference_mode,
              **dd,
 -        )
@@ -478,7 +482,7 @@
  
          self.mlp = ConvMlp(
              in_chs=dim,
-@@ -990,20 +987,20 @@             act_layer=act_layer,
+@@ -990,20 +989,20 @@             act_layer=act_layer,
              drop=proj_drop,
              **dd,
 -        )
@@ -505,7 +509,7 @@
      """Implementation of metaformer block with MHSA as token mixer.
  
      For more details on Metaformer structure, please refer to:
-@@ -1014,8 +1011,8 @@             self,
+@@ -1014,8 +1013,8 @@             self,
              dim: int,
              mlp_ratio: float = 4.0,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -515,7 +519,7 @@
              proj_drop: float = 0.0,
              drop_path: float = 0.0,
              layer_scale_init_value: float = 1e-5,
-@@ -1036,13 +1033,13 @@         dd = {'device': device, 'dtype': dtype}
+@@ -1036,13 +1035,13 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
  
 -        self.norm = norm_layer(dim, **dd)
@@ -533,7 +537,7 @@
  
          self.mlp = ConvMlp(
              in_chs=dim,
-@@ -1050,20 +1047,20 @@             act_layer=act_layer,
+@@ -1050,20 +1049,20 @@             act_layer=act_layer,
              drop=proj_drop,
              **dd,
 -        )
@@ -560,7 +564,7 @@
      def __init__(
              self,
              dim: int,
-@@ -1074,11 +1071,11 @@             se_downsample: bool = False,
+@@ -1074,11 +1073,11 @@             se_downsample: bool = False,
              down_patch_size: int = 7,
              down_stride: int = 2,
 -            pos_emb_layer: Optional[nn.Module] = None,
@@ -574,7 +578,7 @@
              proj_drop_rate: float = 0.0,
              drop_path_rate: Union[List[float], float] = 0.0,
              layer_scale_init_value: Optional[float] = 1e-5,
-@@ -1117,15 +1114,15 @@                 lkc_use_act=lkc_use_act,
+@@ -1117,15 +1116,15 @@                 lkc_use_act=lkc_use_act,
                  inference_mode=inference_mode,
                  **dd,
 -            )
@@ -593,7 +597,7 @@
  
          blocks = []
          for block_idx in range(depth):
-@@ -1140,7 +1137,7 @@                     layer_scale_init_value=layer_scale_init_value,
+@@ -1140,7 +1139,7 @@                     layer_scale_init_value=layer_scale_init_value,
                      inference_mode=inference_mode,
                      **dd,
 -                ))
@@ -601,7 +605,7 @@
              elif token_mixer_type == "attention":
                  blocks.append(AttentionBlock(
                      dim_out,
-@@ -1151,14 +1148,14 @@                     drop_path=drop_path_rate[block_idx],
+@@ -1151,16 +1150,17 @@                     drop_path=drop_path_rate[block_idx],
                      layer_scale_init_value=layer_scale_init_value,
                      **dd,
 -                ))
@@ -618,8 +622,11 @@
 +    def construct(self, x):
          x = self.downsample(x)
          x = self.pos_emb(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -1168,8 +1165,8 @@         return x
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -1168,8 +1168,8 @@         return x
  
  
 -class FastVit(nn.Module):
@@ -629,7 +636,7 @@
  
      """
      This class implements `FastViT architecture <https://arxiv.org/pdf/2303.14189.pdf>`_
-@@ -1186,7 +1183,7 @@             se_downsamples: Tuple[bool, ...] = (False, False, False, False),
+@@ -1186,7 +1186,7 @@             se_downsamples: Tuple[bool, ...] = (False, False, False, False),
              repmixer_kernel_size: int = 3,
              num_classes: int = 1000,
 -            pos_embs: Tuple[Optional[nn.Module], ...] = (None,) * 4,
@@ -637,7 +644,7 @@
              down_patch_size: int = 7,
              down_stride: int = 2,
              drop_rate: float = 0.0,
-@@ -1198,8 +1195,8 @@             fork_feat: bool = False,
+@@ -1198,8 +1198,8 @@             fork_feat: bool = False,
              cls_ratio: float = 2.0,
              global_pool: str = 'avg',
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -647,7 +654,7 @@
              inference_mode: bool = False,
              device=None,
              dtype=None,
-@@ -1219,7 +1216,7 @@             inference_mode,
+@@ -1219,7 +1219,7 @@             inference_mode,
              use_scale_branch=stem_use_scale_branch,
              **dd,
 -        )
@@ -655,7 +662,7 @@
  
          # Build the main stages of the network architecture
          prev_dim = embed_dims[0]
-@@ -1248,13 +1245,13 @@                 lkc_use_act=lkc_use_act,
+@@ -1248,13 +1248,13 @@                 lkc_use_act=lkc_use_act,
                  inference_mode=inference_mode,
                  **dd,
 -            )
@@ -670,7 +677,7 @@
          self.num_stages = len(self.stages)
          self.num_features = self.head_hidden_size = prev_dim
  
-@@ -1269,9 +1266,9 @@                     """For RetinaNet, `start_level=1`. The first norm layer will not used.
+@@ -1269,9 +1269,9 @@                     """For RetinaNet, `start_level=1`. The first norm layer will not used.
                      cmd: `FORK_LAST3=1 python -m torch.distributed.launch ...`
                      """
 -                    layer = nn.Identity()
@@ -681,7 +688,7 @@
                  layer_name = f"norm{i_layer}"
                  self.add_module(layer_name, layer)
          else:
-@@ -1288,29 +1285,29 @@                 act_layer=act_layer,
+@@ -1288,29 +1288,29 @@                 act_layer=act_layer,
                  num_conv_branches=1,
                  **dd,
 -            )
@@ -717,7 +724,7 @@
      def group_matcher(self, coarse=False):
          return dict(
              stem=r'^stem',  # stem and embed
-@@ -1321,13 +1318,13 @@             ]
+@@ -1321,13 +1321,13 @@             ]
          )
  
 -    @torch.jit.ignore
@@ -733,7 +740,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -1336,13 +1333,13 @@ 
+@@ -1336,13 +1336,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -748,7 +755,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -1394,7 +1391,7 @@             self.reset_classifier(0, '')
+@@ -1362,6 +1362,7 @@         # forward pass
+         x = self.stem(x)
+         last_idx = self.num_stages - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -1394,7 +1395,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -756,7 +770,7 @@
          # input embedding
          x = self.stem(x)
          outs = []
-@@ -1411,10 +1408,10 @@         x = self.final_conv(x)
+@@ -1411,10 +1412,10 @@         x = self.final_conv(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False):
@@ -768,7 +782,7 @@
          x = self.forward_features(x)
          if self.fork_feat:
              return x
-@@ -1586,7 +1583,7 @@                 # if CLIP projection, map to head.fc w/ bias = zeros
+@@ -1586,7 +1587,7 @@                 # if CLIP projection, map to head.fc w/ bias = zeros
                  k = k.replace('head.proj', 'head.fc.weight')
                  v = v.T
 -                out_dict['head.fc.bias'] = torch.zeros(v.shape[0])
@@ -776,7 +790,7 @@
              else:
                  k = k.replace('head.', 'head.fc.')
  
-@@ -1619,7 +1616,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -1619,7 +1620,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
          **kwargs
 -    )
@@ -784,7 +798,7 @@
      return model
  
  
-@@ -1632,7 +1629,7 @@         mlp_ratios=(3, 3, 3, 3),
+@@ -1632,7 +1633,7 @@         mlp_ratios=(3, 3, 3, 3),
          token_mixers=("repmixer", "repmixer", "repmixer", "repmixer")
      )
 -    return _create_fastvit('fastvit_t8', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -792,7 +806,7 @@
  
  
  @register_model
-@@ -1644,7 +1641,7 @@         mlp_ratios=(3, 3, 3, 3),
+@@ -1644,7 +1645,7 @@         mlp_ratios=(3, 3, 3, 3),
          token_mixers=("repmixer", "repmixer", "repmixer", "repmixer"),
      )
 -    return _create_fastvit('fastvit_t12', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -800,7 +814,7 @@
  
  
  @register_model
-@@ -1656,7 +1653,7 @@         mlp_ratios=(4, 4, 4, 4),
+@@ -1656,7 +1657,7 @@         mlp_ratios=(4, 4, 4, 4),
          token_mixers=("repmixer", "repmixer", "repmixer", "repmixer"),
      )
 -    return _create_fastvit('fastvit_s12', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -808,7 +822,7 @@
  
  
  @register_model
-@@ -1669,7 +1666,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
+@@ -1669,7 +1670,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
          token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
      )
 -    return _create_fastvit('fastvit_sa12', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -816,7 +830,7 @@
  
  
  @register_model
-@@ -1682,7 +1679,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
+@@ -1682,7 +1683,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
          token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
      )
 -    return _create_fastvit('fastvit_sa24', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -824,7 +838,7 @@
  
  
  @register_model
-@@ -1695,7 +1692,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
+@@ -1695,7 +1696,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
          token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
      )
 -    return _create_fastvit('fastvit_sa36', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -832,7 +846,7 @@
  
  
  @register_model
-@@ -1708,7 +1705,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
+@@ -1708,7 +1709,7 @@         pos_embs=(None, None, None, partial(RepConditionalPosEnc, spatial_shape=(7, 7))),
          token_mixers=("repmixer", "repmixer", "repmixer", "attention")
      )
 -    return _create_fastvit('fastvit_ma36', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -840,7 +854,7 @@
  
  
  @register_model
-@@ -1723,7 +1720,7 @@         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
+@@ -1723,7 +1724,7 @@         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
          lkc_use_act=True,
      )
 -    return _create_fastvit('fastvit_mci0', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -848,7 +862,7 @@
  
  
  @register_model
-@@ -1738,7 +1735,7 @@         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
+@@ -1738,7 +1739,7 @@         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
          lkc_use_act=True,
      )
 -    return _create_fastvit('fastvit_mci1', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -856,7 +870,7 @@
  
  
  @register_model
-@@ -1753,7 +1750,7 @@         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
+@@ -1753,7 +1754,7 @@         token_mixers=("repmixer", "repmixer", "repmixer", "attention"),
          lkc_use_act=True,
      )
 -    return _create_fastvit('fastvit_mci2', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -864,7 +878,7 @@
  
  
  @register_model
-@@ -1777,7 +1774,7 @@         norm_layer=partial(LayerNorm2d, eps=1e-5),
+@@ -1777,7 +1778,7 @@         norm_layer=partial(LayerNorm2d, eps=1e-5),
          stem_use_scale_branch=False,
      )
 -    model = _create_fastvit('fastvit_mci3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -872,7 +886,7 @@
      return model
  
  
-@@ -1803,5 +1800,5 @@         stem_use_scale_branch=False,
+@@ -1803,5 +1804,5 @@         stem_use_scale_branch=False,
      )
  
 -    model = _create_fastvit('fastvit_mci4', pretrained=pretrained, **dict(model_args, **kwargs))

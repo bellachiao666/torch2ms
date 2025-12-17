@@ -24,7 +24,15 @@
      """Wrapper for a teacher model used in knowledge distillation.
  
      Creates and manages a pre-trained teacher model for knowledge distillation,
-@@ -58,23 +63,23 @@             device=device,
+@@ -30,6 +35,8 @@         dtype: Model dtype (uses float32 if None)
+     """
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             model_name: str,
+@@ -58,23 +65,23 @@             device=device,
              dtype=dtype,
              **pretrained_kwargs,
 -        )
@@ -54,7 +62,7 @@
          """Forward pass through teacher model.
  
          Args:
-@@ -98,10 +103,10 @@ 
+@@ -98,10 +105,10 @@ 
      def normalize_input(
              self,
 -            input: torch.Tensor,
@@ -68,7 +76,7 @@
          """Normalize input to match teacher's expected normalization.
  
          Handles different normalization between teacher and student models by
-@@ -120,7 +125,7 @@             return input
+@@ -120,7 +127,7 @@             return input
  
          # Check if renormalization is actually needed
 -        if torch.equal(student_mean, self.mean_kd) and torch.equal(student_std, self.std_kd):
@@ -76,7 +84,11 @@
              return input
  
          # De-normalize (Student) -> Re-normalize (Teacher)
-@@ -168,9 +173,9 @@ 
+@@ -166,11 +173,13 @@         ... )
+     """
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(
              self,
 -            student_model: nn.Module,
@@ -87,7 +99,7 @@
              loss_type: str = 'kl',
              distill_loss_weight: Optional[float] = None,
              task_loss_weight: Optional[float] = None,
-@@ -192,12 +197,12 @@         # Register student normalization values as non-persistent buffers
+@@ -192,12 +201,12 @@         # Register student normalization values as non-persistent buffers
          # Shape: [1, 3, 1, 1] for proper broadcasting over BCHW images
          student_unwrapped = unwrap_model(student_model)
 -        student_mean = torch.tensor(
@@ -101,7 +113,7 @@
              student_unwrapped.pretrained_cfg['std'],
              device=self.device,
              dtype=self.dtype,
-@@ -256,21 +261,21 @@         Returns:
+@@ -256,21 +265,21 @@         Returns:
              self (for method chaining)
          """
 -        from torch.nn.parallel import DistributedDataParallel as DDP
@@ -127,7 +139,13 @@
          """Forward pass with logit distillation.
  
          Args:
-@@ -296,9 +301,9 @@             teacher_logits = self.teacher(input_kd.detach(), return_features=False)
+@@ -291,14 +300,15 @@         task_loss = self.criterion(student_logits, target)
+ 
+         # Teacher forward pass (no gradient)
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             input_kd = self.teacher.normalize_input(input, self.student_mean, self.student_std)
+             teacher_logits = self.teacher(input_kd.detach(), return_features=False)
  
          # Compute distillation loss (KL divergence with temperature scaling)
 -        prob_s = F.log_softmax(student_logits / self.temperature, dim=-1)
@@ -139,7 +157,7 @@
  
          # Combine losses with weights
          total_loss = self.task_loss_weight * task_loss + self.distill_loss_weight * kd_loss
-@@ -311,7 +316,7 @@         }
+@@ -311,7 +321,7 @@         }
  
  
 -class FeatureDistillationTrainableModule(nn.Module):
@@ -147,7 +165,7 @@
      """Trainable module for feature distillation.
  
      Wraps student model and projection layer into a single module where all
-@@ -328,14 +333,14 @@ 
+@@ -328,14 +338,14 @@ 
      def __init__(
              self,
 -            student_model: nn.Module,
@@ -164,7 +182,11 @@
          """Forward pass through student and projection.
  
          Args:
-@@ -397,9 +402,9 @@ 
+@@ -395,11 +405,13 @@         ... )
+     """
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(
              self,
 -            student_model: nn.Module,
@@ -175,7 +197,7 @@
              distill_loss_weight: Optional[float] = None,
              task_loss_weight: Optional[float] = None,
              student_feature_dim: Optional[int] = None,
-@@ -454,7 +459,7 @@                 _logger.info(
+@@ -454,7 +466,7 @@                 _logger.info(
                      f"Creating projection layer: {student_feature_dim} -> {teacher_feature_dim}"
                  )
 -            projection = nn.Linear(student_feature_dim, teacher_feature_dim, device=self.device, dtype=self.dtype)
@@ -183,7 +205,7 @@
          else:
              if self.verbose:
                  _logger.info("Feature dimensions match, no projection needed")
-@@ -465,12 +470,12 @@         # Register student normalization values as non-persistent buffers
+@@ -465,12 +477,12 @@         # Register student normalization values as non-persistent buffers
          # Shape: [1, 3, 1, 1] for proper broadcasting over BCHW images
          student_unwrapped = unwrap_model(student_model)
 -        student_mean = torch.tensor(
@@ -197,7 +219,7 @@
              student_unwrapped.pretrained_cfg['std'],
              device=self.device,
              dtype=self.dtype,
-@@ -485,7 +490,7 @@             )
+@@ -485,7 +497,7 @@             )
  
      @staticmethod
 -    def _detect_feature_dim(model: nn.Module) -> int:
@@ -205,7 +227,7 @@
          """Auto-detect feature dimension from model.
  
          Tries head_hidden_size first (pre-logits dimension), then num_features.
-@@ -521,21 +526,21 @@         Returns:
+@@ -521,21 +533,21 @@         Returns:
              self (for method chaining)
          """
 -        from torch.nn.parallel import DistributedDataParallel as DDP
@@ -231,7 +253,13 @@
          """Forward pass with feature distillation.
  
          Args:
-@@ -561,7 +566,7 @@             teacher_features = self.teacher(input_kd.detach(), return_features=True)
+@@ -556,12 +568,13 @@         task_loss = self.criterion(student_logits, target)
+ 
+         # Teacher forward pass (no gradient)
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             input_kd = self.teacher.normalize_input(input, self.student_mean, self.student_std)
+             teacher_features = self.teacher(input_kd.detach(), return_features=True)
  
          # Compute feature distillation loss (MSE)
 -        kd_loss = F.mse_loss(student_features, teacher_features)

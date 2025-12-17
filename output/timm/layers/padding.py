@@ -73,6 +73,7 @@ def get_padding_value(padding, kernel_size, **kwargs) -> Tuple[Tuple, bool]:
         padding = padding.lower()
         if padding == 'same':
             # TF compatible 'SAME' padding, has a performance and GPU memory allocation impact
+            # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if is_static_pad(kernel_size, **kwargs):
                 # static case, no extra overhead
                 padding = get_padding(kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

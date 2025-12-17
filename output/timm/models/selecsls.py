@@ -32,11 +32,13 @@ class SequentialList(msnn.SequentialCell):
     def __init__(self, *args):
         super().__init__(*args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def forward(self, x):
         # type: (List[torch.Tensor]) -> (List[torch.Tensor])
         pass
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def forward(self, x):
         # type: (torch.Tensor) -> (List[torch.Tensor])
@@ -54,11 +56,13 @@ class SelectSeq(msnn.Cell):
         self.mode = mode
         self.index = index
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (List[torch.Tensor]) -> (torch.Tensor)
         pass
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (Tuple[torch.Tensor]) -> (torch.Tensor)
@@ -76,10 +80,11 @@ def conv_bn(in_chs, out_chs, k=3, stride=1, padding=None, dilation=1, device=Non
     if padding is None:
         padding = ((stride - 1) + dilation * (k - 1)) // 2
     return msnn.SequentialCell(
+        [
         nn.Conv2d(in_chs, out_chs, k, stride, padding=padding, dilation=dilation, bias=False, **dd),
         nn.BatchNorm2d(out_chs, **dd),
         nn.ReLU()
-    )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+    ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
 
 class SelecSlsBlock(msnn.Cell):

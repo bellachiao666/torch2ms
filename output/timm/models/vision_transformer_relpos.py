@@ -448,11 +448,13 @@ class VisionTransformerRelPos(msnn.Cell):
             x = mint.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
 
         shared_rel_pos = self.shared_rel_pos.get_bias() if self.shared_rel_pos is not None else None
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
             blocks = self.blocks[:max_index + 1]
         for i, blk in enumerate(blocks):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x, shared_rel_pos=shared_rel_pos)
             else:
@@ -470,6 +472,7 @@ class VisionTransformerRelPos(msnn.Cell):
             # reshape to BCHW output format
             H, W = self.patch_embed.dynamic_feat_size((height, width))
             intermediates = [y.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous() for y in intermediates]
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting() and return_prefix_tokens:
             # return_prefix not support in torchscript due to poor type handling
             intermediates = list(zip(intermediates, prefix_tokens))
@@ -505,6 +508,7 @@ class VisionTransformerRelPos(msnn.Cell):
 
         shared_rel_pos = self.shared_rel_pos.get_bias() if self.shared_rel_pos is not None else None
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x, shared_rel_pos=shared_rel_pos)
             else:

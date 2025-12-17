@@ -18,8 +18,10 @@
  
  from ._types import ParamsT
  
-@@ -28,22 +33,22 @@ def _view_as_real(params, *state_and_grads):
+@@ -27,35 +32,38 @@ 
+ def _view_as_real(params, *state_and_grads):
      for i, p in enumerate(params):
++        # 'torch.is_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if torch.is_complex(p):
 -            params[i] = torch.view_as_real(params[i])
 +            params[i] = torch.view_as_real(params[i])  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -46,7 +48,11 @@
      else:
          return False
  
-@@ -53,9 +58,10 @@     if not torch.jit.is_scripting() and _is_compiling():
+ 
+ def _get_value(x):
+     # item is significantly faster than a cpu tensor in eager mode
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if not torch.jit.is_scripting() and _is_compiling():
          return x
      else:
 -        return x.item() if isinstance(x, torch.Tensor) else x
@@ -59,7 +65,7 @@
  class Adopt(Optimizer):
      """
      ADOPT: Modified Adam Can Converge with Any β2 with the Optimal Rate: https://arxiv.org/abs/2411.02853
-@@ -64,7 +70,7 @@     def __init__(
+@@ -64,7 +72,7 @@     def __init__(
              self,
              params: ParamsT,
 -            lr: Union[float, Tensor] = 1e-3,
@@ -67,7 +73,11 @@
              betas: Tuple[float, float] = (0.9, 0.9999),
              eps: float = 1e-6,
              clip_exp: Optional[float] = 0.333,
-@@ -127,13 +133,13 @@                 if len(p_state) != 0 and not torch.is_tensor(p_state["step"]):
+@@ -124,16 +132,17 @@             group.setdefault("corrected_weight_decay", False)
+             for p in group["params"]:
+                 p_state = self.state.get(p, [])
++                # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if len(p_state) != 0 and not torch.is_tensor(p_state["step"]):
                      step_val = float(p_state["step"])
                      p_state["step"] = (
 -                        torch.tensor(
@@ -82,7 +92,7 @@
                      )
  
      def _init_group(
-@@ -149,7 +155,7 @@         for p in group["params"]:
+@@ -149,7 +158,7 @@         for p in group["params"]:
              if p.grad is None:
                  continue
 -            has_complex |= torch.is_complex(p)
@@ -90,7 +100,7 @@
              params_with_grad.append(p)
              if p.grad.is_sparse:
                  raise RuntimeError("ADOPT does not support sparse gradients")
-@@ -162,14 +168,14 @@                 # Deliberately host `step` on CPU if both capturable and fused are off.
+@@ -162,14 +171,14 @@                 # Deliberately host `step` on CPU if both capturable and fused are off.
                  # This is because kernel launches are costly on CUDA and XLA.
                  state["step"] = (
 -                    torch.zeros((), dtype=_get_scalar_dtype(), device=p.grad.device)
@@ -108,7 +118,27 @@
  
              exp_avgs.append(state["exp_avg"])
              exp_avg_sqs.append(state["exp_avg_sq"])
-@@ -201,11 +207,11 @@                 loss = closure()
+@@ -178,6 +187,7 @@                 raise RuntimeError("`requires_grad` is not supported for `step` in differentiable mode")
+ 
+             # Foreach without capturable does not support a tensor lr
++            # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if group["foreach"] and torch.is_tensor(group["lr"]) and not group["capturable"]:
+                 raise RuntimeError("lr as a Tensor is not supported for capturable=False and foreach=True")
+ 
+@@ -185,6 +195,8 @@         return has_complex
+ 
+     #@_use_grad_for_differentiable  # FIXME internal context mgr, can't use
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """Perform a single optimization step.
+@@ -197,15 +209,16 @@ 
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
  
          for group in self.param_groups:
 -            params_with_grad: List[Tensor] = []
@@ -124,7 +154,7 @@
              beta1, beta2 = group["betas"]
  
              has_complex = self._init_group(
-@@ -245,18 +251,18 @@ 
+@@ -245,18 +258,18 @@ 
  
  def _single_tensor_adopt(
 -        params: List[Tensor],
@@ -150,7 +180,14 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -283,8 +289,8 @@ 
+@@ -269,6 +282,7 @@ ):
+     assert grad_scale is None and found_inf is None
+ 
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if torch.jit.is_scripting():
+         # this assert is due to JIT being dumb and not realizing that the ops below
+         # have overloads to handle both float and Tensor lrs, so we just assert it's
+@@ -283,21 +297,22 @@ 
          # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
          if capturable and not _is_compiling():
 -            from torch.optim.optimizer import _get_capturable_supported_devices
@@ -160,8 +197,10 @@
              assert param.device.type == step_t.device.type and param.device.type in capturable_supported_devices,\
                  f"If capturable=True, params and state_steps must be on supported devices: {capturable_supported_devices}."
  
-@@ -292,12 +298,12 @@         step_t += 1
+         # update step
+         step_t += 1
  
++        # 'torch.is_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if torch.is_complex(param):
 -            grad = torch.view_as_real(grad)
 +            grad = torch.view_as_real(grad)  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -176,7 +215,7 @@
  
          if weight_decay != 0 and not decoupled:
              grad = grad.add(param, alpha=weight_decay)
-@@ -311,7 +317,7 @@             wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
+@@ -311,7 +326,7 @@             wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
              param.add_(param, alpha=-wd_scale * weight_decay)
  
 -        denom = torch.clamp(exp_avg_sq.sqrt(), eps)
@@ -184,7 +223,7 @@
          normed_grad = grad.div(denom)
  
          if clip_exp is not None:
-@@ -332,18 +338,18 @@ 
+@@ -332,18 +347,18 @@ 
  
  def _multi_tensor_adopt(
 -        params: List[Tensor],
@@ -210,7 +249,7 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -364,10 +370,10 @@ 
+@@ -364,10 +379,10 @@ 
      # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
      if capturable and not _is_compiling():
 -        from torch.optim.optimizer import _get_capturable_supported_devices
@@ -222,7 +261,7 @@
          assert all(
              p.device.type == step.device.type and p.device.type in capturable_supported_devices
              for p, step in zip(params, state_steps)
-@@ -379,7 +385,7 @@ 
+@@ -379,7 +394,7 @@ 
      grouped_tensors = Optimizer._group_tensors_by_device_and_dtype(
          [params, grads, exp_avgs, exp_avg_sqs, state_steps]  # type: ignore[list-item]
 -    )
@@ -230,7 +269,7 @@
      for (
              device_params_,
              device_grads_,
-@@ -398,78 +404,78 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
+@@ -398,78 +413,78 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
  
          if maximize:
 -            device_grads = torch._foreach_neg(device_grads)  # type: ignore[assignment]
@@ -341,7 +380,7 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -486,7 +492,7 @@ 
+@@ -486,14 +501,16 @@ 
      # this check is slow during compilation, so we skip it
      # if it's strictly needed we can add this check back in dynamo
 -    if not _is_compiling() and not all(isinstance(t, torch.Tensor) for t in state_steps):
@@ -349,3 +388,12 @@
          raise RuntimeError(
              "API has changed, `state_steps` argument must contain a list of singleton tensors"
          )
+ 
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if foreach and torch.jit.is_scripting():
+         raise RuntimeError("torch.jit.script not supported with foreach optimizers")
+ 
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if foreach and not torch.jit.is_scripting():
+         func = _multi_tensor_adopt
+     else:

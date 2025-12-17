@@ -84,6 +84,7 @@ class PatchEmbed(msnn.Cell):
         if patch_size is not None:
             new_patch_size = to_2tuple(patch_size)
         if new_patch_size is not None and new_patch_size != self.patch_size:
+            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.no_grad():
                 new_proj = nn.Conv2d(
                     self.proj.in_channels, self.proj.out_channels, kernel_size = new_patch_size, stride = new_patch_size, bias = self.proj.bias is not None, dtype = self.proj.weight.dtype)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device' (position 9);
@@ -260,6 +261,8 @@ def resample_patch_embed_old(
 DTYPE_INTERMEDIATE = ms.float32
 
 
+# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _compute_resize_matrix(
         old_size: Tuple[int, int],
         new_size: Tuple[int, int],
@@ -282,6 +285,7 @@ def _compute_resize_matrix(
     return resize_matrix # Shape: (new_total, old_total)
 
 
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _apply_resampling(
         patch_embed: ms.Tensor,
         pinv_matrix: ms.Tensor,
@@ -356,6 +360,8 @@ class PatchEmbedResamplerFixedOrigSize(msnn.Cell):
         # Cache map key is the target new_size tuple
         self._pinv_cache_map: Dict[Tuple[int, int], str] = {}
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def _get_or_create_pinv_matrix(
             self,
             new_size: Tuple[int, int],

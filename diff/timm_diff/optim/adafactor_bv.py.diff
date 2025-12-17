@@ -33,7 +33,14 @@
  class AdafactorBigVision(Optimizer):
      """
      PyTorch implementation of BigVision's Adafactor variant with both single and multi tensor implementations.
-@@ -66,7 +72,7 @@             decay_offset: int = 0,
+@@ -57,6 +63,7 @@     Adapted from https://github.com/google-research/big_vision by Ross Wightman
+     """
+ 
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             params: ParamsT,
+@@ -66,7 +73,7 @@             decay_offset: int = 0,
              beta2_cap: float = 0.999,
              momentum: Optional[float] = 0.9,
 -            momentum_dtype: Union[str, torch.dtype] = torch.bfloat16,
@@ -41,7 +48,7 @@
              eps: Optional[float] = None,
              weight_decay: float = 0.0,
              clipping_threshold: Optional[float] = None,
-@@ -78,12 +84,12 @@     ):
+@@ -78,12 +85,12 @@     ):
          if isinstance(momentum_dtype, str):
              if momentum_dtype == 'float16':
 -                momentum_dtype = torch.float16
@@ -56,15 +63,33 @@
          # FIXME try to check if momentum dtype is appropriate for device? Torch API not great for this.
  
          defaults = dict(
-@@ -113,7 +119,7 @@             for p in group['params']:
+@@ -112,19 +119,24 @@             group.setdefault('foreach', None)
+             for p in group['params']:
                  p_state = self.state.get(p, {})
++                # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                  if len(p_state) != 0 and not torch.is_tensor(p_state['step']):
 -                    p_state['step'] = torch.tensor(float(p_state['step']), dtype=_get_scalar_dtype())
+-
 +                    p_state['step'] = ms.Tensor(float(p_state['step']), dtype=_get_scalar_dtype())
- 
++
++                # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                  if 'exp_avg' in p_state and torch.is_tensor(p_state['exp_avg']):
                      # FIXME this is a bit of a hack, optimizer.load_state_dict appears to upcast
-@@ -151,7 +157,7 @@ 
+                     # the momentum to float32 (it's half precision in the state_dict), need to
+                     # look into this further. Better to override _process_value_according_to_param_policy?
+                     p_state['exp_avg'] = p_state['exp_avg'].to(dtype=self.defaults['momentum_dtype'])
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -151,7 +163,7 @@ 
                  if len(state) == 0:
                      # NOTE step on CPU, probably need some more though to make capturable
 -                    state['step'] = torch.tensor(0.0, dtype=_get_scalar_dtype())
@@ -72,7 +97,7 @@
  
                      shape = p.grad.shape
                      factored_dims = _factored_dims(
-@@ -169,10 +175,10 @@                         state['exp_avg_sq_r'] = p.grad.new_zeros(row_shape)
+@@ -169,10 +181,10 @@                         state['exp_avg_sq_r'] = p.grad.new_zeros(row_shape)
                          state['exp_avg_sq_c'] = p.grad.new_zeros(col_shape)
                      else:
 -                        state['exp_avg_sq'] = torch.zeros_like(p.grad, memory_format=torch.preserve_format)
@@ -84,8 +109,10 @@
  
                  state_steps.append(state['step'])
                  exp_avg_sq_rs.append(state.get('exp_avg_sq_r', None))
-@@ -211,13 +217,13 @@ 
+@@ -210,14 +222,15 @@         return loss
  
+ 
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def _single_tensor_adafactor(
 -        params: List[Tensor],
 -        grads: List[Tensor],
@@ -104,7 +131,7 @@
          *,
          beta2_decay: float,
          beta2_cap: float,
-@@ -241,14 +247,14 @@         step_t = state_steps[i]
+@@ -241,14 +254,14 @@         step_t = state_steps[i]
          if eps is None:
              # default eps for avoiding div by zero, diff from float type eps
 -            eps = 1e-7 if grad.dtype == torch.float16 else 1e-30
@@ -120,8 +147,10 @@
          # NOTE application of eps (epsilon1) mirrors the optax/big vision/t5x approach
          if exp_avg_sq is None:
              # factorized second moment
-@@ -313,13 +319,13 @@ 
+@@ -312,14 +325,15 @@         param.add_(update, alpha=-1.0)
  
+ 
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def _multi_tensor_adafactor(
 -        params: List[Tensor],
 -        grads: List[Tensor],

@@ -409,11 +409,13 @@ class Cait(msnn.Cell):
         x = x + self.pos_embed
         x = self.pos_drop(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
             blocks = self.blocks[:max_index + 1]
         for i, blk in enumerate(blocks):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:
@@ -461,6 +463,7 @@ class Cait(msnn.Cell):
         x = self.patch_embed(x)
         x = x + self.pos_embed
         x = self.pos_drop(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:

@@ -107,6 +107,7 @@ class HybridEmbed(msnn.Cell):
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
         if feature_size is None:
+            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.no_grad():
                 # NOTE Most reliable way of determining output dims is to run forward pass
                 training = self.backbone.training
@@ -147,6 +148,7 @@ class HybridEmbed(msnn.Cell):
             new_patch_size = to_2tuple(patch_size)
         if new_patch_size is not None and new_patch_size != self.patch_size:
             assert isinstance(self.proj, nn.Conv2d), 'HybridEmbed must have a projection layer to change patch size.'
+            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.no_grad():
                 new_proj = nn.Conv2d(
                     self.proj.in_channels, self.proj.out_channels, kernel_size = new_patch_size, stride = new_patch_size, bias = self.proj.bias is not None, dtype = self.proj.dtype)  # 'torch.nn.Conv2d':没有对应的mindspore参数 'device' (position 9);

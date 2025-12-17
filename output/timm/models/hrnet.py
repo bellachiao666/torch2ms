@@ -415,6 +415,7 @@ class HighResolutionModule(msnn.Cell):
         downsample = None
         if stride != 1 or self.num_in_chs[branch_index] != num_channels[branch_index] * block_type.expansion:
             downsample = msnn.SequentialCell(
+                [
                 nn.Conv2d(
                     self.num_in_chs[branch_index],
                     num_channels[branch_index] * block_type.expansion,
@@ -423,8 +424,8 @@ class HighResolutionModule(msnn.Cell):
                     bias=False,
                     **dd,
                 ),
-                nn.BatchNorm2d(num_channels[branch_index] * block_type.expansion, momentum=_BN_MOMENTUM, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;
+                nn.BatchNorm2d(num_channels[branch_index] * block_type.expansion, momentum=_BN_MOMENTUM, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
         layers = [block_type(self.num_in_chs[branch_index], num_channels[branch_index], stride, downsample, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.num_in_chs[branch_index] = num_channels[branch_index] * block_type.expansion
@@ -454,9 +455,11 @@ class HighResolutionModule(msnn.Cell):
             for j in range(num_branches):
                 if j > i:
                     fuse_layer.append(msnn.SequentialCell(
+                        [
                         nn.Conv2d(num_in_chs[j], num_in_chs[i], 1, 1, 0, bias=False, **dd),
                         nn.BatchNorm2d(num_in_chs[i], momentum=_BN_MOMENTUM, **dd),
-                        nn.Upsample(scale_factor = 2 ** (j - i), mode = 'nearest')))  # 存在 *args/**kwargs，需手动确认参数映射;
+                        nn.Upsample(scale_factor = 2 ** (j - i), mode = 'nearest')
+                    ]))  # 存在 *args/**kwargs，需手动确认参数映射;
                 elif j == i:
                     fuse_layer.append(msnn.Identity())
                 else:
@@ -465,16 +468,18 @@ class HighResolutionModule(msnn.Cell):
                         if k == i - j - 1:
                             num_out_chs_conv3x3 = num_in_chs[i]
                             conv3x3s.append(msnn.SequentialCell(
+                                [
                                 nn.Conv2d(num_in_chs[j], num_out_chs_conv3x3, 3, 2, 1, bias=False, **dd),
                                 nn.BatchNorm2d(num_out_chs_conv3x3, momentum=_BN_MOMENTUM, **dd)
-                            ))  # 存在 *args/**kwargs，需手动确认参数映射;
+                            ]))  # 存在 *args/**kwargs，需手动确认参数映射;
                         else:
                             num_out_chs_conv3x3 = num_in_chs[j]
                             conv3x3s.append(msnn.SequentialCell(
+                                [
                                 nn.Conv2d(num_in_chs[j], num_out_chs_conv3x3, 3, 2, 1, bias=False, **dd),
                                 nn.BatchNorm2d(num_out_chs_conv3x3, momentum=_BN_MOMENTUM, **dd),
                                 nn.ReLU()
-                            ))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
                     fuse_layer.append(msnn.SequentialCell(*conv3x3s))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             fuse_layers.append(msnn.CellList(fuse_layer))
 
@@ -507,11 +512,13 @@ class SequentialList(msnn.SequentialCell):
     def __init__(self, *args):
         super().__init__(*args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def forward(self, x):
         # type: (List[torch.Tensor]) -> (List[torch.Tensor])
         pass
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def forward(self, x):
         # type: (torch.Tensor) -> (List[torch.Tensor])
@@ -651,6 +658,7 @@ class HighResolutionNet(msnn.Cell):
             in_channels = self.head_channels[i] * head_block_type.expansion
             out_channels = self.head_channels[i + 1] * head_block_type.expansion
             downsamp_module = msnn.SequentialCell(
+                [
                 nn.Conv2d(
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -662,11 +670,12 @@ class HighResolutionNet(msnn.Cell):
                 ),
                 nn.BatchNorm2d(out_channels, momentum=_BN_MOMENTUM, **dd),
                 nn.ReLU()
-            )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
             downsamp_modules.append(downsamp_module)
         downsamp_modules = msnn.CellList(downsamp_modules)
 
         final_layer = msnn.SequentialCell(
+            [
             nn.Conv2d(
                 in_channels=self.head_channels[3] * head_block_type.expansion,
                 out_channels=self.num_features,
@@ -678,7 +687,7 @@ class HighResolutionNet(msnn.Cell):
             ),
             nn.BatchNorm2d(self.num_features, momentum=_BN_MOMENTUM, **dd),
             nn.ReLU()
-        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         return incre_modules, downsamp_modules, final_layer
 
@@ -692,9 +701,11 @@ class HighResolutionNet(msnn.Cell):
             if i < num_branches_pre:
                 if num_channels_cur_layer[i] != num_channels_pre_layer[i]:
                     transition_layers.append(msnn.SequentialCell(
+                        [
                         nn.Conv2d(num_channels_pre_layer[i], num_channels_cur_layer[i], 3, 1, 1, bias=False, **dd),
                         nn.BatchNorm2d(num_channels_cur_layer[i], momentum=_BN_MOMENTUM, **dd),
-                        nn.ReLU()))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                        nn.ReLU()
+                    ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
                 else:
                     transition_layers.append(msnn.Identity())
             else:
@@ -703,9 +714,11 @@ class HighResolutionNet(msnn.Cell):
                     _in_chs = num_channels_pre_layer[-1]
                     _out_chs = num_channels_cur_layer[i] if j == i - num_branches_pre else _in_chs
                     conv3x3s.append(msnn.SequentialCell(
+                        [
                         nn.Conv2d(_in_chs, _out_chs, 3, 2, 1, bias=False, **dd),
                         nn.BatchNorm2d(_out_chs, momentum=_BN_MOMENTUM, **dd),
-                        nn.ReLU()))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+                        nn.ReLU()
+                    ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
                 transition_layers.append(msnn.SequentialCell(*conv3x3s))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         return msnn.CellList(transition_layers)
@@ -715,9 +728,10 @@ class HighResolutionNet(msnn.Cell):
         downsample = None
         if stride != 1 or inplanes != planes * block_type.expansion:
             downsample = msnn.SequentialCell(
+                [
                 nn.Conv2d(inplanes, planes * block_type.expansion, kernel_size=1, stride=stride, bias=False, **dd),
-                nn.BatchNorm2d(planes * block_type.expansion, momentum=_BN_MOMENTUM, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;
+                nn.BatchNorm2d(planes * block_type.expansion, momentum=_BN_MOMENTUM, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
         layers = [block_type(inplanes, planes, stride, downsample, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         inplanes = planes * block_type.expansion

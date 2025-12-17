@@ -15,7 +15,7 @@
  
  from timm.data import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
  from timm.layers import create_classifier, ConvNormAct
-@@ -16,49 +20,49 @@ __all__ = ['InceptionResnetV2']
+@@ -16,49 +20,52 @@ __all__ = ['InceptionResnetV2']
  
  
 -class Mixed_5b(nn.Module):
@@ -46,14 +46,16 @@
 +        self.branch0 = conv_block(192, 96, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(192, 48, kernel_size=1, stride=1, **dd),
              conv_block(48, 64, kernel_size=5, stride=1, padding=2, **dd)
 -        )
 -
 -        self.branch2 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = msnn.SequentialCell(
++            [
              conv_block(192, 64, kernel_size=1, stride=1, **dd),
              conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd),
              conv_block(96, 96, kernel_size=3, stride=1, padding=1, **dd)
@@ -61,15 +63,16 @@
 -
 -        self.branch3 = nn.Sequential(
 -            nn.AvgPool2d(3, stride=1, padding=1, count_include_pad=False),
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch3 = msnn.SequentialCell(
++            [
 +            nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
              conv_block(192, 64, kernel_size=1, stride=1, **dd)
 -        )
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x0 = self.branch0(x)
@@ -94,7 +97,7 @@
              device=None,
              dtype=None,
      ):
-@@ -67,67 +71,67 @@         self.scale = scale
+@@ -67,67 +74,70 @@         self.scale = scale
          conv_block = conv_block or ConvNormAct
  
 -        self.branch0 = conv_block(320, 32, kernel_size=1, stride=1, **dd)
@@ -103,21 +106,23 @@
 +        self.branch0 = conv_block(320, 32, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(320, 32, kernel_size=1, stride=1, **dd),
              conv_block(32, 32, kernel_size=3, stride=1, padding=1, **dd)
 -        )
 -
 -        self.branch2 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = msnn.SequentialCell(
++            [
              conv_block(320, 32, kernel_size=1, stride=1, **dd),
              conv_block(32, 48, kernel_size=3, stride=1, padding=1, **dd),
              conv_block(48, 64, kernel_size=3, stride=1, padding=1, **dd)
 -        )
 -
 -        self.conv2d = nn.Conv2d(128, 320, kernel_size=1, stride=1, **dd)
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.conv2d = nn.Conv2d(128, 320, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.act = nn.ReLU()
@@ -163,6 +168,7 @@
 +        self.branch0 = conv_block(320, 384, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(320, 256, kernel_size=1, stride=1, **dd),
              conv_block(256, 256, kernel_size=3, stride=1, padding=1, **dd),
              conv_block(256, 384, kernel_size=3, stride=2, **dd)
@@ -171,7 +177,7 @@
 -        self.branch2 = nn.MaxPool2d(3, stride=2)
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = nn.MaxPool2d(3, stride = 2)
 +
@@ -197,7 +203,7 @@
              device=None,
              dtype=None,
      ):
-@@ -136,72 +140,72 @@         self.scale = scale
+@@ -136,72 +146,76 @@         self.scale = scale
          conv_block = conv_block or ConvNormAct
  
 -        self.branch0 = conv_block(1088, 192, kernel_size=1, stride=1, **dd)
@@ -206,13 +212,14 @@
 +        self.branch0 = conv_block(1088, 192, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(1088, 128, kernel_size=1, stride=1, **dd),
              conv_block(128, 160, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
              conv_block(160, 192, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd)
 -        )
 -
 -        self.conv2d = nn.Conv2d(384, 1088, kernel_size=1, stride=1, **dd)
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.conv2d = nn.Conv2d(384, 1088, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.act = nn.ReLU()
@@ -255,22 +262,25 @@
 +        conv_block = conv_block or ConvNormAct
 +
 +        self.branch0 = msnn.SequentialCell(
++            [
              conv_block(1088, 256, kernel_size=1, stride=1, **dd),
              conv_block(256, 384, kernel_size=3, stride=2, **dd)
 -        )
 -
 -        self.branch1 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(1088, 256, kernel_size=1, stride=1, **dd),
              conv_block(256, 288, kernel_size=3, stride=2, **dd)
 -        )
 -
 -        self.branch2 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = msnn.SequentialCell(
++            [
              conv_block(1088, 256, kernel_size=1, stride=1, **dd),
              conv_block(256, 288, kernel_size=3, stride=1, padding=1, **dd),
              conv_block(288, 320, kernel_size=3, stride=2, **dd)
@@ -279,7 +289,7 @@
 -        self.branch3 = nn.MaxPool2d(3, stride=2)
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch3 = nn.MaxPool2d(3, stride = 2)
 +
@@ -308,7 +318,7 @@
              device=None,
              dtype=None,
      ):
-@@ -210,21 +214,21 @@         self.scale = scale
+@@ -210,21 +224,22 @@         self.scale = scale
          conv_block = conv_block or ConvNormAct
  
 -        self.branch0 = conv_block(2080, 192, kernel_size=1, stride=1, **dd)
@@ -317,13 +327,14 @@
 +        self.branch0 = conv_block(2080, 192, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(2080, 192, kernel_size=1, stride=1, **dd),
              conv_block(192, 224, kernel_size=(1, 3), stride=1, padding=(0, 1), **dd),
              conv_block(224, 256, kernel_size=(3, 1), stride=1, padding=(1, 0), **dd)
 -        )
 -
 -        self.conv2d = nn.Conv2d(448, 2080, kernel_size=1, stride=1, **dd)
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.conv2d = nn.Conv2d(448, 2080, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.relu = None if no_relu else nn.ReLU()
@@ -339,7 +350,7 @@
          out = self.conv2d(out)
          out = out * self.scale + x
          if self.relu is not None:
-@@ -232,7 +236,7 @@         return out
+@@ -232,7 +247,7 @@         return out
  
  
 -class InceptionResnetV2(nn.Module):
@@ -347,7 +358,7 @@
      def __init__(
              self,
              num_classes: int = 1000,
-@@ -260,30 +264,30 @@             act_kwargs=dict(inplace=True),
+@@ -260,30 +275,30 @@             act_kwargs=dict(inplace=True),
          )
  
 -        self.conv2d_1a = conv_block(in_chans, 32, kernel_size=3, stride=2, **dd)
@@ -393,7 +404,7 @@
          self.feature_info += [dict(num_chs=self.num_features, reduction=32, module='conv2d_7b')]
  
          self.global_pool, self.head_drop, self.classif = create_classifier(
-@@ -292,9 +296,9 @@             pool_type=global_pool,
+@@ -292,9 +307,9 @@             pool_type=global_pool,
              drop_rate=drop_rate,
              **dd,
 -        )
@@ -405,7 +416,7 @@
      def group_matcher(self, coarse=False):
          module_map = {k: i for i, (k, _) in enumerate(flatten_modules(self.named_children(), prefix=()))}
          module_map.pop(('classif',))
-@@ -313,12 +317,12 @@                 return float('inf')
+@@ -313,12 +328,12 @@                 return float('inf')
          return _matcher
  
 -    @torch.jit.ignore
@@ -420,7 +431,7 @@
          return self.classif
  
      def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
-@@ -348,14 +352,14 @@         x = self.head_drop(x)
+@@ -348,14 +363,14 @@         x = self.head_drop(x)
          return x if pre_logits else self.classif(x)
  
 -    def forward(self, x):
@@ -436,7 +447,7 @@
  
  
  default_cfgs = generate_default_cfgs({
-@@ -383,7 +387,7 @@ 
+@@ -383,7 +398,7 @@ 
  @register_model
  def inception_resnet_v2(pretrained=False, **kwargs) -> InceptionResnetV2:
 -    return _create_inception_resnet_v2('inception_resnet_v2', pretrained=pretrained, **kwargs)

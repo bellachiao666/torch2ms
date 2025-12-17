@@ -407,7 +407,7 @@
              dim=out_chs,
              token_mixer=token_mixer,
              mlp_act=mlp_act,
-@@ -472,13 +477,13 @@             use_nchw=self.use_nchw,
+@@ -472,19 +477,20 @@             use_nchw=self.use_nchw,
              **dd,
              **kwargs,
 -        ) for i in range(depth)])
@@ -424,7 +424,14 @@
          x = self.downsample(x)
          B, C, H, W = x.shape
  
-@@ -496,7 +501,7 @@         return x
+         if not self.use_nchw:
+             x = x.reshape(B, C, -1).transpose(1, 2)
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -496,7 +502,7 @@         return x
  
  
 -class MetaFormer(nn.Module):
@@ -432,7 +439,7 @@
      r""" MetaFormer
          A PyTorch impl of : `MetaFormer Baselines for Vision`  -
            https://arxiv.org/abs/2210.13452
-@@ -529,17 +534,17 @@             global_pool: str = 'avg',
+@@ -529,17 +535,17 @@             global_pool: str = 'avg',
              depths: Tuple[int, ...] = (2, 2, 6, 2),
              dims: Tuple[int, ...] = (64, 128, 320, 512),
 -            token_mixers: Union[Type[nn.Module], List[Type[nn.Module]]] = Pooling,
@@ -454,7 +461,7 @@
              use_mlp_head: bool = True,
              device=None,
              dtype=None,
-@@ -549,7 +554,7 @@         dd = {'device': device, 'dtype': dtype}
+@@ -549,7 +555,7 @@         dd = {'device': device, 'dtype': dtype}
          # Bind dd kwargs to activation layers that need them
          if mlp_act in (StarReLU,):
 -            mlp_act = partial(mlp_act, **dd)
@@ -462,7 +469,7 @@
  
          self.num_classes = num_classes
          self.num_features = dims[-1]
-@@ -579,7 +584,7 @@             dims[0],
+@@ -579,7 +585,7 @@             dims[0],
              norm_layer=downsample_norm,
              **dd,
 -        )
@@ -470,7 +477,7 @@
  
          stages = []
          prev_dim = dims[0]
-@@ -600,31 +605,31 @@                 norm_layer=norm_layers[i],
+@@ -600,31 +606,33 @@                 norm_layer=norm_layers[i],
                  **dd,
                  **kwargs,
 -            )]
@@ -498,7 +505,8 @@
 -        self.head = nn.Sequential(OrderedDict([
 +            final = msnn.Identity()
 +
-+        self.head = msnn.SequentialCell(OrderedDict([
++        self.head = msnn.SequentialCell([
++            OrderedDict([
              ('global_pool', SelectAdaptivePool2d(pool_type=global_pool)),
              ('norm', output_norm(self.num_features, **dd)),
 -            ('flatten', nn.Flatten(1) if global_pool else nn.Identity()),
@@ -507,11 +515,12 @@
 +            ('drop', nn.Dropout(drop_rate) if self.use_mlp_head else msnn.Identity()),
              ('fc', final)
 -        ]))
-+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
  
          self.apply(self._init_weights)
  
-@@ -632,16 +637,16 @@         if isinstance(m, (nn.Conv2d, nn.Linear)):
+@@ -632,16 +640,16 @@         if isinstance(m, (nn.Conv2d, nn.Linear)):
              trunc_normal_(m.weight, std=.02)
              if m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -532,7 +541,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
-@@ -649,25 +654,25 @@         self.num_classes = num_classes
+@@ -649,25 +657,25 @@         self.num_classes = num_classes
          if global_pool is not None:
              self.head.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -            self.head.flatten = nn.Flatten(1) if global_pool else nn.Identity()
@@ -563,7 +572,21 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -718,7 +723,7 @@             self.reset_classifier(0, '')
+@@ -686,12 +694,14 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+             stages = self.stages[:max_index + 1]
+ 
+         for feat_idx, stage in enumerate(stages):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(stage, x)
+             else:
+@@ -718,7 +728,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_head(self, x: Tensor, pre_logits: bool = False):
@@ -571,15 +594,17 @@
          # NOTE nn.Sequential in head broken down since can't call head[:-1](x) in torchscript :(
          x = self.head.global_pool(x)
          x = self.head.norm(x)
-@@ -726,7 +731,7 @@         x = self.head.drop(x)
+@@ -726,15 +736,16 @@         x = self.head.drop(x)
          return x if pre_logits else self.head.fc(x)
  
 -    def forward_features(self, x: Tensor):
 +    def forward_features(self, x: ms.Tensor):
          x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.stages, x)
-@@ -734,7 +739,7 @@             x = self.stages(x)
+         else:
+             x = self.stages(x)
          return x
  
 -    def forward(self, x: Tensor):
@@ -587,7 +612,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -789,7 +794,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -789,7 +800,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
          **kwargs,
 -    )
@@ -595,7 +620,7 @@
  
      return model
  
-@@ -971,8 +976,8 @@         layer_scale_init_values=1e-5,
+@@ -971,8 +982,8 @@         layer_scale_init_values=1e-5,
          res_scale_init_values=None,
          use_mlp_head=False,
 -        **kwargs)
@@ -605,7 +630,7 @@
  
  
  @register_model
-@@ -987,8 +992,8 @@         layer_scale_init_values=1e-5,
+@@ -987,8 +998,8 @@         layer_scale_init_values=1e-5,
          res_scale_init_values=None,
          use_mlp_head=False,
 -        **kwargs)
@@ -615,7 +640,7 @@
  
  
  @register_model
-@@ -1003,8 +1008,8 @@         layer_scale_init_values=1e-6,
+@@ -1003,8 +1014,8 @@         layer_scale_init_values=1e-6,
          res_scale_init_values=None,
          use_mlp_head=False,
 -        **kwargs)
@@ -625,7 +650,7 @@
  
  
  @register_model
-@@ -1019,8 +1024,8 @@         layer_scale_init_values=1e-6,
+@@ -1019,8 +1030,8 @@         layer_scale_init_values=1e-6,
          res_scale_init_values=None,
          use_mlp_head=False,
 -        **kwargs)
@@ -635,7 +660,7 @@
  
  
  @register_model
-@@ -1035,8 +1040,8 @@         layer_scale_init_values=1e-6,
+@@ -1035,8 +1046,8 @@         layer_scale_init_values=1e-6,
          res_scale_init_values=None,
          use_mlp_head=False,
 -        **kwargs)
@@ -645,7 +670,7 @@
  
  
  @register_model
-@@ -1046,8 +1051,8 @@         dims=[64, 128, 320, 512],
+@@ -1046,8 +1057,8 @@         dims=[64, 128, 320, 512],
          norm_layers=GroupNorm1NoBias,
          use_mlp_head=False,
 -        **kwargs)
@@ -655,7 +680,7 @@
  
  
  @register_model
-@@ -1057,8 +1062,8 @@         dims=[64, 128, 320, 512],
+@@ -1057,8 +1068,8 @@         dims=[64, 128, 320, 512],
          norm_layers=GroupNorm1NoBias,
          use_mlp_head=False,
 -        **kwargs)
@@ -665,7 +690,7 @@
  
  
  @register_model
-@@ -1068,8 +1073,8 @@         dims=[64, 128, 320, 512],
+@@ -1068,8 +1079,8 @@         dims=[64, 128, 320, 512],
          norm_layers=GroupNorm1NoBias,
          use_mlp_head=False,
 -        **kwargs)
@@ -675,7 +700,7 @@
  
  
  @register_model
-@@ -1079,8 +1084,8 @@         dims=[96, 192, 384, 768],
+@@ -1079,8 +1090,8 @@         dims=[96, 192, 384, 768],
          norm_layers=GroupNorm1NoBias,
          use_mlp_head=False,
 -        **kwargs)
@@ -685,7 +710,7 @@
  
  
  @register_model
-@@ -1090,8 +1095,8 @@         dims=[96, 192, 384, 768],
+@@ -1090,8 +1101,8 @@         dims=[96, 192, 384, 768],
          norm_layers=GroupNorm1NoBias,
          use_mlp_head=False,
 -        **kwargs)
@@ -695,7 +720,7 @@
  
  
  @register_model
-@@ -1101,8 +1106,8 @@         dims=[64, 128, 320, 512],
+@@ -1101,8 +1112,8 @@         dims=[64, 128, 320, 512],
          token_mixers=SepConv,
          norm_layers=LayerNorm2dNoBias,
 -        **kwargs)
@@ -705,7 +730,7 @@
  
  
  @register_model
-@@ -1112,8 +1117,8 @@         dims=[64, 128, 320, 512],
+@@ -1112,8 +1123,8 @@         dims=[64, 128, 320, 512],
          token_mixers=SepConv,
          norm_layers=LayerNorm2dNoBias,
 -        **kwargs)
@@ -715,7 +740,7 @@
  
  
  @register_model
-@@ -1123,8 +1128,8 @@         dims=[96, 192, 384, 576],
+@@ -1123,8 +1134,8 @@         dims=[96, 192, 384, 576],
          token_mixers=SepConv,
          norm_layers=LayerNorm2dNoBias,
 -        **kwargs)
@@ -725,7 +750,7 @@
  
  
  @register_model
-@@ -1134,8 +1139,8 @@         dims=[128, 256, 512, 768],
+@@ -1134,8 +1145,8 @@         dims=[128, 256, 512, 768],
          token_mixers=SepConv,
          norm_layers=LayerNorm2dNoBias,
 -        **kwargs)
@@ -735,7 +760,7 @@
  
  
  @register_model
-@@ -1145,8 +1150,8 @@         dims=[64, 128, 320, 512],
+@@ -1145,8 +1156,8 @@         dims=[64, 128, 320, 512],
          token_mixers=[SepConv, SepConv, Attention, Attention],
          norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
 -        **kwargs)
@@ -745,7 +770,7 @@
  
  
  @register_model
-@@ -1156,8 +1161,8 @@         dims=[64, 128, 320, 512],
+@@ -1156,8 +1167,8 @@         dims=[64, 128, 320, 512],
          token_mixers=[SepConv, SepConv, Attention, Attention],
          norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
 -        **kwargs)
@@ -755,7 +780,7 @@
  
  
  @register_model
-@@ -1167,8 +1172,8 @@         dims=[96, 192, 384, 576],
+@@ -1167,8 +1178,8 @@         dims=[96, 192, 384, 576],
          token_mixers=[SepConv, SepConv, Attention, Attention],
          norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
 -        **kwargs)
@@ -765,7 +790,7 @@
  
  
  @register_model
-@@ -1178,5 +1183,5 @@         dims=[128, 256, 512, 768],
+@@ -1178,5 +1189,5 @@         dims=[128, 256, 512, 768],
          token_mixers=[SepConv, SepConv, Attention, Attention],
          norm_layers=[LayerNorm2dNoBias] * 2 + [LayerNormNoBias] * 2,
 -        **kwargs)

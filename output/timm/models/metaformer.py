@@ -490,6 +490,7 @@ class MetaFormerStage(msnn.Cell):
         if not self.use_nchw:
             x = x.reshape(B, C, -1).transpose(1, 2)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -623,13 +624,15 @@ class MetaFormer(msnn.Cell):
         else:
             final = msnn.Identity()
 
-        self.head = msnn.SequentialCell(OrderedDict([
+        self.head = msnn.SequentialCell([
+            OrderedDict([
             ('global_pool', SelectAdaptivePool2d(pool_type=global_pool)),
             ('norm', output_norm(self.num_features, **dd)),
             ('flatten', mint.flatten(1) if global_pool else msnn.Identity()),
             ('drop', nn.Dropout(drop_rate) if self.use_mlp_head else msnn.Identity()),
             ('fc', final)
-        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.apply(self._init_weights)
 
@@ -691,12 +694,14 @@ class MetaFormer(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -733,6 +738,7 @@ class MetaFormer(msnn.Cell):
 
     def forward_features(self, x: ms.Tensor):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

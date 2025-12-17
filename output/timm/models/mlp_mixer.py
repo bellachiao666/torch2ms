@@ -438,11 +438,13 @@ class MlpMixer(msnn.Cell):
         B, _, height, width = x.shape
         x = self.stem(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
             blocks = self.blocks[:max_index + 1]
         for i, blk in enumerate(blocks):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:
@@ -491,6 +493,7 @@ class MlpMixer(msnn.Cell):
     def forward_features(self, x: ms.Tensor) -> ms.Tensor:
         """Forward pass through feature extraction layers."""
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:

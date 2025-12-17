@@ -305,9 +305,10 @@ class EdgeNeXtStage(msnn.Cell):
             self.downsample = msnn.Identity()
         else:
             self.downsample = msnn.SequentialCell(
+                [
                 norm_layer(in_chs, **dd),
                 nn.Conv2d(in_chs, out_chs, kernel_size=2, stride=2, bias=conv_bias, **dd)
-            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
+            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
             in_chs = out_chs
 
         stage_blocks = []
@@ -349,6 +350,7 @@ class EdgeNeXtStage(msnn.Cell):
 
     def construct(self, x):
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -394,14 +396,16 @@ class EdgeNeXt(msnn.Cell):
         assert stem_type in ('patch', 'overlap')
         if stem_type == 'patch':
             self.stem = msnn.SequentialCell(
+                [
                 nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4, bias=conv_bias, **dd,),
-                norm_layer(dims[0], **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                norm_layer(dims[0], **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.stem = msnn.SequentialCell(
+                [
                 nn.Conv2d(in_chans, dims[0], kernel_size=9, stride=4, padding=9 // 2, bias=conv_bias, **dd),
-                norm_layer(dims[0], **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                norm_layer(dims[0], **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         curr_stride = 4
         stages = []
@@ -512,6 +516,7 @@ class EdgeNeXt(msnn.Cell):
         # forward pass
         x = self.stem(x)
         last_idx = len(self.stages) - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

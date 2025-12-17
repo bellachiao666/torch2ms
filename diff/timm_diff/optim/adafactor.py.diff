@@ -19,15 +19,26 @@
  class Adafactor(torch.optim.Optimizer):
      """Implements Adafactor algorithm.
  
-@@ -122,7 +128,7 @@         # from our dim heuristic, always dim_col < dim_row, so col reduction dim for factored row = dim_col
+@@ -122,8 +128,10 @@         # from our dim heuristic, always dim_col < dim_row, so col reduction dim for factored row = dim_col
          r_factor = (exp_avg_sq_row / exp_avg_sq_row.mean(dim=dim_col, keepdim=True)).rsqrt_().unsqueeze(dim_row)
          c_factor = exp_avg_sq_col.unsqueeze(dim_col).rsqrt()
 -        return torch.mul(r_factor, c_factor)
+-
 +        return mint.mul(r_factor, c_factor)
- 
++
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.no_grad()
      def step(self, closure=None):
-@@ -140,7 +146,7 @@                 if p.grad is None:
+         """Performs a single optimization step.
+@@ -132,6 +140,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -140,7 +149,7 @@                 if p.grad is None:
                      continue
                  grad = p.grad
 -                if grad.dtype in {torch.float16, torch.bfloat16}:
@@ -35,7 +46,7 @@
                      grad = grad.float()
                  if grad.is_sparse:
                      raise RuntimeError('Adafactor does not support sparse gradients.')
-@@ -158,15 +164,15 @@ 
+@@ -158,15 +167,15 @@ 
                      if use_first_moment:
                          # Exponential moving average of gradient values
 -                        state['exp_avg'] = torch.zeros_like(grad)
@@ -54,7 +65,7 @@
  
                      state['RMS'] = 0
                  else:
-@@ -179,7 +185,7 @@                         state['exp_avg_sq'] = state['exp_avg_sq'].to(grad)
+@@ -179,7 +188,7 @@                         state['exp_avg_sq'] = state['exp_avg_sq'].to(grad)
  
                  p_fp32 = p
 -                if p.dtype in {torch.float16, torch.bfloat16}:
@@ -62,7 +73,7 @@
                      p_fp32 = p_fp32.float()
  
                  state['step'] += 1
-@@ -223,7 +229,7 @@                     p_fp32.add_(p_fp32, alpha=-group['weight_decay'] * lr_t)
+@@ -223,7 +232,7 @@                     p_fp32.add_(p_fp32, alpha=-group['weight_decay'] * lr_t)
  
                  p_fp32.add_(-update)
 -                if p.dtype in {torch.float16, torch.bfloat16}:

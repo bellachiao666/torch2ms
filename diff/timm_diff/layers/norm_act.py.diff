@@ -95,7 +95,7 @@
          x = super().forward(x)  # SyncBN doesn't work with torchscript anyways, so this is fine
          if hasattr(self, "drop"):
              x = self.drop(x)
-@@ -183,14 +179,8 @@             module_output.drop = module.drop
+@@ -183,15 +179,10 @@             module_output.drop = module.drop
          else:
              # convert standard BatchNorm layers
 -            module_output = torch.nn.SyncBatchNorm(
@@ -109,9 +109,11 @@
 +            module_output = nn.SyncBatchNorm(
 +                module.num_features, module.eps, module.momentum, module.affine, module.track_running_stats, process_group)
          if module.affine:
++            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              with torch.no_grad():
                  module_output.weight = module.weight
-@@ -208,7 +198,7 @@ 
+                 module_output.bias = module.bias
+@@ -208,7 +199,7 @@ 
  
  @register_notrace_module
 -class FrozenBatchNormAct2d(torch.nn.Module):
@@ -119,7 +121,7 @@
      """
      BatchNormAct2d where the batch statistics and the affine parameters are fixed
  
-@@ -225,19 +215,19 @@             act_layer: LayerType = nn.ReLU,
+@@ -225,19 +216,19 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -145,7 +147,7 @@
          self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
  
      def _load_from_state_dict(
-@@ -258,7 +248,7 @@             state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
+@@ -258,7 +249,7 @@             state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
          )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -153,7 +155,7 @@
          # move reshapes to the beginning
          # to make it fuser-friendly
          w = self.weight.reshape(1, -1, 1, 1)
-@@ -301,8 +291,8 @@         res.eps = module.eps
+@@ -301,8 +292,8 @@         res.eps = module.eps
          res.drop = module.drop
          res.act = module.act
 -    elif isinstance(module, (torch.nn.modules.batchnorm.BatchNorm2d, torch.nn.modules.batchnorm.SyncBatchNorm)):
@@ -163,7 +165,7 @@
          res.num_features = module.num_features
          res.affine = module.affine
          if module.affine:
-@@ -345,7 +335,7 @@         res.drop = module.drop
+@@ -345,7 +336,7 @@         res.drop = module.drop
          res.act = module.act
      elif isinstance(module, FrozenBatchNorm2d):
 -        res = torch.nn.BatchNorm2d(module.num_features)
@@ -171,7 +173,7 @@
          if module.affine:
              res.weight.data = module.weight.data.clone().detach()
              res.bias.data = module.bias.data.clone().detach()
-@@ -368,7 +358,7 @@ 
+@@ -368,7 +359,7 @@ 
  
  class GroupNormAct(nn.GroupNorm):
 -    _fast_norm: torch.jit.Final[bool]
@@ -179,7 +181,7 @@
  
      # NOTE num_channel and num_groups order flipped for easier layer swaps / binding of fixed args
      def __init__(
-@@ -382,7 +372,7 @@             act_layer: LayerType = nn.ReLU,
+@@ -382,7 +373,7 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -187,7 +189,7 @@
              device=None,
              dtype=None,
      ):
-@@ -394,7 +384,7 @@             device=device,
+@@ -394,7 +385,7 @@             device=device,
              dtype=dtype,
          )
 -        self.drop = drop_layer() if drop_layer is not None else nn.Identity()
@@ -195,7 +197,7 @@
          self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
  
          self._fast_norm = is_fast_norm()
-@@ -403,30 +393,30 @@         if self._fast_norm:
+@@ -403,30 +394,30 @@         if self._fast_norm:
              x = fast_group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
          else:
 -            x = F.group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
@@ -239,7 +241,7 @@
          self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
  
          self._fast_norm = is_fast_norm()
-@@ -435,14 +425,14 @@         if self._fast_norm:
+@@ -435,15 +426,16 @@         if self._fast_norm:
              x = fast_group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
          else:
 -            x = F.group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
@@ -251,11 +253,14 @@
  
  class LayerNormAct(nn.LayerNorm):
 -    _fast_norm: torch.jit.Final[bool]
+-
 +    _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
++
++    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def __init__(
              self,
-@@ -453,11 +443,11 @@             act_layer: LayerType = nn.ReLU,
+             normalization_shape: Union[int, List[int], torch.Size],
+@@ -453,11 +445,11 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -271,7 +276,7 @@
          self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
  
          self._fast_norm = is_fast_norm()
-@@ -466,7 +456,7 @@         if self._fast_norm:
+@@ -466,7 +458,7 @@         if self._fast_norm:
              x = fast_layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
          else:
 -            x = F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
@@ -279,7 +284,14 @@
          x = self.drop(x)
          x = self.act(x)
          return x
-@@ -483,39 +473,39 @@             act_layer: LayerType = nn.ReLU,
+@@ -474,6 +466,7 @@ 
+ class LayerNormActFp32(nn.LayerNorm):
+ 
++    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             normalization_shape: Union[int, List[int], torch.Size],
+@@ -483,39 +476,39 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -340,7 +352,7 @@
          self.act = _create_act(act_layer, act_kwargs=act_kwargs, inplace=inplace, apply_act=apply_act)
          self._fast_norm = is_fast_norm()
  
-@@ -524,7 +514,7 @@         if self._fast_norm:
+@@ -524,7 +517,7 @@         if self._fast_norm:
              x = fast_layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
          else:
 -            x = F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
@@ -348,7 +360,7 @@
          x = x.permute(0, 3, 1, 2)
          x = self.drop(x)
          x = self.act(x)
-@@ -542,18 +532,18 @@             act_layer: LayerType = nn.ReLU,
+@@ -542,18 +535,18 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -372,7 +384,7 @@
          x = x.permute(0, 3, 1, 2)
          x = self.drop(x)
          x = self.act(x)
-@@ -576,19 +566,19 @@             act_layer: LayerType = nn.ReLU,
+@@ -576,19 +569,19 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -398,7 +410,7 @@
          x = self.drop(x)
          x = self.act(x)
          return x
-@@ -610,16 +600,16 @@             act_layer: LayerType = nn.ReLU,
+@@ -610,16 +603,16 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -423,7 +435,7 @@
          x = self.drop(x)
          x = self.act(x)
          return x
-@@ -641,15 +631,15 @@             act_layer: LayerType = nn.ReLU,
+@@ -641,15 +634,15 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,
@@ -444,7 +456,7 @@
          if self._fast_norm:
              x = fast_rms_norm2d(x, self.normalized_shape, self.weight, self.eps)
          else:
-@@ -675,14 +665,14 @@             act_layer: LayerType = nn.ReLU,
+@@ -675,14 +668,14 @@             act_layer: LayerType = nn.ReLU,
              act_kwargs: Dict[str, Any] = None,
              inplace: bool = True,
 -            drop_layer: Optional[Type[nn.Module]] = None,

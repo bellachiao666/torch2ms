@@ -35,19 +35,21 @@
  class ResampledShards2(IterableDataset):
      """An iterable dataset yielding a list of urls."""
  
-@@ -316,9 +322,9 @@         # Distributed world state
+@@ -316,9 +322,11 @@         # Distributed world state
          self.dist_rank = 0
          self.dist_num_replicas = 1
 -        if dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1:
 -            self.dist_rank = dist.get_rank()
 -            self.dist_num_replicas = dist.get_world_size()
++        # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        # 'torch.distributed.is_initialized' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        if dist.is_available() and dist.is_initialized() and mint.distributed.get_world_size() > 1:
 +            self.dist_rank = mint.distributed.get_rank()
 +            self.dist_num_replicas = mint.distributed.get_world_size()
  
          # Attributes that are updated in _lazy_init
          self.worker_info = None
-@@ -351,7 +357,7 @@         """ Lazily initialize worker (in worker processes)
+@@ -351,7 +359,7 @@         """ Lazily initialize worker (in worker processes)
          """
          if self.worker_info is None:
 -            worker_info = torch.utils.data.get_worker_info()
@@ -55,7 +57,7 @@
              if worker_info is not None:
                  self.worker_info = worker_info
                  self.worker_id = worker_info.id
-@@ -398,7 +404,7 @@             ),
+@@ -398,7 +406,7 @@             ),
              wds.rename(image=self.input_key, target=self.target_key)
          ])
 -        self.ds = wds.DataPipeline(*pipeline)

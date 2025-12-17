@@ -268,6 +268,7 @@ class MbConvStages(msnn.Cell):
 
     def construct(self, x):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

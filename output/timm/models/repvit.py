@@ -55,6 +55,8 @@ class ConvNorm(msnn.SequentialCell):
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         c, bn = self._modules.values()
@@ -86,6 +88,8 @@ class NormLinear(msnn.SequentialCell):
         if bias:
             nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         bn, l = self._modules.values()
@@ -127,6 +131,8 @@ class RepVggDw(msnn.Cell):
     def construct(self, x):
         return self.bn(self.conv(x) + self.conv1(x) + x)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         conv = self.conv.fuse()
@@ -295,6 +301,7 @@ class RepVitClassifier(msnn.Cell):
         x = self.head_drop(x)
         if self.distillation:
             x1, x2 = self.head(x), self.head_dist(x)
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.training and self.distilled_training and not torch.jit.is_scripting():
                 return x1, x2
             else:
@@ -303,6 +310,8 @@ class RepVitClassifier(msnn.Cell):
             x = self.head(x)
             return x
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         if not self.num_classes > 0:
@@ -475,12 +484,14 @@ class RepVit(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -509,6 +520,7 @@ class RepVit(msnn.Cell):
 
     def forward_features(self, x):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:
@@ -528,6 +540,8 @@ class RepVit(msnn.Cell):
         x = self.forward_head(x)
         return x
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         def fuse_children(net):

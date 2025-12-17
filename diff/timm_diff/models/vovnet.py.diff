@@ -124,7 +124,7 @@
          else:
              self.pool = None
  
-@@ -152,11 +157,11 @@                 act_layer=act_layer,
+@@ -152,13 +157,14 @@                 act_layer=act_layer,
                  drop_path=drop_path,
                  **dd,
 -            )]
@@ -138,8 +138,11 @@
 +    def construct(self, x):
          if self.pool is not None:
              x = self.pool(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -166,7 +171,7 @@         return x
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -166,7 +172,7 @@         return x
  
  
 -class VovNet(nn.Module):
@@ -147,7 +150,7 @@
  
      def __init__(
              self,
-@@ -175,8 +180,8 @@             num_classes: int = 1000,
+@@ -175,8 +181,8 @@             num_classes: int = 1000,
              global_pool: str = 'avg',
              output_stride: int = 32,
 -            norm_layer: Type[nn.Module] = BatchNormAct2d,
@@ -157,7 +160,7 @@
              drop_rate: float = 0.,
              drop_path_rate: float = 0.,
              device=None,
-@@ -202,23 +207,23 @@         self.drop_rate = drop_rate
+@@ -202,23 +208,23 @@         self.drop_rate = drop_rate
          assert output_stride == 32  # FIXME support dilation
  
 -        cfg = dict(cfg, **kwargs)
@@ -184,7 +187,7 @@
          self.feature_info = [dict(
              num_chs=stem_chs[1], reduction=2, module=f'stem.{1 if stem_stride == 4 else 2}')]
          current_stride = stem_stride
-@@ -226,7 +231,7 @@         # OSA stages
+@@ -226,7 +232,7 @@         # OSA stages
          stage_dpr = calculate_drop_path_rates(drop_path_rate, block_per_stage, stagewise=True)
          in_ch_list = stem_chs[-1:] + stage_out_chs[:-1]
 -        stage_args = dict(residual=cfg["residual"], depthwise=cfg["depthwise"], attn=cfg["attn"], **conv_kwargs)
@@ -192,7 +195,7 @@
          stages = []
          for i in range(4):  # num_stages
              downsample = stem_stride == 2 or i > 0  # first stage has no stride/downsample if stem_stride is 4
-@@ -239,36 +244,36 @@                 downsample=downsample,
+@@ -239,36 +245,36 @@                 downsample=downsample,
                  drop_path_rates=stage_dpr[i],
                  **stage_args,
 -            )]
@@ -238,7 +241,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes, global_pool: Optional[str] = None):
-@@ -277,13 +282,13 @@ 
+@@ -277,13 +283,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -253,7 +256,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -343,7 +348,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -307,6 +313,7 @@             intermediates.append(x)
+ 
+         x = self.stem[-1](x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -343,7 +350,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -261,7 +271,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -468,7 +473,7 @@         model_cfg=model_cfgs[variant],
+@@ -468,7 +475,7 @@         model_cfg=model_cfgs[variant],
          feature_cfg=dict(flatten_sequential=True),
          **kwargs,
 -    )
@@ -269,7 +279,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -506,47 +511,47 @@ 
+@@ -506,47 +513,47 @@ 
  @register_model
  def vovnet39a(pretrained=False, **kwargs) -> VovNet:
 -    return _create_vovnet('vovnet39a', pretrained=pretrained, **kwargs)
@@ -325,7 +335,7 @@
  
  
  # Experimental Models
-@@ -554,5 +559,5 @@ @register_model
+@@ -554,5 +561,5 @@ @register_model
  def ese_vovnet39b_evos(pretrained=False, **kwargs) -> VovNet:
      def norm_act_fn(num_features, **nkwargs):
 -        return create_norm_act_layer('evonorms0', num_features, jit=False, **nkwargs)

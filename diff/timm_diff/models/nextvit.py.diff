@@ -175,7 +175,7 @@
          self.mlp = ConvMlp(
              out_chs,
              hidden_features=int(out_chs * mlp_ratio),
-@@ -224,7 +229,7 @@             bias=True,
+@@ -224,18 +229,20 @@             bias=True,
              act_layer=act_layer,
              **dd,
 -        )
@@ -183,7 +183,10 @@
          self.mlp_drop_path = DropPath(drop_path)
          self.is_fused = False
  
-@@ -232,10 +237,10 @@     def reparameterize(self):
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def reparameterize(self):
          if not self.is_fused:
              merge_pre_bn(self.mlp.fc1, self.norm)
 -            self.norm = nn.Identity()
@@ -195,7 +198,7 @@
          x = self.patch_embed(x)
          x = x + self.attn_drop_path(self.mhca(x))
  
-@@ -244,11 +249,11 @@         return x
+@@ -244,11 +251,11 @@         return x
  
  
 -class EfficientAttention(nn.Module):
@@ -208,7 +211,7 @@
  
      def __init__(
              self,
-@@ -259,7 +264,7 @@             attn_drop: float = 0.,
+@@ -259,7 +266,7 @@             attn_drop: float = 0.,
              proj_drop: float = 0.,
              sr_ratio: int = 1,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm1d,
@@ -216,7 +219,7 @@
              device=None,
              dtype=None,
      ):
-@@ -272,23 +277,23 @@         self.scale = head_dim ** -0.5
+@@ -272,23 +279,23 @@         self.scale = head_dim ** -0.5
          self.fused_attn = use_fused_attn()
  
 -        self.q = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)
@@ -246,7 +249,7 @@
          B, N, C = x.shape
          q = self.q(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
  
-@@ -303,7 +308,7 @@             x = F.scaled_dot_product_attention(
+@@ -303,7 +310,7 @@             x = F.scaled_dot_product_attention(
                  q, k, v,
                  dropout_p=self.attn_drop.p if self.training else 0.,
 -            )
@@ -254,7 +257,7 @@
          else:
              q = q * self.scale
              attn = q @ k.transpose(-1, -2)
-@@ -317,7 +322,7 @@         return x
+@@ -317,7 +324,7 @@         return x
  
  
 -class NextTransformerBlock(nn.Module):
@@ -262,7 +265,7 @@
      """
      Next Transformer Block
      """
-@@ -334,8 +339,8 @@             mix_block_ratio: float = 0.75,
+@@ -334,8 +341,8 @@             mix_block_ratio: float = 0.75,
              attn_drop: float = 0.,
              drop: float = 0.,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -272,7 +275,7 @@
              device=None,
              dtype=None,
      ):
-@@ -348,8 +353,8 @@         self.mhsa_out_chs = _make_divisible(int(out_chs * mix_block_ratio), 32)
+@@ -348,8 +355,8 @@         self.mhsa_out_chs = _make_divisible(int(out_chs * mix_block_ratio), 32)
          self.mhca_out_chs = out_chs - self.mhsa_out_chs
  
 -        self.patch_embed = PatchEmbed(in_chs, self.mhsa_out_chs, stride, **dd)
@@ -282,7 +285,7 @@
          self.e_mhsa = EfficientAttention(
              self.mhsa_out_chs,
              head_dim=head_dim,
-@@ -357,7 +362,7 @@             attn_drop=attn_drop,
+@@ -357,7 +364,7 @@             attn_drop=attn_drop,
              proj_drop=drop,
              **dd,
 -        )
@@ -290,7 +293,7 @@
          self.mhsa_drop_path = DropPath(drop_path * mix_block_ratio)
  
          self.projection = PatchEmbed(
-@@ -366,24 +371,24 @@             stride=1,
+@@ -366,27 +373,29 @@             stride=1,
              norm_layer=norm_layer,
              **dd,
 -        )
@@ -318,7 +321,12 @@
          self.mlp_drop_path = DropPath(drop_path)
          self.is_fused = False
  
-@@ -394,17 +399,17 @@             if self.e_mhsa.norm is not None:
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def reparameterize(self):
+         if not self.is_fused:
+@@ -394,17 +403,17 @@             if self.e_mhsa.norm is not None:
                  merge_pre_bn(self.e_mhsa.k, self.norm1, self.e_mhsa.norm)
                  merge_pre_bn(self.e_mhsa.v, self.norm1, self.e_mhsa.norm)
 -                self.e_mhsa.norm = nn.Identity()
@@ -339,7 +347,7 @@
          x = self.patch_embed(x)
          B, C, H, W = x.shape
  
-@@ -415,20 +420,20 @@ 
+@@ -415,20 +424,20 @@ 
          out = self.projection(x)
          out = out + self.mhca_drop_path(self.mhca(out))
 -        x = torch.cat([x, out], dim=1)
@@ -362,7 +370,7 @@
              stride: int = 2,
              sr_ratio: int = 1,
              mix_block_ratio: float = 1.0,
-@@ -436,8 +441,8 @@             attn_drop: float = 0.,
+@@ -436,8 +445,8 @@             attn_drop: float = 0.,
              drop_path: Union[float, List[float], Tuple[float, ...]] = 0.,
              head_dim: int = 32,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -372,7 +380,7 @@
              device=None,
              dtype=None,
      ):
-@@ -462,7 +467,7 @@                     norm_layer=norm_layer,
+@@ -462,7 +471,7 @@                     norm_layer=norm_layer,
                      act_layer=act_layer,
                      **dd,
 -                )
@@ -380,7 +388,7 @@
                  blocks.append(layer)
              elif block_type is NextTransformerBlock:
                  layer = NextTransformerBlock(
-@@ -478,17 +483,17 @@                     norm_layer=norm_layer,
+@@ -478,17 +487,18 @@                     norm_layer=norm_layer,
                      act_layer=act_layer,
                      **dd,
 -                )
@@ -399,10 +407,11 @@
  
 -    def forward(self, x):
 +    def construct(self, x):
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
          else:
-@@ -496,7 +501,7 @@         return x
+@@ -496,7 +506,7 @@         return x
  
  
 -class NextViT(nn.Module):
@@ -410,7 +419,7 @@
      def __init__(
              self,
              in_chans: int,
-@@ -511,8 +516,8 @@             drop_rate: float = 0.,
+@@ -511,8 +521,8 @@             drop_rate: float = 0.,
              head_dim: int = 32,
              mix_block_ratio: float = 0.75,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -420,23 +429,26 @@
              device=None,
              dtype=None,
      ):
-@@ -545,7 +550,7 @@             [NextConvBlock, NextConvBlock, NextConvBlock, NextConvBlock, NextTransformerBlock] * (depths[2] // 5),
+@@ -545,7 +555,8 @@             [NextConvBlock, NextConvBlock, NextConvBlock, NextConvBlock, NextTransformerBlock] * (depths[2] // 5),
              [NextConvBlock] * (depths[3] - 1) + [NextTransformerBlock]]
  
 -        self.stem = nn.Sequential(
 +        self.stem = msnn.SequentialCell(
++            [
              ConvNormAct(
                  in_chans, stem_chs[0], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
              ConvNormAct(
-@@ -554,7 +559,7 @@                 stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
+@@ -553,8 +564,8 @@             ConvNormAct(
+                 stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
              ConvNormAct(
-                 stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
+-                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
 -        )
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd)
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          in_chs = out_chs = stem_chs[-1]
          stages = []
          idx = 0
-@@ -574,14 +579,14 @@                 norm_layer=norm_layer,
+@@ -574,14 +585,14 @@                 norm_layer=norm_layer,
                  act_layer=act_layer,
                  **dd,
 -            )
@@ -454,7 +466,7 @@
  
          self.stage_out_idx = [sum(depths[:idx + 1]) - 1 for idx in range(len(depths))]
          self._initialize_weights()
-@@ -591,13 +596,13 @@             if isinstance(m, nn.Linear):
+@@ -591,13 +602,13 @@             if isinstance(m, nn.Linear):
                  trunc_normal_(m.weight, std=.02)
                  if hasattr(m, 'bias') and m.bias is not None:
 -                    nn.init.constant_(m.bias, 0)
@@ -471,7 +483,7 @@
      def group_matcher(self, coarse=False):
          return dict(
              stem=r'^stem',  # stem and embed
-@@ -607,14 +612,14 @@             ]
+@@ -607,14 +618,14 @@             ]
          )
  
 -    @torch.jit.ignore
@@ -488,7 +500,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -623,13 +628,13 @@ 
+@@ -623,13 +634,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -503,7 +515,21 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -685,7 +690,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -649,12 +660,14 @@         # forward pass
+         x = self.stem(x)
+         last_idx = len(self.stages) - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+             stages = self.stages[:max_index + 1]
+ 
+         for feat_idx, stage in enumerate(stages):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(stage, x)
+             else:
+@@ -685,13 +698,14 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -511,7 +537,14 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -702,7 +707,7 @@     def forward_head(self, x, pre_logits: bool = False):
+ 
+     def forward_features(self, x):
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stages, x)
+         else:
+@@ -702,7 +716,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -519,7 +552,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -732,7 +737,7 @@         pretrained,
+@@ -732,7 +746,7 @@         pretrained,
          pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
 -        **kwargs)
@@ -527,7 +560,7 @@
  
      return model
  
-@@ -800,7 +805,7 @@ def nextvit_small(pretrained=False, **kwargs):
+@@ -800,7 +814,7 @@ def nextvit_small(pretrained=False, **kwargs):
      model_args = dict(depths=(3, 4, 10, 3), drop_path_rate=0.1)
      model = _create_nextvit(
 -        'nextvit_small', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -535,7 +568,7 @@
      return model
  
  
-@@ -808,7 +813,7 @@ def nextvit_base(pretrained=False, **kwargs):
+@@ -808,7 +822,7 @@ def nextvit_base(pretrained=False, **kwargs):
      model_args = dict(depths=(3, 4, 20, 3), drop_path_rate=0.2)
      model = _create_nextvit(
 -        'nextvit_base', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -543,7 +576,7 @@
      return model
  
  
-@@ -816,5 +821,5 @@ def nextvit_large(pretrained=False, **kwargs):
+@@ -816,5 +830,5 @@ def nextvit_large(pretrained=False, **kwargs):
      model_args = dict(depths=(3, 4, 30, 3), drop_path_rate=0.2)
      model = _create_nextvit(
 -        'nextvit_large', pretrained=pretrained, **dict(model_args, **kwargs))

@@ -280,7 +280,14 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -336,7 +341,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -326,6 +331,7 @@ 
+     def forward_features(self, x):
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -336,7 +342,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -288,7 +295,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -349,7 +354,7 @@         pretrained,
+@@ -349,7 +355,7 @@         pretrained,
          feature_cfg=dict(flatten_sequential=True, feature_cls='hook'),
          **kwargs,
 -    )
@@ -296,7 +303,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -400,7 +405,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
+@@ -400,7 +406,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
      ]
      model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
 -    return _xception('xception41', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -304,7 +311,7 @@
  
  
  @register_model
-@@ -419,7 +424,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
+@@ -419,7 +425,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
      ]
      model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
 -    return _xception('xception65', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -312,7 +319,7 @@
  
  
  @register_model
-@@ -440,7 +445,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
+@@ -440,7 +446,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), stride=1, no_skip=True, start_with_relu=False),
      ]
      model_args = dict(block_cfg=block_cfg, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
 -    return _xception('xception71', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -320,7 +327,7 @@
  
  
  @register_model
-@@ -459,7 +464,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), no_skip=True, stride=1),
+@@ -459,7 +465,7 @@         dict(in_chs=1024, out_chs=(1536, 1536, 2048), no_skip=True, stride=1),
      ]
      model_args = dict(block_cfg=block_cfg, preact=True, norm_layer=nn.BatchNorm2d)
 -    return _xception('xception41p', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -328,7 +335,7 @@
  
  
  @register_model
-@@ -479,4 +484,4 @@     ]
+@@ -479,4 +485,4 @@     ]
      model_args = dict(
          block_cfg=block_cfg, preact=True, norm_layer=partial(nn.BatchNorm2d, eps=.001, momentum=.1))
 -    return _xception('xception65p', pretrained=pretrained, **dict(model_args, **kwargs))

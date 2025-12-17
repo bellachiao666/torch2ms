@@ -26,7 +26,7 @@
  
      def __init__(
              self,
-@@ -72,17 +77,17 @@         self.val_attn_dim = self.val_dim * num_heads
+@@ -72,27 +77,31 @@         self.val_attn_dim = self.val_dim * num_heads
          self.attn_ratio = attn_ratio
  
 -        self.qkv = nn.Linear(dim, self.key_attn_dim * 2 + self.val_attn_dim, **dd)
@@ -49,15 +49,22 @@
          self.register_buffer('attention_bias_idxs', rel_pos)
          self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
  
-@@ -92,7 +97,7 @@         if mode and self.attention_bias_cache:
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def train(self, mode=True):
+         super().train(mode)
+         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
++        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -101,7 +106,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -101,7 +110,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):  # x (B,N,C)
@@ -65,7 +72,7 @@
          B, N, C = x.shape
          qkv = self.qkv(x)
          qkv = qkv.reshape(B, N, self.num_heads, -1).permute(0, 2, 1, 3)
-@@ -116,13 +121,13 @@         return x
+@@ -116,13 +125,13 @@         return x
  
  
 -class Stem4(nn.Sequential):
@@ -81,7 +88,7 @@
              device=None,
              dtype=None,
      ):
-@@ -130,15 +135,15 @@         super().__init__()
+@@ -130,15 +139,15 @@         super().__init__()
          self.stride = 4
  
 -        self.add_module('conv1', nn.Conv2d(in_chs, out_chs // 2, kernel_size=3, stride=2, padding=1, **dd))
@@ -101,7 +108,7 @@
      """
      Downsampling via strided conv w/ norm
      Input: tensor in shape [B, C, H, W]
-@@ -152,7 +157,7 @@             kernel_size: int = 3,
+@@ -152,7 +161,7 @@             kernel_size: int = 3,
              stride: int = 2,
              padding: Optional[int] = None,
 -            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
@@ -109,7 +116,7 @@
              device=None,
              dtype=None,
      ):
-@@ -160,26 +165,26 @@         super().__init__()
+@@ -160,26 +169,26 @@         super().__init__()
          if padding is None:
              padding = kernel_size // 2
 -        self.conv = nn.Conv2d(in_chs, out_chs, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
@@ -142,7 +149,7 @@
      """
      Implementation of pooling for PoolFormer
      --pool_size: pooling size
-@@ -187,13 +192,13 @@ 
+@@ -187,13 +196,13 @@ 
      def __init__(self, pool_size: int = 3):
          super().__init__()
 -        self.pool = nn.AvgPool2d(pool_size, stride=1, padding=pool_size // 2, count_include_pad=False)
@@ -159,7 +166,7 @@
      """
      Implementation of MLP with 1*1 convolutions.
      Input: tensor with shape [B, C, H, W]
-@@ -204,8 +209,8 @@             in_features: int,
+@@ -204,8 +213,8 @@             in_features: int,
              hidden_features: Optional[int] = None,
              out_features: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -169,7 +176,7 @@
              drop: float = 0.,
              device=None,
              dtype=None,
-@@ -214,14 +219,14 @@         super().__init__()
+@@ -214,14 +223,14 @@         super().__init__()
          out_features = out_features or in_features
          hidden_features = hidden_features or in_features
 -        self.fc1 = nn.Conv2d(in_features, hidden_features, 1, **dd)
@@ -188,7 +195,7 @@
          x = self.fc1(x)
          x = self.norm1(x)
          x = self.act(x)
-@@ -232,14 +237,14 @@         return x
+@@ -232,14 +241,14 @@         return x
  
  
 -class MetaBlock1d(nn.Module):
@@ -205,7 +212,7 @@
              proj_drop: float = 0.,
              drop_path: float = 0.,
              layer_scale_init_value: float = 1e-5,
-@@ -248,37 +253,37 @@     ):
+@@ -248,37 +257,37 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.norm1 = norm_layer(dim, **dd)
@@ -256,7 +263,7 @@
              proj_drop: float = 0.,
              drop_path: float = 0.,
              layer_scale_init_value: float = 1e-5,
-@@ -288,8 +293,8 @@         dd = {'device': device, 'dtype': dtype}
+@@ -288,8 +297,8 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.token_mixer = Pooling(pool_size=pool_size)
 -        self.ls1 = LayerScale2d(dim, layer_scale_init_value, **dd)
@@ -266,7 +273,7 @@
  
          self.mlp = ConvMlpWithNorm(
              dim,
-@@ -298,17 +303,17 @@             norm_layer=norm_layer,
+@@ -298,17 +307,17 @@             norm_layer=norm_layer,
              drop=proj_drop,
              **dd,
 -        )
@@ -289,7 +296,7 @@
  
      def __init__(
              self,
-@@ -319,9 +324,9 @@             num_vit: int = 1,
+@@ -319,9 +328,9 @@             num_vit: int = 1,
              pool_size: int = 3,
              mlp_ratio: float = 4.,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -301,7 +308,7 @@
              proj_drop: float = .0,
              drop_path: float = 0.,
              layer_scale_init_value: float = 1e-5,
-@@ -333,11 +338,11 @@         self.grad_checkpointing = False
+@@ -333,11 +342,11 @@         self.grad_checkpointing = False
  
          if downsample:
 -            self.downsample = Downsample(in_chs=dim, out_chs=dim_out, norm_layer=norm_layer, **dd)
@@ -314,7 +321,7 @@
  
          blocks = []
          if num_vit and num_vit >= depth:
-@@ -356,7 +361,7 @@                         drop_path=drop_path[block_idx],
+@@ -356,7 +365,7 @@                         drop_path=drop_path[block_idx],
                          layer_scale_init_value=layer_scale_init_value,
                          **dd,
 -                    ))
@@ -322,7 +329,7 @@
              else:
                  blocks.append(
                      MetaBlock2d(
-@@ -369,13 +374,13 @@                         drop_path=drop_path[block_idx],
+@@ -369,14 +378,15 @@                         drop_path=drop_path[block_idx],
                          layer_scale_init_value=layer_scale_init_value,
                          **dd,
 -                    ))
@@ -337,9 +344,11 @@
 +
 +    def construct(self, x):
          x = self.downsample(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -384,7 +389,7 @@         return x
+         else:
+@@ -384,7 +394,7 @@         return x
  
  
 -class EfficientFormer(nn.Module):
@@ -347,7 +356,7 @@
  
      def __init__(
              self,
-@@ -398,9 +403,9 @@             mlp_ratios: float = 4,
+@@ -398,9 +408,9 @@             mlp_ratios: float = 4,
              pool_size: int = 3,
              layer_scale_init_value: float = 1e-5,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -359,7 +368,7 @@
              drop_rate: float = 0.,
              proj_drop_rate: float = 0.,
              drop_path_rate: float = 0.,
-@@ -413,7 +418,7 @@         self.num_classes = num_classes
+@@ -413,7 +423,7 @@         self.num_classes = num_classes
          self.global_pool = global_pool
  
 -        self.stem = Stem4(in_chans, embed_dims[0], norm_layer=norm_layer, **dd)
@@ -367,7 +376,7 @@
          prev_dim = embed_dims[0]
  
          # stochastic depth decay rule
-@@ -439,19 +444,19 @@                 drop_path=dpr[i],
+@@ -439,19 +449,19 @@                 drop_path=dpr[i],
                  layer_scale_init_value=layer_scale_init_value,
                  **dd,
 -            )
@@ -391,7 +400,7 @@
          self.distilled_training = False  # must set this True to train w/ distillation token
  
          self.apply(self._init_weights)
-@@ -461,13 +466,13 @@         if isinstance(m, nn.Linear):
+@@ -461,13 +471,13 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -408,7 +417,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^stem',  # stem and embed
-@@ -475,35 +480,35 @@         )
+@@ -475,35 +485,35 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -452,7 +461,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -560,7 +565,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -525,6 +535,7 @@         B, C, H, W = x.shape
+ 
+         last_idx = self.num_stages - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -560,7 +571,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -460,7 +476,14 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -585,7 +590,7 @@             # during standard train/finetune, inference average the classifier predictions
+@@ -578,6 +589,7 @@         if pre_logits:
+             return x
+         x, x_dist = self.head(x), self.head_dist(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.distilled_training and self.training and not torch.jit.is_scripting():
+             # only return separate classification predictions when training in distilled mode
+             return x, x_dist
+@@ -585,7 +597,7 @@             # during standard train/finetune, inference average the classifier predictions
              return (x + x_dist) / 2
  
 -    def forward(self, x):
@@ -468,7 +491,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -650,7 +655,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -650,7 +662,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -476,7 +499,7 @@
      return model
  
  
-@@ -661,7 +666,7 @@         embed_dims=EfficientFormer_width['l1'],
+@@ -661,7 +673,7 @@         embed_dims=EfficientFormer_width['l1'],
          num_vit=1,
      )
 -    return _create_efficientformer('efficientformer_l1', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -484,7 +507,7 @@
  
  
  @register_model
-@@ -671,7 +676,7 @@         embed_dims=EfficientFormer_width['l3'],
+@@ -671,7 +683,7 @@         embed_dims=EfficientFormer_width['l3'],
          num_vit=4,
      )
 -    return _create_efficientformer('efficientformer_l3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -492,7 +515,7 @@
  
  
  @register_model
-@@ -681,5 +686,5 @@         embed_dims=EfficientFormer_width['l7'],
+@@ -681,5 +693,5 @@         embed_dims=EfficientFormer_width['l7'],
          num_vit=8,
      )
 -    return _create_efficientformer('efficientformer_l7', pretrained=pretrained, **dict(model_args, **kwargs))

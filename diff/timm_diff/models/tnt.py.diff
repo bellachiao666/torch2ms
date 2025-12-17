@@ -300,7 +300,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -404,7 +409,7 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
+@@ -404,16 +409,18 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
  
          patch_embed = self.norm2_proj(self.proj(self.norm1_proj(pixel_embed.reshape(B, self.num_patches, -1))))
 -        patch_embed = torch.cat((self.cls_token.expand(B, -1, -1), patch_embed), dim=1)
@@ -308,7 +308,25 @@
          patch_embed = patch_embed + self.patch_pos
          patch_embed = self.pos_drop(patch_embed)
  
-@@ -454,7 +459,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+ 
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 pixel_embed, patch_embed = checkpoint(blk, pixel_embed, patch_embed)
+             else:
+@@ -432,6 +439,7 @@             # reshape to BCHW output format
+             H, W = self.pixel_embed.dynamic_feat_size((height, width))
+             intermediates = [y.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous() for y in intermediates]
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if not torch.jit.is_scripting() and return_prefix_tokens:
+             # return_prefix not support in torchscript due to poor type handling
+             intermediates = list(zip(intermediates, prefix_tokens))
+@@ -454,7 +462,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -316,7 +334,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -464,7 +469,7 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
+@@ -464,11 +472,12 @@         pixel_embed = self.pixel_embed(x, self.pixel_pos)
  
          patch_embed = self.norm2_proj(self.proj(self.norm1_proj(pixel_embed.reshape(B, self.num_patches, -1))))
 -        patch_embed = torch.cat((self.cls_token.expand(B, -1, -1), patch_embed), dim=1)
@@ -324,7 +342,12 @@
          patch_embed = patch_embed + self.patch_pos
          patch_embed = self.pos_drop(patch_embed)
  
-@@ -483,7 +488,7 @@         x = self.head_drop(x)
+         for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 pixel_embed, patch_embed = checkpoint(blk, pixel_embed, patch_embed)
+             else:
+@@ -483,7 +492,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -332,7 +355,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -563,7 +568,7 @@         TNT, variant, pretrained,
+@@ -563,7 +572,7 @@         TNT, variant, pretrained,
          pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
 -        **kwargs)
@@ -340,7 +363,7 @@
      return model
  
  
-@@ -572,7 +577,7 @@     model_cfg = dict(
+@@ -572,7 +581,7 @@     model_cfg = dict(
          patch_size=16, embed_dim=384, inner_dim=24, depth=12, num_heads_outer=6,
          qkv_bias=False, legacy=True)
 -    model = _create_tnt('tnt_s_legacy_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -348,7 +371,7 @@
      return model
  
  
-@@ -581,7 +586,7 @@     model_cfg = dict(
+@@ -581,7 +590,7 @@     model_cfg = dict(
          patch_size=16, embed_dim=384, inner_dim=24, depth=12, num_heads_outer=6,
          qkv_bias=False)
 -    model = _create_tnt('tnt_s_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -356,7 +379,7 @@
      return model
  
  
-@@ -590,5 +595,5 @@     model_cfg = dict(
+@@ -590,5 +599,5 @@     model_cfg = dict(
          patch_size=16, embed_dim=640, inner_dim=40, depth=12, num_heads_outer=10,
          qkv_bias=False)
 -    model = _create_tnt('tnt_b_patch16_224', pretrained=pretrained, **dict(model_cfg, **kwargs))

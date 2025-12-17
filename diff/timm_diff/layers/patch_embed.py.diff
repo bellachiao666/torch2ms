@@ -40,7 +40,10 @@
  
      def _init_img_size(self, img_size: Union[int, Tuple[int, int]]):
          assert self.patch_size
-@@ -82,14 +86,7 @@         if new_patch_size is not None and new_patch_size != self.patch_size:
+@@ -80,16 +84,10 @@         if patch_size is not None:
+             new_patch_size = to_2tuple(patch_size)
+         if new_patch_size is not None and new_patch_size != self.patch_size:
++            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              with torch.no_grad():
                  new_proj = nn.Conv2d(
 -                    self.proj.in_channels,
@@ -55,7 +58,7 @@
                  new_proj.weight.copy_(resample_patch_embed(self.proj.weight, new_patch_size, verbose=True))
                  if self.proj.bias is not None:
                      new_proj.bias.copy_(self.proj.bias)
-@@ -114,7 +111,7 @@         else:
+@@ -114,7 +112,7 @@         else:
              return img_size[0] // self.patch_size[0], img_size[1] // self.patch_size[1]
  
 -    def forward(self, x):
@@ -63,7 +66,7 @@
          B, C, H, W = x.shape
          if self.img_size is not None:
              if self.strict_img_size:
-@@ -132,7 +129,7 @@         if self.dynamic_img_pad:
+@@ -132,7 +130,7 @@         if self.dynamic_img_pad:
              pad_h = (self.patch_size[0] - H % self.patch_size[0]) % self.patch_size[0]
              pad_w = (self.patch_size[1] - W % self.patch_size[1]) % self.patch_size[1]
 -            x = F.pad(x, (0, pad_w, 0, pad_h))
@@ -71,7 +74,7 @@
          x = self.proj(x)
          if self.flatten:
              x = x.flatten(2).transpose(1, 2)  # NCHW -> NLC
-@@ -173,7 +170,7 @@             dtype=dtype,
+@@ -173,7 +171,7 @@             dtype=dtype,
          )
  
 -    def forward(self, x) -> Tuple[torch.Tensor, List[int]]:
@@ -79,7 +82,7 @@
          B, C, H, W = x.shape
          if self.img_size is not None:
              _assert(H % self.patch_size[0] == 0, f"Input image height ({H}) must be divisible by patch size ({self.patch_size[0]}).")
-@@ -218,9 +215,9 @@     """
+@@ -218,9 +216,9 @@     """
      import numpy as np
      try:
 -        from torch import vmap
@@ -90,7 +93,7 @@
  
      assert len(patch_embed.shape) == 4, "Four dimensions expected"
      assert len(new_size) == 2, "New shape should only be hw"
-@@ -232,9 +229,9 @@         _logger.info(f"Resize patch embedding {patch_embed.shape} to {new_size}, w/ {interpolation} interpolation.")
+@@ -232,9 +230,9 @@         _logger.info(f"Resize patch embedding {patch_embed.shape} to {new_size}, w/ {interpolation} interpolation.")
  
      def resize(x_np, _new_size):
 -        x_tf = torch.Tensor(x_np)[None, None, ...]
@@ -102,7 +105,7 @@
          return x_upsampled
  
      def get_resize_mat(_old_size, _new_size):
-@@ -246,13 +243,13 @@         return np.stack(mat).T
+@@ -246,13 +244,13 @@         return np.stack(mat).T
  
      resize_mat = get_resize_mat(old_size, new_size)
 -    resize_mat_pinv = torch.tensor(np.linalg.pinv(resize_mat.T), device=patch_embed.device)
@@ -117,15 +120,21 @@
      orig_dtype = patch_embed.dtype
      patch_embed = patch_embed.float()
      patch_embed = v_resample_kernel(patch_embed)
-@@ -260,7 +257,7 @@     return patch_embed
+@@ -260,9 +258,11 @@     return patch_embed
  
  
 -DTYPE_INTERMEDIATE = torch.float32
+-
+-
 +DTYPE_INTERMEDIATE = ms.float32
- 
- 
++
++
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def _compute_resize_matrix(
-@@ -270,33 +267,28 @@         antialias: bool,
+         old_size: Tuple[int, int],
+         new_size: Tuple[int, int],
+@@ -270,33 +270,29 @@         antialias: bool,
          device: torch.device,
          dtype: torch.dtype = DTYPE_INTERMEDIATE
 -) -> torch.Tensor:
@@ -152,6 +161,7 @@
      return resize_matrix # Shape: (new_total, old_total)
  
  
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  def _apply_resampling(
 -        patch_embed: torch.Tensor,
 -        pinv_matrix: torch.Tensor,
@@ -165,7 +175,7 @@
      """ Simplified resampling w/o vmap use.
      As proposed by https://github.com/stas-sl
      """
-@@ -304,12 +296,12 @@     patch_embed = patch_embed.reshape(c_out, c_in, -1).to(dtype=intermediate_dtype)
+@@ -304,12 +300,12 @@     patch_embed = patch_embed.reshape(c_out, c_in, -1).to(dtype=intermediate_dtype)
      pinv_matrix = pinv_matrix.to(dtype=intermediate_dtype)
      resampled_patch_embed = patch_embed @ pinv_matrix  # (C_out, C_in, P_old * P_old) @ (P_old * P_old, P_new * P_new)
 -    resampled_patch_embed = resampled_patch_embed.reshape(c_out, c_in, *new_size_tuple).to(dtype=orig_dtype)
@@ -179,7 +189,7 @@
          new_size: List[int],
          interpolation: str = 'bicubic',
          antialias: bool = True,
-@@ -331,14 +323,14 @@     resize_mat = _compute_resize_matrix(
+@@ -331,14 +327,14 @@     resize_mat = _compute_resize_matrix(
          old_size_tuple, new_size_tuple, interpolation, antialias, device, DTYPE_INTERMEDIATE
      )
 -    pinv_matrix = torch.linalg.pinv(resize_mat)  # Calculates the pseudoinverse matrix used for resampling
@@ -195,7 +205,14 @@
      """
      Resample patch embedding weights from a fixed original size,
      caching the pseudoinverse matrix based on the target size.
-@@ -369,7 +361,7 @@             new_size: Tuple[int, int],
+@@ -364,12 +360,14 @@         # Cache map key is the target new_size tuple
+         self._pinv_cache_map: Dict[Tuple[int, int], str] = {}
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def _get_or_create_pinv_matrix(
+             self,
+             new_size: Tuple[int, int],
              device: torch.device,
              dtype: torch.dtype = DTYPE_INTERMEDIATE
 -    ) -> torch.Tensor:
@@ -203,7 +220,7 @@
          """Retrieves the cached pinv matrix or computes and caches it for the given new_size."""
          cache_key = new_size
          buffer_name = self._pinv_cache_map.get(cache_key)
-@@ -383,7 +375,7 @@         resize_mat = _compute_resize_matrix(
+@@ -383,7 +381,7 @@         resize_mat = _compute_resize_matrix(
              self.orig_size, new_size, self.interpolation, self.antialias, device, dtype
          )
 -        pinv_matrix = torch.linalg.pinv(resize_mat)  # Calculates the pseudoinverse matrix used for resampling
@@ -211,7 +228,7 @@
  
          # Cache using register_buffer
          buffer_name = f"pinv_{new_size[0]}x{new_size[1]}"
-@@ -394,7 +386,7 @@ 
+@@ -394,7 +392,7 @@ 
          return pinv_matrix
  
 -    def forward(self, patch_embed: torch.Tensor, new_size: List[int]) -> torch.Tensor:
@@ -219,7 +236,7 @@
          """ Resamples the patch embedding weights to new_size.
  
          Args:
-@@ -431,7 +423,7 @@         return resampled_patch_embed
+@@ -431,7 +429,7 @@         return resampled_patch_embed
  
  
 -class PatchEmbedInterpolator(nn.Module):
@@ -227,7 +244,7 @@
      """Dynamically interpolates patch embedding weights for variable patch sizes.
  
      This module wraps patch embedding weight resampling functionality to support
-@@ -463,9 +455,9 @@ 
+@@ -463,9 +461,9 @@ 
      def resample_linear_weight(
              self,
 -            weight: torch.Tensor,
@@ -238,7 +255,7 @@
          """Resample linear patch embedding weights for a new patch size.
  
          Args:
-@@ -505,9 +497,9 @@ 
+@@ -505,9 +503,9 @@ 
      def resample_conv_weight(
              self,
 -            weight: torch.Tensor,
@@ -249,7 +266,7 @@
          """Resample conv2d patch embedding weights for a new patch size.
  
          Args:
-@@ -531,14 +523,14 @@ 
+@@ -531,14 +529,14 @@ 
          return weight_resampled
  
 -    def forward(
@@ -269,7 +286,7 @@
          """Apply patch embedding with dynamic weight resampling.
  
          Args:
-@@ -568,26 +560,22 @@ 
+@@ -568,26 +566,22 @@ 
                  # Flatten patches and apply linear projection
                  patches_flat = patches.reshape(B, N, -1)
 -                output = torch.nn.functional.linear(patches_flat, weight_resampled, proj_bias)

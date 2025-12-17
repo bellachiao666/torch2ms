@@ -182,20 +182,21 @@
              device=None,
              dtype=None,
              **block_kwargs,
-@@ -327,10 +330,10 @@ 
+@@ -327,10 +330,11 @@ 
          if stride != 1 or first_dilation != dilation:
              if avg_down:
 -                self.conv_down = nn.Sequential(
 -                    nn.AvgPool2d(2) if stride == 2 else nn.Identity(),  # FIXME dilation handling
 +                self.conv_down = msnn.SequentialCell(
-+                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),  # FIXME dilation handling
++                    [
++                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
                      ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
 -                )
-+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              else:
                  self.conv_down = ConvNormAct(
                      in_chs,
-@@ -342,10 +345,10 @@                     aa_layer=aa_layer,
+@@ -342,10 +346,10 @@                     aa_layer=aa_layer,
                      **conv_kwargs,
                      **dd,
 -                )
@@ -207,7 +208,7 @@
              prev_chs = in_chs
  
          # FIXME this 1x1 expansion is pushed down into the cross and block paths in the darknet cfgs. Also,
-@@ -358,10 +361,10 @@             apply_act=not cross_linear,
+@@ -358,10 +362,10 @@             apply_act=not cross_linear,
              **conv_kwargs,
              **dd,
 -        )
@@ -219,7 +220,7 @@
          for i in range(depth):
              self.blocks.add_module(str(i), block_fn(
                  in_chs=prev_chs,
-@@ -372,24 +375,24 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
+@@ -372,24 +376,24 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
                  **block_kwargs,
                  **dd,
 -            ))
@@ -250,7 +251,7 @@
      """Cross Stage 3.
      Similar to CrossStage, but with only one transition conv for the output.
      """
-@@ -409,7 +412,7 @@             down_growth: bool = False,
+@@ -409,7 +413,7 @@             down_growth: bool = False,
              cross_linear: bool = False,
              block_dpr: Optional[List[float]] = None,
 -            block_fn: Type[nn.Module] = BottleneckBlock,
@@ -258,20 +259,21 @@
              device=None,
              dtype=None,
              **block_kwargs,
-@@ -425,10 +428,10 @@ 
+@@ -425,10 +429,11 @@ 
          if stride != 1 or first_dilation != dilation:
              if avg_down:
 -                self.conv_down = nn.Sequential(
 -                    nn.AvgPool2d(2) if stride == 2 else nn.Identity(),  # FIXME dilation handling
 +                self.conv_down = msnn.SequentialCell(
-+                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),  # FIXME dilation handling
++                    [
++                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
                      ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
 -                )
-+                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              else:
                  self.conv_down = ConvNormAct(
                      in_chs,
-@@ -440,7 +443,7 @@                     aa_layer=aa_layer,
+@@ -440,7 +445,7 @@                     aa_layer=aa_layer,
                      **conv_kwargs,
                      **dd,
 -                )
@@ -279,7 +281,7 @@
              prev_chs = down_chs
          else:
              self.conv_down = None
-@@ -454,10 +457,10 @@             apply_act=not cross_linear,
+@@ -454,10 +459,10 @@             apply_act=not cross_linear,
              **conv_kwargs,
              **dd,
 -        )
@@ -291,7 +293,7 @@
          for i in range(depth):
              self.blocks.add_module(str(i), block_fn(
                  in_chs=prev_chs,
-@@ -468,22 +471,22 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
+@@ -468,22 +473,22 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
                  **block_kwargs,
                  **dd,
 -            ))
@@ -319,7 +321,7 @@
      """DarkNet stage."""
  
      def __init__(
-@@ -498,7 +501,7 @@             groups: int = 1,
+@@ -498,7 +503,7 @@             groups: int = 1,
              first_dilation: Optional[int] = None,
              avg_down: bool = False,
 -            block_fn: Type[nn.Module] = BottleneckBlock,
@@ -327,20 +329,21 @@
              block_dpr: Optional[List[float]] = None,
              device=None,
              dtype=None,
-@@ -511,10 +514,10 @@         aa_layer = block_kwargs.pop('aa_layer', None)
+@@ -511,10 +516,11 @@         aa_layer = block_kwargs.pop('aa_layer', None)
  
          if avg_down:
 -            self.conv_down = nn.Sequential(
 -                nn.AvgPool2d(2) if stride == 2 else nn.Identity(),   # FIXME dilation handling
 +            self.conv_down = msnn.SequentialCell(
-+                nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),   # FIXME dilation handling
++                [
++                nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
                  ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
 -            )
-+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              self.conv_down = ConvNormAct(
                  in_chs,
-@@ -526,11 +529,11 @@                 aa_layer=aa_layer,
+@@ -526,11 +532,11 @@                 aa_layer=aa_layer,
                  **conv_kwargs,
                  **dd,
 -            )
@@ -353,7 +356,7 @@
          for i in range(depth):
              self.blocks.add_module(str(i), block_fn(
                  in_chs=prev_chs,
-@@ -541,10 +544,10 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
+@@ -541,10 +547,10 @@                 drop_path=block_dpr[i] if block_dpr is not None else 0.,
                  **block_kwargs,
                  **dd,
 -            ))
@@ -365,7 +368,7 @@
          x = self.conv_down(x)
          x = self.blocks(x)
          return x
-@@ -557,14 +560,14 @@         stride: int = 2,
+@@ -557,14 +563,14 @@         stride: int = 2,
          pool: str = '',
          padding: str = '',
 -        act_layer: Type[nn.Module] = nn.ReLU,
@@ -383,7 +386,7 @@
      feature_info = []
      if not isinstance(out_chs, (tuple, list)):
          out_chs = [out_chs]
-@@ -587,7 +590,7 @@             act_layer=act_layer,
+@@ -587,7 +593,7 @@             act_layer=act_layer,
              norm_layer=norm_layer,
              **dd,
 -        ))
@@ -391,7 +394,7 @@
          stem_stride *= conv_stride
          prev_chs = chs
          prev_feat = dict(num_chs=prev_chs, reduction=stem_stride, module='.'.join(['stem', conv_name]))
-@@ -596,11 +599,11 @@         if prev_feat is not None:
+@@ -596,11 +602,11 @@         if prev_feat is not None:
              feature_info.append(prev_feat)
          if aa_layer is not None:
 -            stem.add_module('pool', nn.MaxPool2d(kernel_size=3, stride=1, padding=1))
@@ -405,7 +408,7 @@
              pool_name = 'pool'
          stem_stride *= 2
          prev_feat = dict(num_chs=prev_chs, reduction=stem_stride, module='.'.join(['stem', pool_name]))
-@@ -640,7 +643,7 @@     if attn_layer is not None:
+@@ -640,7 +646,7 @@     if attn_layer is not None:
          attn_layer = get_attn(attn_layer)
          if attn_kwargs:
 -            attn_layer = partial(attn_layer, **attn_kwargs)
@@ -413,7 +416,7 @@
      return attn_layer, stage_args
  
  
-@@ -657,7 +660,7 @@     num_stages = len(cfg.stages.depth)
+@@ -657,7 +663,7 @@     num_stages = len(cfg.stages.depth)
      cfg_dict['block_dpr'] = [None] * num_stages if not drop_path_rate else \
          calculate_drop_path_rates(drop_path_rate, cfg.stages.depth, stagewise=True)
 -    stage_args = [dict(zip(cfg_dict.keys(), values)) for values in zip(*cfg_dict.values())]
@@ -421,7 +424,7 @@
      block_kwargs = dict(
          act_layer=cfg.act_layer,
          norm_layer=cfg.norm_layer,
-@@ -693,15 +696,15 @@             attn_layer=attn_fn,  # will be passed through stage as block_kwargs
+@@ -693,15 +699,15 @@             attn_layer=attn_fn,  # will be passed through stage as block_kwargs
              **block_kwargs,
              **dd,
 -        )]
@@ -441,7 +444,7 @@
      """Cross Stage Partial base model.
  
      Paper: `CSPNet: A New Backbone that can Enhance Learning Capability of CNN` - https://arxiv.org/abs/1911.11929
-@@ -743,7 +746,7 @@         self.drop_rate = drop_rate
+@@ -743,7 +749,7 @@         self.drop_rate = drop_rate
          assert output_stride in (8, 16, 32)
  
 -        cfg = replace(cfg, **kwargs)  # overlay kwargs onto cfg
@@ -449,7 +452,7 @@
          layer_args = dict(
              act_layer=cfg.act_layer,
              norm_layer=cfg.norm_layer,
-@@ -752,7 +755,7 @@         self.feature_info = []
+@@ -752,7 +758,7 @@         self.feature_info = []
  
          # Construct the stem
 -        self.stem, stem_feat_info = create_csp_stem(in_chans, **asdict(cfg.stem), **layer_args, **dd)
@@ -457,7 +460,7 @@
          self.feature_info.extend(stem_feat_info[:-1])
  
          # Construct the stages
-@@ -762,7 +765,7 @@             output_stride=output_stride,
+@@ -762,7 +768,7 @@             output_stride=output_stride,
              stem_feat=stem_feat_info[-1],
              **dd,
 -        )
@@ -465,7 +468,7 @@
          prev_chs = stage_feat_info[-1]['num_chs']
          self.feature_info.extend(stage_feat_info)
  
-@@ -774,11 +777,11 @@             pool_type=global_pool,
+@@ -774,11 +780,11 @@             pool_type=global_pool,
              drop_rate=drop_rate,
              **dd,
 -        )
@@ -478,7 +481,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^stem',
-@@ -790,12 +793,12 @@         )
+@@ -790,12 +796,12 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -493,7 +496,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -810,7 +813,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -810,7 +816,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -501,7 +504,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -818,13 +821,13 @@ 
+@@ -818,13 +824,13 @@ 
  def _init_weights(module, name, zero_init_last=False):
      if isinstance(module, nn.Conv2d):
 -        nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
@@ -518,7 +521,7 @@
      elif zero_init_last and hasattr(module, 'zero_init_last'):
          module.zero_init_last()
  
-@@ -1001,7 +1004,7 @@         CspNet, variant, pretrained,
+@@ -1001,7 +1007,7 @@         CspNet, variant, pretrained,
          model_cfg=model_cfgs[variant],
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
 -        **kwargs)
@@ -526,7 +529,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -1094,114 +1097,114 @@ 
+@@ -1094,114 +1100,114 @@ 
  @register_model
  def cspresnet50(pretrained=False, **kwargs) -> CspNet:
 -    return _create_cspnet('cspresnet50', pretrained=pretrained, **kwargs)

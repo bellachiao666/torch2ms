@@ -317,7 +317,7 @@
              else:
                  blocks.append(ConvEncoder(
                      dim=dim,
-@@ -329,10 +333,10 @@                     norm_layer=norm_layer,
+@@ -329,11 +333,12 @@                     norm_layer=norm_layer,
                      use_layer_scale=use_layer_scale,
                      **dd,
 -                ))
@@ -329,9 +329,11 @@
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          x = self.downsample(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -341,14 +345,14 @@         return x
+         else:
+@@ -341,14 +346,14 @@         return x
  
  
 -class SwiftFormer(nn.Module):
@@ -347,23 +349,25 @@
              down_patch_size: int = 3,
              down_stride: int = 2,
              down_pad: int = 1,
-@@ -371,14 +375,14 @@         self.global_pool = global_pool
+@@ -371,14 +376,15 @@         self.global_pool = global_pool
          self.feature_info = []
  
 -        self.stem = nn.Sequential(
 +        self.stem = msnn.SequentialCell(
++            [
              nn.Conv2d(in_chans, embed_dims[0] // 2, 3, 2, 1, **dd),
              nn.BatchNorm2d(embed_dims[0] // 2, **dd),
              nn.ReLU(),
              nn.Conv2d(embed_dims[0] // 2, embed_dims[0], 3, 2, 1, **dd),
              nn.BatchNorm2d(embed_dims[0], **dd),
-             nn.ReLU(),
+-            nn.ReLU(),
 -        )
-+        )  # 存在 *args/**kwargs，需手动确认参数映射;
++            nn.ReLU()
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;
          prev_dim = embed_dims[0]
  
          stages = []
-@@ -390,7 +394,7 @@                 stride=down_stride,
+@@ -390,7 +396,7 @@                 stride=down_stride,
                  padding=down_pad,
                  **dd,
 -            ) if downsamples[i] else nn.Identity()
@@ -371,7 +375,7 @@
              stage = Stage(
                  dim=embed_dims[i],
                  index=i,
-@@ -403,19 +407,19 @@                 layer_scale_init_value=layer_scale_init_value,
+@@ -403,19 +409,19 @@                 layer_scale_init_value=layer_scale_init_value,
                  downsample=downsample,
                  **dd,
 -            )
@@ -395,7 +399,7 @@
          self.distilled_training = False  # must set this True to train w/ distillation token
          self._initialize_weights()
  
-@@ -424,17 +428,17 @@             if isinstance(m, nn.Linear):
+@@ -424,17 +430,17 @@             if isinstance(m, nn.Linear):
                  trunc_normal_(m.weight, std=.02)
                  if m.bias is not None:
 -                    nn.init.constant_(m.bias, 0)
@@ -417,7 +421,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
          matcher = dict(
              stem=r'^stem',  # stem and embed
-@@ -446,13 +450,13 @@         )
+@@ -446,13 +452,13 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -433,7 +437,7 @@
          return self.head, self.head_dist
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -460,22 +464,22 @@         if global_pool is not None:
+@@ -460,22 +466,22 @@         if global_pool is not None:
              self.global_pool = global_pool
          device, dtype = self.head.weight.device, self.head.weight.dtype if hasattr(self.head, 'weight') else (None, None)
 -        self.head = Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -461,7 +465,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -528,18 +532,18 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -495,6 +501,7 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -528,24 +535,25 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -482,7 +493,14 @@
          if self.global_pool == 'avg':
              x = x.mean(dim=(2, 3))
          x = self.head_drop(x)
-@@ -553,13 +557,13 @@             # during standard train/finetune, inference average the classifier predictions
+         if pre_logits:
+             return x
+         x, x_dist = self.head(x), self.head_dist(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.distilled_training and self.training and not torch.jit.is_scripting():
+             # only return separate classification predictions when training in distilled mode
+             return x, x_dist
+@@ -553,13 +561,13 @@             # during standard train/finetune, inference average the classifier predictions
              return (x + x_dist) / 2
  
 -    def forward(self, x: torch.Tensor):
@@ -497,7 +515,7 @@
      state_dict = state_dict.get('model', state_dict)
      if 'stem.0.weight' in state_dict:
          return state_dict
-@@ -622,28 +626,28 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -622,28 +630,28 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
          **kwargs,
 -    )

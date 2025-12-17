@@ -65,7 +65,7 @@
          else:
              self.stride_conv = None
              self.upsample = None
-@@ -141,23 +146,23 @@         self.attn_ratio = attn_ratio
+@@ -141,33 +146,37 @@         self.attn_ratio = attn_ratio
          kh = self.key_dim * self.num_heads
  
 -        self.q = ConvNorm(dim, kh, **dd)
@@ -100,15 +100,22 @@
          self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
          self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
  
-@@ -167,7 +172,7 @@         if mode and self.attention_bias_cache:
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def train(self, mode=True):
+         super().train(mode)
+         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
++        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -176,7 +181,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -176,7 +185,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -116,7 +123,7 @@
          B, C, H, W = x.shape
          if self.stride_conv is not None:
              x = self.stride_conv(x)
-@@ -203,7 +208,7 @@         return x
+@@ -203,7 +212,7 @@         return x
  
  
 -class LocalGlobalQuery(torch.nn.Module):
@@ -124,7 +131,7 @@
      def __init__(
              self,
              in_dim: int,
-@@ -214,10 +219,10 @@         dd = {'device': device, 'dtype': dtype}
+@@ -214,10 +223,10 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.pool = nn.AvgPool2d(1, 2, 0)
 -        self.local = nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=2, padding=1, groups=in_dim, **dd)
@@ -138,7 +145,7 @@
          local_q = self.local(x)
          pool_q = self.pool(x)
          q = local_q + pool_q
-@@ -225,8 +230,8 @@         return q
+@@ -225,8 +234,8 @@         return q
  
  
 -class Attention2dDownsample(torch.nn.Module):
@@ -148,7 +155,7 @@
  
      def __init__(
              self,
-@@ -236,7 +241,7 @@             attn_ratio: int = 4,
+@@ -236,7 +245,7 @@             attn_ratio: int = 4,
              resolution: Union[int, Tuple[int, int]] = 7,
              out_dim: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -156,7 +163,7 @@
              device=None,
              dtype=None,
      ):
-@@ -257,22 +262,22 @@         self.out_dim = out_dim or dim
+@@ -257,35 +266,39 @@         self.out_dim = out_dim or dim
          kh = self.key_dim * self.num_heads
  
 -        self.q = LocalGlobalQuery(dim, kh, **dd)
@@ -191,15 +198,25 @@
          )).flatten(1)
          rel_pos = (q_pos[..., :, None] - k_pos[..., None, :]).abs()
          rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
-@@ -285,7 +290,7 @@         if mode and self.attention_bias_cache:
+         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
+         self.attention_bias_cache = {}  # per-device attention_biases cache (data-parallel compat)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def train(self, mode=True):
+         super().train(mode)
+         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
++        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -294,7 +299,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -294,7 +307,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -207,7 +224,7 @@
          B, C, H, W = x.shape
  
          q = self.q(x).reshape(B, self.num_heads, -1, self.N2).permute(0, 1, 3, 2)
-@@ -314,7 +319,7 @@         return x
+@@ -314,7 +327,7 @@         return x
  
  
 -class Downsample(nn.Module):
@@ -215,7 +232,7 @@
      def __init__(
              self,
              in_chs: int,
-@@ -324,8 +329,8 @@             padding: Union[int, Tuple[int, int]] = 1,
+@@ -324,8 +337,8 @@             padding: Union[int, Tuple[int, int]] = 1,
              resolution: Union[int, Tuple[int, int]] = 7,
              use_attn: bool = False,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -225,7 +242,7 @@
              device=None,
              dtype=None,
      ):
-@@ -335,7 +340,7 @@         kernel_size = to_2tuple(kernel_size)
+@@ -335,7 +348,7 @@         kernel_size = to_2tuple(kernel_size)
          stride = to_2tuple(stride)
          padding = to_2tuple(padding)
 -        norm_layer = norm_layer or nn.Identity()
@@ -233,7 +250,7 @@
          self.conv = ConvNorm(
              in_chs,
              out_chs,
-@@ -344,7 +349,7 @@             padding=padding,
+@@ -344,7 +357,7 @@             padding=padding,
              norm_layer=norm_layer,
              **dd,
 -        )
@@ -241,7 +258,7 @@
  
          if use_attn:
              self.attn = Attention2dDownsample(
-@@ -353,18 +358,18 @@                 resolution=resolution,
+@@ -353,18 +366,18 @@                 resolution=resolution,
                  act_layer=act_layer,
                  **dd,
 -            )
@@ -262,7 +279,7 @@
      """
      Implementation of MLP with 1*1 convolutions.
      Input: tensor with shape [B, C, H, W]
-@@ -375,8 +380,8 @@             in_features: int,
+@@ -375,8 +388,8 @@             in_features: int,
              hidden_features: Optional[int] = None,
              out_features: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -272,7 +289,7 @@
              drop: float = 0.,
              mid_conv: bool = False,
              device=None,
-@@ -394,7 +399,7 @@             norm_layer=norm_layer,
+@@ -394,7 +407,7 @@             norm_layer=norm_layer,
              act_layer=act_layer,
              **dd,
 -        )
@@ -280,7 +297,7 @@
          if mid_conv:
              self.mid = ConvNormAct(
                  hidden_features,
-@@ -405,14 +410,14 @@                 norm_layer=norm_layer,
+@@ -405,14 +418,14 @@                 norm_layer=norm_layer,
                  act_layer=act_layer,
                  **dd,
 -            )
@@ -299,7 +316,7 @@
          x = self.fc1(x)
          x = self.mid(x)
          x = self.drop1(x)
-@@ -421,13 +426,13 @@         return x
+@@ -421,13 +434,13 @@         return x
  
  
 -class EfficientFormerV2Block(nn.Module):
@@ -315,7 +332,7 @@
              proj_drop: float = 0.,
              drop_path: float = 0.,
              layer_scale_init_value: Optional[float] = 1e-5,
-@@ -447,10 +452,10 @@                 act_layer=act_layer,
+@@ -447,10 +460,10 @@                 act_layer=act_layer,
                  stride=stride,
                  **dd,
 -            )
@@ -328,7 +345,7 @@
          else:
              self.token_mixer = None
              self.ls1 = None
-@@ -464,25 +469,25 @@             drop=proj_drop,
+@@ -464,25 +477,25 @@             drop=proj_drop,
              mid_conv=True,
              **dd,
 -        )
@@ -361,7 +378,7 @@
              device=None,
              dtype=None,
      ):
-@@ -498,7 +503,7 @@             norm_layer=norm_layer,
+@@ -498,7 +511,7 @@             norm_layer=norm_layer,
              act_layer=act_layer,
              **dd,
 -        )
@@ -369,7 +386,7 @@
          self.conv2 = ConvNormAct(
              out_chs // 2,
              out_chs,
-@@ -509,10 +514,10 @@             norm_layer=norm_layer,
+@@ -509,10 +522,10 @@             norm_layer=norm_layer,
              act_layer=act_layer,
              **dd,
 -        )
@@ -383,7 +400,7 @@
  
      def __init__(
              self,
-@@ -529,8 +534,8 @@             proj_drop: float = .0,
+@@ -529,8 +542,8 @@             proj_drop: float = .0,
              drop_path: Union[float, List[float]] = 0.,
              layer_scale_init_value: Optional[float] = 1e-5,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -393,7 +410,7 @@
              device=None,
              dtype=None,
      ):
-@@ -549,12 +554,12 @@                 norm_layer=norm_layer,
+@@ -549,12 +562,12 @@                 norm_layer=norm_layer,
                  act_layer=act_layer,
                  **dd,
 -            )
@@ -407,7 +424,7 @@
  
          blocks = []
          for block_idx in range(depth):
-@@ -571,11 +576,11 @@                 act_layer=act_layer,
+@@ -571,12 +584,13 @@                 act_layer=act_layer,
                  norm_layer=norm_layer,
                  **dd,
 -            )
@@ -420,9 +437,11 @@
 +
 +    def construct(self, x):
          x = self.downsample(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -584,7 +589,7 @@         return x
+         else:
+@@ -584,7 +598,7 @@         return x
  
  
 -class EfficientFormerV2(nn.Module):
@@ -430,7 +449,7 @@
      def __init__(
              self,
              depths: Tuple[int, ...],
-@@ -617,7 +622,7 @@         norm_layer = partial(get_norm_layer(norm_layer), eps=norm_eps)
+@@ -617,7 +631,7 @@         norm_layer = partial(get_norm_layer(norm_layer), eps=norm_eps)
          act_layer = get_act_layer(act_layer)
  
 -        self.stem = Stem4(in_chans, embed_dims[0], act_layer=act_layer, norm_layer=norm_layer, **dd)
@@ -438,7 +457,7 @@
          prev_dim = embed_dims[0]
          stride = 4
  
-@@ -645,22 +650,22 @@                 act_layer=act_layer,
+@@ -645,22 +659,22 @@                 act_layer=act_layer,
                  norm_layer=norm_layer,
                  **dd,
 -            )
@@ -465,7 +484,7 @@
          else:
              self.head_dist = None
  
-@@ -672,13 +677,13 @@         if isinstance(m, nn.Linear):
+@@ -672,13 +686,13 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -482,7 +501,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^stem',  # stem and embed
-@@ -686,35 +691,35 @@         )
+@@ -686,35 +700,35 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -526,7 +545,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -768,7 +773,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -735,6 +749,7 @@         x = self.stem(x)
+ 
+         last_idx = len(self.stages) - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -768,7 +783,7 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -534,7 +560,14 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -793,7 +798,7 @@             # during standard train/finetune, inference average the classifier predictions
+@@ -786,6 +801,7 @@         if pre_logits:
+             return x
+         x, x_dist = self.head(x), self.head_dist(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.distilled_training and self.training and not torch.jit.is_scripting():
+             # only return separate classification predictions when training in distilled mode
+             return x, x_dist
+@@ -793,7 +809,7 @@             # during standard train/finetune, inference average the classifier predictions
              return (x + x_dist) / 2
  
 -    def forward(self, x):
@@ -542,7 +575,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -832,7 +837,7 @@     model = build_model_with_cfg(
+@@ -832,7 +848,7 @@     model = build_model_with_cfg(
          EfficientFormerV2, variant, pretrained,
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
 -        **kwargs)
@@ -550,7 +583,7 @@
      return model
  
  
-@@ -845,7 +850,7 @@         drop_path_rate=0.0,
+@@ -845,7 +861,7 @@         drop_path_rate=0.0,
          mlp_ratios=EfficientFormer_expansion_ratios['S0'],
      )
 -    return _create_efficientformerv2('efficientformerv2_s0', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -558,7 +591,7 @@
  
  
  @register_model
-@@ -857,7 +862,7 @@         drop_path_rate=0.0,
+@@ -857,7 +873,7 @@         drop_path_rate=0.0,
          mlp_ratios=EfficientFormer_expansion_ratios['S1'],
      )
 -    return _create_efficientformerv2('efficientformerv2_s1', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -566,7 +599,7 @@
  
  
  @register_model
-@@ -869,7 +874,7 @@         drop_path_rate=0.02,
+@@ -869,7 +885,7 @@         drop_path_rate=0.02,
          mlp_ratios=EfficientFormer_expansion_ratios['S2'],
      )
 -    return _create_efficientformerv2('efficientformerv2_s2', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -574,7 +607,7 @@
  
  
  @register_model
-@@ -881,5 +886,5 @@         drop_path_rate=0.1,
+@@ -881,5 +897,5 @@         drop_path_rate=0.1,
          mlp_ratios=EfficientFormer_expansion_ratios['L'],
      )
 -    return _create_efficientformerv2('efficientformerv2_l', pretrained=pretrained, **dict(model_args, **kwargs))

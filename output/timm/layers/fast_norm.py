@@ -75,6 +75,7 @@ def fast_group_norm(
     bias: Optional[ms.Tensor] = None,
     eps: float = 1e-5
 ) -> ms.Tensor:
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # currently cannot use is_autocast_enabled within torchscript
         return F.group_norm(x, num_groups, weight, bias, eps)  # 'torch.nn.functional.group_norm' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -85,6 +86,7 @@ def fast_group_norm(
         dt = get_autocast_dtype(x.device.type)
         x, weight, bias = x.to(dt), weight.to(dt), bias.to(dt) if bias is not None else None
 
+    # 'torch.amp.autocast' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.amp.autocast(device_type=x.device.type, enabled=False):
         return F.group_norm(x, num_groups, weight, bias, eps)  # 'torch.nn.functional.group_norm' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
@@ -96,6 +98,7 @@ def fast_layer_norm(
     bias: Optional[ms.Tensor] = None,
     eps: float = 1e-5
 ) -> ms.Tensor:
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # currently cannot use is_autocast_enabled within torchscript
         return F.layer_norm(x, normalized_shape, weight, bias, eps)  # 'torch.nn.functional.layer_norm' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -109,6 +112,7 @@ def fast_layer_norm(
         dt = get_autocast_dtype(x.device.type)
         x, weight, bias = x.to(dt), weight.to(dt), bias.to(dt) if bias is not None else None
 
+    # 'torch.amp.autocast' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.amp.autocast(device_type=x.device.type, enabled=False):
         return F.layer_norm(x, normalized_shape, weight, bias, eps)  # 'torch.nn.functional.layer_norm' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
@@ -121,6 +125,7 @@ def rms_norm(
 ):
     norm_ndim = len(normalized_shape)
     v = x.pow(2)
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # ndim = len(x.shape)
         # dims = list(range(ndim - norm_ndim, ndim))  # this doesn't work on pytorch <= 1.13.x
@@ -142,6 +147,7 @@ def fast_rms_norm(
     weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ) -> ms.Tensor:
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # this must be by itself, cannot merge with has_apex_rmsnorm
         return rms_norm(x, normalized_shape, weight, eps)
@@ -158,6 +164,7 @@ def fast_rms_norm(
         dt = get_autocast_dtype(x.device.type)
         x, weight = x.to(dt), weight.to(dt)
 
+    # 'torch.amp.autocast' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.amp.autocast(device_type=x.device.type, enabled=False):
         if has_torch_rms_norm:
             x = F.rms_norm(x, normalized_shape, weight, eps)  # 'torch.nn.functional.rms_norm' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -188,6 +195,7 @@ def fast_rms_norm2d(
     weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ) -> ms.Tensor:
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # this must be by itself, cannot merge with has_apex_rmsnorm
         return rms_norm2d(x, normalized_shape, weight, eps)
@@ -206,6 +214,7 @@ def fast_rms_norm2d(
         dt = get_autocast_dtype(x.device.type)
         x, weight = x.to(dt), weight.to(dt)
 
+    # 'torch.amp.autocast' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.amp.autocast(device_type=x.device.type, enabled=False):
         x = rms_norm2d(x, normalized_shape, weight, eps)
 
@@ -219,6 +228,7 @@ def simple_norm(
     eps: float = 1e-5,
 ):
     norm_ndim = len(normalized_shape)
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # ndim = len(x.shape)
         # dims = list(range(ndim - norm_ndim, ndim))  # this doesn't work on pytorch <= 1.13.x
@@ -240,6 +250,7 @@ def fast_simple_norm(
     weight: Optional[ms.Tensor] = None,
     eps: float = 1e-5,
 ) -> ms.Tensor:
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # this must be by itself, cannot merge with has_apex_rmsnorm
         return simple_norm(x, normalized_shape, weight, eps)
@@ -250,6 +261,7 @@ def fast_simple_norm(
         dt = get_autocast_dtype(x.device.type)
         x, weight = x.to(dt), weight.to(dt)
 
+    # 'torch.amp.autocast' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.amp.autocast(device_type=x.device.type, enabled=False):
         x = simple_norm(x, normalized_shape, weight, eps)
     return x

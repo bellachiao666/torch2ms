@@ -1686,12 +1686,14 @@ class ByobNet(msnn.Cell):
         if feat_idx in take_indices:
             intermediates.append(x if x_inter is None else x_inter)
         last_idx = self.stage_ends[-1]
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index]
         for stage in stages:
             feat_idx += 1
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint_seq(stage, x)
             else:
@@ -1745,6 +1747,7 @@ class ByobNet(msnn.Cell):
             Feature tensor.
         """
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

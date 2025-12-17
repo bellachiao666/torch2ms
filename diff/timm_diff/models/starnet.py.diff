@@ -91,19 +91,21 @@
              num_classes: int = 1000,
              in_chans: int = 3,
              global_pool: str = 'avg',
-@@ -105,10 +109,10 @@         stem_chs = 32
+@@ -105,10 +109,11 @@         stem_chs = 32
  
          # stem layer
 -        self.stem = nn.Sequential(
 +        self.stem = msnn.SequentialCell(
++            [
              ConvBN(in_chans, stem_chs, kernel_size=3, stride=2, padding=1, **dd),
-             act_layer(),
+-            act_layer(),
 -        )
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            act_layer()
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          prev_chs = stem_chs
  
          # build stages
-@@ -117,36 +121,36 @@         cur = 0
+@@ -117,36 +122,36 @@         cur = 0
          for i_layer in range(len(depths)):
              embed_dim = base_dim * 2 ** i_layer
 -            down_sampler = ConvBN(prev_chs, embed_dim, 3, stride=2, padding=1, **dd)
@@ -152,7 +154,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
          matcher = dict(
              stem=r'^stem\.\d+',
-@@ -157,12 +161,12 @@         )
+@@ -157,12 +162,12 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -167,7 +169,7 @@
          return self.head
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -170,22 +174,22 @@         if global_pool is not None:
+@@ -170,22 +175,22 @@         if global_pool is not None:
              # NOTE: cannot meaningfully change pooling of efficient head after creation
              self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -            self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
@@ -193,7 +195,21 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -241,12 +245,12 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -205,12 +210,14 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+             stages = self.stages[:max_index + 1]
+ 
+         for feat_idx, stage in enumerate(stages):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint_seq(stage, x)
+             else:
+@@ -241,13 +248,14 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -205,9 +221,11 @@
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
 +    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
          x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.stages, x)
-@@ -255,20 +259,20 @@         x = self.norm(x)
+         else:
+@@ -255,20 +263,20 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -231,7 +249,7 @@
      return state_dict.get('state_dict', state_dict)
  
  
-@@ -314,48 +318,48 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -314,48 +322,48 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
          **kwargs,
 -    )

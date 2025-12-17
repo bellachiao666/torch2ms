@@ -90,19 +90,22 @@
      """ConvNeXt stage (multiple blocks)."""
  
      def __init__(
-@@ -260,7 +265,7 @@         if in_chs != out_chs or stride > 1 or dilation[0] != dilation[1]:
+@@ -260,7 +265,8 @@         if in_chs != out_chs or stride > 1 or dilation[0] != dilation[1]:
              ds_ks = 2 if stride > 1 or dilation[0] != dilation[1] else 1
              pad = 'same' if dilation[1] > 1 else 0  # same padding needed if dilation used
 -            self.downsample = nn.Sequential(
 +            self.downsample = msnn.SequentialCell(
++                [
                  norm_layer(in_chs, **dd),
                  create_conv2d(
                      in_chs,
-@@ -272,10 +277,10 @@                     bias=conv_bias,
+@@ -271,11 +277,11 @@                     padding=pad,
+                     bias=conv_bias,
                      **dd,
-                 ),
+-                ),
 -            )
-+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                )
++            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              in_chs = out_chs
          else:
 -            self.downsample = nn.Identity()
@@ -110,7 +113,7 @@
  
          drop_path_rates = drop_path_rates or [0.] * depth
          stage_blocks = []
-@@ -293,11 +298,11 @@                 act_layer=act_layer,
+@@ -293,13 +299,14 @@                 act_layer=act_layer,
                  norm_layer=norm_layer if conv_mlp else norm_layer_cl,
                  **dd,
 -            ))
@@ -124,8 +127,11 @@
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          """Forward pass."""
          x = self.downsample(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -335,7 +340,7 @@     return norm_layer, norm_layer_cl
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -335,7 +342,7 @@     return norm_layer, norm_layer_cl
  
  
 -class ConvNeXt(nn.Module):
@@ -133,15 +139,17 @@
      """ConvNeXt model architecture.
  
      A PyTorch impl of : `A ConvNet for the 2020s`  - https://arxiv.org/pdf/2201.03545.pdf
-@@ -404,22 +409,22 @@         assert stem_type in ('patch', 'overlap', 'overlap_tiered', 'overlap_act')
+@@ -404,22 +411,23 @@         assert stem_type in ('patch', 'overlap', 'overlap_tiered', 'overlap_act')
          if stem_type == 'patch':
              # NOTE: this stem is a minimal form of ViT PatchEmbed, as used in SwinTransformer w/ patch_size = 4
 -            self.stem = nn.Sequential(
 +            self.stem = msnn.SequentialCell(
++                [
                  nn.Conv2d(in_chans, dims[0], kernel_size=patch_size, stride=patch_size, bias=conv_bias, **dd),
-                 norm_layer(dims[0], **dd),
+-                norm_layer(dims[0], **dd),
 -            )
-+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                norm_layer(dims[0], **dd)
++            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
              stem_stride = patch_size
          else:
              mid_chs = make_divisible(dims[0] // 2) if 'tiered' in stem_type else dims[0]
@@ -160,7 +168,7 @@
          dp_rates = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
          stages = []
          prev_chs = dims[0]
-@@ -450,27 +455,27 @@                 norm_layer=norm_layer,
+@@ -450,27 +458,27 @@                 norm_layer=norm_layer,
                  norm_layer_cl=norm_layer_cl,
                  **dd,
 -            ))
@@ -192,7 +200,7 @@
              self.head = NormMlpClassifierHead(
                  self.num_features,
                  num_classes,
-@@ -480,11 +485,11 @@                 norm_layer=norm_layer,
+@@ -480,11 +488,11 @@                 norm_layer=norm_layer,
                  act_layer='gelu',
                  **dd,
 -            )
@@ -205,7 +213,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict[str, Union[str, List]]:
          """Create regex patterns for parameter grouping.
  
-@@ -503,7 +508,7 @@             ]
+@@ -503,7 +511,7 @@             ]
          )
  
 -    @torch.jit.ignore
@@ -213,7 +221,7 @@
      def set_grad_checkpointing(self, enable: bool = True) -> None:
          """Enable or disable gradient checkpointing.
  
-@@ -513,8 +518,8 @@         for s in self.stages:
+@@ -513,8 +521,8 @@         for s in self.stages:
              s.grad_checkpointing = enable
  
 -    @torch.jit.ignore
@@ -223,7 +231,7 @@
          """Get the classifier module."""
          return self.head.fc
  
-@@ -530,13 +535,13 @@ 
+@@ -530,13 +538,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -238,7 +246,14 @@
          """Forward features that returns intermediates.
  
          Args:
-@@ -597,19 +602,19 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
+@@ -558,6 +566,7 @@         x = self.stem(x)
+ 
+         last_idx = len(self.stages) - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -597,19 +606,19 @@         take_indices, max_index = feature_take_indices(len(self.stages), indices)
          self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm_pre = nn.Identity()
@@ -260,7 +275,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -621,14 +626,14 @@         """
+@@ -621,14 +630,14 @@         """
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -276,7 +291,7 @@
      """Initialize model weights.
  
      Args:
-@@ -639,10 +644,10 @@     if isinstance(module, nn.Conv2d):
+@@ -639,10 +648,10 @@     if isinstance(module, nn.Conv2d):
          trunc_normal_(module.weight, std=.02)
          if module.bias is not None:
 -            nn.init.zeros_(module.bias)
@@ -288,7 +303,7 @@
          if name and 'head.' in name:
              module.weight.data.mul_(head_init_scale)
              module.bias.data.mul_(head_init_scale)
-@@ -660,12 +665,12 @@         out_dict = {k.replace('visual.trunk.', ''): v for k, v in state_dict.items() if k.startswith('visual.trunk.')}
+@@ -660,12 +669,12 @@         out_dict = {k.replace('visual.trunk.', ''): v for k, v in state_dict.items() if k.startswith('visual.trunk.')}
          if 'visual.head.proj.weight' in state_dict:
              out_dict['head.fc.weight'] = state_dict['visual.head.proj.weight']
 -            out_dict['head.fc.bias'] = torch.zeros(state_dict['visual.head.proj.weight'].shape[0])
@@ -302,7 +317,7 @@
          return out_dict
  
      import re
-@@ -700,7 +705,7 @@         ConvNeXt, variant, pretrained,
+@@ -700,7 +709,7 @@         ConvNeXt, variant, pretrained,
          pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
 -        **kwargs)
@@ -310,7 +325,7 @@
      return model
  
  
-@@ -1154,7 +1159,7 @@ def convnext_zepto_rms(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1154,7 +1163,7 @@ def convnext_zepto_rms(pretrained=False, **kwargs) -> ConvNeXt:
      # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
      model_args = dict(depths=(2, 2, 4, 2), dims=(32, 64, 128, 256), conv_mlp=True, norm_layer='simplenorm')
 -    model = _create_convnext('convnext_zepto_rms', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -318,7 +333,7 @@
      return model
  
  
-@@ -1163,7 +1168,7 @@     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
+@@ -1163,7 +1172,7 @@     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
      model_args = dict(
          depths=(2, 2, 4, 2), dims=(32, 64, 128, 256), conv_mlp=True, norm_layer='simplenorm', stem_type='overlap_act')
 -    model = _create_convnext('convnext_zepto_rms_ols', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -326,7 +341,7 @@
      return model
  
  
-@@ -1171,7 +1176,7 @@ def convnext_atto(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1171,7 +1180,7 @@ def convnext_atto(pretrained=False, **kwargs) -> ConvNeXt:
      # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
      model_args = dict(depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), conv_mlp=True)
 -    model = _create_convnext('convnext_atto', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -334,7 +349,7 @@
      return model
  
  
-@@ -1179,7 +1184,7 @@ def convnext_atto_ols(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1179,7 +1188,7 @@ def convnext_atto_ols(pretrained=False, **kwargs) -> ConvNeXt:
      # timm femto variant with overlapping 3x3 conv stem, wider than non-ols femto above, current param count 3.7M
      model_args = dict(depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), conv_mlp=True, stem_type='overlap_tiered')
 -    model = _create_convnext('convnext_atto_ols', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -342,7 +357,7 @@
      return model
  
  
-@@ -1187,7 +1192,7 @@ def convnext_atto_rms(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1187,7 +1196,7 @@ def convnext_atto_rms(pretrained=False, **kwargs) -> ConvNeXt:
      # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
      model_args = dict(depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), conv_mlp=True, norm_layer='rmsnorm2d')
 -    model = _create_convnext('convnext_atto_rms', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -350,7 +365,7 @@
      return model
  
  
-@@ -1195,7 +1200,7 @@ def convnext_femto(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1195,7 +1204,7 @@ def convnext_femto(pretrained=False, **kwargs) -> ConvNeXt:
      # timm femto variant
      model_args = dict(depths=(2, 2, 6, 2), dims=(48, 96, 192, 384), conv_mlp=True)
 -    model = _create_convnext('convnext_femto', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -358,7 +373,7 @@
      return model
  
  
-@@ -1203,7 +1208,7 @@ def convnext_femto_ols(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1203,7 +1212,7 @@ def convnext_femto_ols(pretrained=False, **kwargs) -> ConvNeXt:
      # timm femto variant
      model_args = dict(depths=(2, 2, 6, 2), dims=(48, 96, 192, 384), conv_mlp=True, stem_type='overlap_tiered')
 -    model = _create_convnext('convnext_femto_ols', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -366,7 +381,7 @@
      return model
  
  
-@@ -1211,7 +1216,7 @@ def convnext_pico(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1211,7 +1220,7 @@ def convnext_pico(pretrained=False, **kwargs) -> ConvNeXt:
      # timm pico variant
      model_args = dict(depths=(2, 2, 6, 2), dims=(64, 128, 256, 512), conv_mlp=True)
 -    model = _create_convnext('convnext_pico', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -374,7 +389,7 @@
      return model
  
  
-@@ -1219,7 +1224,7 @@ def convnext_pico_ols(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1219,7 +1228,7 @@ def convnext_pico_ols(pretrained=False, **kwargs) -> ConvNeXt:
      # timm nano variant with overlapping 3x3 conv stem
      model_args = dict(depths=(2, 2, 6, 2), dims=(64, 128, 256, 512), conv_mlp=True,  stem_type='overlap_tiered')
 -    model = _create_convnext('convnext_pico_ols', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -382,7 +397,7 @@
      return model
  
  
-@@ -1227,7 +1232,7 @@ def convnext_nano(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1227,7 +1236,7 @@ def convnext_nano(pretrained=False, **kwargs) -> ConvNeXt:
      # timm nano variant with standard stem and head
      model_args = dict(depths=(2, 2, 8, 2), dims=(80, 160, 320, 640), conv_mlp=True)
 -    model = _create_convnext('convnext_nano', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -390,7 +405,7 @@
      return model
  
  
-@@ -1235,7 +1240,7 @@ def convnext_nano_ols(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1235,7 +1244,7 @@ def convnext_nano_ols(pretrained=False, **kwargs) -> ConvNeXt:
      # experimental nano variant with overlapping conv stem
      model_args = dict(depths=(2, 2, 8, 2), dims=(80, 160, 320, 640), conv_mlp=True, stem_type='overlap')
 -    model = _create_convnext('convnext_nano_ols', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -398,7 +413,7 @@
      return model
  
  
-@@ -1243,56 +1248,56 @@ def convnext_tiny_hnf(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1243,56 +1252,56 @@ def convnext_tiny_hnf(pretrained=False, **kwargs) -> ConvNeXt:
      # experimental tiny variant with norm before pooling in head (head norm first)
      model_args = dict(depths=(3, 3, 9, 3), dims=(96, 192, 384, 768), head_norm_first=True, conv_mlp=True)
 -    model = _create_convnext('convnext_tiny_hnf', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -462,7 +477,7 @@
      return model
  
  
-@@ -1301,7 +1306,7 @@     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
+@@ -1301,7 +1310,7 @@     # timm femto variant (NOTE: still tweaking depths, will vary between 3-4M param, current is 3.7M
      model_args = dict(
          depths=(2, 2, 6, 2), dims=(40, 80, 160, 320), use_grn=True, ls_init_value=None, conv_mlp=True)
 -    model = _create_convnext('convnextv2_atto', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -470,7 +485,7 @@
      return model
  
  
-@@ -1310,7 +1315,7 @@     # timm femto variant
+@@ -1310,7 +1319,7 @@     # timm femto variant
      model_args = dict(
          depths=(2, 2, 6, 2), dims=(48, 96, 192, 384), use_grn=True, ls_init_value=None, conv_mlp=True)
 -    model = _create_convnext('convnextv2_femto', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -478,7 +493,7 @@
      return model
  
  
-@@ -1319,7 +1324,7 @@     # timm pico variant
+@@ -1319,7 +1328,7 @@     # timm pico variant
      model_args = dict(
          depths=(2, 2, 6, 2), dims=(64, 128, 256, 512), use_grn=True, ls_init_value=None, conv_mlp=True)
 -    model = _create_convnext('convnextv2_pico', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -486,7 +501,7 @@
      return model
  
  
-@@ -1328,56 +1333,56 @@     # timm nano variant with standard stem and head
+@@ -1328,56 +1337,56 @@     # timm nano variant with standard stem and head
      model_args = dict(
          depths=(2, 2, 8, 2), dims=(80, 160, 320, 640), use_grn=True, ls_init_value=None, conv_mlp=True)
 -    model = _create_convnext('convnextv2_nano', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -550,7 +565,7 @@
      return model
  
  
-@@ -1385,7 +1390,7 @@ def test_convnext3(pretrained=False, **kwargs) -> ConvNeXt:
+@@ -1385,7 +1394,7 @@ def test_convnext3(pretrained=False, **kwargs) -> ConvNeXt:
      model_args = dict(
          depths=[1, 1, 1, 1], dims=[32, 64, 96, 128], norm_eps=kwargs.pop('norm_eps', 1e-5), kernel_sizes=(7, 5, 5, 3), act_layer='silu')
 -    model = _create_convnext('test_convnext3', pretrained=pretrained, **dict(model_args, **kwargs))

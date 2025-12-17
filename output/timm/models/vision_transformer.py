@@ -601,7 +601,8 @@ class ParallelThingsBlock(msnn.Cell):
         self.attns = msnn.CellList()
         self.ffns = msnn.CellList()
         for _ in range(num_parallel):
-            self.attns.append(msnn.SequentialCell(OrderedDict([
+            self.attns.append(msnn.SequentialCell([
+                OrderedDict([
                 ('norm', norm_layer(dim, **dd)),
                 ('attn', _create_attn(
                     attn_layer,
@@ -619,8 +620,10 @@ class ParallelThingsBlock(msnn.Cell):
                 )),
                 ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()),
                 ('drop_path', DropPath(drop_path) if drop_path > 0. else msnn.Identity())
-            ])))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-            self.ffns.append(msnn.SequentialCell(OrderedDict([
+            ])
+            ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            self.ffns.append(msnn.SequentialCell([
+                OrderedDict([
                 ('norm', norm_layer(dim, **dd)),
                 ('mlp', mlp_layer(
                     dim,
@@ -633,7 +636,8 @@ class ParallelThingsBlock(msnn.Cell):
                 )),
                 ('ls', LayerScale(dim, init_values=init_values, **dd) if init_values else msnn.Identity()),
                 ('drop_path', DropPath(drop_path) if drop_path > 0. else msnn.Identity())
-            ])))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            ])
+            ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor, attn_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         if attn_mask is not None:
@@ -1064,6 +1068,7 @@ class VisionTransformer(msnn.Cell):
         x = self.patch_drop(x)
         x = self.norm_pre(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
@@ -1071,6 +1076,7 @@ class VisionTransformer(msnn.Cell):
         for i, blk in enumerate(blocks):
             if attn_mask is not None:
                 x = blk(x, attn_mask=attn_mask)
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             elif self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:
@@ -1108,6 +1114,7 @@ class VisionTransformer(msnn.Cell):
             return result_dict
 
         # For non-dictionary output, maintain the original behavior
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting() and return_prefix_tokens and prefix_tokens is not None:
             # return_prefix not support in torchscript due to poor type handling
             intermediates = list(zip(intermediates, prefix_tokens))
@@ -1187,6 +1194,7 @@ class VisionTransformer(msnn.Cell):
             # If mask provided, we need to apply blocks one by one
             for blk in self.blocks:
                 x = blk(x, attn_mask=attn_mask)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         elif self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -1333,6 +1341,8 @@ def resize_pos_embed(
     )
 
 
+# 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.no_grad()
 def _load_weights(model: VisionTransformer, checkpoint_path: str, prefix: str = '', load_bfloat16: bool = False) -> None:
     """ Load weights from .npz checkpoints for official Google Brain Flax implementation

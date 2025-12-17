@@ -18,6 +18,7 @@ from ._fx import register_notrace_function
 _logger = logging.getLogger(__name__)
 
 
+# 装饰器 'torch.fx.wrap' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.fx.wrap
 @register_notrace_function
 def resample_abs_pos_embed(
@@ -57,12 +58,14 @@ def resample_abs_pos_embed(
     if posemb_prefix is not None:
         posemb = mint.cat([posemb_prefix, posemb], dim=1)
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if not torch.jit.is_scripting() and verbose:
         _logger.info(f'Resized position embedding: {old_size} to {new_size}.')
 
     return posemb
 
 
+# 装饰器 'torch.fx.wrap' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.fx.wrap
 @register_notrace_function
 def resample_abs_pos_embed_nhwc(
@@ -81,6 +84,7 @@ def resample_abs_pos_embed_nhwc(
     posemb = nn.functional.interpolate(posemb, size=new_size, mode=interpolation, antialias=antialias)
     posemb = posemb.permute(0, 2, 3, 1).to(orig_dtype)
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if not torch.jit.is_scripting() and verbose:
         _logger.info(f'Resized position embedding: {posemb.shape[-3:-1]} to {new_size}.')
 

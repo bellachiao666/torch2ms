@@ -65,6 +65,7 @@ def feature_take_indices(
             _assert(0 <= idx < num_features, f'feature index {idx} is out of range (0 to {num_features - 1})')
             take_indices.append(idx)
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if not torch.jit.is_scripting() and as_set:
         return set(take_indices), max(take_indices)
 
@@ -295,6 +296,7 @@ class FeatureDictNet(nn.ModuleDict):
     def _collect(self, x) -> (Dict[str, ms.Tensor]):
         out = OrderedDict()
         for i, (name, module) in enumerate(self.items()):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 # Skipping checkpoint of first module because need a gradient at input
                 # Skipping last because networks with in-place ops might fail w/ checkpointing enabled
@@ -427,6 +429,7 @@ class FeatureHookNet(nn.ModuleDict):
 
     def forward(self, x):
         for i, (name, module) in enumerate(self.items()):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 # Skipping checkpoint of first module because need a gradient at input
                 # Skipping last because networks with in-place ops might fail w/ checkpointing enabled

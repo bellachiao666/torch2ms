@@ -179,14 +179,16 @@ class TResNet(msnn.Cell):
             self.planes * 8, layers[3], stride=2, use_se=False, aa_layer=aa_layer, drop_path_rate=dpr[3], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # body
-        self.body = msnn.SequentialCell(OrderedDict([
+        self.body = msnn.SequentialCell([
+            OrderedDict([
             ('s2d', SpaceToDepth()),
             ('conv1', conv1),
             ('layer1', layer1),
             ('layer2', layer2),
             ('layer3', layer3),
             ('layer4', layer4),
-        ]))
+        ])
+        ])
 
         self.feature_info = [
             dict(num_chs=self.planes, reduction=2, module=''),  # Not with S2D?
@@ -298,12 +300,14 @@ class TResNet(msnn.Cell):
         take_indices = [stage_ends[i] for i in take_indices]
         max_index = stage_ends[max_index]
         # forward pass
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.body
         else:
             stages = self.body[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -333,6 +337,7 @@ class TResNet(msnn.Cell):
         return take_indices
 
     def forward_features(self, x):
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = self.body.s2d(x)
             x = self.body.conv1(x)

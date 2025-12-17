@@ -52,16 +52,18 @@ class Mixed4a(msnn.Cell):
         super().__init__()
 
         self.branch0 = msnn.SequentialCell(
+            [
             conv_block(160, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 96, kernel_size=3, stride=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(160, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 64, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(64, 64, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
             conv_block(64, 96, kernel_size=(3, 3), stride=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x0 = self.branch0(x)
@@ -101,20 +103,23 @@ class InceptionA(msnn.Cell):
         self.branch0 = conv_block(384, 96, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(384, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
+            [
             conv_block(384, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(96, 96, kernel_size=3, stride=1, padding=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch3 = msnn.SequentialCell(
+            [
             nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
             conv_block(384, 96, kernel_size=1, stride=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x0 = self.branch0(x)
@@ -137,10 +142,11 @@ class ReductionA(msnn.Cell):
         self.branch0 = conv_block(384, 384, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(384, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 224, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(224, 256, kernel_size=3, stride=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = nn.MaxPool2d(3, stride = 2)
 
@@ -164,23 +170,26 @@ class InceptionB(msnn.Cell):
         self.branch0 = conv_block(1024, 384, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(1024, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 224, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(224, 256, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
+            [
             conv_block(1024, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 192, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
             conv_block(192, 224, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(224, 224, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
             conv_block(224, 256, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch3 = msnn.SequentialCell(
+            [
             nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
             conv_block(1024, 128, kernel_size=1, stride=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x0 = self.branch0(x)
@@ -202,16 +211,18 @@ class ReductionB(msnn.Cell):
         super().__init__()
 
         self.branch0 = msnn.SequentialCell(
+            [
             conv_block(1024, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 192, kernel_size=3, stride=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(1024, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 256, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(256, 320, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
             conv_block(320, 320, kernel_size=3, stride=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = nn.MaxPool2d(3, stride = 2)
 
@@ -246,9 +257,10 @@ class InceptionC(msnn.Cell):
         self.branch2_3b = conv_block(512, 256, kernel_size=(3, 1), stride=1, padding=(1, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch3 = msnn.SequentialCell(
+            [
             nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
             conv_block(1536, 256, kernel_size=1, stride=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x0 = self.branch0(x)
@@ -377,6 +389,7 @@ class InceptionV4(msnn.Cell):
         max_index = stage_ends[max_index]
 
         # forward pass
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.features
         else:

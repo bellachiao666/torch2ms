@@ -185,7 +185,14 @@
          """
          expects x as (B, C, H, W)
          """
-@@ -285,7 +290,7 @@         return x.permute(0, 3, 1, 2)  # (B, C, H', W')
+@@ -276,6 +281,7 @@         x = x.permute(0, 2, 3, 1)  # (B, H', W', C), switch to channels last for transformer
+         x = blockify(x, self.block_size)  # (B, T, N, C')
+         x = x + self.pos_embed
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.transformer_encoder, x)
+         else:
+@@ -285,7 +291,7 @@         return x.permute(0, 3, 1, 2)  # (B, C, H', W')
  
  
 -class Nest(nn.Module):
@@ -193,7 +200,7 @@
      """ Nested Transformer (NesT)
  
      A PyTorch impl of : `Aggregating Nested Transformers`
-@@ -308,8 +313,8 @@             proj_drop_rate: float = 0.,
+@@ -308,8 +314,8 @@             proj_drop_rate: float = 0.,
              attn_drop_rate: float = 0.,
              drop_path_rate: float = 0.5,
 -            norm_layer: Optional[Type[nn.Module]] = None,
@@ -203,7 +210,7 @@
              pad_type: str = '',
              weight_init: str = '',
              global_pool: str = 'avg',
-@@ -367,7 +372,7 @@         self.patch_size = patch_size
+@@ -367,7 +373,7 @@         self.patch_size = patch_size
  
          # Number of blocks at each level
 -        self.num_blocks = (4 ** torch.arange(num_levels, device='cpu', dtype=torch.long)).flip(0).tolist()
@@ -211,7 +218,7 @@
          assert (img_size // patch_size) % math.sqrt(self.num_blocks[0]) == 0, \
              'First level blocks don\'t fit evenly. Check `img_size`, `patch_size`, and `num_levels`'
  
-@@ -384,7 +389,7 @@             embed_dim=embed_dims[0],
+@@ -384,7 +390,7 @@             embed_dim=embed_dims[0],
              flatten=False,
              **dd,
 -        )
@@ -219,7 +226,7 @@
          self.num_patches = self.patch_embed.num_patches
          self.seq_length = self.num_patches // self.num_blocks[0]
  
-@@ -412,24 +417,24 @@                 act_layer=act_layer,
+@@ -412,24 +418,24 @@                 act_layer=act_layer,
                  pad_type=pad_type,
                  **dd,
 -            ))
@@ -248,7 +255,7 @@
      def init_weights(self, mode=''):
          assert mode in ('nlhb', '')
          head_bias = -math.log(self.num_classes) if 'nlhb' in mode else 0.
-@@ -437,11 +442,11 @@             trunc_normal_(level.pos_embed, std=.02, a=-2, b=2)
+@@ -437,11 +443,11 @@             trunc_normal_(level.pos_embed, std=.02, a=-2, b=2)
          named_apply(partial(_init_nest_weights, head_bias=head_bias), self)
  
 -    @torch.jit.ignore
@@ -261,7 +268,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^patch_embed',  # stem and embed
-@@ -453,13 +458,13 @@         )
+@@ -453,13 +459,13 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -277,7 +284,7 @@
          return self.head
  
      def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
-@@ -469,13 +474,13 @@ 
+@@ -469,13 +475,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -292,7 +299,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -529,7 +534,7 @@         take_indices, max_index = feature_take_indices(len(self.levels), indices)
+@@ -495,6 +501,7 @@         # forward pass
+         x = self.patch_embed(x)
+         last_idx = len(self.num_blocks) - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.levels
+         else:
+@@ -529,7 +536,7 @@         take_indices, max_index = feature_take_indices(len(self.levels), indices)
          self.levels = self.levels[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -300,7 +314,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -546,28 +551,28 @@         x = self.head_drop(x)
+@@ -546,28 +553,28 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -333,7 +347,7 @@
  
  
  def resize_pos_embed(posemb, posemb_new):
-@@ -581,7 +586,7 @@     size_new = int(math.sqrt(num_blocks_new*seq_length_new))
+@@ -581,7 +588,7 @@     size_new = int(math.sqrt(num_blocks_new*seq_length_new))
      # First change to (1, C, H, W)
      posemb = deblockify(posemb, int(math.sqrt(seq_length_old))).permute(0, 3, 1, 2)
 -    posemb = F.interpolate(posemb, size=[size_new, size_new], mode='bicubic', align_corners=False)
@@ -341,7 +355,7 @@
      # Now change to new (1, T, N, C)
      posemb = blockify(posemb.permute(0, 2, 3, 1), int(math.sqrt(seq_length_new)))
      return posemb
-@@ -604,7 +609,7 @@         feature_cfg=dict(out_indices=(0, 1, 2), flatten_sequential=True),
+@@ -604,7 +611,7 @@         feature_cfg=dict(out_indices=(0, 1, 2), flatten_sequential=True),
          pretrained_filter_fn=checkpoint_filter_fn,
          **kwargs,
 -    )
@@ -349,7 +363,7 @@
  
      return model
  
-@@ -637,8 +642,8 @@     """ Nest-B @ 224x224
+@@ -637,8 +644,8 @@     """ Nest-B @ 224x224
      """
      model_kwargs = dict(
 -        embed_dims=(128, 256, 512), num_heads=(4, 8, 16), depths=(2, 2, 20), **kwargs)
@@ -359,7 +373,7 @@
      return model
  
  
-@@ -646,8 +651,8 @@ def nest_small(pretrained=False, **kwargs) -> Nest:
+@@ -646,8 +653,8 @@ def nest_small(pretrained=False, **kwargs) -> Nest:
      """ Nest-S @ 224x224
      """
 -    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 20), **kwargs)
@@ -369,7 +383,7 @@
      return model
  
  
-@@ -655,8 +660,8 @@ def nest_tiny(pretrained=False, **kwargs) -> Nest:
+@@ -655,8 +662,8 @@ def nest_tiny(pretrained=False, **kwargs) -> Nest:
      """ Nest-T @ 224x224
      """
 -    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 8), **kwargs)
@@ -379,7 +393,7 @@
      return model
  
  
-@@ -666,8 +671,8 @@     """
+@@ -666,8 +673,8 @@     """
      kwargs.setdefault('pad_type', 'same')
      model_kwargs = dict(
 -        embed_dims=(128, 256, 512), num_heads=(4, 8, 16), depths=(2, 2, 20), **kwargs)
@@ -389,7 +403,7 @@
      return model
  
  
-@@ -676,8 +681,8 @@     """ Nest-S @ 224x224
+@@ -676,8 +683,8 @@     """ Nest-S @ 224x224
      """
      kwargs.setdefault('pad_type', 'same')
 -    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 20), **kwargs)
@@ -399,7 +413,7 @@
      return model
  
  
-@@ -686,8 +691,8 @@     """ Nest-T @ 224x224
+@@ -686,8 +693,8 @@     """ Nest-T @ 224x224
      """
      kwargs.setdefault('pad_type', 'same')
 -    model_kwargs = dict(embed_dims=(96, 192, 384), num_heads=(3, 6, 12), depths=(2, 2, 8), **kwargs)

@@ -65,7 +65,14 @@
  
      def _init_backbone(
              self,
-@@ -109,7 +113,7 @@                 if training:
+@@ -103,13 +107,14 @@         img_size = to_2tuple(img_size)
+         patch_size = to_2tuple(patch_size)
+         if feature_size is None:
++            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.no_grad():
+                 # NOTE Most reliable way of determining output dims is to run forward pass
+                 training = self.backbone.training
+                 if training:
                      self.backbone.eval()
                  # FIXME whatif meta device?
 -                o = self.backbone(torch.zeros(1, self.in_chans, img_size[0], img_size[1], device=device, dtype=dtype))
@@ -73,7 +80,10 @@
                  if isinstance(o, (list, tuple)):
                      o = o[-1]  # last feature if backbone outputs list/tuple of features
                  feature_size = o.shape[-2:]
-@@ -145,14 +149,7 @@             assert isinstance(self.proj, nn.Conv2d), 'HybridEmbed must have a projection layer to change patch size.'
+@@ -143,16 +148,10 @@             new_patch_size = to_2tuple(patch_size)
+         if new_patch_size is not None and new_patch_size != self.patch_size:
+             assert isinstance(self.proj, nn.Conv2d), 'HybridEmbed must have a projection layer to change patch size.'
++            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              with torch.no_grad():
                  new_proj = nn.Conv2d(
 -                    self.proj.in_channels,
@@ -88,7 +98,7 @@
                  new_proj.weight.copy_(resample_patch_embed(self.proj.weight, new_patch_size, verbose=True))
                  if self.proj.bias is not None:
                      new_proj.bias.copy_(self.proj.bias)
-@@ -197,14 +194,14 @@         else:
+@@ -197,14 +196,14 @@         else:
              return feat_size[0] // self.patch_size[0], feat_size[1] // self.patch_size[1]
  
 -    @torch.jit.ignore
@@ -104,7 +114,7 @@
          x = self.backbone(x)
          if isinstance(x, (list, tuple)):
              x = x[-1]  # last feature if backbone outputs list/tuple of features
-@@ -212,7 +209,7 @@         if self.dynamic_img_pad:
+@@ -212,7 +211,7 @@         if self.dynamic_img_pad:
              pad_h = (self.patch_size[0] - H % self.patch_size[0]) % self.patch_size[0]
              pad_w = (self.patch_size[1] - W % self.patch_size[1]) % self.patch_size[1]
 -            x = F.pad(x, (0, pad_w, 0, pad_h))
@@ -112,7 +122,7 @@
          x = self.proj(x)
          if self.flatten:
              x = x.flatten(2).transpose(1, 2)  # NCHW -> NLC
-@@ -227,7 +224,7 @@     """
+@@ -227,7 +226,7 @@     """
      def __init__(
              self,
 -            backbone: nn.Module,
@@ -120,7 +130,7 @@
              img_size: Union[int, Tuple[int, int]] = 224,
              patch_size: Union[int, Tuple[int, int]] = 1,
              feature_size: Optional[Union[int, Tuple[int, int]]] = None,
-@@ -253,14 +250,14 @@             dtype=dtype,
+@@ -253,14 +252,14 @@             dtype=dtype,
          )
  
 -    @torch.jit.ignore

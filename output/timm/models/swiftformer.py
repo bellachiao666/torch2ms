@@ -338,6 +338,7 @@ class Stage(msnn.Cell):
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -376,13 +377,14 @@ class SwiftFormer(msnn.Cell):
         self.feature_info = []
 
         self.stem = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chans, embed_dims[0] // 2, 3, 2, 1, **dd),
             nn.BatchNorm2d(embed_dims[0] // 2, **dd),
             nn.ReLU(),
             nn.Conv2d(embed_dims[0] // 2, embed_dims[0], 3, 2, 1, **dd),
             nn.BatchNorm2d(embed_dims[0], **dd),
-            nn.ReLU(),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            nn.ReLU()
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
         prev_dim = embed_dims[0]
 
         stages = []
@@ -499,6 +501,7 @@ class SwiftFormer(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
@@ -550,6 +553,7 @@ class SwiftFormer(msnn.Cell):
         if pre_logits:
             return x
         x, x_dist = self.head(x), self.head_dist(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.distilled_training and self.training and not torch.jit.is_scripting():
             # only return separate classification predictions when training in distilled mode
             return x, x_dist

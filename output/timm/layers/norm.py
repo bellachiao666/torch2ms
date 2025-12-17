@@ -162,6 +162,7 @@ class LayerNorm2dFp32(nn.LayerNorm):
 
 def _is_contiguous(tensor: ms.Tensor) -> bool:
     # jit is oh so lovely :/
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         return tensor.is_contiguous()
     else:

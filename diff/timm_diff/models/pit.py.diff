@@ -218,7 +218,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -342,7 +347,7 @@         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
+@@ -313,6 +318,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
+ 
+         last_idx = len(self.transformers) - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.transformers
+         else:
+@@ -342,7 +348,7 @@         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
          self.transformers = self.transformers[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -226,7 +233,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -355,7 +360,7 @@         cls_tokens = self.norm(cls_tokens)
+@@ -355,7 +361,7 @@         cls_tokens = self.norm(cls_tokens)
          return cls_tokens
  
 -    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
@@ -234,7 +241,14 @@
          if self.head_dist is not None:
              assert self.global_pool == 'token'
              x, x_dist = x[:, 0], x[:, 1]
-@@ -378,7 +383,7 @@                 x = self.head(x)
+@@ -364,6 +370,7 @@             if not pre_logits:
+                 x = self.head(x)
+                 x_dist = self.head_dist(x_dist)
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.distilled_training and self.training and not torch.jit.is_scripting():
+                 # only return separate classification predictions when training in distilled mode
+                 return x, x_dist
+@@ -378,7 +385,7 @@                 x = self.head(x)
              return x
  
 -    def forward(self, x):
@@ -242,7 +256,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -409,7 +414,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -409,7 +416,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(feature_cls='hook', out_indices=out_indices),
          **kwargs,
 -    )
@@ -250,7 +264,7 @@
      return model
  
  
-@@ -456,7 +461,7 @@         heads=[4, 8, 16],
+@@ -456,7 +463,7 @@         heads=[4, 8, 16],
          mlp_ratio=4,
      )
 -    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))
@@ -258,7 +272,7 @@
  
  
  @register_model
-@@ -469,7 +474,7 @@         heads=[3, 6, 12],
+@@ -469,7 +476,7 @@         heads=[3, 6, 12],
          mlp_ratio=4,
      )
 -    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))
@@ -266,7 +280,7 @@
  
  
  @register_model
-@@ -482,7 +487,7 @@         heads=[2, 4, 8],
+@@ -482,7 +489,7 @@         heads=[2, 4, 8],
          mlp_ratio=4,
      )
 -    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))
@@ -274,7 +288,7 @@
  
  
  @register_model
-@@ -495,7 +500,7 @@         heads=[2, 4, 8],
+@@ -495,7 +502,7 @@         heads=[2, 4, 8],
          mlp_ratio=4,
      )
 -    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))
@@ -282,7 +296,7 @@
  
  
  @register_model
-@@ -509,7 +514,7 @@         mlp_ratio=4,
+@@ -509,7 +516,7 @@         mlp_ratio=4,
          distilled=True,
      )
 -    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))
@@ -290,7 +304,7 @@
  
  
  @register_model
-@@ -523,7 +528,7 @@         mlp_ratio=4,
+@@ -523,7 +530,7 @@         mlp_ratio=4,
          distilled=True,
      )
 -    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))
@@ -298,7 +312,7 @@
  
  
  @register_model
-@@ -537,7 +542,7 @@         mlp_ratio=4,
+@@ -537,7 +544,7 @@         mlp_ratio=4,
          distilled=True,
      )
 -    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))
@@ -306,7 +320,7 @@
  
  
  @register_model
-@@ -551,4 +556,4 @@         mlp_ratio=4,
+@@ -551,4 +558,4 @@         mlp_ratio=4,
          distilled=True,
      )
 -    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))

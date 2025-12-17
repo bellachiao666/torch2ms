@@ -16,6 +16,7 @@ class Linear(nn.Linear):
     weight & bias to input.dtype to work around an issue w/ torch.addmm in this use case.
     """
     def forward(self, input: ms.Tensor) -> ms.Tensor:
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting():
             bias = self.bias.to(dtype=input.dtype) if self.bias is not None else None
             return nn.functional.linear(input, self.weight.to(dtype=input.dtype), bias = bias)

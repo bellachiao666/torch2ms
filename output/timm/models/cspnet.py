@@ -331,9 +331,10 @@ class CrossStage(msnn.Cell):
         if stride != 1 or first_dilation != dilation:
             if avg_down:
                 self.conv_down = msnn.SequentialCell(
-                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),  # FIXME dilation handling
+                    [
+                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
                     ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
-                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.conv_down = ConvNormAct(
                     in_chs,
@@ -429,9 +430,10 @@ class CrossStage3(msnn.Cell):
         if stride != 1 or first_dilation != dilation:
             if avg_down:
                 self.conv_down = msnn.SequentialCell(
-                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),  # FIXME dilation handling
+                    [
+                    nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
                     ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
-                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             else:
                 self.conv_down = ConvNormAct(
                     in_chs,
@@ -515,9 +517,10 @@ class DarkStage(msnn.Cell):
 
         if avg_down:
             self.conv_down = msnn.SequentialCell(
-                nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),   # FIXME dilation handling
+                [
+                nn.AvgPool2d(2) if stride == 2 else msnn.Identity(),
                 ConvNormAct(in_chs, out_chs, kernel_size=1, stride=1, groups=groups, **conv_kwargs, **dd)
-            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             self.conv_down = ConvNormAct(
                 in_chs,

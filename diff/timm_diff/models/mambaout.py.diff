@@ -140,19 +140,21 @@
              drop_rate: float = 0.,
              bias: bool = True,
              device=None,
-@@ -156,31 +161,31 @@         self.in_features = in_features
+@@ -156,31 +161,33 @@         self.in_features = in_features
          self.hidden_size = hidden_size or in_features
  
 -        self.norm = norm_layer(in_features, **dd)
 +        self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          if hidden_size:
 -            self.pre_logits = nn.Sequential(OrderedDict([
-+            self.pre_logits = msnn.SequentialCell(OrderedDict([
++            self.pre_logits = msnn.SequentialCell([
++                OrderedDict([
                  ('fc', nn.Linear(in_features, hidden_size, **dd)),
                  ('act', act_layer()),
                  ('norm', norm_layer(hidden_size, **dd))
 -            ]))
-+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            ])
++            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
              self.num_features = hidden_size
          else:
              self.num_features = in_features
@@ -182,7 +184,7 @@
          if self.pool_type == 'avg':
              x = x.mean((1, 2))
          x = self.norm(x)
-@@ -192,7 +197,7 @@         return x
+@@ -192,7 +199,7 @@         return x
  
  
 -class GatedConvBlock(nn.Module):
@@ -190,7 +192,7 @@
      r""" Our implementation of Gated CNN Block: https://arxiv.org/pdf/1612.08083
      Args:
          conv_ratio: control the number of channels to conduct depthwise convolution.
-@@ -208,8 +213,8 @@             kernel_size: int = 7,
+@@ -208,8 +215,8 @@             kernel_size: int = 7,
              conv_ratio: float = 1.0,
              ls_init_value: Optional[float] = None,
 -            norm_layer: Type[nn.Module] = LayerNorm,
@@ -200,7 +202,7 @@
              drop_path: float = 0.,
              device=None,
              dtype=None,
-@@ -217,9 +222,9 @@     ):
+@@ -217,9 +224,9 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.norm = norm_layer(dim, **dd)
@@ -211,7 +213,7 @@
          self.act = act_layer()
          conv_channels = int(conv_ratio * dim)
          self.split_indices = (hidden, hidden - conv_channels, conv_channels)
-@@ -230,26 +235,26 @@             padding=kernel_size // 2,
+@@ -230,26 +237,26 @@             padding=kernel_size // 2,
              groups=conv_channels,
              **dd,
 -        )
@@ -246,7 +248,7 @@
  
      def __init__(
              self,
-@@ -261,8 +266,8 @@             conv_ratio: float = 1.0,
+@@ -261,8 +268,8 @@             conv_ratio: float = 1.0,
              downsample: str = '',
              ls_init_value: Optional[float] = None,
 -            norm_layer: Type[nn.Module] = LayerNorm,
@@ -256,7 +258,7 @@
              drop_path: float = 0.,
              device=None,
              dtype=None,
-@@ -273,14 +278,14 @@         self.grad_checkpointing = False
+@@ -273,14 +280,14 @@         self.grad_checkpointing = False
  
          if downsample == 'conv':
 -            self.downsample = Downsample(dim, dim_out, norm_layer=norm_layer, **dd)
@@ -275,7 +277,7 @@
              GatedConvBlock(
                  dim=dim_out,
                  expansion_ratio=expansion_ratio,
-@@ -293,9 +298,9 @@                 **dd,
+@@ -293,10 +300,11 @@                 **dd,
              )
              for j in range(depth)
 -        ])
@@ -285,9 +287,11 @@
 +
 +    def construct(self, x):
          x = self.downsample(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -304,7 +309,7 @@         return x
+         else:
+@@ -304,7 +312,7 @@         return x
  
  
 -class MambaOut(nn.Module):
@@ -295,7 +299,7 @@
      r""" MetaFormer
          A PyTorch impl of : `MetaFormer Baselines for Vision`  -
            https://arxiv.org/abs/2210.13452
-@@ -328,8 +333,8 @@             global_pool: str = 'avg',
+@@ -328,8 +336,8 @@             global_pool: str = 'avg',
              depths: Tuple[int, ...] = (3, 3, 9, 3),
              dims: Tuple[int, ...] = (96, 192, 384, 576),
 -            norm_layer: Type[nn.Module] = LayerNorm,
@@ -305,7 +309,7 @@
              conv_ratio: float = 1.0,
              expansion_ratio: float = 8/3,
              kernel_size: int = 7,
-@@ -364,12 +369,12 @@             act_layer=act_layer,
+@@ -364,12 +372,12 @@             act_layer=act_layer,
              norm_layer=norm_layer,
              **dd,
 -        )
@@ -319,7 +323,7 @@
          for i in range(num_stage):
              dim = dims[i]
              stride = 2 if curr_stride == 2 or i > 0 else 1
-@@ -387,7 +392,7 @@                 act_layer=act_layer,
+@@ -387,7 +395,7 @@                 act_layer=act_layer,
                  drop_path=dp_rates[i],
                  **dd,
 -            )
@@ -327,7 +331,7 @@
              self.stages.append(stage)
              prev_dim = dim
              # NOTE feature_info use currently assumes stage 0 == stride 1, rest are stride 2
-@@ -403,7 +408,7 @@                 drop_rate=drop_rate,
+@@ -403,7 +411,7 @@                 drop_rate=drop_rate,
                  norm_layer=norm_layer,
                  **dd,
 -            )
@@ -335,7 +339,7 @@
          else:
              # more typical norm -> pool -> fc -> act -> fc
              self.head = ClNormMlpClassifierHead(
-@@ -414,7 +419,7 @@                 norm_layer=norm_layer,
+@@ -414,7 +422,7 @@                 norm_layer=norm_layer,
                  drop_rate=drop_rate,
                  **dd,
 -            )
@@ -343,7 +347,7 @@
          self.num_features = prev_dim
          self.head_hidden_size = self.head.num_features
  
-@@ -424,9 +429,9 @@         if isinstance(m, (nn.Conv2d, nn.Linear)):
+@@ -424,9 +432,9 @@         if isinstance(m, (nn.Conv2d, nn.Linear)):
              trunc_normal_(m.weight, std=.02)
              if m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -355,7 +359,7 @@
      def group_matcher(self, coarse=False):
          return dict(
              stem=r'^stem',
-@@ -436,13 +441,13 @@             ]
+@@ -436,13 +444,13 @@             ]
          )
  
 -    @torch.jit.ignore
@@ -371,7 +375,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -451,13 +456,13 @@ 
+@@ -451,13 +459,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -386,7 +390,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -519,7 +524,7 @@         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+@@ -477,6 +485,7 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -519,7 +528,7 @@         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
          return x
  
 -    def forward(self, x):
@@ -394,7 +405,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -612,7 +617,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -612,7 +621,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
          **kwargs,
 -    )
@@ -402,7 +413,7 @@
      return model
  
  
-@@ -620,30 +625,30 @@ @register_model
+@@ -620,30 +629,30 @@ @register_model
  def mambaout_femto(pretrained=False, **kwargs):
      model_args = dict(depths=(3, 3, 9, 3), dims=(48, 96, 192, 288))
 -    return _create_mambaout('mambaout_femto', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -437,7 +448,7 @@
  
  
  @register_model
-@@ -656,7 +661,7 @@         ls_init_value=1e-6,
+@@ -656,7 +665,7 @@         ls_init_value=1e-6,
          head_fn='norm_mlp',
      )
 -    return _create_mambaout('mambaout_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -445,7 +456,7 @@
  
  
  @register_model
-@@ -671,7 +676,7 @@         ls_init_value=1e-6,
+@@ -671,7 +680,7 @@         ls_init_value=1e-6,
          head_fn='norm_mlp',
      )
 -    return _create_mambaout('mambaout_base_short_rw', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -453,7 +464,7 @@
  
  
  @register_model
-@@ -686,7 +691,7 @@         ls_init_value=1e-6,
+@@ -686,7 +695,7 @@         ls_init_value=1e-6,
          head_fn='norm_mlp',
      )
 -    return _create_mambaout('mambaout_base_tall_rw', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -461,7 +472,7 @@
  
  
  @register_model
-@@ -702,7 +707,7 @@         act_layer='silu',
+@@ -702,7 +711,7 @@         act_layer='silu',
          head_fn='norm_mlp',
      )
 -    return _create_mambaout('mambaout_base_wide_rw', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -469,7 +480,7 @@
  
  
  @register_model
-@@ -718,7 +723,7 @@         act_layer='silu',
+@@ -718,7 +727,7 @@         act_layer='silu',
          head_fn='norm_mlp',
      )
 -    return _create_mambaout('mambaout_base_plus_rw', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -477,7 +488,7 @@
  
  
  @register_model
-@@ -733,4 +738,4 @@         act_layer='silu',
+@@ -733,4 +742,4 @@         act_layer='silu',
          head_fn='norm_mlp',
      )
 -    return _create_mambaout('test_mambaout', pretrained=pretrained, **dict(model_args, **kwargs))

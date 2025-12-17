@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
  from timm.layers import create_classifier, ConvNormAct
-@@ -17,256 +22,256 @@ __all__ = ['InceptionV4']
+@@ -17,256 +22,268 @@ __all__ = ['InceptionV4']
  
  
 -class Mixed3a(nn.Module):
@@ -77,14 +77,16 @@
 +        super().__init__()
 +
 +        self.branch0 = msnn.SequentialCell(
++            [
              conv_block(160, 64, kernel_size=1, stride=1, **dd),
              conv_block(64, 96, kernel_size=3, stride=1, **dd)
 -        )
 -
 -        self.branch1 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(160, 64, kernel_size=1, stride=1, **dd),
              conv_block(64, 64, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
              conv_block(64, 64, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
@@ -92,7 +94,7 @@
 -        )
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x0 = self.branch0(x)
@@ -165,14 +167,16 @@
 +        self.branch0 = conv_block(384, 96, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(384, 64, kernel_size=1, stride=1, **dd),
              conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd)
 -        )
 -
 -        self.branch2 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = msnn.SequentialCell(
++            [
              conv_block(384, 64, kernel_size=1, stride=1, **dd),
              conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd),
              conv_block(96, 96, kernel_size=3, stride=1, padding=1, **dd)
@@ -180,15 +184,16 @@
 -
 -        self.branch3 = nn.Sequential(
 -            nn.AvgPool2d(3, stride=1, padding=1, count_include_pad=False),
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch3 = msnn.SequentialCell(
++            [
 +            nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
              conv_block(384, 96, kernel_size=1, stride=1, **dd)
 -        )
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x0 = self.branch0(x)
@@ -227,6 +232,7 @@
 +        self.branch0 = conv_block(384, 384, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(384, 192, kernel_size=1, stride=1, **dd),
              conv_block(192, 224, kernel_size=3, stride=1, padding=1, **dd),
              conv_block(224, 256, kernel_size=3, stride=2, **dd)
@@ -235,7 +241,7 @@
 -        self.branch2 = nn.MaxPool2d(3, stride=2)
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = nn.MaxPool2d(3, stride = 2)
 +
@@ -275,15 +281,17 @@
 +        self.branch0 = conv_block(1024, 384, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(1024, 192, kernel_size=1, stride=1, **dd),
              conv_block(192, 224, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
              conv_block(224, 256, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd)
 -        )
 -
 -        self.branch2 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = msnn.SequentialCell(
++            [
              conv_block(1024, 192, kernel_size=1, stride=1, **dd),
              conv_block(192, 192, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
              conv_block(192, 224, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
@@ -293,15 +301,16 @@
 -
 -        self.branch3 = nn.Sequential(
 -            nn.AvgPool2d(3, stride=1, padding=1, count_include_pad=False),
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch3 = msnn.SequentialCell(
++            [
 +            nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
              conv_block(1024, 128, kernel_size=1, stride=1, **dd)
 -        )
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x0 = self.branch0(x)
@@ -338,14 +347,16 @@
 +        super().__init__()
 +
 +        self.branch0 = msnn.SequentialCell(
++            [
              conv_block(1024, 192, kernel_size=1, stride=1, **dd),
              conv_block(192, 192, kernel_size=3, stride=2, **dd)
 -        )
 -
 -        self.branch1 = nn.Sequential(
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch1 = msnn.SequentialCell(
++            [
              conv_block(1024, 256, kernel_size=1, stride=1, **dd),
              conv_block(256, 256, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
              conv_block(256, 320, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
@@ -355,7 +366,7 @@
 -        self.branch2 = nn.MaxPool2d(3, stride=2)
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch2 = nn.MaxPool2d(3, stride = 2)
 +
@@ -418,12 +429,13 @@
 +        self.branch2_3b = conv_block(512, 256, kernel_size=(3, 1), stride=1, padding=(1, 0), **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +        self.branch3 = msnn.SequentialCell(
++            [
 +            nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
              conv_block(1536, 256, kernel_size=1, stride=1, **dd)
 -        )
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          x0 = self.branch0(x)
@@ -457,7 +469,7 @@
      def __init__(
              self,
              num_classes: int = 1000,
-@@ -301,13 +306,13 @@             Mixed3a(conv_block, **dd),
+@@ -301,13 +318,13 @@             Mixed3a(conv_block, **dd),
              Mixed4a(conv_block, **dd),
              Mixed5a(conv_block, **dd),
 -        ]
@@ -477,7 +489,7 @@
          self.feature_info = [
              dict(num_chs=64, reduction=2, module='features.2'),
              dict(num_chs=160, reduction=4, module='features.3'),
-@@ -321,21 +326,21 @@             pool_type=global_pool,
+@@ -321,21 +338,21 @@             pool_type=global_pool,
              drop_rate=drop_rate,
              **dd,
 -        )
@@ -504,7 +516,7 @@
          return self.last_linear
  
      def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
-@@ -345,13 +350,13 @@ 
+@@ -345,13 +362,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -519,7 +531,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -411,7 +416,7 @@         x = self.head_drop(x)
+@@ -372,6 +389,7 @@         max_index = stage_ends[max_index]
+ 
+         # forward pass
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.features
+         else:
+@@ -411,7 +429,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.last_linear(x)
  
 -    def forward(self, x):
@@ -527,7 +546,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -424,7 +429,7 @@         pretrained,
+@@ -424,7 +442,7 @@         pretrained,
          feature_cfg=dict(flatten_sequential=True),
          **kwargs,
 -    )
@@ -535,7 +554,7 @@
  
  
  default_cfgs = generate_default_cfgs({
-@@ -441,4 +446,4 @@ 
+@@ -441,4 +459,4 @@ 
  @register_model
  def inception_v4(pretrained=False, **kwargs):
 -    return _create_inception_v4('inception_v4', pretrained, **kwargs)

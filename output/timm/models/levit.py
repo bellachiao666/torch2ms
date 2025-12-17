@@ -66,6 +66,8 @@ class ConvNorm(msnn.Cell):
 
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         c, bn = self.linear, self.bn
@@ -98,6 +100,8 @@ class LinearNorm(msnn.Cell):
 
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         l, bn = self.linear, self.bn
@@ -135,6 +139,8 @@ class NormLinear(msnn.Cell):
         if self.linear.bias is not None:
             nn.init.constant_(self.linear.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         bn, l = self.bn, self.linear
@@ -249,10 +255,12 @@ class Attention(msnn.Cell):
         self.val_attn_dim = int(attn_ratio * key_dim) * num_heads
 
         self.qkv = ln_layer(dim, self.val_attn_dim + self.key_attn_dim * 2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-        self.proj = msnn.SequentialCell(OrderedDict([
+        self.proj = msnn.SequentialCell([
+            OrderedDict([
             ('act', act_layer()),
             ('ln', ln_layer(self.val_attn_dim, dim, bn_weight_init=0, **dd))
-        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.attention_biases = ms.Parameter(mint.zeros(num_heads, resolution[0] * resolution[1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         pos = mint.stack(ndgrid(
@@ -264,13 +272,17 @@ class Attention(msnn.Cell):
         self.register_buffer('attention_bias_idxs', rel_pos, persistent=False)
         self.attention_bias_cache = {}
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
+        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
         else:
@@ -347,14 +359,18 @@ class AttentionDownsample(msnn.Cell):
             sub_layer = partial(Downsample, resolution=resolution, use_pool=use_pool, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.kv = ln_layer(in_dim, self.val_attn_dim + self.key_attn_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-        self.q = msnn.SequentialCell(OrderedDict([
+        self.q = msnn.SequentialCell([
+            OrderedDict([
             ('down', sub_layer(stride=stride)),
             ('ln', ln_layer(in_dim, self.key_attn_dim, **dd))
-        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-        self.proj = msnn.SequentialCell(OrderedDict([
+        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = msnn.SequentialCell([
+            OrderedDict([
             ('act', act_layer()),
             ('ln', ln_layer(self.val_attn_dim, out_dim, **dd))
-        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.attention_biases = ms.Parameter(mint.zeros(num_heads, resolution[0] * resolution[1], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         k_pos = mint.stack(ndgrid(
@@ -371,13 +387,17 @@ class AttentionDownsample(msnn.Cell):
 
         self.attention_bias_cache = {}  # per-device attention_biases cache
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
+        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
         else:
@@ -758,11 +778,13 @@ class Levit(msnn.Cell):
         if not self.use_conv:
             x = x.flatten(2).transpose(1, 2)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -798,6 +820,7 @@ class Levit(msnn.Cell):
         x = self.stem(x)
         if not self.use_conv:
             x = x.flatten(2).transpose(1, 2)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:
@@ -844,6 +867,7 @@ class LevitDistilled(Levit):
         if pre_logits:
             return x
         x, x_dist = self.head(x), self.head_dist(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.distilled_training and self.training and not torch.jit.is_scripting():
             # only return separate classification predictions when training in distilled mode
             return x, x_dist

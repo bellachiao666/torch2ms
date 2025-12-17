@@ -29,6 +29,7 @@ class Scheduler(ABC):
      * https://github.com/allenai/allennlp/tree/master/allennlp/training/learning_rate_schedulers
     """
 
+    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             optimizer: torch.optim.Optimizer,

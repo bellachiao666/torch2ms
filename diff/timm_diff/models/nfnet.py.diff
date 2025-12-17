@@ -113,7 +113,7 @@
      """Create stem module for NFNet models.
  
      Args:
-@@ -327,22 +332,22 @@             stem_feature = dict(num_chs=out_chs // 2, reduction=2, module='stem.conv2')
+@@ -327,22 +332,24 @@             stem_feature = dict(num_chs=out_chs // 2, reduction=2, module='stem.conv2')
          last_idx = len(stem_chs) - 1
          for i, (c, s) in enumerate(zip(stem_chs, strides)):
 -            stem[f'conv{i + 1}'] = conv_layer(in_chs, c, kernel_size=3, stride=s, **dd)
@@ -136,11 +136,13 @@
          stem_stride = 4
  
 -    return nn.Sequential(stem), stem_stride, stem_feature
-+    return msnn.SequentialCell(stem), stem_stride, stem_feature
++    return msnn.SequentialCell([
++        stem
++    ]), stem_stride, stem_feature
  
  
  # from https://github.com/deepmind/deepmind-research/tree/master/nfnets
-@@ -365,7 +370,7 @@ )
+@@ -365,7 +372,7 @@ )
  
  
 -class NormFreeNet(nn.Module):
@@ -148,7 +150,7 @@
      """ Normalization-Free Network
  
      As described in :
-@@ -417,7 +422,7 @@         self.drop_rate = drop_rate
+@@ -417,7 +424,7 @@         self.drop_rate = drop_rate
          self.grad_checkpointing = False
  
 -        cfg = replace(cfg, **kwargs)
@@ -156,7 +158,7 @@
          assert cfg.act_layer in _nonlin_gamma, f"Please add non-linearity constants for activation ({cfg.act_layer})."
          conv_layer = ScaledStdConv2dSame if cfg.same_padding else ScaledStdConv2d
          if cfg.gamma_in_act:
-@@ -426,7 +431,7 @@         else:
+@@ -426,7 +433,7 @@         else:
              act_layer = get_act_layer(cfg.act_layer)
              conv_layer = partial(conv_layer, gamma=_nonlin_gamma[cfg.act_layer], eps=cfg.std_conv_eps)
 -        attn_layer = partial(get_attn(cfg.attn_layer), **cfg.attn_kwargs) if cfg.attn_layer else None
@@ -164,7 +166,7 @@
  
          stem_chs = make_divisible((cfg.stem_chs or cfg.channels[0]) * cfg.width_factor, cfg.ch_div)
          self.stem, stem_stride, stem_feat = create_stem(
-@@ -436,7 +441,7 @@             conv_layer=conv_layer,
+@@ -436,7 +443,7 @@             conv_layer=conv_layer,
              act_layer=act_layer,
              **dd,
 -        )
@@ -172,7 +174,7 @@
  
          self.feature_info = [stem_feat]
          drop_path_rates = calculate_drop_path_rates(drop_path_rate, cfg.depths, stagewise=True)
-@@ -476,24 +481,24 @@                     conv_layer=conv_layer,
+@@ -476,24 +483,24 @@                     conv_layer=conv_layer,
                      drop_path_rate=drop_path_rates[stage_idx][block_idx],
                      **dd,
 -                )]
@@ -201,7 +203,7 @@
          self.final_act = act_layer(inplace=cfg.num_features > 0)
  
          self.head_hidden_size = self.num_features
-@@ -503,22 +508,22 @@             pool_type=global_pool,
+@@ -503,22 +510,22 @@             pool_type=global_pool,
              drop_rate=self.drop_rate,
              **dd,
 -        )
@@ -231,7 +233,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
          """Group parameters for optimization."""
          matcher = dict(
-@@ -530,13 +535,13 @@         )
+@@ -530,13 +537,13 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -247,7 +249,7 @@
          """Get the classifier head."""
          return self.head.fc
  
-@@ -550,7 +555,7 @@         self.num_classes = num_classes
+@@ -550,7 +557,7 @@         self.num_classes = num_classes
          self.head.reset(num_classes, global_pool)
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -255,7 +257,14 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -568,7 +573,7 @@         x = self.final_act(x)
+@@ -560,6 +567,7 @@             Feature tensor.
+         """
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stages, x)
+         else:
+@@ -568,7 +576,7 @@         x = self.final_act(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -263,7 +272,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -580,7 +585,7 @@         """
+@@ -580,7 +588,7 @@         """
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -271,7 +280,7 @@
          """Forward pass.
  
          Args:
-@@ -821,7 +826,7 @@         model_cfg=model_cfg,
+@@ -821,7 +829,7 @@         model_cfg=model_cfg,
          feature_cfg=feature_cfg,
          **kwargs,
 -    )
@@ -279,7 +288,7 @@
  
  
  def _dcfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
-@@ -951,91 +956,91 @@ @register_model
+@@ -951,91 +959,91 @@ @register_model
  def dm_nfnet_f0(pretrained: bool = False, **kwargs: Any) -> NormFreeNet:
      """NFNet-F0 (DeepMind weight compatible)."""
 -    return _create_normfreenet('dm_nfnet_f0', pretrained=pretrained, **kwargs)
@@ -385,7 +394,7 @@
  
  
  @register_model
-@@ -1044,7 +1049,7 @@ 
+@@ -1044,7 +1052,7 @@ 
      My experimental 'light' model w/ F0 repeats, 1.5x final_conv mult, 64 group_size, .25 bottleneck & SE ratio
      """
 -    return _create_normfreenet('nfnet_l0', pretrained=pretrained, **kwargs)
@@ -393,7 +402,7 @@
  
  
  @register_model
-@@ -1053,7 +1058,7 @@ 
+@@ -1053,7 +1061,7 @@ 
      My experimental 'light' model w/ F0 repeats, 1.5x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
      """
 -    return _create_normfreenet('eca_nfnet_l0', pretrained=pretrained, **kwargs)
@@ -401,7 +410,7 @@
  
  
  @register_model
-@@ -1062,7 +1067,7 @@ 
+@@ -1062,7 +1070,7 @@ 
      My experimental 'light' model w/ F1 repeats, 2.0x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
      """
 -    return _create_normfreenet('eca_nfnet_l1', pretrained=pretrained, **kwargs)
@@ -409,7 +418,7 @@
  
  
  @register_model
-@@ -1071,7 +1076,7 @@ 
+@@ -1071,7 +1079,7 @@ 
      My experimental 'light' model w/ F2 repeats, 2.0x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
      """
 -    return _create_normfreenet('eca_nfnet_l2', pretrained=pretrained, **kwargs)
@@ -417,7 +426,7 @@
  
  
  @register_model
-@@ -1080,109 +1085,109 @@ 
+@@ -1080,109 +1088,109 @@ 
      My experimental 'light' model w/ F3 repeats, 2.0x final_conv mult, 64 group_size, .25 bottleneck & ECA attn
      """
 -    return _create_normfreenet('eca_nfnet_l3', pretrained=pretrained, **kwargs)

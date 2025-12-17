@@ -544,7 +544,9 @@ class DaVitStage(msnn.Cell):
                         **dd,
                     )))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             if named_blocks:
-                stage_blocks.append(msnn.SequentialCell(OrderedDict(dual_attention_block)))
+                stage_blocks.append(msnn.SequentialCell([
+                    OrderedDict(dual_attention_block)
+                ]))
             else:
                 stage_blocks.append(msnn.SequentialCell(*[b[1] for b in dual_attention_block]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.blocks = msnn.SequentialCell(*stage_blocks)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
@@ -555,6 +557,7 @@ class DaVitStage(msnn.Cell):
 
     def construct(self, x: ms.Tensor):
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -734,12 +737,14 @@ class DaVit(msnn.Cell):
         # forward pass
         x = self.stem(x)
         last_idx = len(self.stages) - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -777,6 +782,7 @@ class DaVit(msnn.Cell):
 
     def forward_features(self, x):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

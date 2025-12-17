@@ -327,6 +327,8 @@ class SwinTransformerV2CrBlock(msnn.Cell):
         shift_size = [0 if f <= w else s for f, w, s in zip(self.feat_size, window_size, target_shift_size)]
         return tuple(window_size), tuple(shift_size)
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
             x: Optional[ms.Tensor] = None,
@@ -673,6 +675,7 @@ class SwinTransformerV2CrStage(msnn.Cell):
         x = self.downsample(x)
         for block in self.blocks:
             # Perform checkpointing if utilized
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(block, x)
             else:
@@ -895,6 +898,7 @@ class SwinTransformerV2Cr(msnn.Cell):
         # forward pass
         x = self.patch_embed(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

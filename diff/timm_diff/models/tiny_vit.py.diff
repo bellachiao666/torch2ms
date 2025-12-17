@@ -26,21 +26,25 @@
      def __init__(
              self,
              in_chs: int,
-@@ -42,10 +47,10 @@     ):
+@@ -42,11 +47,13 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)
 -        self.bn = nn.BatchNorm2d(out_chs, **dd)
 -        torch.nn.init.constant_(self.bn.weight, bn_weight_init)
 -        torch.nn.init.constant_(self.bn.bias, 0)
+-
 +        self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 +        self.bn = nn.BatchNorm2d(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 +        torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        torch.nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
++
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.no_grad()
      def fuse(self):
-@@ -54,44 +59,43 @@         w = c.weight * w[:, None, None, None]
+         c, bn = self.conv, self.bn
+@@ -54,44 +61,43 @@         w = c.weight * w[:, None, None, None]
          b = bn.bias - bn.running_mean * bn.weight / \
              (bn.running_var + bn.eps) ** 0.5
 -        m = torch.nn.Conv2d(
@@ -94,7 +98,7 @@
              drop_path: float,
              device=None,
              dtype=None,
-@@ -99,15 +103,15 @@         dd = {'device': device, 'dtype': dtype}
+@@ -99,15 +105,15 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          mid_chs = int(in_chs * expand_ratio)
 -        self.conv1 = ConvNorm(in_chs, mid_chs, ks=1, **dd)
@@ -115,7 +119,7 @@
          shortcut = x
          x = self.conv1(x)
          x = self.act1(x)
-@@ -120,24 +124,24 @@         return x
+@@ -120,24 +126,24 @@         return x
  
  
 -class PatchMerging(nn.Module):
@@ -151,7 +155,7 @@
          x = self.conv1(x)
          x = self.act1(x)
          x = self.conv2(x)
-@@ -146,12 +150,12 @@         return x
+@@ -146,12 +152,12 @@         return x
  
  
 -class ConvLayer(nn.Module):
@@ -165,7 +169,7 @@
              drop_path: Union[float, List[float]] = 0.,
              conv_expand_ratio: float = 4.,
              device=None,
-@@ -161,7 +165,7 @@         super().__init__()
+@@ -161,7 +167,7 @@         super().__init__()
          self.dim = dim
          self.depth = depth
 -        self.blocks = nn.Sequential(*[
@@ -173,7 +177,7 @@
              MBConv(
                  dim,
                  dim,
-@@ -171,21 +175,21 @@                 **dd,
+@@ -171,21 +177,21 @@                 **dd,
              )
              for i in range(depth)
 -        ])
@@ -200,7 +204,7 @@
              drop: float = 0.,
              device=None,
              dtype=None,
-@@ -194,14 +198,14 @@         super().__init__()
+@@ -194,14 +200,14 @@         super().__init__()
          out_features = out_features or in_features
          hidden_features = hidden_features or in_features
 -        self.norm = norm_layer(in_features, **dd)
@@ -218,7 +222,7 @@
          x = self.norm(x)
          x = self.fc1(x)
          x = self.act(x)
-@@ -211,9 +215,9 @@         return x
+@@ -211,9 +217,9 @@         return x
  
  
 -class Attention(torch.nn.Module):
@@ -230,7 +234,7 @@
  
      def __init__(
              self,
-@@ -237,9 +241,9 @@         self.resolution = resolution
+@@ -237,9 +243,9 @@         self.resolution = resolution
          self.fused_attn = use_fused_attn()
  
 -        self.norm = nn.LayerNorm(dim, **dd)
@@ -242,7 +246,7 @@
  
          points = list(itertools.product(range(resolution[0]), range(resolution[1])))
          N = len(points)
-@@ -251,10 +255,10 @@                 if offset not in attention_offsets:
+@@ -251,21 +257,25 @@                 if offset not in attention_offsets:
                      attention_offsets[offset] = len(attention_offsets)
                  idxs.append(attention_offsets[offset])
 -        self.attention_biases = torch.nn.Parameter(torch.zeros(num_heads, len(attention_offsets), **dd))
@@ -254,15 +258,23 @@
              persistent=False,
          )
          self.attention_bias_cache = {}
-@@ -265,7 +269,7 @@         if mode and self.attention_bias_cache:
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def train(self, mode=True):
+         super().train(mode)
+         if mode and self.attention_bias_cache:
              self.attention_bias_cache = {}  # clear ab cache
  
 -    def get_attention_biases(self, device: torch.device) -> torch.Tensor:
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +    def get_attention_biases(self, device: torch.device) -> ms.Tensor:
++        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if torch.jit.is_tracing() or self.training:
              return self.attention_biases[:, self.attention_bias_idxs]
          else:
-@@ -274,7 +278,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
+@@ -274,7 +284,7 @@                 self.attention_bias_cache[device_key] = self.attention_biases[:, self.attention_bias_idxs]
              return self.attention_bias_cache[device_key]
  
 -    def forward(self, x):
@@ -270,7 +282,7 @@
          attn_bias = self.get_attention_biases(x.device)
          B, N, _ = x.shape
          # Normalization
-@@ -288,7 +292,7 @@         v = v.permute(0, 2, 1, 3)
+@@ -288,7 +298,7 @@         v = v.permute(0, 2, 1, 3)
  
          if self.fused_attn:
 -            x = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_bias)
@@ -278,7 +290,7 @@
          else:
              q = q * self.scale
              attn = q @ k.transpose(-2, -1)
-@@ -300,7 +304,7 @@         return x
+@@ -300,7 +310,7 @@         return x
  
  
 -class TinyVitBlock(nn.Module):
@@ -286,7 +298,7 @@
      """ TinyViT Block.
  
      Args:
-@@ -324,7 +328,7 @@             drop: float = 0.,
+@@ -324,7 +334,7 @@             drop: float = 0.,
              drop_path: float = 0.,
              local_conv_size: int = 3,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -294,7 +306,7 @@
              device=None,
              dtype=None,
      ):
-@@ -347,8 +351,8 @@             attn_ratio=1,
+@@ -347,8 +357,8 @@             attn_ratio=1,
              resolution=window_resolution,
              **dd,
 -        )
@@ -304,7 +316,7 @@
  
          self.mlp = NormMlp(
              in_features=dim,
-@@ -356,13 +360,13 @@             act_layer=act_layer,
+@@ -356,13 +366,13 @@             act_layer=act_layer,
              drop=drop,
              **dd,
 -        )
@@ -322,7 +334,7 @@
          B, H, W, C = x.shape
          L = H * W
  
-@@ -376,7 +380,7 @@             pad_r = (self.window_size - W % self.window_size) % self.window_size
+@@ -376,7 +386,7 @@             pad_r = (self.window_size - W % self.window_size) % self.window_size
              padding = pad_b > 0 or pad_r > 0
              if padding:
 -                x = F.pad(x, (0, 0, 0, pad_r, 0, pad_b))
@@ -330,7 +342,7 @@
  
              # window partition
              pH, pW = H + pad_b, W + pad_r
-@@ -410,7 +414,7 @@ register_notrace_module(TinyVitBlock)
+@@ -410,7 +420,7 @@ register_notrace_module(TinyVitBlock)
  
  
 -class TinyVitStage(nn.Module):
@@ -338,7 +350,7 @@
      """ A basic TinyViT layer for one stage.
  
      Args:
-@@ -437,9 +441,9 @@             mlp_ratio: float = 4.,
+@@ -437,9 +447,9 @@             mlp_ratio: float = 4.,
              drop: float = 0.,
              drop_path: Union[float, List[float]] = 0.,
 -            downsample: Optional[Type[nn.Module]] = None,
@@ -349,7 +361,7 @@
              device=None,
              dtype=None,
      ):
-@@ -455,13 +459,13 @@                 out_dim=out_dim,
+@@ -455,13 +465,13 @@                 out_dim=out_dim,
                  act_layer=act_layer,
                  **dd,
 -            )
@@ -365,7 +377,7 @@
              TinyVitBlock(
                  dim=out_dim,
                  num_heads=num_heads,
-@@ -473,9 +477,9 @@                 act_layer=act_layer,
+@@ -473,9 +483,9 @@                 act_layer=act_layer,
                  **dd,
              )
 -            for i in range(depth)])
@@ -377,7 +389,7 @@
          x = self.downsample(x)
          x = x.permute(0, 2, 3, 1)  # BCHW -> BHWC
          x = self.blocks(x)
-@@ -486,7 +490,7 @@         return f"dim={self.out_dim}, depth={self.depth}"
+@@ -486,7 +496,7 @@         return f"dim={self.out_dim}, depth={self.depth}"
  
  
 -class TinyVit(nn.Module):
@@ -385,7 +397,7 @@
      def __init__(
              self,
              in_chans: int = 3,
-@@ -502,7 +506,7 @@             use_checkpoint: bool = False,
+@@ -502,7 +512,7 @@             use_checkpoint: bool = False,
              mbconv_expand_ratio: float = 4.0,
              local_conv_size: int = 3,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -393,7 +405,7 @@
              device=None,
              dtype=None,
      ):
-@@ -520,13 +524,13 @@             out_chs=embed_dims[0],
+@@ -520,13 +530,13 @@             out_chs=embed_dims[0],
              act_layer=act_layer,
              **dd,
 -        )
@@ -408,7 +420,7 @@
          stride = self.patch_embed.stride
          prev_dim = embed_dims[0]
          self.feature_info = []
-@@ -539,7 +543,7 @@                     drop_path=dpr[:depths[stage_idx]],
+@@ -539,7 +549,7 @@                     drop_path=dpr[:depths[stage_idx]],
                      conv_expand_ratio=mbconv_expand_ratio,
                      **dd,
 -                )
@@ -416,7 +428,7 @@
              else:
                  out_dim = embed_dims[stage_idx]
                  drop_path_rate = dpr[sum(depths[:stage_idx]):sum(depths[:stage_idx + 1])]
-@@ -556,7 +560,7 @@                     downsample=PatchMerging,
+@@ -556,7 +566,7 @@                     downsample=PatchMerging,
                      act_layer=act_layer,
                      **dd,
 -                )
@@ -424,7 +436,7 @@
                  prev_dim = out_dim
                  stride *= 2
              self.stages.append(stage)
-@@ -572,7 +576,7 @@             pool_type=global_pool,
+@@ -572,7 +582,7 @@             pool_type=global_pool,
              norm_layer=norm_layer_cf,
              **dd,
 -        )
@@ -432,7 +444,7 @@
  
          # init weights
          self.apply(self._init_weights)
-@@ -581,17 +585,17 @@         if isinstance(m, nn.Linear):
+@@ -581,17 +591,17 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -454,7 +466,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^patch_embed',
-@@ -602,12 +606,12 @@         )
+@@ -602,12 +612,12 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -469,7 +481,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -616,13 +620,13 @@ 
+@@ -616,13 +626,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -484,7 +496,28 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -685,7 +689,7 @@         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+@@ -641,12 +651,14 @@ 
+         # forward pass
+         x = self.patch_embed(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+             stages = self.stages[:max_index + 1]
+ 
+         for feat_idx, stage in enumerate(stages):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(stage, x)
+             else:
+@@ -675,6 +687,7 @@ 
+     def forward_features(self, x):
+         x = self.patch_embed(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stages, x)
+         else:
+@@ -685,7 +698,7 @@         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
          return x
  
 -    def forward(self, x):
@@ -492,7 +525,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -784,7 +788,7 @@         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+@@ -784,7 +797,7 @@         feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
          pretrained_filter_fn=checkpoint_filter_fn,
          **kwargs
 -    )
@@ -500,7 +533,7 @@
      return model
  
  
-@@ -798,7 +802,7 @@         drop_path_rate=0.0,
+@@ -798,7 +811,7 @@         drop_path_rate=0.0,
      )
      model_kwargs.update(kwargs)
 -    return _create_tiny_vit('tiny_vit_5m_224', pretrained, **model_kwargs)
@@ -508,7 +541,7 @@
  
  
  @register_model
-@@ -811,7 +815,7 @@         drop_path_rate=0.1,
+@@ -811,7 +824,7 @@         drop_path_rate=0.1,
      )
      model_kwargs.update(kwargs)
 -    return _create_tiny_vit('tiny_vit_11m_224', pretrained, **model_kwargs)
@@ -516,7 +549,7 @@
  
  
  @register_model
-@@ -824,7 +828,7 @@         drop_path_rate=0.2,
+@@ -824,7 +837,7 @@         drop_path_rate=0.2,
      )
      model_kwargs.update(kwargs)
 -    return _create_tiny_vit('tiny_vit_21m_224', pretrained, **model_kwargs)
@@ -524,7 +557,7 @@
  
  
  @register_model
-@@ -837,7 +841,7 @@         drop_path_rate=0.1,
+@@ -837,7 +850,7 @@         drop_path_rate=0.1,
      )
      model_kwargs.update(kwargs)
 -    return _create_tiny_vit('tiny_vit_21m_384', pretrained, **model_kwargs)
@@ -532,7 +565,7 @@
  
  
  @register_model
-@@ -850,4 +854,4 @@         drop_path_rate=0.1,
+@@ -850,4 +863,4 @@         drop_path_rate=0.1,
      )
      model_kwargs.update(kwargs)
 -    return _create_tiny_vit('tiny_vit_21m_512', pretrained, **model_kwargs)

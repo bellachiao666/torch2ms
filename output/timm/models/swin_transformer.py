@@ -177,6 +177,7 @@ class WindowAttention(msnn.Cell):
         self.window_size = window_size
         win_h, win_w = self.window_size
         self.window_area = win_h * win_w
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             new_bias_shape = (2 * win_h - 1) * (2 * win_w - 1), self.num_heads
             self.relative_position_bias_table = ms.Parameter(
@@ -323,6 +324,8 @@ class SwinTransformerBlock(msnn.Cell):
             persistent=False,
         )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attn_mask(
             self,
             x: Optional[ms.Tensor] = None,
@@ -637,6 +640,7 @@ class SwinTransformerStage(msnn.Cell):
         """
         x = self.downsample(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -894,6 +898,7 @@ class SwinTransformer(msnn.Cell):
         x = self.patch_embed(x)
 
         num_stages = len(self.layers)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.layers
         else:

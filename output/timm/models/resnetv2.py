@@ -456,6 +456,7 @@ class ResNetStage(msnn.Cell):
         Returns:
             Output tensor.
         """
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -520,7 +521,9 @@ def create_resnetv2_stem(
         # the usual PyTorch symmetric padding
         stem['pool'] = nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)
 
-    return msnn.SequentialCell(stem)
+    return msnn.SequentialCell([
+        stem
+    ])
 
 
 class ResNetV2(msnn.Cell):
@@ -720,6 +723,7 @@ class ResNetV2(msnn.Cell):
         if feat_idx in take_indices:
             intermediates.append(x_down)
         last_idx = len(self.stages)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
@@ -820,6 +824,8 @@ def _init_weights(module: msnn.Cell, name: str = '', zero_init_last: bool = True
         module.zero_init_last()
 
 
+# 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+# 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.no_grad()
 def _load_weights(model: msnn.Cell, checkpoint_path: str, prefix: str = 'resnet/'):
     import numpy as np

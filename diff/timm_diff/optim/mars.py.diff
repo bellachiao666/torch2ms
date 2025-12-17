@@ -50,7 +50,22 @@
  class Mars(Optimizer):
      """ MARS Optimizer
  
-@@ -164,11 +170,11 @@                 if len(state) <= 1:
+@@ -138,6 +144,8 @@         for group in self.param_groups:
+             group.setdefault('caution', False)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step.
+@@ -148,6 +156,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -164,11 +173,11 @@                 if len(state) <= 1:
                      state['step'] = 0
                      # Exponential moving average of gradient values
 -                    state['exp_avg'] = torch.zeros_like(p)

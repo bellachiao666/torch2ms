@@ -353,15 +353,17 @@
              dim = out_dims[i]
              self.blocks.append(attention_block)
              if i == 0:
-@@ -703,7 +708,7 @@ 
+@@ -703,8 +708,9 @@ 
          self.feat_size = feat_size
  
 -    def forward(self, x, feat_size: List[int]):
 +    def construct(self, x, feat_size: List[int]):
          for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if self.grad_checkpointing and not torch.jit.is_scripting():
                  x, feat_size = checkpoint(blk, x, feat_size)
-@@ -712,7 +717,7 @@         return x, feat_size
+             else:
+@@ -712,7 +718,7 @@         return x, feat_size
  
  
 -class MultiScaleVit(nn.Module):
@@ -369,7 +371,7 @@
      """
      Improved Multiscale Vision Transformers for Classification and Detection
      Yanghao Li*, Chao-Yuan Wu*, Haoqi Fan, Karttikeya Mangalam, Bo Xiong, Jitendra Malik,
-@@ -757,12 +762,12 @@             stride=cfg.patch_stride,
+@@ -757,12 +763,12 @@             stride=cfg.patch_stride,
              padding=cfg.patch_padding,
              **dd,
 -        )
@@ -383,7 +385,7 @@
              self.num_prefix_tokens = 1
              pos_embed_dim = num_patches + 1
          else:
-@@ -771,7 +776,7 @@             pos_embed_dim = num_patches
+@@ -771,7 +777,7 @@             pos_embed_dim = num_patches
  
          if cfg.use_abs_pos:
 -            self.pos_embed = nn.Parameter(torch.zeros(1, pos_embed_dim, embed_dim, **dd))
@@ -391,7 +393,7 @@
          else:
              self.pos_embed = None
  
-@@ -779,7 +784,7 @@         feat_size = patch_dims
+@@ -779,7 +785,7 @@         feat_size = patch_dims
          curr_stride = max(cfg.patch_stride)
          dpr = calculate_drop_path_rates(drop_path_rate, cfg.depths, stagewise=True)
 -        self.stages = nn.ModuleList()
@@ -399,7 +401,7 @@
          self.feature_info = []
          for i in range(num_stages):
              if cfg.expand_attn:
-@@ -807,7 +812,7 @@                 norm_layer=norm_layer,
+@@ -807,7 +813,7 @@                 norm_layer=norm_layer,
                  drop_path=dpr[i],
                  **dd,
 -            )
@@ -407,22 +409,24 @@
              curr_stride *= max(cfg.stride_q[i])
              self.feature_info += [dict(module=f'block.{i}', num_chs=dim_out, reduction=curr_stride)]
              embed_dim = dim_out
-@@ -815,11 +820,11 @@             self.stages.append(stage)
+@@ -815,11 +821,13 @@             self.stages.append(stage)
  
          self.num_features = self.head_hidden_size = embed_dim
 -        self.norm = norm_layer(embed_dim, **dd)
 -        self.head = nn.Sequential(OrderedDict([
 +        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-+        self.head = msnn.SequentialCell(OrderedDict([
++        self.head = msnn.SequentialCell([
++            OrderedDict([
              ('drop', nn.Dropout(self.drop_rate)),
 -            ('fc', nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else nn.Identity())
 -        ]))
 +            ('fc', nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity())
-+        ]))  # 存在 *args/**kwargs，需手动确认参数映射;
++        ])
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;
  
          if self.pos_embed is not None:
              trunc_normal_tf_(self.pos_embed, std=0.02)
-@@ -831,14 +836,14 @@         if isinstance(m, nn.Linear):
+@@ -831,14 +839,14 @@         if isinstance(m, nn.Linear):
              trunc_normal_tf_(m.weight, std=0.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0.0)
@@ -440,7 +444,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^patch_embed',  # stem and embed
-@@ -846,13 +851,13 @@         )
+@@ -846,13 +854,13 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -456,16 +460,18 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -861,20 +866,20 @@             self.global_pool = global_pool
+@@ -861,20 +869,22 @@             self.global_pool = global_pool
          device = self.head.fc.weight.device if hasattr(self.head.fc, 'weight') else None
          dtype = self.head.fc.weight.dtype if hasattr(self.head.fc, 'weight') else None
 -        self.head = nn.Sequential(OrderedDict([
-+        self.head = msnn.SequentialCell(OrderedDict([
++        self.head = msnn.SequentialCell([
++            OrderedDict([
              ('drop', nn.Dropout(self.drop_rate)),
 -            ('fc', nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity())
 -        ]))
 +            ('fc', nn.Linear(self.num_features, num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity())
-+        ]))  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
++        ])
++        ])  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
  
      def forward_intermediates(
              self,
@@ -481,7 +487,7 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -898,7 +903,7 @@         B = x.shape[0]
+@@ -898,7 +908,7 @@         B = x.shape[0]
          if self.cls_token is not None:
              cls_tokens = self.cls_token.expand(B, -1, -1)
 -            x = torch.cat((cls_tokens, x), dim=1)
@@ -489,7 +495,7 @@
          if self.pos_embed is not None:
              x = x + self.pos_embed
  
-@@ -937,7 +942,7 @@         # FIXME add stage pruning
+@@ -937,7 +947,7 @@         # FIXME add stage pruning
          # self.stages = self.stages[:max_index]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -497,7 +503,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -948,7 +953,7 @@ 
+@@ -948,7 +958,7 @@ 
          if self.cls_token is not None:
              cls_tokens = self.cls_token.expand(B, -1, -1)
 -            x = torch.cat((cls_tokens, x), dim=1)
@@ -505,7 +511,7 @@
  
          if self.pos_embed is not None:
              x = x + self.pos_embed
-@@ -967,7 +972,7 @@                 x = x[:, 0]
+@@ -967,7 +977,7 @@                 x = x[:, 0]
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -513,7 +519,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -981,11 +986,8 @@                 rel_pos = state_dict[k]
+@@ -981,11 +991,8 @@                 rel_pos = state_dict[k]
                  dest_rel_pos_shape = model.state_dict()[k].shape
                  if rel_pos.shape[0] != dest_rel_pos_shape[0]:
 -                    rel_pos_resized = torch.nn.functional.interpolate(
@@ -526,7 +532,7 @@
                      state_dict[k] = rel_pos_resized.reshape(-1, dest_rel_pos_shape[0]).permute(1, 0)
          return state_dict
  
-@@ -1072,7 +1074,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -1072,7 +1079,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -534,7 +540,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -1117,39 +1119,39 @@ 
+@@ -1117,39 +1124,39 @@ 
  @register_model
  def mvitv2_tiny(pretrained=False, **kwargs) -> MultiScaleVit:
 -    return _create_mvitv2('mvitv2_tiny', pretrained=pretrained, **kwargs)

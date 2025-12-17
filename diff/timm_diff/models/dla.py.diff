@@ -189,7 +189,7 @@
              in_channels: int,
              out_channels: int,
              stride: int = 1,
-@@ -284,20 +287,20 @@             root_dim = 2 * out_channels
+@@ -284,20 +287,22 @@             root_dim = 2 * out_channels
          if level_root:
              root_dim += in_channels
 -        self.downsample = nn.MaxPool2d(stride, stride=stride) if stride > 1 else nn.Identity()
@@ -209,15 +209,17 @@
                  # need strict=False while loading.
 -                self.project = nn.Sequential(
 +                self.project = msnn.SequentialCell(
++                    [
                      nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, bias=False, **dd),
 -                    nn.BatchNorm2d(out_channels, **dd))
 -            self.root = DlaRoot(root_dim, out_channels, root_kernel_size, root_shortcut, **dd)
-+                    nn.BatchNorm2d(out_channels, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
++                    nn.BatchNorm2d(out_channels, **dd)
++                ])  # 存在 *args/**kwargs，需手动确认参数映射;
 +            self.root = DlaRoot(root_dim, out_channels, root_kernel_size, root_shortcut, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              cargs.update(dict(root_kernel_size=root_kernel_size, root_shortcut=root_shortcut))
              self.tree1 = DlaTree(
-@@ -308,7 +311,7 @@                 stride,
+@@ -308,7 +313,7 @@                 stride,
                  root_dim=0,
                  **cargs,
 -            )
@@ -225,7 +227,7 @@
              self.tree2 = DlaTree(
                  levels - 1,
                  block,
-@@ -316,13 +319,13 @@                 out_channels,
+@@ -316,13 +321,13 @@                 out_channels,
                  root_dim=root_dim + out_channels,
                  **cargs,
 -            )
@@ -240,7 +242,7 @@
          if children is None:
              children = []
          bottom = self.downsample(x)
-@@ -339,7 +342,7 @@         return x
+@@ -339,7 +344,7 @@         return x
  
  
 -class DLA(nn.Module):
@@ -248,7 +250,7 @@
      def __init__(
              self,
              levels: Tuple[int, ...],
-@@ -350,7 +353,7 @@             global_pool: str = 'avg',
+@@ -350,7 +355,7 @@             global_pool: str = 'avg',
              cardinality: int = 1,
              base_width: int = 64,
 -            block: Type[nn.Module] = DlaBottle2neck,
@@ -256,11 +258,12 @@
              shortcut_root: bool = False,
              drop_rate: float = 0.0,
              device=None,
-@@ -364,18 +367,18 @@         self.base_width = base_width
+@@ -364,18 +369,19 @@         self.base_width = base_width
          assert output_stride == 32  # FIXME support dilation
  
 -        self.base_layer = nn.Sequential(
 +        self.base_layer = msnn.SequentialCell(
++            [
              nn.Conv2d(in_chans, channels[0], kernel_size=7, stride=1, padding=3, bias=False, **dd),
              nn.BatchNorm2d(channels[0], **dd),
 -            nn.ReLU(inplace=True),
@@ -272,8 +275,8 @@
 -        self.level3 = DlaTree(levels[3], block, channels[2], channels[3], 2, level_root=True, **cargs)
 -        self.level4 = DlaTree(levels[4], block, channels[3], channels[4], 2, level_root=True, **cargs)
 -        self.level5 = DlaTree(levels[5], block, channels[4], channels[5], 2, level_root=True, **cargs)
-+            nn.ReLU(),
-+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
++            nn.ReLU()
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 +        self.level0 = self._make_conv_level(channels[0], channels[0], levels[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.level1 = self._make_conv_level(channels[0], channels[1], levels[1], stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        cargs = dict(cardinality=cardinality, base_width=base_width, root_shortcut=shortcut_root, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
@@ -284,7 +287,7 @@
          self.feature_info = [
              dict(num_chs=channels[0], reduction=1, module='level0'),  # rare to have a meaningful stride 1 level
              dict(num_chs=channels[1], reduction=2, module='level1'),
-@@ -393,8 +396,8 @@             use_conv=True,
+@@ -393,8 +399,8 @@             use_conv=True,
              drop_rate=drop_rate,
              **dd,
 -        )
@@ -294,7 +297,7 @@
  
          for m in self.modules():
              if isinstance(m, nn.Conv2d):
-@@ -420,11 +423,11 @@                     **dd,
+@@ -420,11 +426,11 @@                     **dd,
                  ),
                  nn.BatchNorm2d(planes, **dd),
 -                nn.ReLU(inplace=True)])
@@ -309,7 +312,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^base_layer',
-@@ -437,19 +440,19 @@         )
+@@ -437,19 +443,19 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -332,7 +335,7 @@
  
      def forward_features(self, x):
          x = self.base_layer(x)
-@@ -469,7 +472,7 @@         x = self.fc(x)
+@@ -469,7 +475,7 @@         x = self.fc(x)
          return self.flatten(x)
  
 -    def forward(self, x):
@@ -340,7 +343,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -483,7 +486,7 @@         pretrained_strict=False,
+@@ -483,7 +489,7 @@         pretrained_strict=False,
          feature_cfg=dict(out_indices=(1, 2, 3, 4, 5)),
          **kwargs,
 -    )
@@ -348,7 +351,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -518,7 +521,7 @@     model_args = dict(
+@@ -518,7 +524,7 @@     model_args = dict(
          levels=(1, 1, 1, 2, 3, 1), channels=(16, 32, 128, 256, 512, 1024),
          block=DlaBottle2neck, cardinality=1, base_width=28)
 -    return _create_dla('dla60_res2net', pretrained, **dict(model_args, **kwargs))
@@ -356,7 +359,7 @@
  
  
  @register_model
-@@ -526,21 +529,21 @@     model_args = dict(
+@@ -526,21 +532,21 @@     model_args = dict(
          levels=(1, 1, 1, 2, 3, 1), channels=(16, 32, 128, 256, 512, 1024),
          block=DlaBottle2neck, cardinality=8, base_width=4)
 -    return _create_dla('dla60_res2next', pretrained, **dict(model_args, **kwargs))
@@ -380,7 +383,7 @@
  
  
  @register_model
-@@ -548,7 +551,7 @@     model_args = dict(
+@@ -548,7 +554,7 @@     model_args = dict(
          levels=[1, 1, 1, 2, 2, 1], channels=[16, 32, 64, 64, 128, 256],
          block=DlaBottleneck, cardinality=32, base_width=4)
 -    return _create_dla('dla46x_c', pretrained, **dict(model_args, **kwargs))
@@ -388,7 +391,7 @@
  
  
  @register_model
-@@ -556,7 +559,7 @@     model_args = dict(
+@@ -556,7 +562,7 @@     model_args = dict(
          levels=[1, 1, 1, 2, 3, 1], channels=[16, 32, 64, 64, 128, 256],
          block=DlaBottleneck, cardinality=32, base_width=4)
 -    return _create_dla('dla60x_c', pretrained, **dict(model_args, **kwargs))
@@ -396,7 +399,7 @@
  
  
  @register_model
-@@ -564,7 +567,7 @@     model_args = dict(
+@@ -564,7 +570,7 @@     model_args = dict(
          levels=[1, 1, 1, 2, 3, 1], channels=[16, 32, 128, 256, 512, 1024],
          block=DlaBottleneck)
 -    return _create_dla('dla60', pretrained, **dict(model_args, **kwargs))
@@ -404,7 +407,7 @@
  
  
  @register_model
-@@ -572,7 +575,7 @@     model_args = dict(
+@@ -572,7 +578,7 @@     model_args = dict(
          levels=[1, 1, 1, 2, 3, 1], channels=[16, 32, 128, 256, 512, 1024],
          block=DlaBottleneck, cardinality=32, base_width=4)
 -    return _create_dla('dla60x', pretrained, **dict(model_args, **kwargs))
@@ -412,7 +415,7 @@
  
  
  @register_model
-@@ -580,7 +583,7 @@     model_args = dict(
+@@ -580,7 +586,7 @@     model_args = dict(
          levels=[1, 1, 1, 3, 4, 1], channels=[16, 32, 128, 256, 512, 1024],
          block=DlaBottleneck, shortcut_root=True)
 -    return _create_dla('dla102', pretrained, **dict(model_args, **kwargs))
@@ -420,7 +423,7 @@
  
  
  @register_model
-@@ -588,7 +591,7 @@     model_args = dict(
+@@ -588,7 +594,7 @@     model_args = dict(
          levels=[1, 1, 1, 3, 4, 1], channels=[16, 32, 128, 256, 512, 1024],
          block=DlaBottleneck, cardinality=32, base_width=4, shortcut_root=True)
 -    return _create_dla('dla102x', pretrained, **dict(model_args, **kwargs))
@@ -428,7 +431,7 @@
  
  
  @register_model
-@@ -596,7 +599,7 @@     model_args = dict(
+@@ -596,7 +602,7 @@     model_args = dict(
          levels=[1, 1, 1, 3, 4, 1], channels=[16, 32, 128, 256, 512, 1024],
          block=DlaBottleneck, cardinality=64, base_width=4, shortcut_root=True)
 -    return _create_dla('dla102x2', pretrained, **dict(model_args, **kwargs))
@@ -436,7 +439,7 @@
  
  
  @register_model
-@@ -604,4 +607,4 @@     model_args = dict(
+@@ -604,4 +610,4 @@     model_args = dict(
          levels=[1, 1, 2, 3, 5, 1], channels=[16, 32, 128, 256, 512, 1024],
          block=DlaBottleneck, shortcut_root=True)
 -    return _create_dla('dla169', pretrained, **dict(model_args, **kwargs))

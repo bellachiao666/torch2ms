@@ -52,21 +52,24 @@ class ConvMixer(msnn.Cell):
         self.grad_checkpointing = False
 
         self.stem = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chans, dim, kernel_size=patch_size, stride=patch_size, **dd),
             act_layer(),
             nn.BatchNorm2d(dim, **dd)
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
         self.blocks = msnn.SequentialCell(
             *[msnn.SequentialCell(
-                    Residual(msnn.SequentialCell(
-                        nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same", **dd),
-                        act_layer(),
-                        nn.BatchNorm2d(dim, **dd)
-                    )),
-                    nn.Conv2d(dim, dim, kernel_size=1, **dd),
-                    act_layer(),
-                    nn.BatchNorm2d(dim, **dd)
-            ) for i in range(depth)]
+                    [
+            Residual(msnn.SequentialCell(
+                        [
+            nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same", **dd),
+            act_layer(),
+            nn.BatchNorm2d(dim, **dd)
+        ])),
+            nn.Conv2d(dim, dim, kernel_size=1, **dd),
+            act_layer(),
+            nn.BatchNorm2d(dim, **dd)
+        ]) for i in range(depth)]
         )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
         self.head_drop = nn.Dropout(drop_rate)
@@ -93,6 +96,7 @@ class ConvMixer(msnn.Cell):
 
     def forward_features(self, x):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:

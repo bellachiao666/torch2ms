@@ -120,7 +120,7 @@
      def __init__(
              self,
              layers: List[int],
-@@ -159,22 +164,22 @@             self.planes = self.planes // 8 * 8
+@@ -159,29 +164,31 @@             self.planes = self.planes // 8 * 8
  
          dpr = calculate_drop_path_rates(drop_path_rate, layers, stagewise=True)
 -        conv1 = ConvNormAct(in_chans * 16, self.planes, stride=1, kernel_size=3, act_layer=act_layer, **dd)
@@ -144,11 +144,21 @@
  
          # body
 -        self.body = nn.Sequential(OrderedDict([
-+        self.body = msnn.SequentialCell(OrderedDict([
++        self.body = msnn.SequentialCell([
++            OrderedDict([
              ('s2d', SpaceToDepth()),
              ('conv1', conv1),
              ('layer1', layer1),
-@@ -193,21 +198,21 @@ 
+             ('layer2', layer2),
+             ('layer3', layer3),
+             ('layer4', layer4),
+-        ]))
++        ])
++        ])
+ 
+         self.feature_info = [
+             dict(num_chs=self.planes, reduction=2, module=''),  # Not with S2D?
+@@ -193,21 +200,21 @@ 
          # head
          self.num_features = self.head_hidden_size = (self.planes * 8) * Bottleneck.expansion
 -        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)
@@ -173,7 +183,7 @@
  
      def _make_layer(
              self,
-@@ -228,10 +233,10 @@             layers = []
+@@ -228,10 +235,10 @@             layers = []
              if stride == 2:
                  # avg pooling before 1x1 conv
 -                layers.append(nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True, count_include_pad=False))
@@ -186,7 +196,7 @@
  
          layers = []
          for i in range(blocks):
-@@ -244,21 +249,21 @@                 aa_layer=aa_layer,
+@@ -244,21 +251,21 @@                 aa_layer=aa_layer,
                  drop_path_rate=drop_path_rate[i] if isinstance(drop_path_rate, list) else drop_path_rate,
                  **dd,
 -            ))
@@ -214,7 +224,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -267,13 +272,13 @@ 
+@@ -267,13 +274,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -229,7 +239,28 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -344,7 +349,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -293,12 +300,14 @@         take_indices = [stage_ends[i] for i in take_indices]
+         max_index = stage_ends[max_index]
+         # forward pass
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.body
+         else:
+             stages = self.body[:max_index + 1]
+ 
+         for feat_idx, stage in enumerate(stages):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(stage, x)
+             else:
+@@ -328,6 +337,7 @@         return take_indices
+ 
+     def forward_features(self, x):
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = self.body.s2d(x)
+             x = self.body.conv1(x)
+@@ -344,7 +354,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -237,7 +268,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -380,7 +385,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -380,7 +390,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=(1, 2, 3, 4), flatten_sequential=True),
          **kwargs,
 -    )
@@ -245,7 +276,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -418,25 +423,25 @@ @register_model
+@@ -418,25 +428,25 @@ @register_model
  def tresnet_m(pretrained=False, **kwargs) -> TResNet:
      model_args = dict(layers=[3, 4, 11, 3])
 -    return _create_tresnet('tresnet_m', pretrained=pretrained, **dict(model_args, **kwargs))

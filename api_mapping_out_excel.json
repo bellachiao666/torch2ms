@@ -19766,6 +19766,11 @@
       "pytorch": "torch.jit.export",
       "mindspore": "mindspore.jit",
       "params": []
+    },
+    "torch.nn.Sequential": {
+      "pytorch": "torch.nn.Sequential",
+      "mindspore": "mindspore.nn.SequentialCell",
+      "params": []
     }
   }
 }

@@ -104,6 +104,8 @@ class Adan(Optimizer):
             group.setdefault('no_prox', False)
             group.setdefault('caution', False)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def restart_opt(self):
         for group in self.param_groups:
@@ -120,11 +122,14 @@ class Adan(Optimizer):
                     # Exponential moving average of gradient difference
                     state['exp_avg_diff'] = mint.zeros_like(p)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step."""
         loss = None
         if closure is not None:
+            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.enable_grad():
                 loss = closure()
 

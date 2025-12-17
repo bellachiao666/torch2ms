@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import DropPath, calculate_drop_path_rates, NormMlpClassifierHead, ClassifierHead, EffectiveSEModule, \
-@@ -21,54 +26,54 @@ __all__ = ["RDNet"]
+@@ -21,54 +26,56 @@ __all__ = ["RDNet"]
  
  
 -class Block(nn.Module):
@@ -37,54 +37,75 @@
          super().__init__()
 -        self.layers = nn.Sequential(
 +        self.layers = msnn.SequentialCell(
-             nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
-             norm_layer(in_chs, **dd),
-             nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
-             act_layer(),
-             nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
--        )
--
--    def forward(self, x):
-+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            [
++            nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
++            norm_layer(in_chs, **dd),
++            nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
++            act_layer(),
++            nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd)
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
-         return self.layers(x)
- 
- 
--class BlockESE(nn.Module):
++        return self.layers(x)
++
++
 +class BlockESE(msnn.Cell):
-     def __init__(
-             self,
-             in_chs: int,
-             inter_chs: int,
-             out_chs: int,
--            norm_layer: Type[nn.Module],
--            act_layer: Type[nn.Module],
++    def __init__(
++            self,
++            in_chs: int,
++            inter_chs: int,
++            out_chs: int,
 +            norm_layer: Type[msnn.Cell],
 +            act_layer: Type[msnn.Cell],
-             device=None,
-             dtype=None,
-     ):
-         dd = {'device': device, 'dtype': dtype}
-         super().__init__()
--        self.layers = nn.Sequential(
++            device=None,
++            dtype=None,
++    ):
++        dd = {'device': device, 'dtype': dtype}
++        super().__init__()
 +        self.layers = msnn.SequentialCell(
++            [
              nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
              norm_layer(in_chs, **dd),
              nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
              act_layer(),
              nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
-             EffectiveSEModule(out_chs, **dd),
 -        )
 -
 -    def forward(self, x):
-+        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+-        return self.layers(x)
+-
+-
+-class BlockESE(nn.Module):
+-    def __init__(
+-            self,
+-            in_chs: int,
+-            inter_chs: int,
+-            out_chs: int,
+-            norm_layer: Type[nn.Module],
+-            act_layer: Type[nn.Module],
+-            device=None,
+-            dtype=None,
+-    ):
+-        dd = {'device': device, 'dtype': dtype}
+-        super().__init__()
+-        self.layers = nn.Sequential(
+-            nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
+-            norm_layer(in_chs, **dd),
+-            nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
+-            act_layer(),
+-            nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
+-            EffectiveSEModule(out_chs, **dd),
+-        )
+-
+-    def forward(self, x):
++            EffectiveSEModule(out_chs, **dd)
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +
 +    def construct(self, x):
          return self.layers(x)
  
  
-@@ -82,7 +87,7 @@         assert False, f"Unknown block type ({block})."
+@@ -82,7 +89,7 @@         assert False, f"Unknown block type ({block})."
  
  
 -class DenseBlock(nn.Module):
@@ -92,7 +113,7 @@
      def __init__(
              self,
              num_input_features: int = 64,
-@@ -94,8 +99,8 @@             block_idx: int = 0,
+@@ -94,8 +101,8 @@             block_idx: int = 0,
              block_type: str = "Block",
              ls_init_value: float = 1e-6,
 -            norm_layer: Type[nn.Module] = nn.LayerNorm,
@@ -102,7 +123,7 @@
              device=None,
              dtype=None,
      ):
-@@ -107,7 +112,7 @@         self.block_idx = block_idx
+@@ -107,7 +114,7 @@         self.block_idx = block_idx
          self.growth_rate = growth_rate
  
 -        self.gamma = nn.Parameter(ls_init_value * torch.ones(growth_rate, **dd)) if ls_init_value > 0 else None
@@ -110,7 +131,7 @@
          growth_rate = int(growth_rate)
          inter_chs = int(num_input_features * bottleneck_width_ratio / 8) * 8
  
-@@ -120,10 +125,10 @@             norm_layer=norm_layer,
+@@ -120,10 +127,10 @@             norm_layer=norm_layer,
              act_layer=act_layer,
              **dd,
 -        )
@@ -124,7 +145,7 @@
          x = self.layers(x)
  
          if self.gamma is not None:
-@@ -133,7 +138,7 @@         return x
+@@ -133,7 +140,7 @@         return x
  
  
 -class DenseStage(nn.Sequential):
@@ -132,7 +153,7 @@
      def __init__(
              self,
              num_block: int,
-@@ -154,20 +159,20 @@                 block_idx=i,
+@@ -154,20 +161,20 @@                 block_idx=i,
                  **dd,
                  **kwargs,
 -            )
@@ -158,29 +179,33 @@
      def __init__(
              self,
              in_chans: int = 3,  # timm option [--in-chans]
-@@ -232,18 +237,18 @@         assert stem_type in ('patch', 'overlap', 'overlap_tiered')
+@@ -232,18 +239,20 @@         assert stem_type in ('patch', 'overlap', 'overlap_tiered')
          if stem_type == 'patch':
              # NOTE: this stem is a minimal form of ViT PatchEmbed, as used in SwinTransformer w/ patch_size = 4
 -            self.stem = nn.Sequential(
 +            self.stem = msnn.SequentialCell(
++                [
                  nn.Conv2d(in_chans, num_init_features, kernel_size=patch_size, stride=patch_size, bias=conv_bias, **dd),
-                 norm_layer(num_init_features, **dd),
+-                norm_layer(num_init_features, **dd),
 -            )
-+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                norm_layer(num_init_features, **dd)
++            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
              stem_stride = patch_size
          else:
              mid_chs = make_divisible(num_init_features // 2) if 'tiered' in stem_type else num_init_features
 -            self.stem = nn.Sequential(
 +            self.stem = msnn.SequentialCell(
++                [
                  nn.Conv2d(in_chans, mid_chs, kernel_size=3, stride=2, padding=1, bias=conv_bias, **dd),
                  nn.Conv2d(mid_chs, num_init_features, kernel_size=3, stride=2, padding=1, bias=conv_bias, **dd),
-                 norm_layer(num_init_features, **dd),
+-                norm_layer(num_init_features, **dd),
 -            )
-+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                norm_layer(num_init_features, **dd)
++            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
              stem_stride = 4
  
          # features
-@@ -263,7 +268,7 @@                     curr_stride *= 2
+@@ -263,7 +272,7 @@                     curr_stride *= 2
                      k_size = stride = 2
  
 -                dense_stage_layers.append(norm_layer(num_features, **dd))
@@ -188,7 +213,7 @@
                  dense_stage_layers.append(nn.Conv2d(
                      num_features,
                      compressed_num_features,
-@@ -271,7 +276,7 @@                     stride=stride,
+@@ -271,7 +280,7 @@                     stride=stride,
                      padding=0,
                      **dd,
 -                ))
@@ -196,7 +221,7 @@
                  num_features = compressed_num_features
  
              stage = DenseStage(
-@@ -286,7 +291,7 @@                 norm_layer=norm_layer,
+@@ -286,7 +295,7 @@                 norm_layer=norm_layer,
                  act_layer=act_layer,
                  **dd,
 -            )
@@ -204,7 +229,7 @@
              dense_stage_layers.append(stage)
              num_features += num_blocks_list[i] * growth_rates[i]
  
-@@ -299,23 +304,23 @@                         growth_rate=growth_rates[i],
+@@ -299,23 +308,23 @@                         growth_rate=growth_rates[i],
                      )
                  ]
 -            dense_stages.append(nn.Sequential(*dense_stage_layers))
@@ -232,7 +257,7 @@
              self.head = NormMlpClassifierHead(
                  self.num_features,
                  num_classes,
-@@ -323,11 +328,11 @@                 drop_rate=self.drop_rate,
+@@ -323,11 +332,11 @@                 drop_rate=self.drop_rate,
                  norm_layer=norm_layer,
                  **dd,
 -            )
@@ -245,7 +270,7 @@
      def group_matcher(self, coarse=False):
          assert not coarse, "coarse grouping is not implemented for RDNet"
          return dict(
-@@ -335,13 +340,13 @@             blocks=r'^dense_stages\.(\d+)',
+@@ -335,13 +344,13 @@             blocks=r'^dense_stages\.(\d+)',
          )
  
 -    @torch.jit.ignore
@@ -261,7 +286,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -350,13 +355,13 @@ 
+@@ -350,13 +359,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -276,7 +301,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -412,7 +417,7 @@         max_index = stage_ends[max_index]
+@@ -378,6 +387,7 @@         x = self.stem(x)
+ 
+         last_idx = len(self.dense_stages) - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             dense_stages = self.dense_stages
+         else:
+@@ -412,7 +422,7 @@         max_index = stage_ends[max_index]
          self.dense_stages = self.dense_stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm_pre = nn.Identity()
@@ -284,7 +316,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -426,7 +431,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -426,7 +436,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=True) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -292,7 +324,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -434,12 +439,12 @@ 
+@@ -434,12 +444,12 @@ 
  def _init_weights(module, name=None, head_init_scale=1.0):
      if isinstance(module, nn.Conv2d):
 -        nn.init.kaiming_normal_(module.weight)
@@ -308,7 +340,7 @@
          if name and 'head.' in name:
              module.weight.data.mul_(head_init_scale)
              module.bias.data.mul_(head_init_scale)
-@@ -466,7 +471,7 @@         RDNet, variant, pretrained,
+@@ -466,7 +476,7 @@         RDNet, variant, pretrained,
          pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
 -        **kwargs)
@@ -316,7 +348,7 @@
      return model
  
  
-@@ -511,7 +516,7 @@         "transition_compression_ratio": 0.5,
+@@ -511,7 +521,7 @@         "transition_compression_ratio": 0.5,
          "block_type": ["Block"] + ["Block"] + ["BlockESE"] * 4 + ["BlockESE"],
      }
 -    model = _create_rdnet("rdnet_tiny", pretrained=pretrained, **dict(model_args, **kwargs))
@@ -324,7 +356,7 @@
      return model
  
  
-@@ -526,7 +531,7 @@         "transition_compression_ratio": 0.5,
+@@ -526,7 +536,7 @@         "transition_compression_ratio": 0.5,
          "block_type": ["Block"] + ["Block"] + ["BlockESE"] * (n_layer - 4) + ["BlockESE"] * 2,
      }
 -    model = _create_rdnet("rdnet_small", pretrained=pretrained, **dict(model_args, **kwargs))
@@ -332,7 +364,7 @@
      return model
  
  
-@@ -541,7 +546,7 @@         "transition_compression_ratio": 0.5,
+@@ -541,7 +551,7 @@         "transition_compression_ratio": 0.5,
          "block_type": ["Block"] + ["Block"] + ["BlockESE"] * (n_layer - 4) + ["BlockESE"] * 2,
      }
 -    model = _create_rdnet("rdnet_base", pretrained=pretrained, **dict(model_args, **kwargs))
@@ -340,7 +372,7 @@
      return model
  
  
-@@ -556,5 +561,5 @@         "transition_compression_ratio": 0.5,
+@@ -556,5 +566,5 @@         "transition_compression_ratio": 0.5,
          "block_type": ["Block"] + ["Block"] + ["BlockESE"] * (n_layer - 4) + ["BlockESE"] * 2,
      }
 -    model = _create_rdnet("rdnet_large", pretrained=pretrained, **dict(model_args, **kwargs))

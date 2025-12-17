@@ -321,7 +321,9 @@ class SENet(msnn.Cell):
                 ('bn1', nn.BatchNorm2d(inplanes, **dd)),
                 ('relu1', nn.ReLU()),
             ]  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
-        self.layer0 = msnn.SequentialCell(OrderedDict(layer0_modules))
+        self.layer0 = msnn.SequentialCell([
+            OrderedDict(layer0_modules)
+        ])
         # To preserve compatibility with Caffe weights `ceil_mode=True` is used instead of `padding=1`.
         self.pool0 = nn.MaxPool2d(3, stride = 2, ceil_mode = True)
         self.feature_info = [dict(num_chs=inplanes, reduction=2, module='layer0')]
@@ -389,11 +391,12 @@ class SENet(msnn.Cell):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = msnn.SequentialCell(
+                [
                 nn.Conv2d(
                     self.inplanes, planes * block.expansion, kernel_size=downsample_kernel_size,
                     stride=stride, padding=downsample_padding, bias=False, **dd),
-                nn.BatchNorm2d(planes * block.expansion, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;
+                nn.BatchNorm2d(planes * block.expansion, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
         layers = [block(self.inplanes, planes, groups, reduction, stride, downsample, **dd)]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.inplanes = planes * block.expansion

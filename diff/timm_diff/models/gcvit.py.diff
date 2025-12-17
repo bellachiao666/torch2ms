@@ -318,7 +318,14 @@
          # input NCHW, downsample & global block are 2d conv + pooling
          x = self.downsample(x)
          global_query = self.global_block(x)
-@@ -396,7 +401,7 @@         return x
+@@ -387,6 +392,7 @@         x = x.permute(0, 2, 3, 1)
+         global_query = self.global_norm(global_query.permute(0, 2, 3, 1))
+         for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, global_query)
+             else:
+@@ -396,7 +402,7 @@         return x
  
  
 -class GlobalContextVit(nn.Module):
@@ -326,7 +333,7 @@
      def __init__(
              self,
              in_chans: int = 3,
-@@ -448,7 +453,7 @@             act_layer=act_layer,
+@@ -448,7 +454,7 @@             act_layer=act_layer,
              norm_layer=norm_layer,
              **dd,
 -        )
@@ -334,7 +341,7 @@
  
          dpr = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
          stages = []
-@@ -473,12 +478,12 @@                 norm_layer=norm_layer,
+@@ -473,12 +479,12 @@                 norm_layer=norm_layer,
                  norm_layer_cl=norm_layer_cl,
                  **dd,
 -            ))
@@ -349,7 +356,7 @@
  
          if weight_init:
              named_apply(partial(self._init_weights, scheme=weight_init), self)
-@@ -487,25 +492,25 @@         # note Conv2d left as default init
+@@ -487,25 +493,25 @@         # note Conv2d left as default init
          if scheme == 'vit':
              if isinstance(module, nn.Linear):
 -                nn.init.xavier_uniform_(module.weight)
@@ -382,7 +389,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^stem',  # stem and embed
-@@ -513,13 +518,13 @@         )
+@@ -513,13 +519,13 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -398,7 +405,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
-@@ -527,17 +532,17 @@         self.num_classes = num_classes
+@@ -527,17 +533,17 @@         self.num_classes = num_classes
          if global_pool is None:
              global_pool = self.head.global_pool.pool_type
 -        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=self.drop_rate, **dd)
@@ -418,7 +425,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -585,7 +590,7 @@             self.reset_classifier(0, '')
+@@ -556,6 +562,7 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -585,7 +592,7 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -426,7 +440,7 @@
          x = self.stem(x)
          x = self.stages(x)
          return x
-@@ -593,7 +598,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -593,7 +600,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -434,7 +448,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -604,7 +609,7 @@         GlobalContextVit, variant, pretrained,
+@@ -604,7 +611,7 @@         GlobalContextVit, variant, pretrained,
          feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
          **kwargs
 -    )
@@ -442,7 +456,7 @@
      return model
  
  
-@@ -639,8 +644,8 @@     model_kwargs = dict(
+@@ -639,8 +646,8 @@     model_kwargs = dict(
          depths=(2, 2, 6, 2),
          num_heads=(2, 4, 8, 16),
 -        **kwargs)
@@ -452,7 +466,7 @@
  
  
  @register_model
-@@ -648,8 +653,8 @@     model_kwargs = dict(
+@@ -648,8 +655,8 @@     model_kwargs = dict(
          depths=(3, 4, 6, 5),
          num_heads=(2, 4, 8, 16),
 -        **kwargs)
@@ -462,7 +476,7 @@
  
  
  @register_model
-@@ -657,8 +662,8 @@     model_kwargs = dict(
+@@ -657,8 +664,8 @@     model_kwargs = dict(
          depths=(3, 4, 19, 5),
          num_heads=(2, 4, 8, 16),
 -        **kwargs)
@@ -472,7 +486,7 @@
  
  
  @register_model
-@@ -669,8 +674,8 @@         embed_dim=96,
+@@ -669,8 +676,8 @@         embed_dim=96,
          mlp_ratio=2,
          layer_scale=1e-5,
 -        **kwargs)
@@ -482,7 +496,7 @@
  
  
  @register_model
-@@ -681,5 +686,5 @@         embed_dim=128,
+@@ -681,5 +688,5 @@         embed_dim=128,
          mlp_ratio=2,
          layer_scale=1e-5,
 -        **kwargs)

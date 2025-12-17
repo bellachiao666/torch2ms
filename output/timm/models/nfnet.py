@@ -347,7 +347,9 @@ def create_stem(
         stem['pool'] = nn.MaxPool2d(3, stride = 2, padding = 1)
         stem_stride = 4
 
-    return msnn.SequentialCell(stem), stem_stride, stem_feature
+    return msnn.SequentialCell([
+        stem
+    ]), stem_stride, stem_feature
 
 
 # from https://github.com/deepmind/deepmind-research/tree/master/nfnets
@@ -565,6 +567,7 @@ class NormFreeNet(msnn.Cell):
             Feature tensor.
         """
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

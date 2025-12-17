@@ -435,23 +435,26 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
     def _record_note(self, node: cst.CSTNode, notes) -> None:
         """
-        将参数差异等提示记录到语句末尾，方便人工确认。
-
-        示例:
-            >>> wrapper = metadata.MetadataWrapper(cst.parse_module("y = fn()"))
-            >>> transformer = TorchToMindSporeTransformer(API_MAP)
-            >>> wrapper.visit(transformer)
-            >>> stmt = wrapper.tree.body[0]
-            >>> transformer._record_note(stmt, ["需要确认默认值"])
-            >>> transformer.notes_by_stmt[stmt]
-            ['需要确认默认值']
-
-        输出:
-            `notes_by_stmt` 被填充，后续在 leave_SimpleStatementLine 中会转成行尾注释。
+        将参数差异等提示绑定到最近的语句或语句块，方便人工确认。
         """
         stmt = self._find_enclosing_stmt(node)
+        if stmt is None:
+            parent = self.get_metadata(metadata.ParentNodeProvider, node, None)
+            while parent and not isinstance(
+                parent, (cst.If, cst.For, cst.While, cst.With, cst.SimpleStatementLine)
+            ):
+                parent = self.get_metadata(metadata.ParentNodeProvider, parent, None)
+            stmt = parent
+
         if stmt is not None:
             self.notes_by_stmt[stmt].extend(notes)
+            return
+
+        # 再退一步记录到最近的函数
+        func = self._find_enclosing_func(node)
+        if func is not None:
+            for note in notes:
+                self._record_func_note(func, note)
 
     def _find_enclosing_func(self, node: cst.CSTNode) -> Optional[cst.FunctionDef]:
         """
@@ -470,7 +473,10 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
         适合放置函数级别的提醒（如类型标注缺失映射），在 leave_FunctionDef 阶段统一落盘。
         """
-        func = self._find_enclosing_func(node)
+        if isinstance(node, cst.FunctionDef):
+            func = node
+        else:
+            func = self._find_enclosing_func(node)
         if func:
             self.notes_by_func[func].append(note)
 
@@ -506,6 +512,11 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         - 已是关键字或单列表入参则直接返回；
         - 以多行 list 形式输出以提升可读性。
         """
+        if not args:
+            return args
+        # 将 *[...]/*(...) 形式去星号，改为直接传入列表/元组
+        if len(args) == 1 and args[0].star:
+            return [args[0].with_changes(star=None)]
         if not args:
             return args
         if any(arg.keyword is not None for arg in args):
@@ -851,6 +862,12 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                 original_node,
                 [f"'{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
             )
+        elif not pt_full_name and full_name and full_name.endswith("SequentialCell"):
+            # 直接调用 SequentialCell 时也包装参数列表，保持与 MindSpore 约定一致
+            if not any(arg.star for arg in updated_node.args):
+                new_args = self._wrap_sequential_args(list(updated_node.args))
+                if new_args != list(updated_node.args):
+                    return updated_node.with_changes(args=new_args)
         # 未命中映射但包含 *args/**kwargs，提醒人工确认
         if any(arg.star for arg in updated_node.args):
             self._record_note(original_node, ["存在 *args/**kwargs，未转换，需手动确认参数映射;"])
@@ -1088,6 +1105,27 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             newline=tw.newline,
         )
         return updated_node.with_changes(trailing_whitespace=new_trailing)
+
+    def _apply_block_notes(self, original_node: cst.CSTNode, updated_node: cst.CSTNode):
+        notes = self.notes_by_stmt.get(original_node)
+        if not notes:
+            return updated_node
+        leading = list(getattr(updated_node, "leading_lines", ()))
+        for note in dict.fromkeys(notes):
+            leading.append(cst.EmptyLine(comment=cst.Comment(f"# {note}")))
+        return updated_node.with_changes(leading_lines=leading)
+
+    def leave_If(self, original_node: cst.If, updated_node: cst.If) -> cst.If:
+        return self._apply_block_notes(original_node, updated_node)
+
+    def leave_For(self, original_node: cst.For, updated_node: cst.For) -> cst.For:
+        return self._apply_block_notes(original_node, updated_node)
+
+    def leave_While(self, original_node: cst.While, updated_node: cst.While) -> cst.While:
+        return self._apply_block_notes(original_node, updated_node)
+
+    def leave_With(self, original_node: cst.With, updated_node: cst.With) -> cst.With:
+        return self._apply_block_notes(original_node, updated_node)
 
 
 class _NameUsageCollector(cst.CSTVisitor):

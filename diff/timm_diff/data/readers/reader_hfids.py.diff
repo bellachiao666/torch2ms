@@ -16,19 +16,21 @@
  from PIL import Image
  
  try:
-@@ -94,9 +99,9 @@         # Distributed world state
+@@ -94,9 +99,11 @@         # Distributed world state
          self.dist_rank = 0
          self.dist_num_replicas = 1
 -        if dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1:
 -            self.dist_rank = dist.get_rank()
 -            self.dist_num_replicas = dist.get_world_size()
++        # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        # 'torch.distributed.is_initialized' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        if dist.is_available() and dist.is_initialized() and mint.distributed.get_world_size() > 1:
 +            self.dist_rank = mint.distributed.get_rank()
 +            self.dist_num_replicas = mint.distributed.get_world_size()
  
          # Attributes that are updated in _lazy_init
          self.worker_info = None
-@@ -127,7 +132,7 @@         """ Lazily initialize worker (in worker processes)
+@@ -127,7 +134,7 @@         """ Lazily initialize worker (in worker processes)
          """
          if self.worker_info is None:
 -            worker_info = torch.utils.data.get_worker_info()

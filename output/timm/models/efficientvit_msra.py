@@ -47,6 +47,8 @@ class ConvNorm(msnn.SequentialCell):
         self.bn = nn.BatchNorm2d(out_chs, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         torch.nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         c, bn = self.conv, self.bn
@@ -82,6 +84,8 @@ class NormLinear(msnn.SequentialCell):
         if self.linear.bias is not None:
             nn.init.constant_(self.linear.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         bn, linear = self.bn, self.linear
@@ -194,9 +198,10 @@ class CascadedGroupAttention(msnn.Cell):
         self.qkvs = msnn.CellList(qkvs)
         self.dws = msnn.CellList(dws)
         self.proj = msnn.SequentialCell(
+            [
             nn.ReLU(),
             ConvNorm(self.val_dim * num_heads, dim, bn_weight_init=0, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         points = list(itertools.product(range(resolution), range(resolution)))
         N = len(points)
@@ -216,13 +221,17 @@ class CascadedGroupAttention(msnn.Cell):
         )
         self.attention_bias_cache = {}
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def train(self, mode=True):
         super().train(mode)
         if mode and self.attention_bias_cache:
             self.attention_bias_cache = {}  # clear ab cache
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def get_attention_biases(self, device: torch.device) -> ms.Tensor:
+        # 'torch.jit.is_tracing' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_tracing() or self.training:
             return self.attention_biases[:, self.attention_bias_idxs]
         else:
@@ -396,19 +405,23 @@ class EfficientVitStage(msnn.Cell):
             down_blocks.append((
                 'res1',
                 msnn.SequentialCell(
-                    ResidualDrop(ConvNorm(in_dim, in_dim, 3, 1, 1, groups=in_dim, **dd)),
-                    ResidualDrop(ConvMlp(in_dim, int(in_dim * 2), **dd)),
-                )
+                    [
+                ResidualDrop(ConvNorm(in_dim, in_dim, 3, 1, 1, groups=in_dim, **dd)),
+                ResidualDrop(ConvMlp(in_dim, int(in_dim * 2), **dd))
+            ])
             ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             down_blocks.append(('patchmerge', PatchMerging(in_dim, out_dim, **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             down_blocks.append((
                 'res2',
                 msnn.SequentialCell(
-                    ResidualDrop(ConvNorm(out_dim, out_dim, 3, 1, 1, groups=out_dim, **dd)),
-                    ResidualDrop(ConvMlp(out_dim, int(out_dim * 2), **dd)),
-                )
+                    [
+                ResidualDrop(ConvNorm(out_dim, out_dim, 3, 1, 1, groups=out_dim, **dd)),
+                ResidualDrop(ConvMlp(out_dim, int(out_dim * 2), **dd))
+            ])
             ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-            self.downsample = msnn.SequentialCell(OrderedDict(down_blocks))
+            self.downsample = msnn.SequentialCell([
+                OrderedDict(down_blocks)
+            ])
         else:
             assert in_dim == out_dim
             self.downsample = msnn.Identity()
@@ -582,12 +595,14 @@ class EfficientVitMsra(msnn.Cell):
         # forward pass
         x = self.patch_embed(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -616,6 +631,7 @@ class EfficientVitMsra(msnn.Cell):
 
     def forward_features(self, x):
         x = self.patch_embed(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

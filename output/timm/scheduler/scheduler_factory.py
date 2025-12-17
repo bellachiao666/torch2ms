@@ -53,6 +53,7 @@ def scheduler_kwargs(cfg, decreasing_metric: Optional[bool] = None):
     return kwargs
 
 
+# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_scheduler(
         args,
         optimizer: Optimizer,
@@ -65,6 +66,7 @@ def create_scheduler(
     )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
+# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def create_scheduler_v2(
         optimizer: Optimizer,
         sched: str = 'cosine',

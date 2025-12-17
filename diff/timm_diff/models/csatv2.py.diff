@@ -423,7 +423,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
-@@ -600,11 +604,11 @@             self.global_pool = global_pool
+@@ -600,12 +604,13 @@             self.global_pool = global_pool
          self.head.reset(num_classes, pool_type=global_pool)
  
 -    @torch.jit.ignore
@@ -434,9 +434,11 @@
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
 +    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
          x = self.stem_dct(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.stages, x)
-@@ -614,13 +618,13 @@ 
+         else:
+@@ -614,13 +619,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -451,7 +453,21 @@
          """Forward pass returning intermediate features.
  
          Args:
-@@ -681,19 +685,19 @@         # 5 feature levels: stem_dct (0) + stages 0-3 (1-4)
+@@ -643,6 +648,7 @@         if 0 in take_indices:
+             intermediates.append(x)
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:
+             stages = self.stages
+         else:
+@@ -650,6 +656,7 @@             stages = self.stages[:max_index] if max_index > 0 else []
+ 
+         for feat_idx, stage in enumerate(stages):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(stage, x)
+             else:
+@@ -681,19 +688,19 @@         # 5 feature levels: stem_dct (0) + stages 0-3 (1-4)
          take_indices, max_index = feature_take_indices(len(self.stages) + 1, indices)
          # max_index is 0-4, stages are 1-4, so we keep max_index stages
 -        self.stages = self.stages[:max_index] if max_index > 0 else nn.Sequential()
@@ -474,7 +490,7 @@
          x = self.forward_features(x)
          return self.forward_head(x)
  
-@@ -717,7 +721,7 @@ })
+@@ -717,7 +724,7 @@ })
  
  
 -def checkpoint_filter_fn(state_dict: dict, model: nn.Module) -> dict:
@@ -482,7 +498,7 @@
      """Remap original CSATv2 checkpoint to timm format.
  
      Handles two key structural changes:
-@@ -809,12 +813,12 @@         feature_cfg=dict(out_indices=out_indices, flatten_sequential=True),
+@@ -809,12 +816,12 @@         feature_cfg=dict(out_indices=out_indices, flatten_sequential=True),
          default_cfg=default_cfgs[variant],
          **kwargs,
 -    )
@@ -496,7 +512,7 @@
  
  
  @register_model
-@@ -826,4 +830,4 @@         transformer_depths = (0, 0, 4, 3)
+@@ -826,4 +833,4 @@         transformer_depths = (0, 0, 4, 3)
  
      )
 -    return _create_csatv2('csatv2_21m', pretrained, **dict(model_args, **kwargs))+    return _create_csatv2('csatv2_21m', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

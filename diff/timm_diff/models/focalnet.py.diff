@@ -32,7 +32,7 @@
              device=None,
              dtype=None,
      ):
-@@ -68,28 +73,28 @@         self.normalize_modulator = normalize_modulator
+@@ -68,28 +73,29 @@         self.normalize_modulator = normalize_modulator
          self.input_split = [dim, dim, self.focal_level + 1]
  
 -        self.f = nn.Conv2d(dim, 2 * dim + (self.focal_level + 1), kernel_size=1, bias=bias, **dd)
@@ -52,10 +52,12 @@
              kernel_size = self.focal_factor * k + self.focal_window
 -            self.focal_layers.append(nn.Sequential(
 +            self.focal_layers.append(msnn.SequentialCell(
++                [
                  nn.Conv2d(dim, dim, kernel_size=kernel_size, groups=dim, padding=kernel_size // 2, bias=False, **dd),
-                 nn.GELU(),
+-                nn.GELU(),
 -            ))
-+            ))  # 存在 *args/**kwargs，需手动确认参数映射;
++                nn.GELU()
++            ]))  # 存在 *args/**kwargs，需手动确认参数映射;
              self.kernel_sizes.append(kernel_size)
 -        self.norm = norm_layer(dim, **dd) if self.use_post_norm else nn.Identity()
 -
@@ -70,7 +72,7 @@
  
          # context aggregation
          ctx_all = 0
-@@ -113,7 +118,7 @@         return x_out
+@@ -113,7 +119,7 @@         return x_out
  
  
 -class FocalNetBlock(nn.Module):
@@ -78,7 +80,7 @@
      """ Focal Modulation Network Block.
      """
  
-@@ -129,8 +134,8 @@             layerscale_value: Optional[float] = 1e-4,
+@@ -129,8 +135,8 @@             layerscale_value: Optional[float] = 1e-4,
              proj_drop: float = 0.,
              drop_path: float = 0.,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -88,7 +90,7 @@
              device=None,
              dtype=None,
      ):
-@@ -157,7 +162,7 @@         self.focal_level = focal_level
+@@ -157,7 +163,7 @@         self.focal_level = focal_level
          self.use_post_norm = use_post_norm
  
 -        self.norm1 = norm_layer(dim, **dd) if not use_post_norm else nn.Identity()
@@ -96,7 +98,7 @@
          self.modulation = FocalModulation(
              dim,
              focal_window=focal_window,
-@@ -167,12 +172,12 @@             proj_drop=proj_drop,
+@@ -167,12 +173,12 @@             proj_drop=proj_drop,
              norm_layer=norm_layer,
              **dd,
 -        )
@@ -114,7 +116,7 @@
          self.mlp = Mlp(
              in_features=dim,
              hidden_features=int(dim * mlp_ratio),
-@@ -180,12 +185,12 @@             drop=proj_drop,
+@@ -180,12 +186,12 @@             drop=proj_drop,
              use_conv=True,
              **dd,
 -        )
@@ -132,7 +134,7 @@
          shortcut = x
  
          # Focal Modulation
-@@ -200,7 +205,7 @@         return x
+@@ -200,7 +206,7 @@         return x
  
  
 -class FocalNetStage(nn.Module):
@@ -140,7 +142,7 @@
      """ A basic Focal Transformer layer for one stage.
      """
  
-@@ -220,7 +225,7 @@             layerscale_value: Optional[float] = 1e-4,
+@@ -220,7 +226,7 @@             layerscale_value: Optional[float] = 1e-4,
              proj_drop: float = 0.,
              drop_path: Union[float, List[float]] = 0.,
 -            norm_layer: Type[nn.Module] = LayerNorm2d,
@@ -148,7 +150,7 @@
              device=None,
              dtype=None,
      ):
-@@ -255,12 +260,12 @@                 overlap=use_overlap_down,
+@@ -255,12 +261,12 @@                 overlap=use_overlap_down,
                  norm_layer=norm_layer,
                  **dd,
 -            )
@@ -163,7 +165,7 @@
              FocalNetBlock(
                  dim=out_dim,
                  mlp_ratio=mlp_ratio,
-@@ -275,13 +280,13 @@                 norm_layer=norm_layer,
+@@ -275,15 +281,16 @@                 norm_layer=norm_layer,
                  **dd,
              )
 -            for i in range(depth)])
@@ -179,8 +181,11 @@
 +    def construct(self, x):
          x = self.downsample(x)
          for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -291,7 +296,7 @@         return x
+                 x = checkpoint(blk, x)
+             else:
+@@ -291,7 +298,7 @@         return x
  
  
 -class Downsample(nn.Module):
@@ -188,7 +193,7 @@
  
      def __init__(
              self,
-@@ -299,7 +304,7 @@             out_chs: int,
+@@ -299,7 +306,7 @@             out_chs: int,
              stride: int = 4,
              overlap: bool = False,
 -            norm_layer: Optional[Type[nn.Module]] = None,
@@ -196,7 +201,7 @@
              device=None,
              dtype=None,
      ):
-@@ -323,16 +328,16 @@                 kernel_size, padding = 7, 2
+@@ -323,16 +330,16 @@                 kernel_size, padding = 7, 2
              elif stride == 2:
                  kernel_size, padding = 3, 1
 -        self.proj = nn.Conv2d(in_chs, out_chs, kernel_size=kernel_size, stride=stride, padding=padding, **dd)
@@ -217,7 +222,7 @@
      """" Focal Modulation Networks (FocalNets)
      """
  
-@@ -356,7 +361,7 @@             drop_rate: float = 0.,
+@@ -356,7 +363,7 @@             drop_rate: float = 0.,
              proj_drop_rate: float = 0.,
              drop_path_rate: float = 0.1,
 -            norm_layer: Type[nn.Module] = partial(LayerNorm2d, eps=1e-5),
@@ -225,7 +230,7 @@
              device=None,
              dtype=None,
      ):
-@@ -392,7 +397,7 @@             overlap=use_overlap_down,
+@@ -392,7 +399,7 @@             overlap=use_overlap_down,
              norm_layer=norm_layer,
              **dd,
 -        )
@@ -233,7 +238,7 @@
          in_dim = embed_dim[0]
  
          dpr = calculate_drop_path_rates(drop_path_rate, sum(depths))  # stochastic depth decay rule
-@@ -416,15 +421,15 @@                 drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
+@@ -416,15 +423,15 @@                 drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
                  norm_layer=norm_layer,
                  **dd,
 -            )
@@ -251,7 +256,7 @@
              self.head_hidden_size = head_hidden_size
              self.head = NormMlpClassifierHead(
                  self.num_features,
-@@ -434,24 +439,24 @@                 drop_rate=drop_rate,
+@@ -434,24 +441,24 @@                 drop_rate=drop_rate,
                  norm_layer=norm_layer,
                  **dd,
 -            )
@@ -280,7 +285,7 @@
      def group_matcher(self, coarse=False):
          return dict(
              stem=r'^stem',
-@@ -465,14 +470,14 @@             ]
+@@ -465,14 +472,14 @@             ]
          )
  
 -    @torch.jit.ignore
@@ -297,7 +302,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -481,13 +486,13 @@ 
+@@ -481,13 +488,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -312,7 +317,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -540,7 +545,7 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
+@@ -506,6 +513,7 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.layers
+         else:
+@@ -540,7 +548,7 @@         take_indices, max_index = feature_take_indices(len(self.layers), indices)
          self.layers = self.layers[:max_index + 1]  # truncate blocks w/ stem as idx 0
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -320,7 +332,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -554,7 +559,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -554,7 +562,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -328,7 +340,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -564,11 +569,11 @@     if isinstance(module, nn.Conv2d):
+@@ -564,11 +572,11 @@     if isinstance(module, nn.Conv2d):
          trunc_normal_(module.weight, std=.02)
          if module.bias is not None:
 -            nn.init.zeros_(module.bias)
@@ -341,7 +353,7 @@
          if name and 'head.fc' in name:
              module.weight.data.mul_(head_init_scale)
              module.bias.data.mul_(head_init_scale)
-@@ -649,44 +654,44 @@         FocalNet, variant, pretrained,
+@@ -649,44 +657,44 @@         FocalNet, variant, pretrained,
          pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
 -        **kwargs)
@@ -398,7 +410,7 @@
  
  
  # FocalNet large+ models
-@@ -694,46 +699,46 @@ def focalnet_large_fl3(pretrained=False, **kwargs) -> FocalNet:
+@@ -694,46 +702,46 @@ def focalnet_large_fl3(pretrained=False, **kwargs) -> FocalNet:
      model_kwargs = dict(
          depths=[2, 2, 18, 2], embed_dim=192, focal_levels=[3, 3, 3, 3], focal_windows=[5] * 4,
 -        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)

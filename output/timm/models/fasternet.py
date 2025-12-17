@@ -154,6 +154,7 @@ class Block(msnn.Cell):
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -344,6 +345,7 @@ class FasterNet(msnn.Cell):
 
         # forward pass
         x = self.patch_embed(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

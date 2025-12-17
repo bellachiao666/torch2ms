@@ -641,6 +641,7 @@ class CoaT(msnn.Cell):
 
         # Only serial blocks: Early return.
         if self.parallel_blocks is None:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if not torch.jit.is_scripting() and self.return_interm_layers:
                 # Return intermediate features for down-stream tasks (e.g. Deformable DETR and Detectron2).
                 feat_out = {}
@@ -663,6 +664,7 @@ class CoaT(msnn.Cell):
             x2, x3, x4 = self.cpe2(x2, (H2, W2)), self.cpe3(x3, (H3, W3)), self.cpe4(x4, (H4, W4))
             x1, x2, x3, x4 = blk(x1, x2, x3, x4, sizes=[(H1, W1), (H2, W2), (H3, W3), (H4, W4)])
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting() and self.return_interm_layers:
             # Return intermediate features for down-stream tasks (e.g. Deformable DETR and Detectron2).
             feat_out = {}
@@ -699,6 +701,7 @@ class CoaT(msnn.Cell):
         return x if pre_logits else self.head(x)
 
     def construct(self, x) -> ms.Tensor:
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting() and self.return_interm_layers:
             # Return intermediate features (for down-stream tasks).
             return self.forward_features(x)

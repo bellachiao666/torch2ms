@@ -57,16 +57,18 @@ class GhostModule(msnn.Cell):
         new_chs = init_chs * (ratio - 1)
 
         self.primary_conv = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chs, init_chs, kernel_size, stride, kernel_size // 2, bias=False, **dd),
             nn.BatchNorm2d(init_chs, **dd),
-            act_layer(inplace=True),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            act_layer(inplace=True)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.cheap_operation = msnn.SequentialCell(
+            [
             nn.Conv2d(init_chs, new_chs, dw_size, 1, dw_size//2, groups=init_chs, bias=False, **dd),
             nn.BatchNorm2d(new_chs, **dd),
-            act_layer(inplace=True),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            act_layer(inplace=True)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x1 = self.primary_conv(x)
@@ -95,23 +97,26 @@ class GhostModuleV2(msnn.Cell):
         init_chs = math.ceil(out_chs / ratio)
         new_chs = init_chs * (ratio - 1)
         self.primary_conv = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chs, init_chs, kernel_size, stride, kernel_size // 2, bias=False, **dd),
             nn.BatchNorm2d(init_chs, **dd),
-            act_layer(inplace=True),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            act_layer(inplace=True)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
         self.cheap_operation = msnn.SequentialCell(
+            [
             nn.Conv2d(init_chs, new_chs, dw_size, 1, dw_size // 2, groups=init_chs, bias=False, **dd),
             nn.BatchNorm2d(new_chs, **dd),
-            act_layer(inplace=True),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            act_layer(inplace=True)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
         self.short_conv = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chs, out_chs, kernel_size, stride, kernel_size // 2, bias=False, **dd),
             nn.BatchNorm2d(out_chs, **dd),
             nn.Conv2d(out_chs, out_chs, kernel_size=(1, 5), stride=1, padding=(0, 2), groups=out_chs, bias=False, **dd),
             nn.BatchNorm2d(out_chs, **dd),
             nn.Conv2d(out_chs, out_chs, kernel_size=(5, 1), stride=1, padding=(2, 0), groups=out_chs, bias=False, **dd),
-            nn.BatchNorm2d(out_chs, **dd),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            nn.BatchNorm2d(out_chs, **dd)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         res = self.short_conv(nn.functional.avg_pool2d(x, kernel_size = 2, stride = 2))
@@ -182,13 +187,14 @@ class GhostModuleV3(msnn.Cell):
         self.cheap_activation = act_layer(inplace=True)
 
         self.short_conv = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chs, out_chs, kernel_size, stride, kernel_size//2, bias=False, **dd),
             nn.BatchNorm2d(out_chs, **dd),
             nn.Conv2d(out_chs, out_chs, kernel_size=(1,5), stride=1, padding=(0,2), groups=out_chs, bias=False, **dd),
             nn.BatchNorm2d(out_chs, **dd),
             nn.Conv2d(out_chs, out_chs, kernel_size=(5,1), stride=1, padding=(2,0), groups=out_chs, bias=False, **dd),
-            nn.BatchNorm2d(out_chs, **dd),
-        ) if self.mode in ['shortcut'] else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
+            nn.BatchNorm2d(out_chs, **dd)
+        ]) if self.mode in ['shortcut'] else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
 
         self.in_channels = init_chs
         self.groups = init_chs
@@ -304,9 +310,10 @@ class GhostModuleV3(msnn.Cell):
         self.primary_conv.weight.data = primary_kernel
         self.primary_conv.bias.data = primary_bias
         self.primary_conv = msnn.SequentialCell(
+            [
             self.primary_conv,
             self.primary_activation if self.primary_activation is not None else msnn.SequentialCell()
-        )
+        ])
 
         cheap_kernel, cheap_bias = self._get_kernel_bias_cheap()
         self.cheap_operation = nn.Conv2d(
@@ -315,9 +322,10 @@ class GhostModuleV3(msnn.Cell):
         self.cheap_operation.bias.data = cheap_bias
 
         self.cheap_operation = msnn.SequentialCell(
+            [
             self.cheap_operation,
             self.cheap_activation if self.cheap_activation is not None else msnn.SequentialCell()
-        )
+        ])
 
         # Delete un-used branches
         for para in self.parameters():
@@ -397,6 +405,7 @@ class GhostBottleneck(msnn.Cell):
             self.shortcut = msnn.SequentialCell()
         else:
             self.shortcut = msnn.SequentialCell(
+                [
                 nn.Conv2d(
                     in_chs,
                     in_chs,
@@ -409,8 +418,8 @@ class GhostBottleneck(msnn.Cell):
                 ),
                 nn.BatchNorm2d(in_chs, **dd),
                 nn.Conv2d(in_chs, out_chs, 1, stride=1, padding=0, bias=False, **dd),
-                nn.BatchNorm2d(out_chs, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;
+                nn.BatchNorm2d(out_chs, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         shortcut = x
@@ -497,6 +506,7 @@ class GhostBottleneckV3(msnn.Cell):
             self.shortcut = msnn.Identity()
         else:
             self.shortcut = msnn.SequentialCell(
+                [
                 nn.Conv2d(
                     in_chs,
                     in_chs,
@@ -509,8 +519,8 @@ class GhostBottleneckV3(msnn.Cell):
                 ),
                 nn.BatchNorm2d(in_chs, **dd),
                 nn.Conv2d(in_chs, out_chs, 1, stride=1, padding=0, bias=False, **dd),
-                nn.BatchNorm2d(out_chs, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;
+                nn.BatchNorm2d(out_chs, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         shortcut = x
@@ -678,7 +688,9 @@ class GhostNet(msnn.Cell):
             stage_idx += 1
 
         out_chs = make_divisible(exp_size * width, 4)
-        stages.append(msnn.SequentialCell(ConvBnAct(prev_chs, out_chs, 1, **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        stages.append(msnn.SequentialCell([
+            ConvBnAct(prev_chs, out_chs, 1, **dd)
+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pool_dim = prev_chs = out_chs
 
         self.blocks = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
@@ -762,12 +774,14 @@ class GhostNet(msnn.Cell):
             intermediates.append(x)
         x = self.bn1(x)
         x = self.act1(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.blocks
         else:
             stages = self.blocks[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages, start=1):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint_seq(stage, x)
             else:
@@ -800,6 +814,7 @@ class GhostNet(msnn.Cell):
         x = self.conv_stem(x)
         x = self.bn1(x)
         x = self.act1(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x, flatten=True)
         else:

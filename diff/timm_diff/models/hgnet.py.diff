@@ -250,17 +250,23 @@
              aggregation_excitation_conv = ConvBNAct(
                  out_chs // 2,
                  out_chs,
-@@ -295,8 +299,8 @@                 stride=1,
+@@ -295,11 +299,12 @@                 stride=1,
                  use_lab=use_lab,
                  **dd,
 -            )
 -            self.aggregation = nn.Sequential(
 +            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +            self.aggregation = msnn.SequentialCell(
++                [
                  aggregation_squeeze_conv,
-                 aggregation_excitation_conv,
-             )
-@@ -308,29 +312,29 @@                 stride=1,
+-                aggregation_excitation_conv,
+-            )
++                aggregation_excitation_conv
++            ])
+         else:
+             aggregation_conv = ConvBNAct(
+                 total_chs,
+@@ -308,29 +313,30 @@                 stride=1,
                  use_lab=use_lab,
                  **dd,
 -            )
@@ -269,13 +275,17 @@
 +            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +            att = EseModule(out_chs, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +            self.aggregation = msnn.SequentialCell(
++                [
                  aggregation_conv,
-                 att,
-             )
- 
+-                att,
+-            )
+-
 -        self.drop_path = DropPath(drop_path) if drop_path else nn.Identity()
 -
 -    def forward(self, x):
++                att
++            ])
++
 +        self.drop_path = DropPath(drop_path) if drop_path else msnn.Identity()
 +
 +    def construct(self, x):
@@ -297,7 +307,7 @@
      def __init__(
              self,
              in_chs: int,
-@@ -361,9 +365,9 @@                 use_act=False,
+@@ -361,9 +367,9 @@                 use_act=False,
                  use_lab=use_lab,
                  **dd,
 -            )
@@ -308,7 +318,7 @@
  
          blocks_list = []
          for i in range(block_num):
-@@ -381,11 +385,11 @@                     drop_path=drop_path[i] if isinstance(drop_path, (list, tuple)) else drop_path,
+@@ -381,12 +387,13 @@                     drop_path=drop_path[i] if isinstance(drop_path, (list, tuple)) else drop_path,
                      **dd,
                  )
 -            )
@@ -320,9 +330,11 @@
 -    def forward(self, x):
 +    def construct(self, x):
          x = self.downsample(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -394,7 +398,7 @@         return x
+         else:
+@@ -394,7 +401,7 @@         return x
  
  
 -class ClassifierHead(nn.Module):
@@ -330,7 +342,7 @@
      def __init__(
              self,
              in_features: int,
-@@ -424,19 +428,19 @@                 padding=0,
+@@ -424,19 +431,26 @@                 padding=0,
                  bias=False,
                  **dd,
 -            )
@@ -340,10 +352,17 @@
 -                lab = LearnableAffineBlock(**dd)
 -                self.last_conv = nn.Sequential(last_conv, act, lab)
 +                lab = LearnableAffineBlock(**dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-+                self.last_conv = msnn.SequentialCell(last_conv, act, lab)
++                self.last_conv = msnn.SequentialCell([
++                    last_conv,
++                    act,
++                    lab
++                ])
              else:
 -                self.last_conv = nn.Sequential(last_conv, act)
-+                self.last_conv = msnn.SequentialCell(last_conv, act)
++                self.last_conv = msnn.SequentialCell([
++                    last_conv,
++                    act
++                ])
          else:
 -            self.last_conv = nn.Identity()
 +            self.last_conv = msnn.Identity()
@@ -356,7 +375,7 @@
  
      def reset(self, num_classes: int, pool_type: Optional[str] = None, device=None, dtype=None):
          dd = {'device': device, 'dtype': dtype}
-@@ -444,11 +448,11 @@             if not pool_type:
+@@ -444,11 +458,11 @@             if not pool_type:
                  assert num_classes == 0, 'Classifier head must be removed if pooling is disabled'
              self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
 -            self.flatten = nn.Flatten(1) if pool_type else nn.Identity()  # don't flatten if pooling disabled
@@ -372,7 +391,7 @@
          x = self.global_pool(x)
          x = self.last_conv(x)
          x = self.dropout(x)
-@@ -459,7 +463,7 @@         return x
+@@ -459,7 +473,7 @@         return x
  
  
 -class HighPerfGpuNet(nn.Module):
@@ -380,7 +399,7 @@
  
      def __init__(
              self,
-@@ -492,9 +496,9 @@                 out_chs=stem_chs[1],
+@@ -492,9 +506,9 @@                 out_chs=stem_chs[1],
                  use_lab=use_lab,
                  **dd,
 -            )
@@ -391,7 +410,7 @@
  
          current_stride = 4
  
-@@ -517,12 +521,12 @@                 agg='ese' if stem_type == 'v1' else 'se',
+@@ -517,12 +531,12 @@                 agg='ese' if stem_type == 'v1' else 'se',
                  drop_path=dpr[i],
                  **dd,
 -            )]
@@ -405,7 +424,7 @@
  
          self.head = ClassifierHead(
              self.num_features,
-@@ -532,32 +536,32 @@             hidden_size=head_hidden_size,
+@@ -532,32 +546,32 @@             hidden_size=head_hidden_size,
              use_lab=use_lab,
              **dd,
 -        )
@@ -447,7 +466,7 @@
          return self.head.fc
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
-@@ -566,13 +570,13 @@ 
+@@ -566,13 +580,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -462,7 +481,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -627,7 +631,7 @@     def forward_head(self, x, pre_logits: bool = False):
+@@ -591,6 +605,7 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -627,7 +642,7 @@     def forward_head(self, x, pre_logits: bool = False):
          return self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -470,7 +496,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -738,7 +742,7 @@         model_cfg=model_cfgs[variant],
+@@ -738,7 +753,7 @@         model_cfg=model_cfgs[variant],
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
          **kwargs,
 -    )
@@ -478,7 +504,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -803,49 +807,49 @@ 
+@@ -803,49 +818,49 @@ 
  @register_model
  def hgnet_tiny(pretrained=False, **kwargs) -> HighPerfGpuNet:
 -    return _create_hgnet('hgnet_tiny', pretrained=pretrained, **kwargs)

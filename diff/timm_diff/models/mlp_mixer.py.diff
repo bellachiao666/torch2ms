@@ -304,7 +304,20 @@
          """Forward features that returns intermediates.
  
          Args:
-@@ -478,12 +483,12 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -433,11 +438,13 @@         B, _, height, width = x.shape
+         x = self.stem(x)
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -478,14 +485,15 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -317,8 +330,11 @@
 +    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
          """Forward pass through feature extraction layers."""
          x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -493,7 +498,7 @@         x = self.norm(x)
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -493,7 +501,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -326,7 +342,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -508,14 +513,14 @@         x = self.head_drop(x)
+@@ -508,14 +516,14 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -342,7 +358,7 @@
      """Mixer weight initialization (trying to match Flax defaults).
  
      Args:
-@@ -526,29 +531,29 @@     """
+@@ -526,29 +534,29 @@     """
      if isinstance(module, nn.Linear):
          if name.startswith('head'):
 -            nn.init.zeros_(module.weight)
@@ -380,7 +396,7 @@
      elif hasattr(module, 'init_weights'):
          # NOTE if a parent module contains init_weights method, it can override the init of the
          # child modules as this will be called in depth-first order.
-@@ -581,7 +586,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -581,7 +589,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -388,7 +404,7 @@
      return model
  
  
-@@ -702,8 +707,8 @@     """ Mixer-S/32 224x224
+@@ -702,8 +710,8 @@     """ Mixer-S/32 224x224
      Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
      """
 -    model_args = dict(patch_size=32, num_blocks=8, embed_dim=512, **kwargs)
@@ -398,7 +414,7 @@
      return model
  
  
-@@ -712,8 +717,8 @@     """ Mixer-S/16 224x224
+@@ -712,8 +720,8 @@     """ Mixer-S/16 224x224
      Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
      """
 -    model_args = dict(patch_size=16, num_blocks=8, embed_dim=512, **kwargs)
@@ -408,7 +424,7 @@
      return model
  
  
-@@ -722,8 +727,8 @@     """ Mixer-B/32 224x224
+@@ -722,8 +730,8 @@     """ Mixer-B/32 224x224
      Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
      """
 -    model_args = dict(patch_size=32, num_blocks=12, embed_dim=768, **kwargs)
@@ -418,7 +434,7 @@
      return model
  
  
-@@ -732,8 +737,8 @@     """ Mixer-B/16 224x224. ImageNet-1k pretrained weights.
+@@ -732,8 +740,8 @@     """ Mixer-B/16 224x224. ImageNet-1k pretrained weights.
      Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
      """
 -    model_args = dict(patch_size=16, num_blocks=12, embed_dim=768, **kwargs)
@@ -428,7 +444,7 @@
      return model
  
  
-@@ -742,8 +747,8 @@     """ Mixer-L/32 224x224.
+@@ -742,8 +750,8 @@     """ Mixer-L/32 224x224.
      Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
      """
 -    model_args = dict(patch_size=32, num_blocks=24, embed_dim=1024, **kwargs)
@@ -438,7 +454,7 @@
      return model
  
  
-@@ -752,8 +757,8 @@     """ Mixer-L/16 224x224. ImageNet-1k pretrained weights.
+@@ -752,8 +760,8 @@     """ Mixer-L/16 224x224. ImageNet-1k pretrained weights.
      Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
      """
 -    model_args = dict(patch_size=16, num_blocks=24, embed_dim=1024, **kwargs)
@@ -448,7 +464,7 @@
      return model
  
  
-@@ -764,8 +769,8 @@     """
+@@ -764,8 +772,8 @@     """
      model_args = dict(
          patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=(1.0, 4.0),
 -        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
@@ -458,7 +474,7 @@
      return model
  
  
-@@ -776,8 +781,8 @@     """
+@@ -776,8 +784,8 @@     """
      model_args = dict(
          patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=(1.0, 4.0),
 -        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
@@ -468,7 +484,7 @@
      return model
  
  
-@@ -787,8 +792,8 @@     Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+@@ -787,8 +795,8 @@     Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
      """
      model_args = dict(
 -        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=4, block_layer=ResBlock, norm_layer=Affine, **kwargs)
@@ -478,7 +494,7 @@
      return model
  
  
-@@ -799,8 +804,8 @@     """
+@@ -799,8 +807,8 @@     """
      model_args = dict(
          patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=4,
 -        block_layer=partial(ResBlock, init_values=1e-5), norm_layer=Affine, **kwargs)
@@ -488,7 +504,7 @@
      return model
  
  
-@@ -811,8 +816,8 @@     """
+@@ -811,8 +819,8 @@     """
      model_args = dict(
          patch_size=16, num_blocks=36, embed_dim=384, mlp_ratio=4,
 -        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
@@ -498,7 +514,7 @@
      return model
  
  
-@@ -823,8 +828,8 @@     """
+@@ -823,8 +831,8 @@     """
      model_args = dict(
          patch_size=8, num_blocks=24, embed_dim=768, mlp_ratio=4,
 -        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
@@ -508,7 +524,7 @@
      return model
  
  
-@@ -835,8 +840,8 @@     """
+@@ -835,8 +843,8 @@     """
      model_args = dict(
          patch_size=16, num_blocks=30, embed_dim=128, mlp_ratio=6, block_layer=SpatialGatingBlock,
 -        mlp_layer=GatedMlp, **kwargs)
@@ -518,7 +534,7 @@
      return model
  
  
-@@ -847,8 +852,8 @@     """
+@@ -847,8 +855,8 @@     """
      model_args = dict(
          patch_size=16, num_blocks=30, embed_dim=256, mlp_ratio=6, block_layer=SpatialGatingBlock,
 -        mlp_layer=GatedMlp, **kwargs)
@@ -528,7 +544,7 @@
      return model
  
  
-@@ -859,8 +864,8 @@     """
+@@ -859,8 +867,8 @@     """
      model_args = dict(
          patch_size=16, num_blocks=30, embed_dim=512, mlp_ratio=6, block_layer=SpatialGatingBlock,
 -        mlp_layer=GatedMlp, **kwargs)

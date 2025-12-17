@@ -53,7 +53,15 @@
      # Calculate the appropriate grid size from coords
      max_y = _coord[:, :, 0].amax(dim=1) + 1
      max_x = _coord[:, :, 1].amax(dim=1) + 1
-@@ -236,7 +241,7 @@             raise StopIteration
+@@ -197,6 +202,8 @@ class NaFlexRopeIterator:
+     """Iterator for generating batched ROPE embeddings for mixed mode with multiple grid sizes."""
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+         self,
+         rope_module,
+@@ -236,7 +243,7 @@             raise StopIteration
  
          # Create batch tensor for current depth
 -        batch_embed = torch.zeros(
@@ -61,7 +69,7 @@
              self.batch_size, self.num_heads, self.seq_len, self.head_dim,
              dtype=self.dtype, device=self.device
          )
-@@ -298,12 +303,12 @@         if cfg.attn_layer:
+@@ -298,12 +305,12 @@         if cfg.attn_layer:
              block_kwargs['attn_layer'] = cfg.attn_layer
          if block_kwargs:
 -            block_fn = partial(block_fn, **block_kwargs)
@@ -75,7 +83,7 @@
      """NaFlex Embedding module for Vision Transformers.
  
      This module encapsulates the complete embedding process for Vision Transformers,
-@@ -360,9 +365,9 @@             pos_embed_interp_mode: str = 'bicubic',
+@@ -360,9 +367,9 @@             pos_embed_interp_mode: str = 'bicubic',
              pos_embed_ar_preserving: bool = False,
              pos_embed_use_grid_sample: bool = False,
 -            input_norm_layer: Optional[Type[nn.Module]] = None,
@@ -87,7 +95,7 @@
              pos_drop_rate: float = 0.,
              enable_patch_interpolator: bool = False,
              device=None,
-@@ -408,8 +413,8 @@         self.num_prefix_tokens += reg_tokens
+@@ -408,8 +415,8 @@         self.num_prefix_tokens += reg_tokens
  
          # Create class and register tokens
 -        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd)) if class_token else None
@@ -97,7 +105,7 @@
  
          # Calculate grid size and number of patches
          self.default_img_size: Optional[Tuple[int, int]] = None
-@@ -431,7 +436,7 @@                 "`norm_layer` must be given when input_norm_layer=True"
+@@ -431,7 +438,7 @@                 "`norm_layer` must be given when input_norm_layer=True"
              input_norm_layer = norm_layer if input_norm_layer is True else (input_norm_layer or None)
              self.norm_input = input_norm_layer(patch_dim) if input_norm_layer else None
 -            self.proj = nn.Linear(patch_dim, embed_dim, bias=proj_bias, **dd)
@@ -105,7 +113,7 @@
              self.flatten = False
              self.is_linear = True
          else:
-@@ -445,7 +450,7 @@                 stride=patch_size,
+@@ -445,7 +452,7 @@                 stride=patch_size,
                  bias=proj_bias,
                  **dd,
 -            )
@@ -113,7 +121,7 @@
              self.flatten = True
              self.is_linear = False
  
-@@ -465,32 +470,32 @@         assert not (proj_norm_layer is True and norm_layer is None), \
+@@ -465,32 +472,32 @@         assert not (proj_norm_layer is True and norm_layer is None), \
              "`norm_layer` must be given when proj_norm_layer=True"
          proj_norm_layer = norm_layer if proj_norm_layer is True else (proj_norm_layer or None)
 -        self.norm = proj_norm_layer(embed_dim) if proj_norm_layer else nn.Identity()
@@ -153,7 +161,7 @@
  
      def feature_info(self, location) -> Dict[str, Any]:
          """Get feature information for feature extraction.
-@@ -536,8 +541,8 @@     @disable_compiler
+@@ -536,8 +543,8 @@     @disable_compiler
      def _apply_learned_naflex_pos_embed(
              self,
 -            x: torch.Tensor,
@@ -163,7 +171,7 @@
      ) -> None:
          """Apply learned position embeddings to NaFlex batch in-place.
  
-@@ -564,13 +569,7 @@                 pos_embed_flat = self.pos_embed.reshape(1, orig_h * orig_w, -1)
+@@ -564,13 +571,7 @@                 pos_embed_flat = self.pos_embed.reshape(1, orig_h * orig_w, -1)
              else:
                  _interp_size = to_2tuple(max(size)) if self.pos_embed_ar_preserving else size
 -                pos_embed_flat = F.interpolate(
@@ -177,7 +185,7 @@
              return pos_embed_flat.to(dtype=x.dtype)
  
          # Determine unique grid sizes to avoid duplicate interpolation
-@@ -588,13 +587,13 @@                 0,
+@@ -588,13 +589,13 @@                 0,
                  torch.as_tensor(batch_indices, device=x.device),
                  pos_embed_flat[:, :seq_len].expand(len(batch_indices), -1, -1)
 -            )
@@ -193,7 +201,7 @@
      ) -> None:
          """Apply learned position embeddings to NaFlex batch using grid_sample.
  
-@@ -619,27 +618,22 @@             scale_y = grid_size_y / shapes[:, 0]  # vertical zoom (B,)
+@@ -619,27 +620,22 @@             scale_y = grid_size_y / shapes[:, 0]  # vertical zoom (B,)
              scale_x = grid_size_x / shapes[:, 1]  # horizontal zoom (B,)
  
 -        theta = torch.zeros(B, 2, 3, device=device, dtype=torch.float32)
@@ -227,7 +235,7 @@
              grid_size: List[int],
      ) -> None:
          """Apply learned position embeddings to standard 2D batch in-place.
-@@ -661,13 +655,7 @@                 _interp_size = L, L
+@@ -661,13 +657,7 @@                 _interp_size = L, L
              else:
                  _interp_size = grid_size
 -            pos_embed_flat = F.interpolate(
@@ -241,7 +249,7 @@
          pos_embed_flat = pos_embed_flat.to(dtype=x.dtype)
  
          x.add_(pos_embed_flat)
-@@ -675,8 +663,8 @@     @disable_compiler
+@@ -675,8 +665,8 @@     @disable_compiler
      def _apply_factorized_naflex_pos_embed(
              self,
 -            x: torch.Tensor,
@@ -251,7 +259,7 @@
      ) -> None:
          """Apply factorized position embeddings to NaFlex batch in-place.
  
-@@ -699,19 +687,14 @@         for bi, k in enumerate(naflex_grid_sizes):
+@@ -699,19 +689,14 @@         for bi, k in enumerate(naflex_grid_sizes):
              size_to_indices.setdefault(k, []).append(bi)
  
 -        def _interp1d(table: torch.Tensor, new_length: int, orig_length: int) -> torch.Tensor:
@@ -272,7 +280,7 @@
  
          for k, batch_indices in size_to_indices.items():
              target_h, target_w = k
-@@ -732,13 +715,13 @@                 0,
+@@ -732,13 +717,13 @@                 0,
                  torch.as_tensor(batch_indices, device=x.device),
                  pos[:, :seq_len].expand(len(batch_indices), -1, -1)
 -            )
@@ -288,7 +296,7 @@
      ) -> None:
          """Apply factorized position embeddings to NaFlex batch using grid_sample.
  
-@@ -765,26 +748,26 @@             scale_x = grid_size_x / shapes[:, 1]  # horizontal zoom (B,)
+@@ -765,26 +750,26 @@             scale_x = grid_size_x / shapes[:, 1]  # horizontal zoom (B,)
              scale_y = grid_size_y / shapes[:, 0]  # vertical zoom (B,)
  
 -        def _interp1d(table: torch.Tensor, scale: torch.Tensor, out_length: torch.Tensor) -> torch.Tensor:
@@ -320,7 +328,7 @@
              grid_size: List[int],
      ) -> None:
          """Apply factorized position embeddings to standard 2D batch in-place.
-@@ -804,15 +787,10 @@         else:
+@@ -804,15 +789,10 @@         else:
              len_y, len_x = target_h, target_w
  
 -        def _interp1d(table: torch.Tensor, new_length: int, orig_length: int) -> torch.Tensor:
@@ -337,7 +345,7 @@
  
          # Interpolate embeddings
          pe_y = _interp1d(self.pos_embed_y, len_y, orig_h)[:, :target_h]  # (1,H,C)
-@@ -824,12 +802,12 @@ 
+@@ -824,12 +804,12 @@ 
          x.add_(pos_embed_flat)
  
 -    def forward(
@@ -354,7 +362,7 @@
          """Forward pass for patch embedding with position encoding.
  
          Args:
-@@ -882,7 +860,7 @@                 H, W = x.shape[-2:]
+@@ -882,7 +862,7 @@                 H, W = x.shape[-2:]
                  pad_h = (self.patch_size[0] - H % self.patch_size[0]) % self.patch_size[0]
                  pad_w = (self.patch_size[1] - W % self.patch_size[1]) % self.patch_size[1]
 -                x = F.pad(x, (0, pad_w, 0, pad_h))
@@ -362,7 +370,7 @@
  
              x = self.proj(x)
  
-@@ -922,7 +900,7 @@             to_cat.append(self.reg_token.expand(B, -1, -1))
+@@ -922,7 +902,7 @@             to_cat.append(self.reg_token.expand(B, -1, -1))
          # Add tokens to the beginning
          if to_cat:
 -            x = torch.cat(to_cat + [x], dim=1)
@@ -370,7 +378,10 @@
  
          # Apply dropout
          x = self.pos_drop(x)
-@@ -932,12 +910,12 @@ 
+@@ -930,14 +910,15 @@         return x, grid_size
+ 
+ 
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  @register_notrace_function
  def create_attention_mask(
 -        patch_valid: torch.Tensor,
@@ -385,7 +396,7 @@
      """Creates an attention mask from patch validity information.
  
      Supports two modes controlled by `symmetric`:
-@@ -977,9 +955,9 @@     # Prepend prefix tokens if any
+@@ -977,9 +958,9 @@     # Prepend prefix tokens if any
      if num_prefix_tokens > 0:
          # Create prefix validity tensor on the same device/dtype base as patch_valid
 -        prefix_valid = patch_valid.new_ones((B, num_prefix_tokens), dtype=torch.bool)
@@ -396,7 +407,7 @@
          kv_len += num_prefix_tokens # Update total key/value sequence length
  
      if symmetric:
-@@ -992,21 +970,21 @@         mask_bool = patch_valid[:, None, None, :].expand(B, 1, q_len, kv_len)
+@@ -992,21 +973,21 @@         mask_bool = patch_valid[:, None, None, :].expand(B, 1, q_len, kv_len)
  
      # Create the float mask and apply masking using additive mask convention
 -    mask_float = torch.zeros_like(mask_bool, dtype=dtype)
@@ -422,7 +433,7 @@
      """Global pooling with NaFlex support for masked tokens.
  
      Applies global pooling while respecting patch validity masks to exclude
-@@ -1038,7 +1016,7 @@             # Include prefix tokens in pooling - they are always considered valid
+@@ -1038,7 +1019,7 @@             # Include prefix tokens in pooling - they are always considered valid
              # patch_valid only covers patch tokens, so create combined validity mask
              prefix_valid = patch_valid.new_ones(x.shape[0], num_prefix_tokens)
 -            patch_valid = torch.cat([prefix_valid, patch_valid], dim=1)
@@ -430,7 +441,7 @@
          else:
              # Exclude prefix tokens from pooling (default behavior)
              x = x[:, num_prefix_tokens:]
-@@ -1058,7 +1036,7 @@ 
+@@ -1058,7 +1039,7 @@ 
          # For max pooling we set masked positions to large negative value
          masked_x = x.clone()
 -        masked_x[~patch_valid] = torch.finfo(masked_x.dtype).min
@@ -438,7 +449,7 @@
          masked_max = masked_x.amax(dim=1)
  
          # Combine average and max
-@@ -1066,13 +1044,13 @@     elif pool_type == 'max':
+@@ -1066,13 +1047,13 @@     elif pool_type == 'max':
          # For max pooling we set masked positions to large negative value
          masked_x = x.clone()
 -        masked_x[~patch_valid] = torch.finfo(masked_x.dtype).min
@@ -453,7 +464,7 @@
      """NaFlexVit: Vision Transformer with NaFlex support for flexible input handling.
  
      A flexible implementation of Vision Transformer that supports:
-@@ -1110,7 +1088,7 @@         # Initialize config
+@@ -1110,7 +1091,7 @@         # Initialize config
          cfg = cfg or NaFlexVitCfg()
          if kwargs:
 -            cfg = _overlay_kwargs(cfg, **kwargs)
@@ -461,7 +472,7 @@
  
          # Validate configuration
          assert cfg.global_pool in ('', 'avg', 'avgmax', 'max', 'token', 'map')
-@@ -1156,11 +1134,11 @@             pos_drop_rate=cfg.pos_drop_rate,
+@@ -1156,11 +1137,11 @@             pos_drop_rate=cfg.pos_drop_rate,
              enable_patch_interpolator=getattr(cfg, 'enable_patch_interpolator', False),
              **dd,
 -        )
@@ -475,7 +486,7 @@
          self.rope_is_mixed = False
          if cfg.rope_type and cfg.rope_type != 'none':
              from timm.layers.pos_embed_sincos import RotaryEmbeddingCat, RotaryEmbeddingMixed
-@@ -1173,7 +1151,7 @@                     feat_shape=None,  # Dynamic shapes for NaFlex
+@@ -1173,7 +1154,7 @@                     feat_shape=None,  # Dynamic shapes for NaFlex
                      grid_indexing=cfg.rope_grid_indexing,
                      **dd,
 -                )
@@ -483,7 +494,7 @@
                  self.rope_is_mixed = True
              elif cfg.rope_type == 'axial':
                  self.rope = RotaryEmbeddingCat(
-@@ -1185,7 +1163,7 @@                     grid_offset=cfg.rope_grid_offset,
+@@ -1185,7 +1166,7 @@                     grid_offset=cfg.rope_grid_offset,
                      grid_indexing=cfg.rope_grid_indexing,
                      **dd,
 -                )
@@ -491,7 +502,7 @@
                  self.rope_is_mixed = False
              else:
                  raise ValueError(f"Unknown rope_type: {cfg.rope_type}")
-@@ -1202,7 +1180,7 @@         # Transformer blocks
+@@ -1202,7 +1183,7 @@         # Transformer blocks
          dpr = calculate_drop_path_rates(cfg.drop_path_rate, cfg.depth)  # stochastic depth decay rule
          # Create transformer blocks
 -        self.blocks = nn.Sequential(*[
@@ -499,7 +510,7 @@
              block_fn(
                  dim=cfg.embed_dim,
                  num_heads=cfg.num_heads,
-@@ -1221,7 +1199,7 @@                 **dd,
+@@ -1221,7 +1202,7 @@                 **dd,
              )
              for i in range(cfg.depth)
 -        ])
@@ -507,7 +518,7 @@
  
          # Feature info for downstream tasks
          patch_reduction = self.embeds.feat_ratio(as_scalar=True)
-@@ -1230,7 +1208,7 @@             for i in range(cfg.depth)
+@@ -1230,7 +1211,7 @@             for i in range(cfg.depth)
          ]
  
 -        self.norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and not cfg.fc_norm else nn.Identity()
@@ -515,7 +526,7 @@
  
          # Classifier Head
          if cfg.global_pool == 'map':
-@@ -1241,7 +1219,7 @@                 norm_layer=norm_layer,
+@@ -1241,7 +1222,7 @@                 norm_layer=norm_layer,
                  act_layer=act_layer,
                  **dd,
 -            )
@@ -523,7 +534,7 @@
          else:
              self.attn_pool = None
  
-@@ -1249,9 +1227,9 @@         fc_norm = cfg.fc_norm
+@@ -1249,9 +1230,9 @@         fc_norm = cfg.fc_norm
          if fc_norm is None:
              fc_norm = cfg.global_pool == 'avg'
 -        self.fc_norm = norm_layer(cfg.embed_dim, **dd) if cfg.final_norm and fc_norm else nn.Identity()
@@ -534,15 +545,16 @@
  
          if cfg.weight_init != 'skip':
              self.init_weights(cfg.weight_init)
-@@ -1260,7 +1238,7 @@ 
+@@ -1260,7 +1241,8 @@ 
      def fix_init_weight(self) -> None:
          """Apply initialization weight fix with layer-wise scaling."""
 -        def rescale(param: torch.Tensor, _layer_id: int) -> None:
 +        def rescale(param: ms.Tensor, _layer_id: int) -> None:
++            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              with torch.no_grad():
                  param.div_(math.sqrt(2.0 * _layer_id))
  
-@@ -1285,14 +1263,14 @@         head_bias = -math.log(self.num_classes) if 'nlhb' in mode else 0.
+@@ -1285,14 +1267,14 @@         head_bias = -math.log(self.num_classes) if 'nlhb' in mode else 0.
          named_apply(get_init_weights_vit(mode, head_bias), self)
  
 -    @torch.jit.ignore()
@@ -558,7 +570,7 @@
              if isinstance(state_dict, dict) and 'state_dict' in state_dict:
                  state_dict = state_dict['state_dict']
  
-@@ -1311,7 +1289,7 @@ 
+@@ -1311,7 +1293,7 @@ 
          _load_weights_adapter(self, checkpoint_path, prefix)
  
 -    @torch.jit.ignore
@@ -566,7 +578,7 @@
      def no_weight_decay(self) -> Set:
          """Get set of parameter names that should not have weight decay applied.
  
-@@ -1323,7 +1301,7 @@             skip_list.update(self.rope.no_weight_decay())
+@@ -1323,7 +1305,7 @@             skip_list.update(self.rope.no_weight_decay())
          return skip_list
  
 -    @torch.jit.ignore
@@ -574,7 +586,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict:
          """Get parameter group matcher for optimizer parameter grouping.
  
-@@ -1338,7 +1316,7 @@             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
+@@ -1338,7 +1320,7 @@             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
          )
  
 -    @torch.jit.ignore
@@ -582,7 +594,7 @@
      def set_grad_checkpointing(self, enable: bool = True) -> None:
          """Enable or disable gradient checkpointing for memory efficiency.
  
-@@ -1349,8 +1327,8 @@         if hasattr(self.embeds, 'patch_embed') and hasattr(self.embeds.patch_embed, 'set_grad_checkpointing'):
+@@ -1349,8 +1331,8 @@         if hasattr(self.embeds, 'patch_embed') and hasattr(self.embeds.patch_embed, 'set_grad_checkpointing'):
              self.embeds.patch_embed.set_grad_checkpointing(enable)
  
 -    @torch.jit.ignore
@@ -592,7 +604,7 @@
          """Get the classification head module.
  
          Returns:
-@@ -1361,9 +1339,9 @@     @disable_compiler
+@@ -1361,9 +1343,9 @@     @disable_compiler
      def _generate_rope_naflex(
              self,
 -            x: torch.Tensor,
@@ -604,7 +616,7 @@
          """Generate ROPE position embeddings for NaFlex batch with variable grid sizes.
  
          Args:
-@@ -1404,7 +1382,7 @@             )
+@@ -1404,7 +1386,7 @@             )
  
          # Axial mode: [batch_size, seq_len, dim*2]
 -        rope_embeds = torch.zeros(B, seq_len, self.rope.dim * 2, dtype=x.dtype, device=x.device)
@@ -612,7 +624,7 @@
  
          if hasattr(self.rope, 'get_batch_embeds'):
              # Batch mode - generate unique embeds from one grid and then assign
-@@ -1442,7 +1420,7 @@             elif global_pool != 'map' and self.attn_pool is not None:
+@@ -1442,7 +1424,7 @@             elif global_pool != 'map' and self.attn_pool is not None:
                  self.attn_pool = None  # remove attention pooling
              self.global_pool = global_pool
 -        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
@@ -620,7 +632,7 @@
  
      def _forward_embeds(
              self,
-@@ -1450,7 +1428,7 @@             patch_coord,
+@@ -1450,7 +1432,7 @@             patch_coord,
              patch_valid,
              attn_mask,
 -    ) -> Dict[str, torch.Tensor]:
@@ -628,7 +640,7 @@
          """ Forward pass through patch / abs pos / rope pos embeds and patch dropout
          """
          naflex_mode = patch_coord is not None
-@@ -1475,7 +1453,7 @@                 assert False, 'Expected one of patch_coord or grid_size to be valid'
+@@ -1475,7 +1457,7 @@                 assert False, 'Expected one of patch_coord or grid_size to be valid'
  
          # Apply patch dropout with coordinated updates
 -        keep_indices: Optional[torch.Tensor] = None
@@ -636,7 +648,7 @@
          if self.training and self.patch_drop is not None:
              x, keep_indices = self.patch_drop(x)
              # keep_indices excludes prefix tokens, can use directly on patch_valid & rope embeds
-@@ -1508,7 +1486,7 @@ 
+@@ -1508,7 +1490,7 @@ 
      def forward_intermediates(
              self,
 -            x: Union[torch.Tensor, Dict[str, torch.Tensor]],
@@ -644,7 +656,7 @@
              indices: Optional[Union[int, List[int]]] = None,
              return_prefix_tokens: bool = False,
              norm: bool = False,
-@@ -1516,10 +1494,10 @@             output_fmt: str = 'NCHW',
+@@ -1516,10 +1498,10 @@             output_fmt: str = 'NCHW',
              intermediates_only: bool = False,
              output_dict: bool = False,
 -            patch_coord: Optional[torch.Tensor] = None,
@@ -658,7 +670,13 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -1574,7 +1552,7 @@         else:
+@@ -1569,12 +1551,13 @@         attn_mask = embeds.get('attn_mask', None)
+ 
+         # Forward pass through blocks
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
              blocks = self.blocks[:max_index + 1]
  
 -        do_checkpointing = self.grad_checkpointing and not torch.jit.is_scripting()
@@ -666,7 +684,14 @@
          if self.rope_is_mixed and rope_embeds is not None:
              # Mixed mode with per-layer embeddings (list or iterator)
              for i, (blk, rope_embed) in enumerate(zip(self.blocks, rope_embeds)):
-@@ -1657,11 +1635,11 @@ 
+@@ -1644,6 +1627,7 @@             return result_dict
+ 
+         # For non-dictionary output, maintain the original behavior
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if not torch.jit.is_scripting() and return_prefix_tokens and prefix_tokens is not None:
+             # return_prefix not support in torchscript due to poor type handling
+             intermediates = list(zip(intermediates, prefix_tokens))
+@@ -1657,11 +1641,11 @@ 
      def forward_features(
              self,
 -            patches: torch.Tensor,
@@ -682,7 +707,7 @@
          """
          """
          naflex_mode = patch_coord is not None
-@@ -1679,7 +1657,7 @@         attn_mask = embeds.get('attn_mask', None)
+@@ -1679,7 +1663,7 @@         attn_mask = embeds.get('attn_mask', None)
  
          # Apply transformer blocks with masked attention and/or ROPE if provided
 -        do_checkpointing = self.grad_checkpointing and not torch.jit.is_scripting()
@@ -690,7 +715,7 @@
          if self.rope_is_mixed and rope_embeds is not None:
              # Mixed mode with per-layer embeddings (list or iterator)
              for i, (blk, rope_embed) in enumerate(zip(self.blocks, rope_embeds)):
-@@ -1721,10 +1699,10 @@ 
+@@ -1721,10 +1705,10 @@ 
      def _pool(
              self,
 -            x: torch.Tensor,
@@ -703,7 +728,7 @@
          if self.attn_pool is not None:
              attn_mask = create_attention_mask(
                  patch_valid,
-@@ -1751,22 +1729,22 @@ 
+@@ -1751,22 +1735,22 @@ 
      def forward_head(
              self,
 -            patches: torch.Tensor,
@@ -734,7 +759,7 @@
          """Forward pass with optional NaFlex support.
  
          Args:
-@@ -1804,7 +1782,7 @@             )
+@@ -1804,7 +1788,7 @@             )
  
              # Pass patches & patch_valid to forward_head for masked pooling
 -            x = self.forward_head(**features)
@@ -742,7 +767,7 @@
          else:
              x = self.forward_features(x)
              x = self.forward_head(x)
-@@ -1822,8 +1800,8 @@         w = (patch_coord[i, :, 1].max() + 1).item()
+@@ -1822,8 +1806,8 @@         w = (patch_coord[i, :, 1].max() + 1).item()
          patch = patch.reshape(h, w, 16, 16, 3).permute(4, 0, 2, 1, 3)
          patch = patch.reshape(3, h*16, w*16)
 -        from torchvision.utils import save_image
@@ -752,7 +777,7 @@
  
  
  def get_init_weights_vit(mode: str = 'jax', head_bias: float = 0.0) -> Callable:
-@@ -1961,7 +1939,7 @@     # pop in-place so the original kwargs is emptied of cfg-specific keys
+@@ -1961,7 +1945,7 @@     # pop in-place so the original kwargs is emptied of cfg-specific keys
      cfg_updates = {k: kwargs.pop(k) for k in list(kwargs) if k in cfg_field_names}
      if cfg_updates:
 -        cfg = _overlay_kwargs(cfg, **cfg_updates)
@@ -760,7 +785,7 @@
  
      model = build_model_with_cfg(
          NaFlexVit, variant, pretrained,
-@@ -1969,7 +1947,7 @@         cfg=cfg,
+@@ -1969,7 +1953,7 @@         cfg=cfg,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -768,7 +793,7 @@
      return model
  
  
-@@ -2013,7 +1991,7 @@         **kwargs  # User overrides take precedence
+@@ -2013,7 +1997,7 @@         **kwargs  # User overrides take precedence
      }
  
 -    return _create_naflexvit(variant, pretrained, **flex_kwargs)
@@ -776,7 +801,7 @@
  
  
  def _create_naflexvit_from_eva(
-@@ -2080,7 +2058,7 @@         **kwargs  # Pass remaining kwargs through
+@@ -2080,7 +2064,7 @@         **kwargs  # Pass remaining kwargs through
      }
  
 -    return _create_naflexvit(variant, pretrained, **naflex_kwargs)
@@ -784,7 +809,7 @@
  
  
  @register_model
-@@ -2097,7 +2075,7 @@         reg_tokens=4,
+@@ -2097,7 +2081,7 @@         reg_tokens=4,
          fc_norm=True,
      )
 -    model = _create_naflexvit('naflexvit_base_patch16_gap', pretrained=pretrained, cfg=cfg, **kwargs)
@@ -792,7 +817,7 @@
      return model
  
  
-@@ -2116,7 +2094,7 @@         reg_tokens=4,
+@@ -2116,7 +2100,7 @@         reg_tokens=4,
          fc_norm=True,
      )
 -    model = _create_naflexvit('naflexvit_base_patch16_par_gap', pretrained=pretrained, cfg=cfg, **kwargs)
@@ -800,7 +825,7 @@
      return model
  
  
-@@ -2136,7 +2114,7 @@         reg_tokens=4,
+@@ -2136,7 +2120,7 @@         reg_tokens=4,
          fc_norm=True,
      )
 -    model = _create_naflexvit('naflexvit_base_patch16_parfac_gap', pretrained=pretrained, cfg=cfg, **kwargs)
@@ -808,7 +833,7 @@
      return model
  
  
-@@ -2153,7 +2131,7 @@         global_pool='map',
+@@ -2153,7 +2137,7 @@         global_pool='map',
          reg_tokens=1,
      )
 -    model = _create_naflexvit('naflexvit_base_patch16_map', pretrained=pretrained, cfg=cfg, **kwargs)
@@ -816,7 +841,7 @@
      return model
  
  
-@@ -2178,7 +2156,7 @@         global_pool='avg',
+@@ -2178,7 +2162,7 @@         global_pool='avg',
          fc_norm=True,
      )
 -    model = _create_naflexvit('naflexvit_so150m2_patch16_reg1_gap', pretrained=pretrained, cfg=cfg, **kwargs)
@@ -824,7 +849,7 @@
      return model
  
  
-@@ -2202,7 +2180,7 @@         reg_tokens=1,
+@@ -2202,7 +2186,7 @@         reg_tokens=1,
          global_pool='map',
      )
 -    model = _create_naflexvit('naflexvit_so150m2_patch16_reg1_map', pretrained=pretrained, cfg=cfg, **kwargs)
@@ -832,7 +857,7 @@
      return model
  
  
-@@ -2218,7 +2196,7 @@         act_layer='gelu_tanh',
+@@ -2218,7 +2202,7 @@         act_layer='gelu_tanh',
          global_pool='map',
      )
 -    model = _create_naflexvit('naflexvit_base_patch16_siglip', pretrained=pretrained, cfg=cfg, **kwargs)
@@ -840,7 +865,7 @@
      return model
  
  
-@@ -2235,5 +2213,5 @@         act_layer='gelu_tanh',
+@@ -2235,5 +2219,5 @@         act_layer='gelu_tanh',
          global_pool='map',
      )
 -    model = _create_naflexvit('naflexvit_so400m_patch16_siglip', pretrained=pretrained, cfg=cfg, **kwargs)

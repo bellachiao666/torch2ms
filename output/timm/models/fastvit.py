@@ -471,6 +471,7 @@ def convolutional_stem(
     """
     dd = {'device': device, 'dtype': dtype}
     return msnn.SequentialCell(
+        [
         MobileOneBlock(
             in_chs=in_chs,
             out_chs=out_chs,
@@ -501,8 +502,8 @@ def convolutional_stem(
             inference_mode=inference_mode,
             use_scale_branch=use_scale_branch,
             **dd,
-        ),
-    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        )
+    ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
 
 class Attention(msnn.Cell):
@@ -604,6 +605,7 @@ class PatchEmbed(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.proj = msnn.SequentialCell(
+            [
             ReparamLargeKernelConv(
                 in_chs=in_chs,
                 out_chs=embed_dim,
@@ -626,7 +628,7 @@ class PatchEmbed(msnn.Cell):
                 inference_mode=inference_mode,
                 **dd,
             )
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.proj(x)
@@ -1158,6 +1160,7 @@ class FastVitStage(msnn.Cell):
     def construct(self, x):
         x = self.downsample(x)
         x = self.pos_emb(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -1359,6 +1362,7 @@ class FastVit(msnn.Cell):
         # forward pass
         x = self.stem(x)
         last_idx = self.num_stages - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

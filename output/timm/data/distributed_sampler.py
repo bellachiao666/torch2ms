@@ -27,10 +27,12 @@ class OrderedDistributedSampler(Sampler):
 
     def __init__(self, dataset, num_replicas=None, rank=None):
         if num_replicas is None:
+            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if not dist.is_available():
                 raise RuntimeError("Requires distributed package to be available")
             num_replicas = mint.distributed.get_world_size()
         if rank is None:
+            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if not dist.is_available():
                 raise RuntimeError("Requires distributed package to be available")
             rank = mint.distributed.get_rank()
@@ -80,10 +82,12 @@ class RepeatAugSampler(Sampler):
             selected_ratio=0,
     ):
         if num_replicas is None:
+            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if not dist.is_available():
                 raise RuntimeError("Requires distributed package to be available")
             num_replicas = mint.distributed.get_world_size()
         if rank is None:
+            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if not dist.is_available():
                 raise RuntimeError("Requires distributed package to be available")
             rank = mint.distributed.get_rank()

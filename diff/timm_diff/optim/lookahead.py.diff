@@ -20,7 +20,15 @@
  class Lookahead(Optimizer):
      def __init__(self, base_optimizer, alpha=0.5, k=6):
          # NOTE super().__init__() not called on purpose
-@@ -39,7 +45,7 @@                 continue
+@@ -32,6 +38,8 @@             for group in self._base_optimizer.param_groups:
+                 group.setdefault(name, default)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def update_slow(self, group):
+         for fast_p in group["params"]:
+@@ -39,7 +47,7 @@                 continue
              param_state = self._base_optimizer.state[fast_p]
              if 'lookahead_slow_buff' not in param_state:
 -                param_state['lookahead_slow_buff'] = torch.empty_like(fast_p)
@@ -28,3 +36,11 @@
                  param_state['lookahead_slow_buff'].copy_(fast_p)
              slow = param_state['lookahead_slow_buff']
              slow.add_(fast_p - slow, alpha=group['lookahead_alpha'])
+@@ -49,6 +57,8 @@         for group in self._base_optimizer.param_groups:
+             self.update_slow(group)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         loss = self._base_optimizer.step(closure)

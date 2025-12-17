@@ -16,12 +16,16 @@
  class OrderedDistributedSampler(Sampler):
      """Sampler that restricts data loading to a subset of the dataset.
      It is especially useful in conjunction with
-@@ -23,11 +29,11 @@         if num_replicas is None:
+@@ -21,13 +27,15 @@ 
+     def __init__(self, dataset, num_replicas=None, rank=None):
+         if num_replicas is None:
++            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if not dist.is_available():
                  raise RuntimeError("Requires distributed package to be available")
 -            num_replicas = dist.get_world_size()
 +            num_replicas = mint.distributed.get_world_size()
          if rank is None:
++            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if not dist.is_available():
                  raise RuntimeError("Requires distributed package to be available")
 -            rank = dist.get_rank()
@@ -29,19 +33,23 @@
          self.dataset = dataset
          self.num_replicas = num_replicas
          self.rank = rank
-@@ -51,6 +57,7 @@         return self.num_samples
+@@ -51,6 +59,7 @@         return self.num_samples
  
  
 +# 'torch.utils.data.Sampler' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class RepeatAugSampler(Sampler):
      """Sampler that restricts data loading to a subset of the dataset for distributed,
      with repeated augmentation.
-@@ -75,11 +82,11 @@         if num_replicas is None:
+@@ -73,13 +82,15 @@             selected_ratio=0,
+     ):
+         if num_replicas is None:
++            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if not dist.is_available():
                  raise RuntimeError("Requires distributed package to be available")
 -            num_replicas = dist.get_world_size()
 +            num_replicas = mint.distributed.get_world_size()
          if rank is None:
++            # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if not dist.is_available():
                  raise RuntimeError("Requires distributed package to be available")
 -            rank = dist.get_rank()
@@ -49,7 +57,7 @@
          self.dataset = dataset
          self.num_replicas = num_replicas
          self.rank = rank
-@@ -100,20 +107,20 @@ 
+@@ -100,20 +111,20 @@ 
      def __iter__(self):
          # deterministically shuffle based on epoch
 -        g = torch.Generator()

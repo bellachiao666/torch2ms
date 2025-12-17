@@ -117,6 +117,7 @@ class VisionTransformerDistilled(VisionTransformer):
             return (x + x_dist) / 2
         x = self.head(x)
         x_dist = self.head_dist(x_dist)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.distilled_training and self.training and not torch.jit.is_scripting():
             # only return separate classification predictions when training in distilled mode
             return x, x_dist

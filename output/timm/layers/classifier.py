@@ -185,10 +185,12 @@ class NormMlpClassifierHead(msnn.Cell):
         self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.flatten = mint.flatten(1) if pool_type else msnn.Identity()
         if hidden_size:
-            self.pre_logits = msnn.SequentialCell(OrderedDict([
+            self.pre_logits = msnn.SequentialCell([
+                OrderedDict([
                 ('fc', linear_layer(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
-            ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            ])
+            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = hidden_size
         else:
             self.pre_logits = msnn.Identity()
@@ -205,6 +207,7 @@ class NormMlpClassifierHead(msnn.Cell):
         if self.hidden_size:
             if ((isinstance(self.pre_logits.fc, nn.Conv2d) and not self.use_conv) or
                     (isinstance(self.pre_logits.fc, nn.Linear) and self.use_conv)):
+                # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 with torch.no_grad():
                     new_fc = linear_layer(self.in_features, self.hidden_size)
                     new_fc.weight.copy_(self.pre_logits.fc.weight.reshape(new_fc.weight.shape))
@@ -264,10 +267,12 @@ class ClNormMlpClassifierHead(msnn.Cell):
 
         self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if hidden_size:
-            self.pre_logits = msnn.SequentialCell(OrderedDict([
+            self.pre_logits = msnn.SequentialCell([
+                OrderedDict([
                 ('fc', nn.Linear(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
-            ]))  # 存在 *args/**kwargs，需手动确认参数映射;
+            ])
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;
             self.num_features = hidden_size
         else:
             self.pre_logits = msnn.Identity()

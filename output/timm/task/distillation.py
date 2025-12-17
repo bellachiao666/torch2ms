@@ -35,6 +35,8 @@ class DistillationTeacher(msnn.Cell):
         dtype: Model dtype (uses float32 if None)
     """
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             model_name: str,
@@ -171,6 +173,8 @@ class LogitDistillationTask(TrainingTask):
         ... )
     """
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             student_model: msnn.Cell,
@@ -296,6 +300,7 @@ class LogitDistillationTask(TrainingTask):
         task_loss = self.criterion(student_logits, target)
 
         # Teacher forward pass (no gradient)
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             input_kd = self.teacher.normalize_input(input, self.student_mean, self.student_std)
             teacher_logits = self.teacher(input_kd.detach(), return_features=False)
@@ -400,6 +405,8 @@ class FeatureDistillationTask(TrainingTask):
         ... )
     """
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             student_model: msnn.Cell,
@@ -561,6 +568,7 @@ class FeatureDistillationTask(TrainingTask):
         task_loss = self.criterion(student_logits, target)
 
         # Teacher forward pass (no gradient)
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             input_kd = self.teacher.normalize_input(input, self.student_mean, self.student_std)
             teacher_features = self.teacher(input_kd.detach(), return_features=True)

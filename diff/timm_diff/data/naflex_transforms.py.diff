@@ -21,7 +21,7 @@
  
  from .transforms import str_to_interp_mode, crop_or_pad, center_crop_or_pad
  
-@@ -123,7 +126,7 @@ _RANDOM_INTERPOLATION = (str_to_interp_mode('bilinear'), str_to_interp_mode('bicubic'))
+@@ -123,12 +126,13 @@ _RANDOM_INTERPOLATION = (str_to_interp_mode('bilinear'), str_to_interp_mode('bicubic'))
  
  
 -class ResizeToSequence(torch.nn.Module):
@@ -29,7 +29,13 @@
      """Resize image to fit within a maximum sequence length constraint when patchified.
  
      This maintains aspect ratio while ensuring the resulting image, when divided into patches,
-@@ -160,7 +163,7 @@             self.interpolation = interpolation
+     will not exceed the specified maximum sequence length.
+     """
++    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             patch_size: int,
+@@ -160,7 +164,7 @@             self.interpolation = interpolation
  
  
 -    def forward(self, img: torch.Tensor) -> torch.Tensor:
@@ -37,7 +43,7 @@
          """Resize image to maintain aspect ratio and fit sequence constraint.
  
          Args:
-@@ -169,7 +172,7 @@         Returns:
+@@ -169,7 +173,7 @@         Returns:
              Resized image tensor.
          """
 -        _, h, w = transforms.functional.get_dimensions(img)
@@ -45,7 +51,7 @@
  
          _, target_hw = get_image_size_for_seq(
              (h, w),
-@@ -184,12 +187,12 @@         else:
+@@ -184,12 +188,12 @@         else:
              interpolation = self.interpolation
  
 -        resized_img = transforms.functional.resize(img, target_hw, interpolation=interpolation, antialias=True)
@@ -59,7 +65,7 @@
      """
      Resize and Keep Aspect Ratio, adapted to fit sequence length constraints.
      """
-@@ -256,7 +259,7 @@     ):
+@@ -256,7 +260,7 @@     ):
          """Get parameters for resizing."""
          # Get image dimensions
 -        img_h, img_w = F.get_dimensions(img)[1:]
@@ -67,7 +73,7 @@
  
          # Step 1: Get the maximum allowed dimensions from sequence length constraint
          _, target_hw = get_image_size_for_seq(
-@@ -287,7 +290,7 @@         # Apply random aspect
+@@ -287,7 +291,7 @@         # Apply random aspect
          if random_aspect_prob > 0 and random.random() < random_aspect_prob:
              log_aspect = (math.log(random_aspect_range[0]), math.log(random_aspect_range[1]))
 -            aspect_factor = math.exp(random.uniform(*log_aspect))
@@ -75,7 +81,7 @@
              aspect_factor = math.sqrt(aspect_factor)
              # Apply aspect ratio jittering
              ratio_factor = (ratio_factor[0] / aspect_factor, ratio_factor[1] * aspect_factor)
-@@ -328,7 +331,7 @@ 
+@@ -328,7 +332,7 @@ 
          return size
  
 -    def forward(self, img):
@@ -83,7 +89,7 @@
          """
          Resize the image with aspect ratio preservation and sequence length constraints.
          """
-@@ -351,7 +354,7 @@         else:
+@@ -351,7 +355,7 @@         else:
              interpolation = self.interpolation
  
 -        return F.resize(img, size, interpolation)
@@ -91,7 +97,7 @@
  
      def __repr__(self):
          interpolate_str = "random" if isinstance(self.interpolation, (tuple, list)) else str(self.interpolation)
-@@ -362,7 +365,7 @@                 f"random_aspect_prob={self.random_aspect_prob:.3f})")
+@@ -362,7 +366,7 @@                 f"random_aspect_prob={self.random_aspect_prob:.3f})")
  
  
 -class CenterCropToSequence(torch.nn.Module):
@@ -99,7 +105,7 @@
      """Center crop the image such that the resulting patch sequence length meets constraints."""
      def __init__(
              self,
-@@ -380,9 +383,9 @@         self.padding_mode = padding_mode
+@@ -380,9 +384,9 @@         self.padding_mode = padding_mode
  
  
 -    def forward(self, img):
@@ -110,7 +116,7 @@
          _, target_hw = get_image_size_for_seq(
              (h, w),
              self.patch_size,
-@@ -394,7 +397,7 @@         return center_crop_or_pad(img, target_hw, fill=self.fill, padding_mode=self.padding_mode)
+@@ -394,7 +398,7 @@         return center_crop_or_pad(img, target_hw, fill=self.fill, padding_mode=self.padding_mode)
  
  
 -class RandomCropToSequence(torch.nn.Module):
@@ -118,7 +124,7 @@
      """Randomly crop and/or pad the image to fit sequence length constraints.
  
      This maintains aspect ratio while ensuring the resulting image, when divided into patches,
-@@ -428,7 +431,7 @@     @staticmethod
+@@ -428,7 +432,7 @@     @staticmethod
      def get_params(img, target_size):
          """Get random position for crop/pad."""
 -        _, image_height, image_width = transforms.functional.get_dimensions(img)
@@ -126,7 +132,7 @@
          delta_height = image_height - target_size[0]
          delta_width = image_width - target_size[1]
  
-@@ -445,10 +448,10 @@ 
+@@ -445,10 +449,10 @@ 
          return top, left
  
 -    def forward(self, img):
@@ -138,7 +144,7 @@
  
          # Calculate target dimensions that satisfy sequence length
          # We use max_ratio=1.0 to prevent upscaling - we only want to crop or maintain current size
-@@ -493,7 +496,7 @@     return value
+@@ -493,7 +497,7 @@     return value
  
  
 -class RandomResizedCropToSequence(torch.nn.Module):
@@ -146,7 +152,17 @@
      """
      Randomly crop the input image to a subregion with varying area and aspect ratio
      (relative to the original), then resize that crop to a target size. The target size
-@@ -585,7 +588,7 @@ 
+@@ -536,6 +540,7 @@             to a center crop strategy. Defaults to 10.
+     """
+ 
++    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+         self,
+         patch_size: Union[int, Tuple[int, int]] = 16,
+@@ -583,9 +588,10 @@             if not (0.0 <= self.final_scale_range[0] <= self.final_scale_range[1] <= 1.0):
+                 warnings.warn("final_scale_range values should ideally be between 0.0 and 1.0.")
+ 
++    # 'torchvision.transforms.functional.InterpolationMode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @staticmethod
      def get_params(
 -            img: torch.Tensor,
@@ -154,7 +170,7 @@
              scale: Tuple[float, float],
              ratio: Tuple[float, float],
              crop_attempts: int = 10,
-@@ -599,7 +602,7 @@     ) -> Tuple[Tuple[int, int, int, int], Tuple[int, int], InterpolationMode]:
+@@ -599,7 +605,7 @@     ) -> Tuple[Tuple[int, int, int, int], Tuple[int, int], InterpolationMode]:
          """ Get parameters for a random sized crop relative to image aspect ratio.
          """
 -        _, height, width = F.get_dimensions(img)
@@ -162,7 +178,7 @@
          if height <= 0 or width <= 0:
               raise ValueError(f"Input image must have positive dimensions, got H={height}, W={width}")
  
-@@ -700,7 +703,7 @@ 
+@@ -700,7 +706,7 @@ 
          return (top, left, crop_h, crop_w), final_size, interpolation
  
 -    def forward(self, img: torch.Tensor) -> torch.Tensor:
@@ -170,7 +186,7 @@
          # Sample crop, resize, and interpolation parameters
          crop_params, final_size, interpolation = self.get_params(
              img,
-@@ -725,7 +728,7 @@             size=final_size,
+@@ -725,7 +731,7 @@             size=final_size,
              interpolation=interpolation,
              antialias=True,
 -        )
@@ -178,7 +194,7 @@
  
          return output
  
-@@ -749,12 +752,12 @@ 
+@@ -749,12 +755,12 @@ 
  
  def patchify_image(
 -        img: torch.Tensor,
@@ -192,7 +208,7 @@
      c, h, w = img.shape
      ph, pw = patch_size
  
-@@ -762,7 +765,7 @@     if pad and (h % ph != 0 or w % pw != 0):
+@@ -762,7 +768,7 @@     if pad and (h % ph != 0 or w % pw != 0):
          pad_h = (ph - h % ph) % ph  # amount to add on bottom
          pad_w = (pw - w % pw) % pw  # amount to add on right
 -        img = torch.nn.functional.pad(img, (0, pad_w, 0, pad_h))
@@ -200,7 +216,7 @@
          c, h, w = img.shape
  
      # Calculate number of patches in each dimension
-@@ -774,17 +777,17 @@ 
+@@ -774,17 +780,17 @@ 
      if include_info:
          # Create coordinate indices
 -        y_idx, x_idx = torch.meshgrid(torch.arange(nh), torch.arange(nw), indexing='ij')
@@ -221,7 +237,7 @@
      """Transform an image into patches with corresponding coordinates and type indicators."""
  
      def __init__(
-@@ -796,7 +799,7 @@         self.patch_size = patch_size if isinstance(patch_size, tuple) else (patch_size, patch_size)
+@@ -796,7 +802,7 @@         self.patch_size = patch_size if isinstance(patch_size, tuple) else (patch_size, patch_size)
          self.flatten_patches = flatten_patches
  
 -    def forward(self, img):
@@ -229,7 +245,7 @@
          """
          Args:
              img: A PIL Image or tensor of shape [C, H, W]
-@@ -810,7 +813,7 @@         """
+@@ -810,7 +816,7 @@         """
          if isinstance(img, Image.Image):
              # Convert PIL Image to tensor [C, H, W]
 -            img = transforms.functional.to_tensor(img)

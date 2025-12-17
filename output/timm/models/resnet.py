@@ -750,6 +750,7 @@ class ResNet(msnn.Cell):
         x = self.act1(x)
         x = self.maxpool(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq([self.layer1, self.layer2, self.layer3, self.layer4], x, flatten=True)
         else:

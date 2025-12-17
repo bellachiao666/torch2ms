@@ -392,6 +392,7 @@ class GlobalContextVitStage(msnn.Cell):
         x = x.permute(0, 2, 3, 1)
         global_query = self.global_norm(global_query.permute(0, 2, 3, 1))
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x, global_query)
             else:
@@ -561,6 +562,7 @@ class GlobalContextVit(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

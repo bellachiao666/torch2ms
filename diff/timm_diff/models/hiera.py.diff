@@ -482,7 +482,20 @@
          else:
              patch_mask = None
          x = self.patch_embed(x, mask=patch_mask)
-@@ -779,10 +780,10 @@ 
+@@ -740,11 +741,13 @@             x = x[mask[..., None].tile(1, self.mu_size, x.shape[2])].view(x.shape[0], -1, x.shape[-1])
+ 
+         intermediates = []
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -779,10 +782,10 @@ 
      def forward_features(
              self,
 -            x: torch.Tensor,
@@ -495,7 +508,7 @@
          """
          mask should be a boolean tensor of shape [B, #MUt*#MUy*#MUx] where #MU are the number of mask units in that dim.
          Note: 1 in mask is *keep*, 0 is *remove*; mask.sum(dim=-1) should be the same across the batch.
-@@ -793,7 +794,7 @@             mask = self.get_random_mask(x, mask_ratio=self.patch_drop_rate)
+@@ -793,7 +796,7 @@             mask = self.get_random_mask(x, mask_ratio=self.patch_drop_rate)
  
          if mask is not None:
 -            patch_mask = mask.view(x.shape[0], 1, *self.mask_spatial_shape)  # B, C, *mask_spatial_shape
@@ -503,7 +516,14 @@
          else:
              patch_mask = None
          x = self.patch_embed(x, mask=patch_mask)
-@@ -822,15 +823,15 @@ 
+@@ -806,6 +809,7 @@ 
+         intermediates = []
+         for i, blk in enumerate(self.blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -822,15 +826,15 @@ 
          return x
  
 -    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
@@ -524,7 +544,7 @@
          x = self.forward_features(x, mask=mask)
          if mask is None:
              x = self.forward_head(x)
-@@ -970,43 +971,43 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -970,43 +974,43 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -574,7 +594,7 @@
  
  
  @register_model
-@@ -1015,11 +1016,11 @@         embed_dim=96, num_heads=1, stages=(1, 2, 11, 2), abs_win_pos_embed=True, global_pos_size=(16, 16),
+@@ -1015,11 +1019,11 @@         embed_dim=96, num_heads=1, stages=(1, 2, 11, 2), abs_win_pos_embed=True, global_pos_size=(16, 16),
          init_values=1e-5, weight_init='jax', use_expand_proj=False,
      )
 -    return _create_hiera('hiera_small_abswin_256', pretrained=pretrained, **dict(model_args, **kwargs))

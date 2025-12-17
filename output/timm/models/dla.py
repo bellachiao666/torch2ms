@@ -298,8 +298,10 @@ class DlaTree(msnn.Cell):
                 # used, I've moved the project layer here to avoid wasted params but old checkpoints will
                 # need strict=False while loading.
                 self.project = msnn.SequentialCell(
+                    [
                     nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, bias=False, **dd),
-                    nn.BatchNorm2d(out_channels, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
+                    nn.BatchNorm2d(out_channels, **dd)
+                ])  # 存在 *args/**kwargs，需手动确认参数映射;
             self.root = DlaRoot(root_dim, out_channels, root_kernel_size, root_shortcut, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             cargs.update(dict(root_kernel_size=root_kernel_size, root_shortcut=root_shortcut))
@@ -368,10 +370,11 @@ class DLA(msnn.Cell):
         assert output_stride == 32  # FIXME support dilation
 
         self.base_layer = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chans, channels[0], kernel_size=7, stride=1, padding=3, bias=False, **dd),
             nn.BatchNorm2d(channels[0], **dd),
-            nn.ReLU(),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+            nn.ReLU()
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
         self.level0 = self._make_conv_level(channels[0], channels[0], levels[0], **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.level1 = self._make_conv_level(channels[0], channels[1], levels[1], stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         cargs = dict(cardinality=cardinality, base_width=base_width, root_shortcut=shortcut_root, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

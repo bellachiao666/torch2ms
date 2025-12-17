@@ -324,11 +324,12 @@
      """Image to patch embedding with multi-layer convolution."""
  
      def __init__(
-@@ -527,17 +532,17 @@         super().__init__()
+@@ -527,17 +532,18 @@         super().__init__()
          assert patch_size in [4, 8, 16]
          if stem_conv:
 -            self.conv = nn.Sequential(
 +            self.conv = msnn.SequentialCell(
++                [
                  nn.Conv2d(in_chans, hidden_dim, kernel_size=7, stride=stem_stride, padding=3, bias=False, **dd),
                  nn.BatchNorm2d(hidden_dim, **dd),
 -                nn.ReLU(inplace=True),
@@ -341,12 +342,12 @@
                  nn.BatchNorm2d(hidden_dim, **dd),
 -                nn.ReLU(inplace=True),
 -            )
-+                nn.ReLU(),
-+            )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
++                nn.ReLU()
++            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
          else:
              self.conv = None
  
-@@ -547,10 +552,10 @@             kernel_size=patch_size // stem_stride,
+@@ -547,10 +553,10 @@             kernel_size=patch_size // stem_stride,
              stride=patch_size // stem_stride,
              **dd,
 -        )
@@ -358,7 +359,7 @@
          """Forward pass.
  
          Args:
-@@ -565,7 +570,7 @@         return x
+@@ -565,7 +571,7 @@         return x
  
  
 -class Downsample(nn.Module):
@@ -366,7 +367,7 @@
      """Downsampling module between stages."""
  
      def __init__(
-@@ -585,9 +590,9 @@         """
+@@ -585,9 +591,9 @@         """
          super().__init__()
          dd = {'device': device, 'dtype': dtype}
 -        self.proj = nn.Conv2d(in_embed_dim, out_embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
@@ -378,7 +379,7 @@
          """Forward pass.
  
          Args:
-@@ -618,7 +623,7 @@         device=None,
+@@ -618,7 +624,7 @@         device=None,
          dtype=None,
          **kwargs: Any,
 -) -> nn.Sequential:
@@ -386,7 +387,7 @@
      """Generate outlooker layers for stage 1.
  
      Args:
-@@ -655,8 +660,8 @@             device=device,
+@@ -655,8 +661,8 @@             device=device,
              dtype=dtype,
              **kwargs,
 -        ))
@@ -396,7 +397,7 @@
      return blocks
  
  
-@@ -671,7 +676,7 @@         attn_drop: float = 0,
+@@ -671,7 +677,7 @@         attn_drop: float = 0,
          drop_path_rate: float = 0.,
          **kwargs: Any,
 -) -> nn.Sequential:
@@ -404,7 +405,7 @@
      """Generate transformer layers for stage 2.
  
      Args:
-@@ -700,12 +705,12 @@             attn_drop=attn_drop,
+@@ -700,12 +706,12 @@             attn_drop=attn_drop,
              drop_path=block_dpr,
              **kwargs,
 -        ))
@@ -419,7 +420,7 @@
      """Vision Outlooker (VOLO) model."""
  
      def __init__(
-@@ -727,7 +732,7 @@             pos_drop_rate: float = 0.,
+@@ -727,7 +733,7 @@             pos_drop_rate: float = 0.,
              attn_drop_rate: float = 0.,
              drop_path_rate: float = 0.,
 -            norm_layer: Type[nn.Module] = nn.LayerNorm,
@@ -427,7 +428,7 @@
              post_layers: Optional[Tuple[str, ...]] = ('ca', 'ca'),
              use_aux_head: bool = True,
              use_mix_token: bool = False,
-@@ -785,13 +790,13 @@             hidden_dim=stem_hidden_dim,
+@@ -785,13 +791,13 @@             hidden_dim=stem_hidden_dim,
              embed_dim=embed_dims[0],
              **dd,
 -        )
@@ -443,7 +444,7 @@
  
          # set the main block in network
          self.stage_ends = []
-@@ -812,7 +817,7 @@                     attn_drop=attn_drop_rate,
+@@ -812,7 +818,7 @@                     attn_drop=attn_drop_rate,
                      norm_layer=norm_layer,
                      **dd,
 -                )
@@ -451,7 +452,7 @@
              else:
                  # stage 2
                  stage = transformer_blocks(
-@@ -827,23 +832,23 @@                     attn_drop=attn_drop_rate,
+@@ -827,23 +833,23 @@                     attn_drop=attn_drop_rate,
                      norm_layer=norm_layer,
                      **dd,
 -                )
@@ -478,7 +479,7 @@
                  get_block(
                      post_layers[i],
                      dim=embed_dims[-1],
-@@ -856,25 +861,25 @@                     **dd,
+@@ -856,25 +862,25 @@                     **dd,
                  )
                  for i in range(len(post_layers))
 -            ])
@@ -509,7 +510,7 @@
          """Initialize weights for modules.
  
          Args:
-@@ -883,9 +888,9 @@         if isinstance(m, nn.Linear):
+@@ -883,9 +889,9 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -521,7 +522,7 @@
      def no_weight_decay(self) -> set:
          """Get set of parameters that should not have weight decay.
  
-@@ -894,7 +899,7 @@         """
+@@ -894,7 +900,7 @@         """
          return {'pos_embed', 'cls_token'}
  
 -    @torch.jit.ignore
@@ -529,7 +530,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
          """Get parameter grouping for optimizer.
  
-@@ -917,7 +922,7 @@             ],
+@@ -917,7 +923,7 @@             ],
          )
  
 -    @torch.jit.ignore
@@ -537,7 +538,7 @@
      def set_grad_checkpointing(self, enable: bool = True) -> None:
          """Set gradient checkpointing.
  
-@@ -926,8 +931,8 @@         """
+@@ -926,8 +932,8 @@         """
          self.grad_checkpointing = enable
  
 -    @torch.jit.ignore
@@ -547,7 +548,7 @@
          """Get classifier module.
  
          Returns:
-@@ -948,12 +953,12 @@         device = self.head.weight.device if hasattr(self.head, 'weight') else None
+@@ -948,12 +954,12 @@         device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
          self.head = nn.Linear(
 -            self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -563,7 +564,14 @@
          """Forward pass through token processing stages.
  
          Args:
-@@ -976,7 +981,7 @@         x = x.reshape(B, -1, C)
+@@ -967,6 +973,7 @@                 # add positional encoding after outlooker blocks
+                 x = x + self.pos_embed
+                 x = self.pos_drop(x)
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(block, x)
+             else:
+@@ -976,7 +983,7 @@         x = x.reshape(B, -1, C)
          return x
  
 -    def forward_cls(self, x: torch.Tensor) -> torch.Tensor:
@@ -571,15 +579,17 @@
          """Forward pass through class attention blocks.
  
          Args:
-@@ -987,7 +992,7 @@         """
+@@ -987,15 +994,16 @@         """
          B, N, C = x.shape
          cls_tokens = self.cls_token.expand(B, -1, -1)
 -        x = torch.cat([cls_tokens, x], dim=1)
 +        x = mint.cat([cls_tokens, x], dim=1)
          for block in self.post_network:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if self.grad_checkpointing and not torch.jit.is_scripting():
                  x = checkpoint(block, x)
-@@ -995,7 +1000,7 @@                 x = block(x)
+             else:
+                 x = block(x)
          return x
  
 -    def forward_train(self, x: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, Tuple[int, int, int, int]]]:
@@ -587,7 +597,7 @@
          """Forward pass for training with mix token support.
  
          Args:
-@@ -1013,7 +1018,7 @@ 
+@@ -1013,7 +1021,7 @@ 
          # mix token, see token labeling for details.
          if self.mix_token and self.training:
 -            lam = torch.distributions.Beta(self.beta, self.beta).sample()
@@ -595,7 +605,7 @@
              patch_h, patch_w = x.shape[1] // self.pooling_scale, x.shape[2] // self.pooling_scale
              bbx1, bby1, bbx2, bby2 = rand_bbox(x.size(), lam, scale=self.pooling_scale)
              temp_x = x.clone()
-@@ -1058,13 +1063,13 @@ 
+@@ -1058,13 +1066,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -610,7 +620,21 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -1143,13 +1148,13 @@         max_index = self.stage_ends[max_index]
+@@ -1088,6 +1096,7 @@         x = self.patch_embed(x).permute(0, 2, 3, 1)  # B,C,H,W-> B,H,W,C
+ 
+         # step2: tokens learning in the two stages
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             network = self.network
+         else:
+@@ -1097,6 +1106,7 @@                 # add positional encoding after outlooker blocks
+                 x = x + self.pos_embed
+                 x = self.pos_drop(x)
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(block, x)
+             else:
+@@ -1143,13 +1153,13 @@         max_index = self.stage_ends[max_index]
          self.network = self.network[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -626,7 +650,7 @@
          """Forward pass through feature extraction.
  
          Args:
-@@ -1169,7 +1174,7 @@         x = self.norm(x)
+@@ -1169,7 +1179,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -634,7 +658,7 @@
          """Forward pass through classification head.
  
          Args:
-@@ -1195,7 +1200,7 @@             out = out + 0.5 * aux.max(1)[0]
+@@ -1195,7 +1205,7 @@             out = out + 0.5 * aux.max(1)[0]
          return out
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -642,7 +666,7 @@
          """Forward pass (simplified, without mix token training).
  
          Args:
-@@ -1228,7 +1233,7 @@         pretrained,
+@@ -1228,7 +1238,7 @@         pretrained,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -650,7 +674,7 @@
  
  
  def _cfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
-@@ -1303,64 +1308,64 @@ @register_model
+@@ -1303,64 +1313,64 @@ @register_model
  def volo_d1_224(pretrained: bool = False, **kwargs: Any) -> VOLO:
      """VOLO-D1 model, Params: 27M."""
 -    model_args = dict(layers=(4, 4, 8, 2), embed_dims=(192, 384, 384, 384), num_heads=(6, 12, 12, 12), **kwargs)
@@ -730,7 +754,7 @@
      return model
  
  
-@@ -1372,8 +1377,8 @@     """
+@@ -1372,8 +1382,8 @@     """
      model_args = dict(
          layers=(12, 12, 20, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16),
 -        mlp_ratio=4, stem_hidden_dim=128, **kwargs)
@@ -740,7 +764,7 @@
      return model
  
  
-@@ -1385,8 +1390,8 @@     """
+@@ -1385,8 +1395,8 @@     """
      model_args = dict(
          layers=(12, 12, 20, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16),
 -        mlp_ratio=4, stem_hidden_dim=128, **kwargs)
@@ -750,7 +774,7 @@
      return model
  
  
-@@ -1398,6 +1403,6 @@     """
+@@ -1398,6 +1408,6 @@     """
      model_args = dict(
          layers=(12, 12, 20, 4), embed_dims=(384, 768, 768, 768), num_heads=(12, 16, 16, 16),
 -        mlp_ratio=4, stem_hidden_dim=128, **kwargs)

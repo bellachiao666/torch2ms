@@ -85,9 +85,10 @@ class FocalModulation(msnn.Cell):
         for k in range(self.focal_level):
             kernel_size = self.focal_factor * k + self.focal_window
             self.focal_layers.append(msnn.SequentialCell(
+                [
                 nn.Conv2d(dim, dim, kernel_size=kernel_size, groups=dim, padding=kernel_size // 2, bias=False, **dd),
-                nn.GELU(),
-            ))  # 存在 *args/**kwargs，需手动确认参数映射;
+                nn.GELU()
+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;
             self.kernel_sizes.append(kernel_size)
         self.norm = norm_layer(dim, **dd) if self.use_post_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
@@ -289,6 +290,7 @@ class FocalNetStage(msnn.Cell):
     def construct(self, x):
         x = self.downsample(x)
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:
@@ -511,6 +513,7 @@ class FocalNet(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.layers
         else:

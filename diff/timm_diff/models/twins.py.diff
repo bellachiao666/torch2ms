@@ -177,14 +177,16 @@
      # PEG  from https://arxiv.org/abs/2102.10882
      def __init__(
              self,
-@@ -265,14 +270,14 @@     ):
+@@ -265,14 +270,15 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.proj = nn.Sequential(
-+        self.proj = msnn.SequentialCell(
-             nn.Conv2d(in_chans, embed_dim, 3, stride, 1, bias=True, groups=embed_dim, **dd),
+-            nn.Conv2d(in_chans, embed_dim, 3, stride, 1, bias=True, groups=embed_dim, **dd),
 -        )
-+        )  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.proj = msnn.SequentialCell(
++            [
++            nn.Conv2d(in_chans, embed_dim, 3, stride, 1, bias=True, groups=embed_dim, **dd)
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;
          self.stride = stride
  
 -    def forward(self, x, size: Size_):
@@ -195,7 +197,7 @@
          x = self.proj(cnn_feat_token)
          if self.stride == 1:
              x += cnn_feat_token
-@@ -283,7 +288,7 @@         return ['proj.%d.weight' % i for i in range(4)]
+@@ -283,7 +289,7 @@         return ['proj.%d.weight' % i for i in range(4)]
  
  
 -class PatchEmbed(nn.Module):
@@ -203,7 +205,7 @@
      """ Image to Patch Embedding
      """
  
-@@ -307,10 +312,10 @@             f"img_size {img_size} should be divided by patch_size {patch_size}."
+@@ -307,10 +313,10 @@             f"img_size {img_size} should be divided by patch_size {patch_size}."
          self.H, self.W = img_size[0] // patch_size[0], img_size[1] // patch_size[1]
          self.num_patches = self.H * self.W
 -        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
@@ -217,7 +219,7 @@
          B, C, H, W = x.shape
  
          x = self.proj(x).flatten(2).transpose(1, 2)
-@@ -320,7 +325,7 @@         return x, out_size
+@@ -320,7 +326,7 @@         return x, out_size
  
  
 -class Twins(nn.Module):
@@ -225,7 +227,7 @@
      """ Twins Vision Transformer (Revisiting Spatial Attention)
  
      Adapted from PVT (PyramidVisionTransformer) class at https://github.com/whai362/PVT.git
-@@ -343,7 +348,7 @@             proj_drop_rate: float = 0.,
+@@ -343,7 +349,7 @@             proj_drop_rate: float = 0.,
              attn_drop_rate: float = 0.,
              drop_path_rate: float = 0.,
 -            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
@@ -233,7 +235,7 @@
              block_cls: Any = Block,
              device=None,
              dtype=None,
-@@ -359,21 +364,21 @@ 
+@@ -359,21 +365,21 @@ 
          img_size = to_2tuple(img_size)
          prev_chs = in_chans
 -        self.patch_embeds = nn.ModuleList()
@@ -260,7 +262,7 @@
                  dim=embed_dims[k],
                  num_heads=num_heads[k],
                  mlp_ratio=mlp_ratios[k],
-@@ -384,27 +389,27 @@                 sr_ratio=sr_ratios[k],
+@@ -384,27 +390,27 @@                 sr_ratio=sr_ratios[k],
                  ws=1 if wss is None or i % 2 == 1 else wss[k],
                  **dd,
 -            ) for i in range(depths[k])])
@@ -294,7 +296,7 @@
      def group_matcher(self, coarse=False):
          matcher = dict(
              stem=r'^patch_embeds.0',  # stem and embed
-@@ -419,12 +424,12 @@         )
+@@ -419,12 +425,12 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -309,7 +311,7 @@
          return self.head
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -434,16 +439,16 @@             self.global_pool = global_pool
+@@ -434,16 +440,16 @@             self.global_pool = global_pool
          device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
 -        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -329,7 +331,7 @@
          elif isinstance(m, nn.Conv2d):
              fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
              fan_out //= m.groups
-@@ -453,13 +458,13 @@ 
+@@ -453,13 +459,13 @@ 
      def forward_intermediates(
              self,
 -            x: torch.Tensor,
@@ -344,7 +346,7 @@
          """ Forward features that returns intermediates.
          Args:
              x: Input image tensor
-@@ -490,14 +495,14 @@                     x = pos_blk(x, size)  # PEG here
+@@ -490,14 +496,14 @@                     x = pos_blk(x, size)  # PEG here
  
              if i < len(self.depths) - 1:
 -                x = x.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous()
@@ -360,7 +362,7 @@
  
          if intermediates_only:
              return intermediates
-@@ -517,7 +522,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -517,7 +523,7 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          # FIXME add block pruning
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -368,7 +370,7 @@
          if prune_head:
              self.reset_classifier(0, '')
          return take_indices
-@@ -533,7 +538,7 @@                 if j == 0:
+@@ -533,7 +539,7 @@                 if j == 0:
                      x = pos_blk(x, size)  # PEG here
              if i < len(self.depths) - 1:
 -                x = x.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous()
@@ -376,7 +378,7 @@
          x = self.norm(x)
          return x
  
-@@ -543,7 +548,7 @@         x = self.head_drop(x)
+@@ -543,7 +549,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -384,7 +386,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -555,7 +560,7 @@         Twins, variant, pretrained,
+@@ -555,7 +561,7 @@         Twins, variant, pretrained,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -392,7 +394,7 @@
      return model
  
  
-@@ -586,7 +591,7 @@     model_args = dict(
+@@ -586,7 +592,7 @@     model_args = dict(
          patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
          depths=[3, 4, 6, 3], sr_ratios=[8, 4, 2, 1])
 -    return _create_twins('twins_pcpvt_small', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -400,7 +402,7 @@
  
  
  @register_model
-@@ -594,7 +599,7 @@     model_args = dict(
+@@ -594,7 +600,7 @@     model_args = dict(
          patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
          depths=[3, 4, 18, 3], sr_ratios=[8, 4, 2, 1])
 -    return _create_twins('twins_pcpvt_base', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -408,7 +410,7 @@
  
  
  @register_model
-@@ -602,7 +607,7 @@     model_args = dict(
+@@ -602,7 +608,7 @@     model_args = dict(
          patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
          depths=[3, 8, 27, 3], sr_ratios=[8, 4, 2, 1])
 -    return _create_twins('twins_pcpvt_large', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -416,7 +418,7 @@
  
  
  @register_model
-@@ -610,7 +615,7 @@     model_args = dict(
+@@ -610,7 +616,7 @@     model_args = dict(
          patch_size=4, embed_dims=[64, 128, 256, 512], num_heads=[2, 4, 8, 16], mlp_ratios=[4, 4, 4, 4],
          depths=[2, 2, 10, 4], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
 -    return _create_twins('twins_svt_small', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -424,7 +426,7 @@
  
  
  @register_model
-@@ -618,7 +623,7 @@     model_args = dict(
+@@ -618,7 +624,7 @@     model_args = dict(
          patch_size=4, embed_dims=[96, 192, 384, 768], num_heads=[3, 6, 12, 24], mlp_ratios=[4, 4, 4, 4],
          depths=[2, 2, 18, 2], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
 -    return _create_twins('twins_svt_base', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -432,7 +434,7 @@
  
  
  @register_model
-@@ -626,4 +631,4 @@     model_args = dict(
+@@ -626,4 +632,4 @@     model_args = dict(
          patch_size=4, embed_dims=[128, 256, 512, 1024], num_heads=[4, 8, 16, 32], mlp_ratios=[4, 4, 4, 4],
          depths=[2, 2, 18, 2], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
 -    return _create_twins('twins_svt_large', pretrained=pretrained, **dict(model_args, **kwargs))

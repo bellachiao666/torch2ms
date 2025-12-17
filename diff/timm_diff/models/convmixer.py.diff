@@ -43,11 +43,12 @@
              device=None,
              dtype=None,
              **kwargs,
-@@ -46,14 +51,14 @@         self.num_features = self.head_hidden_size = dim
+@@ -46,48 +51,52 @@         self.num_features = self.head_hidden_size = dim
          self.grad_checkpointing = False
  
 -        self.stem = nn.Sequential(
 +        self.stem = msnn.SequentialCell(
++            [
              nn.Conv2d(in_chans, dim, kernel_size=patch_size, stride=patch_size, **dd),
              act_layer(),
              nn.BatchNorm2d(dim, **dd)
@@ -55,17 +56,29 @@
 -        self.blocks = nn.Sequential(
 -            *[nn.Sequential(
 -                    Residual(nn.Sequential(
-+        )  # 存在 *args/**kwargs，需手动确认参数映射;
+-                        nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same", **dd),
+-                        act_layer(),
+-                        nn.BatchNorm2d(dim, **dd)
+-                    )),
+-                    nn.Conv2d(dim, dim, kernel_size=1, **dd),
+-                    act_layer(),
+-                    nn.BatchNorm2d(dim, **dd)
+-            ) for i in range(depth)]
+-        )
++        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 +        self.blocks = msnn.SequentialCell(
 +            *[msnn.SequentialCell(
-+                    Residual(msnn.SequentialCell(
-                         nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same", **dd),
-                         act_layer(),
-                         nn.BatchNorm2d(dim, **dd)
-@@ -62,29 +67,29 @@                     act_layer(),
-                     nn.BatchNorm2d(dim, **dd)
-             ) for i in range(depth)]
--        )
++                    [
++            Residual(msnn.SequentialCell(
++                        [
++            nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same", **dd),
++            act_layer(),
++            nn.BatchNorm2d(dim, **dd)
++        ])),
++            nn.Conv2d(dim, dim, kernel_size=1, **dd),
++            act_layer(),
++            nn.BatchNorm2d(dim, **dd)
++        ]) for i in range(depth)]
 +        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
          self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
          self.head_drop = nn.Dropout(drop_rate)
@@ -98,7 +111,11 @@
  
      def forward_features(self, x):
          x = self.stem(x)
-@@ -99,7 +104,7 @@         x = self.head_drop(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -99,7 +108,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -106,7 +123,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -109,7 +114,7 @@     if kwargs.get('features_only', None):
+@@ -109,7 +118,7 @@     if kwargs.get('features_only', None):
          raise RuntimeError('features_only not implemented for ConvMixer models.')
  
 -    return build_model_with_cfg(ConvMixer, variant, pretrained, **kwargs)
@@ -114,7 +131,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -133,17 +138,17 @@ 
+@@ -133,17 +142,17 @@ 
  @register_model
  def convmixer_1536_20(pretrained=False, **kwargs) -> ConvMixer:
 -    model_args = dict(dim=1536, depth=20, kernel_size=9, patch_size=7, **kwargs)

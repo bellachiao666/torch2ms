@@ -82,9 +82,10 @@ def conv3x3(in_planes, out_planes, stride=1, device=None, dtype=None):
     """3x3 convolution + batch norm"""
     dd = {'device': device, 'dtype': dtype}
     return msnn.SequentialCell(
+        [
         nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False, **dd),
         nn.BatchNorm2d(out_planes, **dd)
-    )  # 存在 *args/**kwargs，需手动确认参数映射;
+    ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
 
 class ConvPatchEmbed(msnn.Cell):
@@ -110,22 +111,24 @@ class ConvPatchEmbed(msnn.Cell):
 
         if patch_size == 16:
             self.proj = msnn.SequentialCell(
+                [
                 conv3x3(in_chans, embed_dim // 8, 2, **dd),
                 act_layer(),
                 conv3x3(embed_dim // 8, embed_dim // 4, 2, **dd),
                 act_layer(),
                 conv3x3(embed_dim // 4, embed_dim // 2, 2, **dd),
                 act_layer(),
-                conv3x3(embed_dim // 2, embed_dim, 2, **dd),
-            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                conv3x3(embed_dim // 2, embed_dim, 2, **dd)
+            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         elif patch_size == 8:
             self.proj = msnn.SequentialCell(
+                [
                 conv3x3(in_chans, embed_dim // 4, 2, **dd),
                 act_layer(),
                 conv3x3(embed_dim // 4, embed_dim // 2, 2, **dd),
                 act_layer(),
-                conv3x3(embed_dim // 2, embed_dim, 2, **dd),
-            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                conv3x3(embed_dim // 2, embed_dim, 2, **dd)
+            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
             raise('For convolutional projection, patch size has to be in [8, 16]')
 
@@ -557,11 +560,13 @@ class Xcit(msnn.Cell):
             x = x + pos_encoding
         x = self.pos_drop(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
             blocks = self.blocks[:max_index + 1]
         for i, blk in enumerate(blocks):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x, Hp, Wp)
             else:
@@ -581,6 +586,7 @@ class Xcit(msnn.Cell):
         # NOTE not supporting return of class tokens
         x = mint.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
         for blk in self.cls_attn_blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:
@@ -619,6 +625,7 @@ class Xcit(msnn.Cell):
         x = self.pos_drop(x)
 
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x, Hp, Wp)
             else:
@@ -627,6 +634,7 @@ class Xcit(msnn.Cell):
         x = mint.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
 
         for blk in self.cls_attn_blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:

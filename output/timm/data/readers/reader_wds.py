@@ -322,6 +322,8 @@ class ReaderWds(Reader):
         # Distributed world state
         self.dist_rank = 0
         self.dist_num_replicas = 1
+        # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        # 'torch.distributed.is_initialized' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if dist.is_available() and dist.is_initialized() and mint.distributed.get_world_size() > 1:
             self.dist_rank = mint.distributed.get_rank()
             self.dist_num_replicas = mint.distributed.get_world_size()

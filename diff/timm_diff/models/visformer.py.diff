@@ -176,7 +176,7 @@
              img_size = [x // patch_size for x in img_size]
          else:
              if self.init_channels is None:
-@@ -250,14 +255,14 @@                     norm_layer=embed_norm,
+@@ -250,14 +255,15 @@                     norm_layer=embed_norm,
                      flatten=False,
                      **dd,
 -                )
@@ -185,16 +185,17 @@
              else:
 -                self.stem = nn.Sequential(
 +                self.stem = msnn.SequentialCell(
++                    [
                      nn.Conv2d(in_chans, self.init_channels, 7, stride=2, padding=3, bias=False, **dd),
                      nn.BatchNorm2d(self.init_channels, **dd),
 -                    nn.ReLU(inplace=True)
 -                )
 +                    nn.ReLU()
-+                )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
++                ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
                  img_size = [x // 2 for x in img_size]
                  self.patch_embed1 = PatchEmbed(
                      img_size=img_size,
-@@ -267,19 +272,19 @@                     norm_layer=embed_norm,
+@@ -267,19 +273,19 @@                     norm_layer=embed_norm,
                      flatten=False,
                      **dd,
 -                )
@@ -218,7 +219,7 @@
              Block(
                  dim=embed_dim//2,
                  num_heads=num_heads,
-@@ -295,7 +300,7 @@                 **dd,
+@@ -295,7 +301,7 @@                 **dd,
              )
              for i in range(self.stage_num1)
 -        ])
@@ -226,7 +227,7 @@
  
          # stage2
          if not self.vit_stem:
-@@ -307,15 +312,15 @@                 norm_layer=embed_norm,
+@@ -307,15 +313,15 @@                 norm_layer=embed_norm,
                  flatten=False,
                  **dd,
 -            )
@@ -244,7 +245,7 @@
              Block(
                  dim=embed_dim,
                  num_heads=num_heads,
-@@ -331,7 +336,7 @@                 **dd,
+@@ -331,7 +337,7 @@                 **dd,
              )
              for i in range(self.stage_num1, self.stage_num1+self.stage_num2)
 -        ])
@@ -252,7 +253,7 @@
  
          # stage 3
          if not self.vit_stem:
-@@ -343,15 +348,15 @@                 norm_layer=embed_norm,
+@@ -343,15 +349,15 @@                 norm_layer=embed_norm,
                  flatten=False,
                  **dd,
 -            )
@@ -270,7 +271,7 @@
              Block(
                  dim=embed_dim * 2,
                  num_heads=num_heads,
-@@ -367,10 +372,10 @@                 **dd,
+@@ -367,10 +373,10 @@                 **dd,
              )
              for i in range(self.stage_num1+self.stage_num2, depth)
 -        ])
@@ -282,7 +283,7 @@
  
          # head
          global_pool, head = create_classifier(
-@@ -396,16 +401,16 @@         if isinstance(m, nn.Linear):
+@@ -396,16 +402,16 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=0.02)
              if m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -303,7 +304,7 @@
      def group_matcher(self, coarse=False):
          return dict(
              stem=r'^patch_embed1|pos_embed1|stem',  # stem and embed
-@@ -416,12 +421,12 @@             ]
+@@ -416,12 +422,12 @@             ]
          )
  
 -    @torch.jit.ignore
@@ -318,7 +319,28 @@
          return self.head
  
      def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
-@@ -472,7 +477,7 @@         x = self.head_drop(x)
+@@ -439,6 +445,7 @@         x = self.patch_embed1(x)
+         if self.pos_embed1 is not None:
+             x = self.pos_drop(x + self.pos_embed1)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stage1, x)
+         else:
+@@ -449,6 +456,7 @@             x = self.patch_embed2(x)
+             if self.pos_embed2 is not None:
+                 x = self.pos_drop(x + self.pos_embed2)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stage2, x)
+         else:
+@@ -459,6 +467,7 @@             x = self.patch_embed3(x)
+             if self.pos_embed3 is not None:
+                 x = self.pos_drop(x + self.pos_embed3)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stage3, x)
+         else:
+@@ -472,7 +481,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -326,7 +348,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -481,7 +486,7 @@ def _create_visformer(variant, pretrained=False, default_cfg=None, **kwargs):
+@@ -481,7 +490,7 @@ def _create_visformer(variant, pretrained=False, default_cfg=None, **kwargs):
      if kwargs.get('features_only', None):
          raise RuntimeError('features_only not implemented for Vision Transformer models.')
 -    model = build_model_with_cfg(Visformer, variant, pretrained, **kwargs)
@@ -334,7 +356,7 @@
      return model
  
  
-@@ -509,7 +514,7 @@         init_channels=16, embed_dim=192, depth=(7, 4, 4), num_heads=3, mlp_ratio=4., group=8,
+@@ -509,7 +518,7 @@         init_channels=16, embed_dim=192, depth=(7, 4, 4), num_heads=3, mlp_ratio=4., group=8,
          attn_stage='011', spatial_conv='100', norm_layer=nn.BatchNorm2d, conv_init=True,
          embed_norm=nn.BatchNorm2d)
 -    model = _create_visformer('visformer_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -342,7 +364,7 @@
      return model
  
  
-@@ -519,7 +524,7 @@         init_channels=32, embed_dim=384, depth=(7, 4, 4), num_heads=6, mlp_ratio=4., group=8,
+@@ -519,7 +528,7 @@         init_channels=32, embed_dim=384, depth=(7, 4, 4), num_heads=6, mlp_ratio=4., group=8,
          attn_stage='011', spatial_conv='100', norm_layer=nn.BatchNorm2d, conv_init=True,
          embed_norm=nn.BatchNorm2d)
 -    model = _create_visformer('visformer_small', pretrained=pretrained, **dict(model_cfg, **kwargs))

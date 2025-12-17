@@ -14,7 +14,16 @@
  
  from .constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from .loader import _worker_init, adapt_to_chs
-@@ -56,16 +61,16 @@         """
+@@ -27,6 +32,9 @@ class NaFlexPrefetchLoader:
+     """Data prefetcher for NaFlex format which normalizes patches."""
+ 
++    # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             loader: torch.utils.data.DataLoader,
+@@ -56,16 +64,16 @@         """
          self.loader = loader
          self.device = device
 -        self.img_dtype = img_dtype or torch.float32
@@ -33,7 +42,7 @@
              [x * 255 for x in std], device=device, dtype=self.img_dtype).view(normalization_shape)
  
          if re_prob > 0.:
-@@ -80,10 +85,10 @@             self.random_erasing = None
+@@ -80,10 +88,10 @@             self.random_erasing = None
  
          # Check for CUDA/NPU availability
 -        self.is_cuda = device.type == 'cuda' and torch.cuda.is_available()
@@ -47,7 +56,7 @@
          """Iterate through the loader with prefetching and normalization.
  
          Yields:
-@@ -91,10 +96,10 @@         """
+@@ -91,10 +99,10 @@         """
          first = True
          if self.is_cuda:
 -            stream = torch.cuda.Stream(device=self.device)
@@ -59,7 +68,7 @@
              stream_context = partial(torch.npu.stream, stream=stream)
          else:
              stream = None
-@@ -104,7 +109,7 @@             with stream_context():
+@@ -104,7 +112,7 @@             with stream_context():
                  # Move all tensors in input_dict to device
                  for k, v in next_input_dict.items():
 -                    if isinstance(v, torch.Tensor):
@@ -67,7 +76,7 @@
                          dtype = self.img_dtype if k == 'patches' else None
                          next_input_dict[k] = next_input_dict[k].to(
                              device=self.device,
-@@ -152,9 +157,9 @@ 
+@@ -152,9 +160,9 @@ 
              if stream is not None:
                  if self.is_cuda:
 -                    torch.cuda.current_stream(device=self.device).wait_stream(stream)
@@ -78,7 +87,16 @@
  
              input_dict = next_input_dict
              target = next_target
-@@ -231,7 +236,7 @@         epoch: int = 0,
+@@ -188,6 +196,9 @@         return self.loader.dataset
+ 
+ 
++# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++# 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def create_naflex_loader(
+         dataset,
+         patch_size: Optional[Union[Tuple[int, int], int]] = None,
+@@ -231,7 +242,7 @@         epoch: int = 0,
          use_prefetcher: bool = True,
          pin_memory: bool = True,
 -        img_dtype: torch.dtype = torch.float32,
@@ -86,7 +104,7 @@
          device: Union[str, torch.device] = torch.device('cuda'),
          persistent_workers: bool = True,
          worker_seeding: str = 'all',
-@@ -352,7 +357,7 @@             pin_memory=pin_memory,
+@@ -352,7 +363,7 @@             pin_memory=pin_memory,
              worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding),
              persistent_workers=persistent_workers
 -        )
@@ -94,7 +112,7 @@
  
          if use_prefetcher:
              loader = NaFlexPrefetchLoader(
-@@ -400,7 +405,7 @@             collate_fn=collate_fn,
+@@ -400,7 +411,7 @@             collate_fn=collate_fn,
              pin_memory=pin_memory,
              drop_last=False,
 -        )

@@ -233,6 +233,8 @@ class NextConvBlock(msnn.Cell):
         self.mlp_drop_path = DropPath(drop_path)
         self.is_fused = False
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def reparameterize(self):
         if not self.is_fused:
@@ -392,6 +394,8 @@ class NextTransformerBlock(msnn.Cell):
         self.mlp_drop_path = DropPath(drop_path)
         self.is_fused = False
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def reparameterize(self):
         if not self.is_fused:
@@ -494,6 +498,7 @@ class NextStage(msnn.Cell):
         self.grad_checkpointing = enable
 
     def construct(self, x):
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -551,6 +556,7 @@ class NextViT(msnn.Cell):
             [NextConvBlock] * (depths[3] - 1) + [NextTransformerBlock]]
 
         self.stem = msnn.SequentialCell(
+            [
             ConvNormAct(
                 in_chans, stem_chs[0], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
             ConvNormAct(
@@ -558,8 +564,8 @@ class NextViT(msnn.Cell):
             ConvNormAct(
                 stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
             ConvNormAct(
-                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd)
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         in_chs = out_chs = stem_chs[-1]
         stages = []
         idx = 0
@@ -654,12 +660,14 @@ class NextViT(msnn.Cell):
         # forward pass
         x = self.stem(x)
         last_idx = len(self.stages) - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
             stages = self.stages[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(stage, x)
             else:
@@ -697,6 +705,7 @@ class NextViT(msnn.Cell):
 
     def forward_features(self, x):
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.stages, x)
         else:

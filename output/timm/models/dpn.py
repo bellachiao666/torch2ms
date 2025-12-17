@@ -38,11 +38,13 @@ class CatBnAct(msnn.Cell):
         super().__init__()
         self.bn = norm_layer(in_chs, eps=0.001, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (Tuple[torch.Tensor, torch.Tensor]) -> (torch.Tensor)
         pass
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (torch.Tensor) -> (torch.Tensor)
@@ -128,11 +130,13 @@ class DualPathBlock(msnn.Cell):
             self.c1x1_c1 = None
             self.c1x1_c2 = None
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]
         pass
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
@@ -264,7 +268,9 @@ class DPN(msnn.Cell):
         blocks['conv5_bn_ac'] = CatBnAct(in_chs, norm_layer=fc_norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.num_features = self.head_hidden_size = in_chs
-        self.features = msnn.SequentialCell(blocks)
+        self.features = msnn.SequentialCell([
+            blocks
+        ])
 
         # Using 1x1 conv for the FC layer to allow the extra pooling scheme
         self.global_pool, self.classifier = create_classifier(

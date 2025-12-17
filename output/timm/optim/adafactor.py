@@ -130,6 +130,8 @@ class Adafactor(torch.optim.Optimizer):
         c_factor = exp_avg_sq_col.unsqueeze(dim_col).rsqrt()
         return mint.mul(r_factor, c_factor)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
@@ -138,6 +140,7 @@ class Adafactor(torch.optim.Optimizer):
         """
         loss = None
         if closure is not None:
+            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.enable_grad():
                 loss = closure()
 

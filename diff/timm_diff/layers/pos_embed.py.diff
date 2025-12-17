@@ -6,7 +6,7 @@
  """ Position Embedding Utilities
  
  Hacked together by / Copyright 2022 Ross Wightman
-@@ -6,8 +11,7 @@ import math
+@@ -6,18 +11,18 @@ import math
  from typing import List, Tuple, Optional, Union
  
 -import torch
@@ -15,7 +15,11 @@
  
  from ._fx import register_notrace_function
  
-@@ -17,7 +21,7 @@ @torch.fx.wrap
+ _logger = logging.getLogger(__name__)
+ 
+ 
++# 装饰器 'torch.fx.wrap' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ @torch.fx.wrap
  @register_notrace_function
  def resample_abs_pos_embed(
 -        posemb: torch.Tensor,
@@ -23,7 +27,7 @@
          new_size: List[int],
          old_size: Optional[List[int]] = None,
          num_prefix_tokens: int = 1,
-@@ -45,13 +49,13 @@     orig_dtype = posemb.dtype
+@@ -45,24 +50,26 @@     orig_dtype = posemb.dtype
      posemb = posemb.float()  # interpolate needs float32
      posemb = posemb.reshape(1, old_size[0], old_size[1], -1).permute(0, 3, 1, 2)
 -    posemb = F.interpolate(posemb, size=new_size, mode=interpolation, antialias=antialias)
@@ -36,9 +40,15 @@
 -        posemb = torch.cat([posemb_prefix, posemb], dim=1)
 +        posemb = mint.cat([posemb_prefix, posemb], dim=1)
  
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      if not torch.jit.is_scripting() and verbose:
          _logger.info(f'Resized position embedding: {old_size} to {new_size}.')
-@@ -62,7 +66,7 @@ @torch.fx.wrap
+ 
+     return posemb
+ 
+ 
++# 装饰器 'torch.fx.wrap' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ @torch.fx.wrap
  @register_notrace_function
  def resample_abs_pos_embed_nhwc(
 -        posemb: torch.Tensor,
@@ -46,11 +56,14 @@
          new_size: List[int],
          interpolation: str = 'bicubic',
          antialias: bool = True,
-@@ -74,7 +78,7 @@     orig_dtype = posemb.dtype
+@@ -74,9 +81,10 @@     orig_dtype = posemb.dtype
      posemb = posemb.float()
      posemb = posemb.reshape(1, posemb.shape[-3], posemb.shape[-2], posemb.shape[-1]).permute(0, 3, 1, 2)
 -    posemb = F.interpolate(posemb, size=new_size, mode=interpolation, antialias=antialias)
 +    posemb = nn.functional.interpolate(posemb, size=new_size, mode=interpolation, antialias=antialias)
      posemb = posemb.permute(0, 2, 3, 1).to(orig_dtype)
  
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      if not torch.jit.is_scripting() and verbose:
+         _logger.info(f'Resized position embedding: {posemb.shape[-3:-1]} to {new_size}.')
+ 

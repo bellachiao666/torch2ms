@@ -213,6 +213,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
     across all ranks. Handles distributed training and multiple workers.
     """
 
+    # 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             base_dataset: Dataset,

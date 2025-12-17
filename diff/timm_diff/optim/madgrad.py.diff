@@ -24,7 +24,29 @@
  class MADGRAD(torch.optim.Optimizer):
      """
      MADGRAD_: A Momentumized, Adaptive, Dual Averaged Gradient Method for Stochastic
-@@ -116,10 +121,10 @@                 state = self.state[p]
+@@ -52,6 +57,7 @@             Term added to the denominator outside of the root operation to improve numerical stability. (default: 1e-6).
+     """
+ 
++    # 'torch.optim.optimizer._params_t' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             params: _params_t,
+@@ -87,6 +93,8 @@     def supports_flat_params(self) -> bool:
+         return True
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure: Optional[Callable[[], float]] = None) -> Optional[float]:
+         """Performs a single optimization step.
+@@ -96,6 +104,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -116,10 +125,10 @@                 state = self.state[p]
                  if len(state) == 0:
                      state['step'] = 0
 -                    state['grad_sum_sq'] = torch.zeros_like(p)

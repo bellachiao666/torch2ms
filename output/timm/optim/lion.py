@@ -84,6 +84,8 @@ class Lion(Optimizer):
             group.setdefault('maximize', False)
             group.setdefault('foreach', None)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
@@ -96,6 +98,7 @@ class Lion(Optimizer):
         """
         loss = None
         if closure is not None:
+            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.enable_grad():
                 loss = closure()
 
@@ -163,9 +166,11 @@ def lion(
         except:
             foreach = False
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if foreach and torch.jit.is_scripting():
         raise RuntimeError('torch.jit.script not supported with foreach optimizers')
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if foreach and not torch.jit.is_scripting():
         func = _multi_tensor_lion
     else:
@@ -202,6 +207,7 @@ def _single_tensor_lion(
         grad = grads[i] if not maximize else -grads[i]
         exp_avg = exp_avgs[i]
 
+        # 'torch.is_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.is_complex(param):
             grad = torch.view_as_real(grad)  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             exp_avg = torch.view_as_real(exp_avg)  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

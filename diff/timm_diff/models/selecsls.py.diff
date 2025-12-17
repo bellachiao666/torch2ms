@@ -16,7 +16,7 @@
  
  from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
  from timm.layers import create_classifier
-@@ -22,10 +27,10 @@ __all__ = ['SelecSls']  # model_registry will add each entrypoint fn to this
+@@ -22,62 +27,67 @@ __all__ = ['SelecSls']  # model_registry will add each entrypoint fn to this
  
  
 -class SequentialList(nn.Sequential):
@@ -24,11 +24,19 @@
  
      def __init__(self, *args):
 -        super().__init__(*args)
+-
 +        super().__init__(*args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
- 
++
++    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit._overload_method  # noqa: F811
      def forward(self, x):
-@@ -37,47 +42,47 @@         # type: (torch.Tensor) -> (List[torch.Tensor])
+         # type: (List[torch.Tensor]) -> (List[torch.Tensor])
+         pass
+ 
++    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit._overload_method  # noqa: F811
+     def forward(self, x):
+         # type: (torch.Tensor) -> (List[torch.Tensor])
          pass
  
 -    def forward(self, x) -> List[torch.Tensor]:
@@ -45,12 +53,14 @@
          self.mode = mode
          self.index = index
  
++    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit._overload_method  # noqa: F811
 -    def forward(self, x):
 +    def construct(self, x):
          # type: (List[torch.Tensor]) -> (torch.Tensor)
          pass
  
++    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.jit._overload_method  # noqa: F811
 -    def forward(self, x):
 +    def construct(self, x):
@@ -72,6 +82,7 @@
          padding = ((stride - 1) + dilation * (k - 1)) // 2
 -    return nn.Sequential(
 +    return msnn.SequentialCell(
++        [
          nn.Conv2d(in_chs, out_chs, k, stride, padding=padding, dilation=dilation, bias=False, **dd),
          nn.BatchNorm2d(out_chs, **dd),
 -        nn.ReLU(inplace=True)
@@ -80,14 +91,14 @@
 -
 -class SelecSlsBlock(nn.Module):
 +        nn.ReLU()
-+    )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
++    ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 +
 +
 +class SelecSlsBlock(msnn.Cell):
      def __init__(
              self,
              in_chs: int,
-@@ -97,14 +102,14 @@         assert stride in [1, 2]
+@@ -97,14 +107,14 @@         assert stride in [1, 2]
  
          # Process input with 4 conv blocks with the same number of input and output channels
 -        self.conv1 = conv_bn(in_chs, mid_chs, 3, stride, dilation=dilation, **dd)
@@ -109,7 +120,7 @@
          if not isinstance(x, list):
              x = [x]
          assert len(x) in [1, 2]
-@@ -113,13 +118,13 @@         d2 = self.conv3(self.conv2(d1))
+@@ -113,13 +123,13 @@         d2 = self.conv3(self.conv2(d1))
          d3 = self.conv5(self.conv4(d2))
          if self.is_first:
 -            out = self.conv6(torch.cat([d1, d2, d3], 1))
@@ -127,7 +138,7 @@
      """SelecSls42 / SelecSls60 / SelecSls84
  
      Parameters
-@@ -149,10 +154,10 @@         super().__init__()
+@@ -149,10 +159,10 @@         super().__init__()
          dd = {'device': device, 'dtype': dtype}
  
 -        self.stem = conv_bn(in_chans, 32, stride=2, **dd)
@@ -140,7 +151,7 @@
          self.num_features = self.head_hidden_size = cfg['num_features']
          self.feature_info = cfg['feature_info']
  
-@@ -162,13 +167,13 @@             pool_type=global_pool,
+@@ -162,13 +172,13 @@             pool_type=global_pool,
              drop_rate=drop_rate,
              **dd,
 -        )
@@ -157,7 +168,7 @@
      def group_matcher(self, coarse=False):
          return dict(
              stem=r'^stem',
-@@ -176,12 +181,12 @@             blocks_head=r'^head'
+@@ -176,12 +186,12 @@             blocks_head=r'^head'
          )
  
 -    @torch.jit.ignore
@@ -172,7 +183,7 @@
          return self.fc
  
      def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
-@@ -205,7 +210,7 @@         x = self.head_drop(x)
+@@ -205,7 +215,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.fc(x)
  
 -    def forward(self, x):
@@ -180,7 +191,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -341,7 +346,7 @@         model_cfg=cfg,
+@@ -341,7 +351,7 @@         model_cfg=cfg,
          feature_cfg=dict(out_indices=(0, 1, 2, 3, 4), flatten_sequential=True),
          **kwargs,
 -    )
@@ -188,7 +199,7 @@
  
  
  def _cfg(url='', **kwargs):
-@@ -377,32 +382,32 @@ def selecsls42(pretrained=False, **kwargs) -> SelecSls:
+@@ -377,32 +387,32 @@ def selecsls42(pretrained=False, **kwargs) -> SelecSls:
      """Constructs a SelecSls42 model.
      """
 -    return _create_selecsls('selecsls42', pretrained, **kwargs)

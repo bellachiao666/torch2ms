@@ -900,6 +900,7 @@ class Eva(msnn.Cell):
         x = self.patch_embed(x)
         x, rot_pos_embed = self._pos_embed(x)
         x = self.norm_pre(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
@@ -908,6 +909,7 @@ class Eva(msnn.Cell):
         # Handle depth-dependent embeddings for mixed mode
         if getattr(self, 'rope_mixed', False) and rot_pos_embed is not None:
             for i, blk in enumerate(blocks):
+                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if self.grad_checkpointing and not torch.jit.is_scripting():
                     x = checkpoint(blk, x, rope=rot_pos_embed[i])
                 else:
@@ -916,6 +918,7 @@ class Eva(msnn.Cell):
                     intermediates.append(self.norm(x) if norm else x)
         else:
             for i, blk in enumerate(blocks):
+                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if self.grad_checkpointing and not torch.jit.is_scripting():
                     x = checkpoint(blk, x, rope=rot_pos_embed)
                 else:
@@ -932,6 +935,7 @@ class Eva(msnn.Cell):
             # reshape to BCHW output format
             H, W = self.patch_embed.dynamic_feat_size((height, width))
             intermediates = [y.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous() for y in intermediates]
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting() and return_prefix_tokens:
             # return_prefix not support in torchscript due to poor type handling
             intermediates = list(zip(intermediates, prefix_tokens))
@@ -986,6 +990,7 @@ class Eva(msnn.Cell):
             # Handle depth-dependent embeddings for mixed mode
             # pos embed has shape (depth, num_heads, H*W, dim) or (depth, batch_size, num_heads, H*W, dim)
             for i, blk in enumerate(self.blocks):
+                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if self.grad_checkpointing and not torch.jit.is_scripting():
                     x = checkpoint(blk, x, rope=rot_pos_embed[i])
                 else:
@@ -993,6 +998,7 @@ class Eva(msnn.Cell):
         else:
             # Standard path for non-mixed mode
             for blk in self.blocks:
+                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if self.grad_checkpointing and not torch.jit.is_scripting():
                     x = checkpoint(blk, x, rope=rot_pos_embed)
                 else:

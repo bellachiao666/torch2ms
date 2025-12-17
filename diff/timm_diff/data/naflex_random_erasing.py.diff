@@ -14,7 +14,20 @@
  
  
  class PatchRandomErasing:
-@@ -87,10 +92,10 @@     def _get_values(
+@@ -26,6 +31,7 @@     2. 'region': Erases rectangular regions at patch granularity
+     """
+ 
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             erase_prob: float = 0.5,
+@@ -84,13 +90,16 @@         self.const_value = value
+         self.unique_noise_per_patch = True
+ 
++    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def _get_values(
              self,
              shape: Union[Tuple[int, ...], torch.Size],
 -            value: Optional[torch.Tensor] = None,
@@ -27,7 +40,7 @@
          """Generate values for erased patches based on the specified mode.
  
          Args:
-@@ -105,26 +110,26 @@         device = device or self.device
+@@ -105,26 +114,26 @@         device = device or self.device
          if self.erase_mode == 'pixel':
              # only mode with erase shape that includes pixels
 -            return torch.empty(shape, dtype=dtype, device=device).normal_()
@@ -62,7 +75,7 @@
          """Patch Dropout.
  
          Fully drops patches from datastream. Only mode that saves compute BUT requires support
-@@ -143,7 +148,7 @@             return
+@@ -143,7 +152,7 @@             return
  
          # Get indices of valid patches
 -        valid_indices = torch.nonzero(patch_valid, as_tuple=True)[0].tolist()
@@ -70,7 +83,7 @@
  
          # Skip if no valid patches
          if not valid_indices:
-@@ -153,7 +158,7 @@         if self.patch_drop_prob:
+@@ -153,20 +162,22 @@         if self.patch_drop_prob:
              # patch dropout mode, completely remove dropped patches (FIXME needs downstream support in model)
              num_keep = max(1, int(num_valid * (1. - self.patch_drop_prob)))
 -            keep_indices = torch.argsort(torch.randn(1, num_valid, device=self.device), dim=-1)[:, :num_keep]
@@ -78,7 +91,11 @@
              # maintain patch order, possibly useful for debug / visualization
              keep_indices = keep_indices.sort(dim=-1)[0]
              patches = patches.gather(1, keep_indices.unsqueeze(-1).expand((-1, -1) + patches.shape[2:]))
-@@ -162,11 +167,11 @@ 
+ 
+         return patches, patch_coord, patch_valid
+ 
++    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def _erase_patches(
              self,
 -            patches: torch.Tensor,
@@ -93,7 +110,7 @@
      ) -> None:
          """Apply erasing by selecting individual patches randomly.
  
-@@ -184,7 +189,7 @@             return
+@@ -184,7 +195,7 @@             return
  
          # Get indices of valid patches
 -        valid_indices = torch.nonzero(patch_valid, as_tuple=True)[0]
@@ -101,7 +118,7 @@
          num_valid = len(valid_indices)
          if num_valid == 0:
              return
-@@ -196,7 +201,7 @@         num_erase = random.randint(min_erase, max_erase)
+@@ -196,7 +207,7 @@         num_erase = random.randint(min_erase, max_erase)
  
          # Randomly select valid patches to erase
 -        erase_idx = valid_indices[torch.randperm(num_valid, device=patches.device)[:num_erase]]
@@ -109,7 +126,11 @@
  
          if self.unique_noise_per_patch and self.erase_mode == 'pixel':
              # generate unique noise for the whole selection of patches
-@@ -208,11 +213,11 @@ 
+@@ -206,13 +217,15 @@ 
+         patches[erase_idx] = self._get_values(fill_shape, dtype=dtype)
+ 
++    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      def _erase_region(
              self,
 -            patches: torch.Tensor,
@@ -124,7 +145,7 @@
      ) -> None:
          """Apply erasing by selecting rectangular regions of patches randomly.
  
-@@ -245,7 +250,7 @@             for attempt in range(10):
+@@ -245,7 +258,7 @@             for attempt in range(10):
                  # Sample random area and aspect ratio
                  target_area = random.uniform(self.min_area, self.max_area) * total_area
 -                aspect_ratio = math.exp(random.uniform(*self.log_aspect_ratio))
@@ -132,7 +153,7 @@
  
                  # Calculate region height and width
                  h = int(round(math.sqrt(target_area * aspect_ratio)))
-@@ -281,10 +286,10 @@ 
+@@ -281,10 +294,10 @@ 
      def __call__(
              self,
 -            patches: torch.Tensor,
@@ -146,7 +167,7 @@
          """Apply random patch erasing.
  
          Args:
-@@ -306,7 +311,7 @@ 
+@@ -306,7 +319,7 @@ 
          # Create default valid mask if not provided
          if patch_valid is None:
 -            patch_valid = torch.ones((batch_size, num_patches), dtype=torch.bool, device=patches.device)

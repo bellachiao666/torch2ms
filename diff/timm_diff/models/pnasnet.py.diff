@@ -105,18 +105,21 @@
  
      def __init__(
              self,
-@@ -148,26 +151,26 @@         dd = {'device': device, 'dtype': dtype}
+@@ -148,26 +151,30 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.act = nn.ReLU()
 -        self.path_1 = nn.Sequential(OrderedDict([
 -            ('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False)),
-+        self.path_1 = msnn.SequentialCell(OrderedDict([
++        self.path_1 = msnn.SequentialCell([
++            OrderedDict([
 +            ('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False)),
              ('conv', create_conv2d(in_channels, out_channels // 2, kernel_size=1, padding=padding, **dd)),
 -        ]))
 -        self.path_2 = nn.Sequential(OrderedDict([
-+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-+        self.path_2 = msnn.SequentialCell(OrderedDict([
++        ])
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.path_2 = msnn.SequentialCell([
++            OrderedDict([
              ('pad', nn.ZeroPad2d((-1, 1, -1, 1))),  # shift
 -            ('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False)),
 +            ('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False)),
@@ -125,7 +128,8 @@
 -        self.final_path_bn = nn.BatchNorm2d(out_channels, eps=0.001, **dd)
 -
 -    def forward(self, x):
-+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        ])
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 +        self.final_path_bn = nn.BatchNorm2d(out_channels, eps=0.001, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 +
 +    def construct(self, x):
@@ -142,7 +146,7 @@
  
      def cell_forward(self, x_left, x_right):
          x_comb_iter_0_left = self.comb_iter_0_left(x_left)
-@@ -193,7 +196,7 @@             x_comb_iter_4_right = x_right
+@@ -193,7 +200,7 @@             x_comb_iter_4_right = x_right
          x_comb_iter_4 = x_comb_iter_4_left + x_comb_iter_4_right
  
 -        x_out = torch.cat([x_comb_iter_0, x_comb_iter_1, x_comb_iter_2, x_comb_iter_3, x_comb_iter_4], 1)
@@ -150,7 +154,7 @@
          return x_out
  
  
-@@ -211,33 +214,33 @@     ):
+@@ -211,33 +218,35 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, kernel_size=1, padding=pad_type, **dd)
@@ -160,12 +164,14 @@
 -            in_chs_left, out_chs_left, kernel_size=5, stride=2, stem_cell=True, padding=pad_type, **dd)
 -        self.comb_iter_0_right = nn.Sequential(OrderedDict([
 +            in_chs_left, out_chs_left, kernel_size=5, stride=2, stem_cell=True, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-+        self.comb_iter_0_right = msnn.SequentialCell(OrderedDict([
++        self.comb_iter_0_right = msnn.SequentialCell([
++            OrderedDict([
              ('max_pool', create_pool2d('max', 3, stride=2, padding=pad_type)),
              ('conv', create_conv2d(in_chs_left, out_chs_left, kernel_size=1, padding=pad_type, **dd)),
              ('bn', nn.BatchNorm2d(out_chs_left, eps=0.001, **dd)),
 -        ]))
-+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
++        ])
++        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
  
          self.comb_iter_1_left = BranchSeparables(
 -            out_chs_right, out_chs_right, kernel_size=7, stride=2, padding=pad_type, **dd)
@@ -193,7 +199,7 @@
  
      def forward(self, x_left):
          x_right = self.conv_1x1(x_left)
-@@ -271,32 +274,32 @@         # of the left input of a cell approximately by a factor of 2.
+@@ -271,32 +280,32 @@         # of the left input of a cell approximately by a factor of 2.
          self.match_prev_layer_dimensions = match_prev_layer_dims
          if match_prev_layer_dims:
 -            self.conv_prev_1x1 = FactorizedReduction(in_chs_left, out_chs_left, padding=pad_type, **dd)
@@ -236,7 +242,7 @@
          else:
              self.comb_iter_4_right = None
  
-@@ -307,7 +310,7 @@         return x_out
+@@ -307,7 +316,7 @@         return x_out
  
  
 -class PNASNet5Large(nn.Module):
@@ -244,7 +250,7 @@
      def __init__(
              self,
              num_classes: int = 1000,
-@@ -327,45 +330,45 @@ 
+@@ -327,45 +336,45 @@ 
          self.conv_0 = ConvNormAct(
              in_chans, 96, kernel_size=3, stride=2, padding=0,
 -            norm_layer=partial(nn.BatchNorm2d, eps=0.001, momentum=0.1), apply_act=False, **dd)
@@ -304,7 +310,7 @@
          self.act = nn.ReLU()
          self.feature_info = [
              dict(num_chs=96, reduction=2, module='conv_0'),
-@@ -376,25 +379,25 @@         ]
+@@ -376,25 +385,25 @@         ]
  
          self.global_pool, self.head_drop, self.last_linear = create_classifier(
 -            self.num_features, self.num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)
@@ -336,7 +342,7 @@
  
      def forward_features(self, x):
          x_conv_0 = self.conv_0(x)
-@@ -420,7 +423,7 @@         x = self.head_drop(x)
+@@ -420,7 +429,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.last_linear(x)
  
 -    def forward(self, x):
@@ -344,7 +350,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -433,7 +436,7 @@         pretrained,
+@@ -433,7 +442,7 @@         pretrained,
          feature_cfg=dict(feature_cls='hook', no_rewrite=True),  # not possible to re-write this model
          **kwargs,
 -    )
@@ -352,7 +358,7 @@
  
  
  default_cfgs = generate_default_cfgs({
-@@ -459,5 +462,5 @@     `"Progressive Neural Architecture Search"
+@@ -459,5 +468,5 @@     `"Progressive Neural Architecture Search"
      <https://arxiv.org/abs/1712.00559>`_ paper.
      """
 -    model_kwargs = dict(pad_type='same', **kwargs)

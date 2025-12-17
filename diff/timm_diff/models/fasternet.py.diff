@@ -127,7 +127,7 @@
              MLPBlock(
                  dim=dim,
                  n_div=n_div,
-@@ -140,15 +144,15 @@                 **dd,
+@@ -140,16 +144,17 @@                 **dd,
              )
              for i in range(depth)
 -        ])
@@ -144,9 +144,11 @@
 +
 +    def construct(self, x: ms.Tensor) -> ms.Tensor:
          x = self.downsample(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if self.grad_checkpointing and not torch.jit.is_scripting():
              x = checkpoint_seq(self.blocks, x)
-@@ -157,44 +161,44 @@         return x
+         else:
+@@ -157,44 +162,44 @@         return x
  
  
 -class PatchEmbed(nn.Module):
@@ -203,7 +205,7 @@
      def __init__(
              self,
              in_chans: int = 3,
-@@ -211,8 +215,8 @@             drop_rate: float = 0.,
+@@ -211,8 +216,8 @@             drop_rate: float = 0.,
              drop_path_rate: float = 0.1,
              layer_scale_init_value: float = 0.,
 -            act_layer: Type[nn.Module] = partial(nn.ReLU, inplace=True),
@@ -213,7 +215,7 @@
              pconv_fw_type: str = 'split_cat',
              device=None,
              dtype=None,
-@@ -231,9 +235,9 @@             in_chans=in_chans,
+@@ -231,9 +236,9 @@             in_chans=in_chans,
              embed_dim=embed_dim,
              patch_size=patch_size,
 -            norm_layer=norm_layer if patch_norm else nn.Identity,
@@ -224,7 +226,7 @@
          # stochastic depth decay rule
          dpr = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
  
-@@ -254,19 +258,19 @@                 use_merge=False if i == 0 else True,
+@@ -254,19 +259,19 @@                 use_merge=False if i == 0 else True,
                  merge_size=merge_size,
                  **dd,
 -            )
@@ -248,7 +250,7 @@
          self._initialize_weights()
  
      def _initialize_weights(self):
-@@ -274,17 +278,17 @@             if isinstance(m, nn.Linear):
+@@ -274,17 +279,17 @@             if isinstance(m, nn.Linear):
                  trunc_normal_(m.weight, std=.02)
                  if isinstance(m, nn.Linear) and m.bias is not None:
 -                    nn.init.constant_(m.bias, 0)
@@ -270,7 +272,7 @@
      def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
          matcher = dict(
              stem=r'^patch_embed',  # stem and embed
-@@ -296,13 +300,13 @@         )
+@@ -296,13 +301,13 @@         )
          return matcher
  
 -    @torch.jit.ignore
@@ -286,7 +288,7 @@
          return self.classifier
  
      def reset_classifier(self, num_classes: int, global_pool: str = 'avg', device=None, dtype=None):
-@@ -310,18 +314,18 @@         self.num_classes = num_classes
+@@ -310,18 +315,18 @@         self.num_classes = num_classes
          # cannot meaningfully change pooling of efficient head after creation
          self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
 -        self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
@@ -308,7 +310,14 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -369,27 +373,27 @@             self.reset_classifier(0, '')
+@@ -340,6 +345,7 @@ 
+         # forward pass
+         x = self.patch_embed(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+@@ -369,27 +375,27 @@             self.reset_classifier(0, '')
          return take_indices
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -340,7 +349,7 @@
      # if 'avgpool_pre_head' in state_dict:
      #     return state_dict
      #
-@@ -465,41 +469,41 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -465,41 +471,41 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
          **kwargs,
 -    )

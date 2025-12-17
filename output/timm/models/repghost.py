@@ -50,10 +50,11 @@ class RepGhostModule(msnn.Cell):
         new_chs = out_chs
 
         self.primary_conv = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chs, init_chs, kernel_size, stride, kernel_size // 2, bias=False, **dd),
             nn.BatchNorm2d(init_chs, **dd),
-            nn.ReLU() if relu else msnn.Identity(),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+            nn.ReLU() if relu else msnn.Identity()
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
         fusion_conv = []
         fusion_bn = []
@@ -65,10 +66,10 @@ class RepGhostModule(msnn.Cell):
         self.fusion_bn = msnn.SequentialCell(*fusion_bn)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.cheap_operation = msnn.SequentialCell(
+            [
             nn.Conv2d(init_chs, new_chs, dw_size, 1, dw_size//2, groups=init_chs, bias=False, **dd),
-            nn.BatchNorm2d(new_chs, **dd),
-            # nn.ReLU(inplace=True) if relu else nn.Identity(),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;
+            nn.BatchNorm2d(new_chs, **dd)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = nn.ReLU() if relu else msnn.Identity()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
 
     def construct(self, x):
@@ -193,6 +194,7 @@ class RepGhostBottleneck(msnn.Cell):
             self.shortcut = msnn.SequentialCell()
         else:
             self.shortcut = msnn.SequentialCell(
+                [
                 nn.Conv2d(
                     in_chs,
                     in_chs,
@@ -205,8 +207,8 @@ class RepGhostBottleneck(msnn.Cell):
                 ),
                 nn.BatchNorm2d(in_chs, **dd),
                 nn.Conv2d(in_chs, out_chs, 1, stride=1, padding=0, bias=False, **dd),
-                nn.BatchNorm2d(out_chs, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;
+                nn.BatchNorm2d(out_chs, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
         shortcut = x
@@ -283,7 +285,9 @@ class RepGhostNet(msnn.Cell):
             stage_idx += 1
 
         out_chs = make_divisible(exp_size * width * 2, 4)
-        stages.append(msnn.SequentialCell(ConvBnAct(prev_chs, out_chs, 1, **dd)))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        stages.append(msnn.SequentialCell([
+            ConvBnAct(prev_chs, out_chs, 1, **dd)
+        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.pool_dim = prev_chs = out_chs
 
         self.blocks = msnn.SequentialCell(*stages)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
@@ -365,12 +369,14 @@ class RepGhostNet(msnn.Cell):
             intermediates.append(x)
         x = self.bn1(x)
         x = self.act1(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.blocks
         else:
             stages = self.blocks[:max_index + 1]
 
         for feat_idx, stage in enumerate(stages, start=1):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint_seq(stage, x)
             else:
@@ -403,6 +409,7 @@ class RepGhostNet(msnn.Cell):
         x = self.conv_stem(x)
         x = self.bn1(x)
         x = self.act1(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x, flatten=True)
         else:

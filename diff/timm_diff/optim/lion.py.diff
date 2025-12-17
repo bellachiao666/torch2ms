@@ -21,7 +21,22 @@
  class Lion(Optimizer):
      r"""Implements Lion algorithm."""
  
-@@ -111,7 +117,7 @@ 
+@@ -78,6 +84,8 @@             group.setdefault('maximize', False)
+             group.setdefault('foreach', None)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step.
+@@ -90,6 +98,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -111,7 +120,7 @@ 
                  # State initialization
                  if len(state) == 0:
 -                    state['exp_avg'] = torch.zeros_like(p, memory_format=torch.preserve_format)
@@ -29,7 +44,7 @@
  
                  exp_avgs.append(state['exp_avg'])
  
-@@ -133,9 +139,9 @@ 
+@@ -133,9 +142,9 @@ 
  
  def lion(
 -        params: List[torch.Tensor],
@@ -41,7 +56,7 @@
          # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
          # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
          maximize: bool = False,
-@@ -153,7 +159,7 @@     if foreach is None:
+@@ -153,13 +162,15 @@     if foreach is None:
          try:
              # cannot do foreach if this overload doesn't exist when caution enabled
 -            foreach = not caution or 'Scalar' in torch.ops.aten._foreach_maximum_.overloads()
@@ -49,7 +64,15 @@
          except:
              foreach = False
  
-@@ -180,9 +186,9 @@ 
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if foreach and torch.jit.is_scripting():
+         raise RuntimeError('torch.jit.script not supported with foreach optimizers')
+ 
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if foreach and not torch.jit.is_scripting():
+         func = _multi_tensor_lion
+     else:
+@@ -180,9 +191,9 @@ 
  
  def _single_tensor_lion(
 -        params: List[torch.Tensor],
@@ -61,8 +84,10 @@
          *,
          beta1: float,
          beta2: float,
-@@ -197,9 +203,9 @@         exp_avg = exp_avgs[i]
+@@ -196,10 +207,11 @@         grad = grads[i] if not maximize else -grads[i]
+         exp_avg = exp_avgs[i]
  
++        # 'torch.is_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if torch.is_complex(param):
 -            grad = torch.view_as_real(grad)
 -            exp_avg = torch.view_as_real(exp_avg)
@@ -73,7 +98,7 @@
  
          # Perform stepweight decay
          wd_scale = lr if max_lr is None else lr ** 2 / max_lr
-@@ -221,9 +227,9 @@ 
+@@ -221,9 +233,9 @@ 
  
  def _multi_tensor_lion(
 -        params: List[torch.Tensor],
@@ -85,7 +110,7 @@
          *,
          beta1: float,
          beta2: float,
-@@ -237,32 +243,32 @@         return
+@@ -237,32 +249,32 @@         return
  
      if maximize:
 -        grads = torch._foreach_neg(tuple(grads))  # type: ignore[assignment]

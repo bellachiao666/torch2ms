@@ -182,6 +182,7 @@ def convert_sync_batchnorm(module, process_group=None):
             module_output = nn.SyncBatchNorm(
                 module.num_features, module.eps, module.momentum, module.affine, module.track_running_stats, process_group)
         if module.affine:
+            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.no_grad():
                 module_output.weight = module.weight
                 module_output.bias = module.bias
@@ -434,6 +435,7 @@ class GroupNorm1Act(nn.GroupNorm):
 class LayerNormAct(nn.LayerNorm):
     _fast_norm: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             normalization_shape: Union[int, List[int], torch.Size],
@@ -464,6 +466,7 @@ class LayerNormAct(nn.LayerNorm):
 
 class LayerNormActFp32(nn.LayerNorm):
 
+    # 'torch.Size' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             normalization_shape: Union[int, List[int], torch.Size],

@@ -62,6 +62,7 @@ def drop_block_2d(
     # Generate drop mask: 1 at block centers to drop, 0 elsewhere
     # couple_channels=True means all channels share same spatial mask (matches paper)
     noise_shape = (B, 1 if couple_channels else C, H, W)
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.no_grad():
         block_mask = mint.empty(noise_shape, dtype=x.dtype, device=x.device).bernoulli_(gamma)
 
@@ -76,6 +77,7 @@ def drop_block_2d(
         keep_mask = 1. - block_mask
 
     if with_noise:
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             noise = mint.empty_like(keep_mask).normal_()
             noise.mul_(block_mask)
@@ -86,6 +88,7 @@ def drop_block_2d(
             x = x * keep_mask + noise
     else:
         if scale_by_keep:
+            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.no_grad():
                 # Normalize to maintain expected values (scale up kept activations)
                 normalize_scale = keep_mask.numel() / keep_mask.to(dtype=ms.float32).sum().add(1e-7)

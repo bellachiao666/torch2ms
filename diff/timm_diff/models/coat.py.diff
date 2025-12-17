@@ -468,7 +468,21 @@
  
      def forward_features(self, x0):
          B = x0.shape[0]
-@@ -686,20 +685,20 @@             x4 = self.norm4(x4)
+@@ -642,6 +641,7 @@ 
+         # Only serial blocks: Early return.
+         if self.parallel_blocks is None:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if not torch.jit.is_scripting() and self.return_interm_layers:
+                 # Return intermediate features for down-stream tasks (e.g. Deformable DETR and Detectron2).
+                 feat_out = {}
+@@ -664,6 +664,7 @@             x2, x3, x4 = self.cpe2(x2, (H2, W2)), self.cpe3(x3, (H3, W3)), self.cpe4(x4, (H4, W4))
+             x1, x2, x3, x4 = blk(x1, x2, x3, x4, sizes=[(H1, W1), (H2, W2), (H3, W3), (H4, W4)])
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if not torch.jit.is_scripting() and self.return_interm_layers:
+             # Return intermediate features for down-stream tasks (e.g. Deformable DETR and Detectron2).
+             feat_out = {}
+@@ -686,20 +687,21 @@             x4 = self.norm4(x4)
              return [x2, x3, x4]
  
 -    def forward_head(self, x_feat: Union[torch.Tensor, List[torch.Tensor]], pre_logits: bool = False):
@@ -489,10 +503,11 @@
  
 -    def forward(self, x) -> torch.Tensor:
 +    def construct(self, x) -> ms.Tensor:
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          if not torch.jit.is_scripting() and self.return_interm_layers:
              # Return intermediate features (for down-stream tasks).
              return self.forward_features(x)
-@@ -713,7 +712,7 @@ def insert_cls(x, cls_token):
+@@ -713,7 +715,7 @@ def insert_cls(x, cls_token):
      """ Insert CLS token. """
      cls_tokens = cls_token.expand(x.shape[0], -1, -1)
 -    x = torch.cat((cls_tokens, x), dim=1)
@@ -500,7 +515,7 @@
      return x
  
  
-@@ -748,7 +747,7 @@         pretrained,
+@@ -748,7 +750,7 @@         pretrained,
          pretrained_filter_fn=checkpoint_filter_fn,
          **kwargs,
 -    )
@@ -508,7 +523,7 @@
      return model
  
  
-@@ -783,7 +782,7 @@ def coat_tiny(pretrained=False, **kwargs) -> CoaT:
+@@ -783,7 +785,7 @@ def coat_tiny(pretrained=False, **kwargs) -> CoaT:
      model_cfg = dict(
          patch_size=4, embed_dims=[152, 152, 152, 152], serial_depths=[2, 2, 2, 2], parallel_depth=6)
 -    model = _create_coat('coat_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -516,7 +531,7 @@
      return model
  
  
-@@ -791,15 +790,15 @@ def coat_mini(pretrained=False, **kwargs) -> CoaT:
+@@ -791,15 +793,15 @@ def coat_mini(pretrained=False, **kwargs) -> CoaT:
      model_cfg = dict(
          patch_size=4, embed_dims=[152, 216, 216, 216], serial_depths=[2, 2, 2, 2], parallel_depth=6)
 -    model = _create_coat('coat_mini', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -534,7 +549,7 @@
      return model
  
  
-@@ -807,7 +806,7 @@ def coat_lite_tiny(pretrained=False, **kwargs) -> CoaT:
+@@ -807,7 +809,7 @@ def coat_lite_tiny(pretrained=False, **kwargs) -> CoaT:
      model_cfg = dict(
          patch_size=4, embed_dims=[64, 128, 256, 320], serial_depths=[2, 2, 2, 2], mlp_ratios=[8, 8, 4, 4])
 -    model = _create_coat('coat_lite_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -542,7 +557,7 @@
      return model
  
  
-@@ -815,7 +814,7 @@ def coat_lite_mini(pretrained=False, **kwargs) -> CoaT:
+@@ -815,7 +817,7 @@ def coat_lite_mini(pretrained=False, **kwargs) -> CoaT:
      model_cfg = dict(
          patch_size=4, embed_dims=[64, 128, 320, 512], serial_depths=[2, 2, 2, 2], mlp_ratios=[8, 8, 4, 4])
 -    model = _create_coat('coat_lite_mini', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -550,7 +565,7 @@
      return model
  
  
-@@ -823,7 +822,7 @@ def coat_lite_small(pretrained=False, **kwargs) -> CoaT:
+@@ -823,7 +825,7 @@ def coat_lite_small(pretrained=False, **kwargs) -> CoaT:
      model_cfg = dict(
          patch_size=4, embed_dims=[64, 128, 320, 512], serial_depths=[3, 4, 6, 3], mlp_ratios=[8, 8, 4, 4])
 -    model = _create_coat('coat_lite_small', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -558,7 +573,7 @@
      return model
  
  
-@@ -831,7 +830,7 @@ def coat_lite_medium(pretrained=False, **kwargs) -> CoaT:
+@@ -831,7 +833,7 @@ def coat_lite_medium(pretrained=False, **kwargs) -> CoaT:
      model_cfg = dict(
          patch_size=4, embed_dims=[128, 256, 320, 512], serial_depths=[3, 6, 10, 8])
 -    model = _create_coat('coat_lite_medium', pretrained=pretrained, **dict(model_cfg, **kwargs))
@@ -566,7 +581,7 @@
      return model
  
  
-@@ -839,5 +838,5 @@ def coat_lite_medium_384(pretrained=False, **kwargs) -> CoaT:
+@@ -839,5 +841,5 @@ def coat_lite_medium_384(pretrained=False, **kwargs) -> CoaT:
      model_cfg = dict(
          img_size=384, patch_size=4, embed_dims=[128, 256, 320, 512], serial_depths=[3, 6, 10, 8])
 -    model = _create_coat('coat_lite_medium_384', pretrained=pretrained, **dict(model_cfg, **kwargs))

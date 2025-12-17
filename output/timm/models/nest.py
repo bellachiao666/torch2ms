@@ -281,6 +281,7 @@ class NestLevel(msnn.Cell):
         x = x.permute(0, 2, 3, 1)  # (B, H', W', C), switch to channels last for transformer
         x = blockify(x, self.block_size)  # (B, T, N, C')
         x = x + self.pos_embed
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.transformer_encoder, x)
         else:
@@ -500,6 +501,7 @@ class Nest(msnn.Cell):
         # forward pass
         x = self.patch_embed(x)
         last_idx = len(self.num_blocks) - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.levels
         else:

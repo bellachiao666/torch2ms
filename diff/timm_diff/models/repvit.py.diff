@@ -24,21 +24,25 @@
      def __init__(
              self,
              in_dim: int,
-@@ -45,10 +50,10 @@     ):
+@@ -45,11 +50,13 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.add_module('c', nn.Conv2d(in_dim, out_dim, ks, stride, pad, dilation, groups, bias=False, **dd))
 -        self.add_module('bn', nn.BatchNorm2d(out_dim, **dd))
 -        nn.init.constant_(self.bn.weight, bn_weight_init)
 -        nn.init.constant_(self.bn.bias, 0)
+-
 +        self.add_module('c', nn.Conv2d(in_dim, out_dim, ks, stride, pad, dilation, groups, bias=False, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
 +        self.add_module('bn', nn.BatchNorm2d(out_dim, **dd))  # 存在 *args/**kwargs，需手动确认参数映射;
 +        nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 +        nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
++
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.no_grad()
      def fuse(self):
-@@ -57,21 +62,13 @@         w = c.weight * w[:, None, None, None]
+         c, bn = self._modules.values()
+@@ -57,21 +64,13 @@         w = c.weight * w[:, None, None, None]
          b = bn.bias - bn.running_mean * bn.weight / (bn.running_var + bn.eps) ** 0.5
          m = nn.Conv2d(
 -            w.size(1) * self.c.groups,
@@ -61,7 +65,7 @@
      def __init__(
              self,
              in_dim: int,
-@@ -83,11 +80,11 @@     ):
+@@ -83,12 +82,14 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.add_module('bn', nn.BatchNorm1d(in_dim, **dd))
@@ -71,11 +75,15 @@
          trunc_normal_(self.l.weight, std=std)
          if bias:
 -            nn.init.constant_(self.l.bias, 0)
+-
 +            nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
- 
++
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.no_grad()
      def fuse(self):
-@@ -99,13 +96,13 @@             b = b @ self.l.weight.T
+         bn, l = self._modules.values()
+@@ -99,13 +100,13 @@             b = b @ self.l.weight.T
          else:
              b = (l.weight @ b[:, None]).view(-1) + self.l.bias
 -        m = nn.Linear(w.size(1), w.size(0), device=l.weight.device)
@@ -90,7 +98,7 @@
      def __init__(
              self,
              ed: int,
-@@ -116,18 +113,18 @@     ):
+@@ -116,20 +117,22 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.conv = ConvNorm(ed, ed, kernel_size, 1, (kernel_size - 1) // 2, groups=ed, **dd)
@@ -100,11 +108,10 @@
 +            self.conv1 = ConvNorm(ed, ed, 1, 1, 0, groups=ed, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              # Make torchscript happy.
 -            self.bn = nn.Identity()
--        else:
++            self.bn = msnn.Identity()
+         else:
 -            self.conv1 = nn.Conv2d(ed, ed, 1, 1, 0, groups=ed, **dd)
 -            self.bn = nn.BatchNorm2d(ed, **dd)
-+            self.bn = msnn.Identity()
-+        else:
 +            self.conv1 = nn.Conv2d(ed, ed, 1, 1, 0, groups=ed, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 +            self.bn = nn.BatchNorm2d(ed, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
          self.dim = ed
@@ -114,8 +121,12 @@
 +    def construct(self, x):
          return self.bn(self.conv(x) + self.conv1(x) + x)
  
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      @torch.no_grad()
-@@ -147,8 +144,7 @@         conv1_w = nn.functional.pad(conv1_w, [1, 1, 1, 1])
+     def fuse(self):
+         conv = self.conv.fuse()
+@@ -147,8 +150,7 @@         conv1_w = nn.functional.pad(conv1_w, [1, 1, 1, 1])
  
          identity = nn.functional.pad(
 -            torch.ones(conv1_w.shape[0], conv1_w.shape[1], 1, 1, device=conv1_w.device), [1, 1, 1, 1]
@@ -124,7 +135,7 @@
  
          final_conv_w = conv_w + conv1_w + identity
          final_conv_b = conv_b + conv1_b
-@@ -166,44 +162,44 @@         return conv
+@@ -166,44 +168,44 @@         return conv
  
  
 -class RepVitMlp(nn.Module):
@@ -186,7 +197,7 @@
          x = self.token_mixer(x)
          x = self.se(x)
          identity = x
-@@ -211,34 +207,34 @@         return identity + x
+@@ -211,34 +213,34 @@         return identity + x
  
  
 -class RepVitStem(nn.Module):
@@ -232,7 +243,7 @@
              legacy: bool = False,
              device=None,
              dtype=None,
-@@ -253,7 +249,7 @@             act_layer=act_layer,
+@@ -253,7 +255,7 @@             act_layer=act_layer,
              legacy=legacy,
              **dd,
 -        )
@@ -240,7 +251,7 @@
          self.spatial_downsample = ConvNorm(
              in_dim,
              in_dim,
-@@ -262,11 +258,11 @@             pad=(kernel_size - 1) // 2,
+@@ -262,11 +264,11 @@             pad=(kernel_size - 1) // 2,
              groups=in_dim,
              **dd,
 -        )
@@ -256,7 +267,7 @@
          x = self.pre_block(x)
          x = self.spatial_downsample(x)
          x = self.channel_downsample(x)
-@@ -275,7 +271,7 @@         return x + identity
+@@ -275,7 +277,7 @@         return x + identity
  
  
 -class RepVitClassifier(nn.Module):
@@ -264,7 +275,7 @@
      def __init__(
              self,
              dim: int,
-@@ -288,14 +284,14 @@         dd = {'device': device, 'dtype': dtype}
+@@ -288,17 +290,18 @@         dd = {'device': device, 'dtype': dtype}
          super().__init__()
          self.head_drop = nn.Dropout(drop)
 -        self.head = NormLinear(dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
@@ -282,7 +293,16 @@
          x = self.head_drop(x)
          if self.distillation:
              x1, x2 = self.head(x), self.head_dist(x)
-@@ -310,7 +306,7 @@     @torch.no_grad()
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.training and self.distilled_training and not torch.jit.is_scripting():
+                 return x1, x2
+             else:
+@@ -307,10 +310,12 @@             x = self.head(x)
+             return x
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
      def fuse(self):
          if not self.num_classes > 0:
 -            return nn.Identity()
@@ -290,7 +310,7 @@
          head = self.head.fuse()
          if self.distillation:
              head_dist = self.head_dist.fuse()
-@@ -323,14 +319,14 @@             return head
+@@ -323,14 +328,14 @@             return head
  
  
 -class RepVitStage(nn.Module):
@@ -306,7 +326,7 @@
              kernel_size: int = 3,
              downsample: bool = True,
              legacy: bool = False,
-@@ -348,26 +344,26 @@                 act_layer=act_layer,
+@@ -348,26 +353,26 @@                 act_layer=act_layer,
                  legacy=legacy,
                  **dd,
 -            )
@@ -339,7 +359,7 @@
      def __init__(
          self,
          in_chans: int = 3,
-@@ -378,7 +374,7 @@         global_pool: str = 'avg',
+@@ -378,7 +383,7 @@         global_pool: str = 'avg',
          kernel_size: int = 3,
          num_classes: int = 1000,
 -        act_layer: Type[nn.Module] = nn.GELU,
@@ -347,7 +367,7 @@
          distillation: bool = True,
          drop_rate: float = 0.0,
          legacy: bool = False,
-@@ -393,7 +389,7 @@         self.num_classes = num_classes
+@@ -393,7 +398,7 @@         self.num_classes = num_classes
  
          in_dim = embed_dim[0]
 -        self.stem = RepVitStem(in_chans, in_dim, act_layer, **dd)
@@ -355,7 +375,7 @@
          stride = self.stem.stride
          resolution = tuple([i // p for i, p in zip(to_2tuple(img_size), to_2tuple(stride))])
  
-@@ -416,29 +412,29 @@                     legacy=legacy,
+@@ -416,29 +421,29 @@                     legacy=legacy,
                      **dd,
                  )
 -            )
@@ -392,7 +412,7 @@
          return self.head
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, distillation: bool = False, device=None, dtype=None):
-@@ -446,21 +442,21 @@         if global_pool is not None:
+@@ -446,21 +451,21 @@         if global_pool is not None:
              self.global_pool = global_pool
          dd = {'device': device, 'dtype': dtype}
 -        self.head = RepVitClassifier(self.embed_dim[-1], num_classes, distillation, **dd)
@@ -418,7 +438,28 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -527,7 +523,7 @@             return x
+@@ -479,12 +484,14 @@ 
+         # forward pass
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.stages
+         else:
+             stages = self.stages[:max_index + 1]
+ 
+         for feat_idx, stage in enumerate(stages):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(stage, x)
+             else:
+@@ -513,6 +520,7 @@ 
+     def forward_features(self, x):
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.stages, x)
+         else:
+@@ -527,11 +535,13 @@             return x
          return self.head(x)
  
 -    def forward(self, x):
@@ -426,7 +467,13 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -616,7 +612,7 @@         pretrained,
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def fuse(self):
+         def fuse_children(net):
+@@ -616,7 +626,7 @@         pretrained,
          feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
          **kwargs,
 -    )
@@ -434,7 +481,7 @@
      return model
  
  
-@@ -626,7 +622,7 @@     Constructs a RepViT-M1 model
+@@ -626,7 +636,7 @@     Constructs a RepViT-M1 model
      """
      model_args = dict(embed_dim=(48, 96, 192, 384), depth=(2, 2, 14, 2), legacy=True)
 -    return _create_repvit('repvit_m1', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -442,7 +489,7 @@
  
  
  @register_model
-@@ -635,7 +631,7 @@     Constructs a RepViT-M2 model
+@@ -635,7 +645,7 @@     Constructs a RepViT-M2 model
      """
      model_args = dict(embed_dim=(64, 128, 256, 512), depth=(2, 2, 12, 2), legacy=True)
 -    return _create_repvit('repvit_m2', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -450,7 +497,7 @@
  
  
  @register_model
-@@ -644,7 +640,7 @@     Constructs a RepViT-M3 model
+@@ -644,7 +654,7 @@     Constructs a RepViT-M3 model
      """
      model_args = dict(embed_dim=(64, 128, 256, 512), depth=(4, 4, 18, 2), legacy=True)
 -    return _create_repvit('repvit_m3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -458,7 +505,7 @@
  
  
  @register_model
-@@ -653,7 +649,7 @@     Constructs a RepViT-M0.9 model
+@@ -653,7 +663,7 @@     Constructs a RepViT-M0.9 model
      """
      model_args = dict(embed_dim=(48, 96, 192, 384), depth=(2, 2, 14, 2))
 -    return _create_repvit('repvit_m0_9', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -466,7 +513,7 @@
  
  
  @register_model
-@@ -662,7 +658,7 @@     Constructs a RepViT-M1.0 model
+@@ -662,7 +672,7 @@     Constructs a RepViT-M1.0 model
      """
      model_args = dict(embed_dim=(56, 112, 224, 448), depth=(2, 2, 14, 2))
 -    return _create_repvit('repvit_m1_0', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -474,7 +521,7 @@
  
  
  @register_model
-@@ -671,7 +667,7 @@     Constructs a RepViT-M1.1 model
+@@ -671,7 +681,7 @@     Constructs a RepViT-M1.1 model
      """
      model_args = dict(embed_dim=(64, 128, 256, 512), depth=(2, 2, 12, 2))
 -    return _create_repvit('repvit_m1_1', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -482,7 +529,7 @@
  
  
  @register_model
-@@ -680,7 +676,7 @@     Constructs a RepViT-M1.5 model
+@@ -680,7 +690,7 @@     Constructs a RepViT-M1.5 model
      """
      model_args = dict(embed_dim=(64, 128, 256, 512), depth=(4, 4, 24, 4))
 -    return _create_repvit('repvit_m1_5', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -490,7 +537,7 @@
  
  
  @register_model
-@@ -689,4 +685,4 @@     Constructs a RepViT-M2.3 model
+@@ -689,4 +699,4 @@     Constructs a RepViT-M2.3 model
      """
      model_args = dict(embed_dim=(80, 160, 320, 640), depth=(6, 6, 34, 2))
 -    return _create_repvit('repvit_m2_3', pretrained=pretrained, **dict(model_args, **kwargs))

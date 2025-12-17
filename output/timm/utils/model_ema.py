@@ -73,6 +73,7 @@ class ModelEma:
     def update(self, model):
         # correct a mismatch in state dict keys
         needs_module = hasattr(model, 'module') and not self.ema_has_module
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             msd = model.state_dict()
             for k, ema_v in self.ema.state_dict().items():
@@ -118,6 +119,7 @@ class ModelEmaV2(msnn.Cell):
             self.module.to(device=device)
 
     def _update(self, model, update_fn):
+        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         with torch.no_grad():
             for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
                 if self.device is not None:
@@ -157,6 +159,7 @@ class ModelEmaV3(msnn.Cell):
     This class is sensitive where it is initialized in the sequence of model init,
     GPU assignment and distributed training wrappers.
     """
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             model,
@@ -206,6 +209,8 @@ class ModelEmaV3(msnn.Cell):
 
         return decay
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def update(self, model, step: Optional[int] = None):
         decay = self.get_decay(step)
@@ -255,6 +260,8 @@ class ModelEmaV3(msnn.Cell):
         for ema_b, model_b in zip(self.module.buffers(), model.buffers()):
             ema_b.copy_(model_b.to(device=self.device))
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def set(self, model):
         for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):

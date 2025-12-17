@@ -97,6 +97,8 @@ class SGDW(Optimizer):
 
     # FIXME figure out how to make _use_grad_for_differentiable interchangeable with no_grad decorator
     #   without args, for backwards compatibility with old pytorch
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
@@ -107,6 +109,7 @@ class SGDW(Optimizer):
         """
         loss = None
         if closure is not None:
+            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.enable_grad():
                 loss = closure()
 
@@ -167,16 +170,19 @@ def sgdw(
         if foreach is None:
             # why must we be explicit about an if statement for torch.jit.is_scripting here?
             # because JIT can't handle Optionals nor fancy conditionals when scripting
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if not torch.jit.is_scripting():
                 _, foreach = _default_to_fused_or_foreach(params, differentiable=False, use_fused=False)  # 'torch.optim.optimizer._default_to_fused_or_foreach' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             else:
                 foreach = False
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if foreach and torch.jit.is_scripting():
             raise RuntimeError('torch.jit.script not supported with foreach optimizers')
     else:
         foreach = False  # disabling altogether for older pytorch, as using _group_tensors_by_device_and_dtype
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if foreach and not torch.jit.is_scripting():
         func = _multi_tensor_sgdw
     else:

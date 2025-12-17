@@ -14,6 +14,7 @@ from .config import use_fused_attn
 from .pos_embed_sincos import apply_rot_embed_cat
 
 
+# 装饰器 'torch.fx.wrap' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @torch.fx.wrap
 @register_notrace_function
 def maybe_add_mask(scores: ms.Tensor, attn_mask: Optional[ms.Tensor] = None):

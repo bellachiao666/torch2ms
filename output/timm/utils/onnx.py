@@ -59,6 +59,7 @@ def onnx_export(
     # Opset >= 11 should allow for dynamic padding, however I cannot get it to work due to
     # issues in the tracing of the dynamic padding or errors attempting to export the model after jit
     # scripting it (an approach that should work). Perhaps in a future PyTorch or ONNX versions...
+    # 'torch.inference_mode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     with torch.inference_mode():
         original_out = model(example_input)
 

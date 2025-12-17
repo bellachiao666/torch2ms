@@ -318,6 +318,7 @@ class PoolingVisionTransformer(msnn.Cell):
         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
 
         last_idx = len(self.transformers) - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.transformers
         else:
@@ -369,6 +370,7 @@ class PoolingVisionTransformer(msnn.Cell):
             if not pre_logits:
                 x = self.head(x)
                 x_dist = self.head_dist(x_dist)
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.distilled_training and self.training and not torch.jit.is_scripting():
                 # only return separate classification predictions when training in distilled mode
                 return x, x_dist

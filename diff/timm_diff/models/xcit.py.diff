@@ -60,25 +60,26 @@
          pos = self.token_projection(pos.to(dtype))
          return pos.repeat(B, 1, 1, 1)  # (B, C, H, W)
  
-@@ -76,13 +81,13 @@ def conv3x3(in_planes, out_planes, stride=1, device=None, dtype=None):
+@@ -76,13 +81,14 @@ def conv3x3(in_planes, out_planes, stride=1, device=None, dtype=None):
      """3x3 convolution + batch norm"""
      dd = {'device': device, 'dtype': dtype}
 -    return torch.nn.Sequential(
 +    return msnn.SequentialCell(
++        [
          nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False, **dd),
          nn.BatchNorm2d(out_planes, **dd)
 -    )
 -
 -
 -class ConvPatchEmbed(nn.Module):
-+    )  # 存在 *args/**kwargs，需手动确认参数映射;
++    ])  # 存在 *args/**kwargs，需手动确认参数映射;
 +
 +
 +class ConvPatchEmbed(msnn.Cell):
      """Image to Patch Embedding using multiple convolutional layers"""
  
      def __init__(
-@@ -91,7 +96,7 @@             patch_size: int = 16,
+@@ -91,7 +97,7 @@             patch_size: int = 16,
              in_chans: int = 3,
              embed_dim: int = 768,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -86,29 +87,34 @@
              device=None,
              dtype=None,
      ):
-@@ -104,7 +109,7 @@         self.num_patches = num_patches
+@@ -104,34 +110,36 @@         self.num_patches = num_patches
  
          if patch_size == 16:
 -            self.proj = torch.nn.Sequential(
 +            self.proj = msnn.SequentialCell(
++                [
                  conv3x3(in_chans, embed_dim // 8, 2, **dd),
                  act_layer(),
                  conv3x3(embed_dim // 8, embed_dim // 4, 2, **dd),
-@@ -112,26 +117,26 @@                 conv3x3(embed_dim // 4, embed_dim // 2, 2, **dd),
                  act_layer(),
-                 conv3x3(embed_dim // 2, embed_dim, 2, **dd),
+                 conv3x3(embed_dim // 4, embed_dim // 2, 2, **dd),
+                 act_layer(),
+-                conv3x3(embed_dim // 2, embed_dim, 2, **dd),
 -            )
-+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                conv3x3(embed_dim // 2, embed_dim, 2, **dd)
++            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          elif patch_size == 8:
 -            self.proj = torch.nn.Sequential(
 +            self.proj = msnn.SequentialCell(
++                [
                  conv3x3(in_chans, embed_dim // 4, 2, **dd),
                  act_layer(),
                  conv3x3(embed_dim // 4, embed_dim // 2, 2, **dd),
                  act_layer(),
-                 conv3x3(embed_dim // 2, embed_dim, 2, **dd),
+-                conv3x3(embed_dim // 2, embed_dim, 2, **dd),
 -            )
-+            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++                conv3x3(embed_dim // 2, embed_dim, 2, **dd)
++            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          else:
              raise('For convolutional projection, patch size has to be in [8, 16]')
  
@@ -125,7 +131,7 @@
      """
      Local Patch Interaction module that allows explicit communication between tokens in 3x3 windows to augment the
      implicit communication performed by the block diagonal scatter attention. Implemented using 2 layers of separable
-@@ -142,7 +147,7 @@             self,
+@@ -142,7 +150,7 @@             self,
              in_features: int,
              out_features: Optional[int] = None,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -133,7 +139,7 @@
              kernel_size: int = 3,
              device=None,
              dtype=None,
-@@ -152,14 +157,14 @@         out_features = out_features or in_features
+@@ -152,14 +160,14 @@         out_features = out_features or in_features
          padding = kernel_size // 2
  
 -        self.conv1 = torch.nn.Conv2d(
@@ -154,7 +160,7 @@
          B, N, C = x.shape
          x = x.permute(0, 2, 1).reshape(B, C, H, W)
          x = self.conv1(x)
-@@ -170,7 +175,7 @@         return x
+@@ -170,7 +178,7 @@         return x
  
  
 -class ClassAttentionBlock(nn.Module):
@@ -162,7 +168,7 @@
      """Class Attention Layer as in CaiT https://arxiv.org/abs/2103.17239"""
  
      def __init__(
-@@ -182,8 +187,8 @@             proj_drop: float = 0.,
+@@ -182,8 +190,8 @@             proj_drop: float = 0.,
              attn_drop: float = 0.,
              drop_path: float = 0.,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -172,7 +178,7 @@
              eta: Optional[float] = 1.,
              tokens_norm: bool = False,
              device=None,
-@@ -191,7 +196,7 @@     ):
+@@ -191,7 +199,7 @@     ):
          dd = {'device': device, 'dtype': dtype}
          super().__init__()
 -        self.norm1 = norm_layer(dim, **dd)
@@ -180,7 +186,7 @@
          self.attn = ClassAttn(
              dim,
              num_heads=num_heads,
-@@ -199,47 +204,47 @@             attn_drop=attn_drop,
+@@ -199,47 +207,47 @@             attn_drop=attn_drop,
              proj_drop=proj_drop,
              **dd,
 -        )
@@ -241,7 +247,7 @@
      """ Cross-Covariance Attention (XCA)
      Operation where the channels are updated using a weighted sum. The weights are obtained from the (softmax
      normalized) Cross-covariance matrix (Q^T \\cdot K \\in d_h \\times d_h)
-@@ -259,26 +264,26 @@         super().__init__()
+@@ -259,26 +267,26 @@         super().__init__()
          self.num_heads = num_heads
          self.fused_attn = use_fused_attn(experimental=True)
 -        self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1, **dd))
@@ -276,7 +282,7 @@
              attn = (q @ k.transpose(-2, -1)) * self.temperature
              attn = attn.softmax(dim=-1)
              attn = self.attn_drop(attn)
-@@ -289,12 +294,12 @@         x = self.proj_drop(x)
+@@ -289,12 +297,12 @@         x = self.proj_drop(x)
          return x
  
 -    @torch.jit.ignore
@@ -290,7 +296,7 @@
      def __init__(
              self,
              dim: int,
-@@ -304,15 +309,15 @@             proj_drop: float = 0.,
+@@ -304,15 +312,15 @@             proj_drop: float = 0.,
              attn_drop: float = 0.,
              drop_path: float = 0.,
 -            act_layer: Type[nn.Module] = nn.GELU,
@@ -308,7 +314,7 @@
          self.attn = XCA(
              dim,
              num_heads=num_heads,
-@@ -320,28 +325,28 @@             attn_drop=attn_drop,
+@@ -320,28 +328,28 @@             attn_drop=attn_drop,
              proj_drop=proj_drop,
              **dd,
 -        )
@@ -352,7 +358,7 @@
          x = x + self.drop_path1(self.gamma1 * self.attn(self.norm1(x)))
          # NOTE official code has 3 then 2, so keeping it the same to be consistent with loaded weights
          # See https://github.com/rwightman/pytorch-image-models/pull/747#issuecomment-877795721
-@@ -350,7 +355,7 @@         return x
+@@ -350,7 +358,7 @@         return x
  
  
 -class Xcit(nn.Module):
@@ -360,7 +366,7 @@
      """
      Based on timm and DeiT code bases
      https://github.com/rwightman/pytorch-image-models/tree/master/timm
-@@ -374,8 +379,8 @@             proj_drop_rate: float = 0.,
+@@ -374,8 +382,8 @@             proj_drop_rate: float = 0.,
              attn_drop_rate: float = 0.,
              drop_path_rate: float = 0.,
 -            act_layer: Optional[Type[nn.Module]] = None,
@@ -370,7 +376,7 @@
              cls_attn_layers: int = 2,
              use_pos_embed: bool = True,
              eta: float = 1.,
-@@ -430,17 +435,17 @@             embed_dim=embed_dim,
+@@ -430,17 +438,17 @@             embed_dim=embed_dim,
              act_layer=act_layer,
              **dd,
 -        )
@@ -393,7 +399,7 @@
              XCABlock(
                  dim=embed_dim,
                  num_heads=num_heads,
-@@ -454,10 +459,10 @@                 eta=eta,
+@@ -454,10 +462,10 @@                 eta=eta,
                  **dd,
              )
 -            for _ in range(depth)])
@@ -405,7 +411,7 @@
              ClassAttentionBlock(
                  dim=embed_dim,
                  num_heads=num_heads,
-@@ -471,12 +476,12 @@                 tokens_norm=tokens_norm,
+@@ -471,12 +479,12 @@                 tokens_norm=tokens_norm,
                  **dd,
              )
 -            for _ in range(cls_attn_layers)])
@@ -420,7 +426,7 @@
  
          # Init weights
          trunc_normal_(self.cls_token, std=.02)
-@@ -486,13 +491,13 @@         if isinstance(m, nn.Linear):
+@@ -486,13 +494,13 @@         if isinstance(m, nn.Linear):
              trunc_normal_(m.weight, std=.02)
              if isinstance(m, nn.Linear) and m.bias is not None:
 -                nn.init.constant_(m.bias, 0)
@@ -437,7 +443,7 @@
      def group_matcher(self, coarse=False):
          return dict(
              stem=r'^cls_token|pos_embed|patch_embed',  # stem and embed
-@@ -500,12 +505,12 @@             cls_attn_blocks=[(r'^cls_attn_blocks\.(\d+)', None), (r'^norm', (99999,))]
+@@ -500,12 +508,12 @@             cls_attn_blocks=[(r'^cls_attn_blocks\.(\d+)', None), (r'^norm', (99999,))]
          )
  
 -    @torch.jit.ignore
@@ -452,7 +458,7 @@
          return self.head
  
      def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
-@@ -515,17 +520,17 @@             self.global_pool = global_pool
+@@ -515,17 +523,17 @@             self.global_pool = global_pool
          device = self.head.weight.device if hasattr(self.head, 'weight') else None
          dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
 -        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
@@ -472,15 +478,30 @@
          """ Forward features that returns intermediates.
  
          Args:
-@@ -574,7 +579,7 @@             return intermediates
+@@ -552,11 +560,13 @@             x = x + pos_encoding
+         x = self.pos_drop(x)
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, Hp, Wp)
+             else:
+@@ -574,8 +584,9 @@             return intermediates
  
          # NOTE not supporting return of class tokens
 -        x = torch.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
 +        x = mint.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
          for blk in self.cls_attn_blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if self.grad_checkpointing and not torch.jit.is_scripting():
                  x = checkpoint(blk, x)
-@@ -596,9 +601,9 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+             else:
+@@ -596,9 +607,9 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -491,15 +512,24 @@
              self.reset_classifier(0, '')
          return take_indices
  
-@@ -619,7 +624,7 @@             else:
+@@ -614,14 +625,16 @@         x = self.pos_drop(x)
+ 
+         for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, Hp, Wp)
+             else:
                  x = blk(x, Hp, Wp)
  
 -        x = torch.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
 +        x = mint.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
  
          for blk in self.cls_attn_blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              if self.grad_checkpointing and not torch.jit.is_scripting():
-@@ -636,7 +641,7 @@         x = self.head_drop(x)
+                 x = checkpoint(blk, x)
+             else:
+@@ -636,7 +649,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x):
@@ -507,7 +537,7 @@
          x = self.forward_features(x)
          x = self.forward_head(x)
          return x
-@@ -680,7 +685,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -680,7 +693,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -515,7 +545,7 @@
      return model
  
  
-@@ -832,7 +837,7 @@ def xcit_nano_12_p16_224(pretrained=False, **kwargs) -> Xcit:
+@@ -832,7 +845,7 @@ def xcit_nano_12_p16_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
 -    model = _create_xcit('xcit_nano_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -523,7 +553,7 @@
      return model
  
  
-@@ -840,7 +845,7 @@ def xcit_nano_12_p16_384(pretrained=False, **kwargs) -> Xcit:
+@@ -840,7 +853,7 @@ def xcit_nano_12_p16_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False, img_size=384)
 -    model = _create_xcit('xcit_nano_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -531,7 +561,7 @@
      return model
  
  
-@@ -848,7 +853,7 @@ def xcit_tiny_12_p16_224(pretrained=False, **kwargs) -> Xcit:
+@@ -848,7 +861,7 @@ def xcit_tiny_12_p16_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -539,7 +569,7 @@
      return model
  
  
-@@ -856,7 +861,7 @@ def xcit_tiny_12_p16_384(pretrained=False, **kwargs) -> Xcit:
+@@ -856,7 +869,7 @@ def xcit_tiny_12_p16_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -547,7 +577,7 @@
      return model
  
  
-@@ -864,7 +869,7 @@ def xcit_small_12_p16_224(pretrained=False, **kwargs) -> Xcit:
+@@ -864,7 +877,7 @@ def xcit_small_12_p16_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_small_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -555,7 +585,7 @@
      return model
  
  
-@@ -872,7 +877,7 @@ def xcit_small_12_p16_384(pretrained=False, **kwargs) -> Xcit:
+@@ -872,7 +885,7 @@ def xcit_small_12_p16_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_small_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -563,7 +593,7 @@
      return model
  
  
-@@ -880,7 +885,7 @@ def xcit_tiny_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+@@ -880,7 +893,7 @@ def xcit_tiny_24_p16_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -571,7 +601,7 @@
      return model
  
  
-@@ -888,7 +893,7 @@ def xcit_tiny_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+@@ -888,7 +901,7 @@ def xcit_tiny_24_p16_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -579,7 +609,7 @@
      return model
  
  
-@@ -896,7 +901,7 @@ def xcit_small_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+@@ -896,7 +909,7 @@ def xcit_small_24_p16_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_small_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -587,7 +617,7 @@
      return model
  
  
-@@ -904,7 +909,7 @@ def xcit_small_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+@@ -904,7 +917,7 @@ def xcit_small_24_p16_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_small_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -595,7 +625,7 @@
      return model
  
  
-@@ -912,7 +917,7 @@ def xcit_medium_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+@@ -912,7 +925,7 @@ def xcit_medium_24_p16_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_medium_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -603,7 +633,7 @@
      return model
  
  
-@@ -920,7 +925,7 @@ def xcit_medium_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+@@ -920,7 +933,7 @@ def xcit_medium_24_p16_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_medium_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -611,7 +641,7 @@
      return model
  
  
-@@ -928,7 +933,7 @@ def xcit_large_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+@@ -928,7 +941,7 @@ def xcit_large_24_p16_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_large_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -619,7 +649,7 @@
      return model
  
  
-@@ -936,7 +941,7 @@ def xcit_large_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+@@ -936,7 +949,7 @@ def xcit_large_24_p16_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=16, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_large_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -627,7 +657,7 @@
      return model
  
  
-@@ -945,7 +950,7 @@ def xcit_nano_12_p8_224(pretrained=False, **kwargs) -> Xcit:
+@@ -945,7 +958,7 @@ def xcit_nano_12_p8_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
 -    model = _create_xcit('xcit_nano_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -635,7 +665,7 @@
      return model
  
  
-@@ -953,7 +958,7 @@ def xcit_nano_12_p8_384(pretrained=False, **kwargs) -> Xcit:
+@@ -953,7 +966,7 @@ def xcit_nano_12_p8_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
 -    model = _create_xcit('xcit_nano_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -643,7 +673,7 @@
      return model
  
  
-@@ -961,7 +966,7 @@ def xcit_tiny_12_p8_224(pretrained=False, **kwargs) -> Xcit:
+@@ -961,7 +974,7 @@ def xcit_tiny_12_p8_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -651,7 +681,7 @@
      return model
  
  
-@@ -969,7 +974,7 @@ def xcit_tiny_12_p8_384(pretrained=False, **kwargs) -> Xcit:
+@@ -969,7 +982,7 @@ def xcit_tiny_12_p8_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -659,7 +689,7 @@
      return model
  
  
-@@ -977,7 +982,7 @@ def xcit_small_12_p8_224(pretrained=False, **kwargs) -> Xcit:
+@@ -977,7 +990,7 @@ def xcit_small_12_p8_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_small_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -667,7 +697,7 @@
      return model
  
  
-@@ -985,7 +990,7 @@ def xcit_small_12_p8_384(pretrained=False, **kwargs) -> Xcit:
+@@ -985,7 +998,7 @@ def xcit_small_12_p8_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
 -    model = _create_xcit('xcit_small_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -675,7 +705,7 @@
      return model
  
  
-@@ -993,7 +998,7 @@ def xcit_tiny_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+@@ -993,7 +1006,7 @@ def xcit_tiny_24_p8_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -683,7 +713,7 @@
      return model
  
  
-@@ -1001,7 +1006,7 @@ def xcit_tiny_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+@@ -1001,7 +1014,7 @@ def xcit_tiny_24_p8_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_tiny_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -691,7 +721,7 @@
      return model
  
  
-@@ -1009,7 +1014,7 @@ def xcit_small_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+@@ -1009,7 +1022,7 @@ def xcit_small_24_p8_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_small_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -699,7 +729,7 @@
      return model
  
  
-@@ -1017,7 +1022,7 @@ def xcit_small_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+@@ -1017,7 +1030,7 @@ def xcit_small_24_p8_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_small_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -707,7 +737,7 @@
      return model
  
  
-@@ -1025,7 +1030,7 @@ def xcit_medium_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+@@ -1025,7 +1038,7 @@ def xcit_medium_24_p8_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_medium_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -715,7 +745,7 @@
      return model
  
  
-@@ -1033,7 +1038,7 @@ def xcit_medium_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+@@ -1033,7 +1046,7 @@ def xcit_medium_24_p8_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_medium_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -723,7 +753,7 @@
      return model
  
  
-@@ -1041,7 +1046,7 @@ def xcit_large_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+@@ -1041,7 +1054,7 @@ def xcit_large_24_p8_224(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_large_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -731,7 +761,7 @@
      return model
  
  
-@@ -1049,7 +1054,7 @@ def xcit_large_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+@@ -1049,7 +1062,7 @@ def xcit_large_24_p8_384(pretrained=False, **kwargs) -> Xcit:
      model_args = dict(
          patch_size=8, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
 -    model = _create_xcit('xcit_large_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))

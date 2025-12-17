@@ -710,6 +710,7 @@ class MultiScaleVitStage(msnn.Cell):
 
     def construct(self, x, feat_size: List[int]):
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x, feat_size = checkpoint(blk, x, feat_size)
             else:
@@ -821,10 +822,12 @@ class MultiScaleVit(msnn.Cell):
 
         self.num_features = self.head_hidden_size = embed_dim
         self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-        self.head = msnn.SequentialCell(OrderedDict([
+        self.head = msnn.SequentialCell([
+            OrderedDict([
             ('drop', nn.Dropout(self.drop_rate)),
             ('fc', nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity())
-        ]))  # 存在 *args/**kwargs，需手动确认参数映射;
+        ])
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;
 
         if self.pos_embed is not None:
             trunc_normal_tf_(self.pos_embed, std=0.02)
@@ -866,10 +869,12 @@ class MultiScaleVit(msnn.Cell):
             self.global_pool = global_pool
         device = self.head.fc.weight.device if hasattr(self.head.fc, 'weight') else None
         dtype = self.head.fc.weight.dtype if hasattr(self.head.fc, 'weight') else None
-        self.head = msnn.SequentialCell(OrderedDict([
+        self.head = msnn.SequentialCell([
+            OrderedDict([
             ('drop', nn.Dropout(self.drop_rate)),
             ('fc', nn.Linear(self.num_features, num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity())
-        ]))  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+        ])
+        ])  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
 
     def forward_intermediates(
             self,

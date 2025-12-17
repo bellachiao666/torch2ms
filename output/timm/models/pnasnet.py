@@ -151,15 +151,19 @@ class FactorizedReduction(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.act = nn.ReLU()
-        self.path_1 = msnn.SequentialCell(OrderedDict([
+        self.path_1 = msnn.SequentialCell([
+            OrderedDict([
             ('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False)),
             ('conv', create_conv2d(in_channels, out_channels // 2, kernel_size=1, padding=padding, **dd)),
-        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-        self.path_2 = msnn.SequentialCell(OrderedDict([
+        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.path_2 = msnn.SequentialCell([
+            OrderedDict([
             ('pad', nn.ZeroPad2d((-1, 1, -1, 1))),  # shift
             ('avgpool', nn.AvgPool2d(1, stride = 2, count_include_pad = False)),
             ('conv', create_conv2d(in_channels, out_channels // 2, kernel_size=1, padding=padding, **dd)),
-        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.final_path_bn = nn.BatchNorm2d(out_channels, eps=0.001, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
 
     def construct(self, x):
@@ -218,11 +222,13 @@ class CellStem0(CellBase):
 
         self.comb_iter_0_left = BranchSeparables(
             in_chs_left, out_chs_left, kernel_size=5, stride=2, stem_cell=True, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-        self.comb_iter_0_right = msnn.SequentialCell(OrderedDict([
+        self.comb_iter_0_right = msnn.SequentialCell([
+            OrderedDict([
             ('max_pool', create_pool2d('max', 3, stride=2, padding=pad_type)),
             ('conv', create_conv2d(in_chs_left, out_chs_left, kernel_size=1, padding=pad_type, **dd)),
             ('bn', nn.BatchNorm2d(out_chs_left, eps=0.001, **dd)),
-        ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
+        ])
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
 
         self.comb_iter_1_left = BranchSeparables(
             out_chs_right, out_chs_right, kernel_size=7, stride=2, padding=pad_type, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

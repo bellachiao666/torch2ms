@@ -24,7 +24,15 @@
  
          defaults = dict(
              lr=lr,
-@@ -103,15 +109,15 @@             return
+@@ -87,6 +93,8 @@             if not isinstance(p.hess, float) and self.state[p]["hessian step"] % self.update_each == 0:
+                 p.hess.zero_()
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def set_hessian(self):
+         """
+@@ -103,18 +111,20 @@             return
  
          if self.generator.device != params[0].device:  # hackish way of casting the generator to the right device
 -            self.generator = torch.Generator(params[0].device).manual_seed(self.seed)
@@ -42,7 +50,12 @@
              for h_z, z, p in zip(h_zs, zs, params):
                  p.hess += h_z * z / self.n_samples  # approximate the expected values of z*(H@z)
  
-@@ -136,7 +142,7 @@                     continue
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """
+@@ -136,7 +146,7 @@                     continue
  
                  if self.avg_conv_kernel and p.dim() == 4:
 -                    p.hess = torch.abs(p.hess).mean(dim=[2, 3], keepdim=True).expand_as(p.hess).clone()
@@ -50,7 +63,7 @@
  
                  # Perform correct stepweight decay as in AdamW
                  p.mul_(1 - group['lr'] * group['weight_decay'])
-@@ -147,9 +153,9 @@                 if len(state) == 1:
+@@ -147,9 +157,9 @@                 if len(state) == 1:
                      state['step'] = 0
                      # Exponential moving average of gradient values
 -                    state['exp_avg'] = torch.zeros_like(p)

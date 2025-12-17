@@ -21,7 +21,22 @@
  class LaProp(Optimizer):
      """ LaProp Optimizer
  
-@@ -90,12 +96,12 @@                 if len(state) == 0:
+@@ -63,6 +69,8 @@             group.setdefault('caution', False)
+             group.setdefault('corrected_weight_decay', False)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step.
+@@ -73,6 +81,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -90,12 +99,12 @@                 if len(state) == 0:
                      state['step'] = 0
                      # Exponential moving average of gradient values
 -                    state['exp_avg'] = torch.zeros_like(p)

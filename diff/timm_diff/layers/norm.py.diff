@@ -141,7 +141,7 @@
          x = x.permute(0, 3, 1, 2)
          return x
  
-@@ -144,18 +149,18 @@             affine: bool = True,
+@@ -144,36 +149,37 @@             affine: bool = True,
              **kwargs,
      ):
 -        super().__init__(num_channels, eps=eps, elementwise_affine=affine, **kwargs)
@@ -162,9 +162,11 @@
 -def _is_contiguous(tensor: torch.Tensor) -> bool:
 +def _is_contiguous(tensor: ms.Tensor) -> bool:
      # jit is oh so lovely :/
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
      if torch.jit.is_scripting():
          return tensor.is_contiguous()
-@@ -163,17 +168,17 @@         return tensor.is_contiguous(memory_format=torch.contiguous_format)
+     else:
+         return tensor.is_contiguous(memory_format=torch.contiguous_format)
  
  
 -def _layer_norm_cf(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: float):
@@ -186,7 +188,7 @@
      x = x * weight.view(1, -1, 1, 1) + bias.view(1, -1, 1, 1)
      return x
  
-@@ -190,16 +195,15 @@     def __init__(self, num_channels: int, eps: float = 1e-6):
+@@ -190,16 +196,15 @@     def __init__(self, num_channels: int, eps: float = 1e-6):
          super().__init__(num_channels, eps=eps)
  
 -    def forward(self, x) -> torch.Tensor:
@@ -205,7 +207,7 @@
      """ RmsNorm w/ fast (apex) norm if available
      """
      __constants__ = ['normalized_shape', 'eps', 'elementwise_affine', '_fast_norm']
-@@ -228,27 +232,27 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+@@ -228,27 +233,27 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))
@@ -248,7 +250,7 @@
      """ RmsNorm w/ fast (apex) norm if available
      """
      __constants__ = ['normalized_shape', 'eps', 'elementwise_affine']
-@@ -275,23 +279,23 @@         self.elementwise_affine = affine
+@@ -275,23 +280,23 @@         self.elementwise_affine = affine
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))
@@ -287,7 +289,7 @@
      """ RmsNorm2D for NCHW tensors, w/ fast apex or cast norm if available
  
      NOTE: It's currently (2025-05-10) faster to use an eager 2d kernel that does reduction
-@@ -324,17 +328,17 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+@@ -324,17 +329,17 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))
@@ -315,7 +317,7 @@
          # NOTE fast norm fallback needs our rms norm impl, so both paths through here.
          # Since there is no built-in PyTorch impl, always use APEX RmsNorm if is installed.
          if self._fast_norm:
-@@ -344,7 +348,7 @@         return x
+@@ -344,7 +349,7 @@         return x
  
  
 -class RmsNorm2dFp32(nn.Module):
@@ -323,7 +325,7 @@
      """ RmsNorm2D for NCHW tensors, w/ fast apex or cast norm if available
  
      NOTE: It's currently (2025-05-10) faster to use an eager 2d kernel that does reduction
-@@ -375,23 +379,23 @@         self.elementwise_affine = affine
+@@ -375,23 +380,23 @@         self.elementwise_affine = affine
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))
@@ -358,7 +360,7 @@
      """ SimpleNorm (x / std(x))
      """
      __constants__ = ['normalized_shape', 'eps', 'elementwise_affine', '_fast_norm']
-@@ -420,17 +424,17 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+@@ -420,17 +425,17 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))
@@ -386,7 +388,7 @@
          if self._fast_norm:
              x = fast_simple_norm(x, self.normalized_shape, self.weight, self.eps)
          else:
-@@ -438,7 +442,7 @@         return x
+@@ -438,7 +443,7 @@         return x
  
  
 -class SimpleNormFp32(nn.Module):
@@ -394,7 +396,7 @@
      """ SimpleNorm (x / std(x))
      """
      __constants__ = ['normalized_shape', 'eps', 'elementwise_affine']
-@@ -465,23 +469,23 @@         self.elementwise_affine = affine
+@@ -465,23 +470,23 @@         self.elementwise_affine = affine
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))
@@ -429,7 +431,7 @@
      """ SimpleNorm for NCHW tensors
      """
      __constants__ = ['normalized_shape', 'eps', 'elementwise_affine', '_fast_norm']
-@@ -510,17 +514,17 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
+@@ -510,17 +515,17 @@         self._fast_norm = is_fast_norm()  # can't script unless we have these flags here (no globals)
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))
@@ -457,7 +459,7 @@
          x = x.permute(0, 2, 3, 1)
          if self._fast_norm:
              x = fast_simple_norm(x, self.normalized_shape, self.weight, self.eps)
-@@ -530,7 +534,7 @@         return x
+@@ -530,7 +535,7 @@         return x
  
  
 -class SimpleNorm2dFp32(nn.Module):
@@ -465,7 +467,7 @@
      """ SimpleNorm for NCHW tensors
      """
      __constants__ = ['normalized_shape', 'eps', 'elementwise_affine']
-@@ -557,17 +561,17 @@         self.elementwise_affine = affine
+@@ -557,17 +562,17 @@         self.elementwise_affine = affine
  
          if self.elementwise_affine:
 -            self.weight = nn.Parameter(torch.empty(self.normalized_shape, **dd))

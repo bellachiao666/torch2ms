@@ -40,12 +40,13 @@ class Block(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.layers = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
             norm_layer(in_chs, **dd),
             nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
             act_layer(),
-            nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.layers(x)
@@ -65,13 +66,14 @@ class BlockESE(msnn.Cell):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.layers = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chs, in_chs, groups=in_chs, kernel_size=7, stride=1, padding=3, **dd),
             norm_layer(in_chs, **dd),
             nn.Conv2d(in_chs, inter_chs, kernel_size=1, stride=1, padding=0, **dd),
             act_layer(),
             nn.Conv2d(inter_chs, out_chs, kernel_size=1, stride=1, padding=0, **dd),
-            EffectiveSEModule(out_chs, **dd),
-        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            EffectiveSEModule(out_chs, **dd)
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         return self.layers(x)
@@ -238,17 +240,19 @@ class RDNet(msnn.Cell):
         if stem_type == 'patch':
             # NOTE: this stem is a minimal form of ViT PatchEmbed, as used in SwinTransformer w/ patch_size = 4
             self.stem = msnn.SequentialCell(
+                [
                 nn.Conv2d(in_chans, num_init_features, kernel_size=patch_size, stride=patch_size, bias=conv_bias, **dd),
-                norm_layer(num_init_features, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                norm_layer(num_init_features, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stem_stride = patch_size
         else:
             mid_chs = make_divisible(num_init_features // 2) if 'tiered' in stem_type else num_init_features
             self.stem = msnn.SequentialCell(
+                [
                 nn.Conv2d(in_chans, mid_chs, kernel_size=3, stride=2, padding=1, bias=conv_bias, **dd),
                 nn.Conv2d(mid_chs, num_init_features, kernel_size=3, stride=2, padding=1, bias=conv_bias, **dd),
-                norm_layer(num_init_features, **dd),
-            )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                norm_layer(num_init_features, **dd)
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             stem_stride = 4
 
         # features
@@ -383,6 +387,7 @@ class RDNet(msnn.Cell):
         x = self.stem(x)
 
         last_idx = len(self.dense_stages) - 1
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             dense_stages = self.dense_stages
         else:

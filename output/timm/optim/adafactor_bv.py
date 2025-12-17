@@ -63,6 +63,7 @@ class AdafactorBigVision(Optimizer):
     Adapted from https://github.com/google-research/big_vision by Ross Wightman
     """
 
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
             self,
             params: ParamsT,
@@ -118,19 +119,24 @@ class AdafactorBigVision(Optimizer):
             group.setdefault('foreach', None)
             for p in group['params']:
                 p_state = self.state.get(p, {})
+                # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if len(p_state) != 0 and not torch.is_tensor(p_state['step']):
                     p_state['step'] = ms.Tensor(float(p_state['step']), dtype=_get_scalar_dtype())
 
+                # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if 'exp_avg' in p_state and torch.is_tensor(p_state['exp_avg']):
                     # FIXME this is a bit of a hack, optimizer.load_state_dict appears to upcast
                     # the momentum to float32 (it's half precision in the state_dict), need to
                     # look into this further. Better to override _process_value_according_to_param_policy?
                     p_state['exp_avg'] = p_state['exp_avg'].to(dtype=self.defaults['momentum_dtype'])
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def step(self, closure=None):
         loss = None
         if closure is not None:
+            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.enable_grad():
                 loss = closure()
 
@@ -216,6 +222,7 @@ class AdafactorBigVision(Optimizer):
         return loss
 
 
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _single_tensor_adafactor(
         params: List[ms.Tensor],
         grads: List[ms.Tensor],
@@ -318,6 +325,7 @@ def _single_tensor_adafactor(
         param.add_(update, alpha=-1.0)
 
 
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 def _multi_tensor_adafactor(
         params: List[ms.Tensor],
         grads: List[ms.Tensor],

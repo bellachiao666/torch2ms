@@ -27,6 +27,8 @@ OptimType = Type[torch.optim.Optimizer]
 class OptimizerCallable(Protocol):
     """Protocol for optimizer constructor signatures."""
 
+    # 'torch.optim.optimizer.ParamsT' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __call__(self, params: ParamsT, **kwargs) -> torch.optim.Optimizer: ...
 
 

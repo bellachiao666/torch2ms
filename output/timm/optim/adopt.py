@@ -32,6 +32,7 @@ __all__ = ["Adopt", "adopt"]
 
 def _view_as_real(params, *state_and_grads):
     for i, p in enumerate(params):
+        # 'torch.is_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.is_complex(p):
             params[i] = torch.view_as_real(params[i])  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             for s in state_and_grads:
@@ -55,6 +56,7 @@ def _is_compiling():
 
 def _get_value(x):
     # item is significantly faster than a cpu tensor in eager mode
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if not torch.jit.is_scripting() and _is_compiling():
         return x
     else:
@@ -130,6 +132,7 @@ class Adopt(Optimizer):
             group.setdefault("corrected_weight_decay", False)
             for p in group["params"]:
                 p_state = self.state.get(p, [])
+                # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if len(p_state) != 0 and not torch.is_tensor(p_state["step"]):
                     step_val = float(p_state["step"])
                     p_state["step"] = (
@@ -184,6 +187,7 @@ class Adopt(Optimizer):
                 raise RuntimeError("`requires_grad` is not supported for `step` in differentiable mode")
 
             # Foreach without capturable does not support a tensor lr
+            # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if group["foreach"] and torch.is_tensor(group["lr"]) and not group["capturable"]:
                 raise RuntimeError("lr as a Tensor is not supported for capturable=False and foreach=True")
 
@@ -191,6 +195,8 @@ class Adopt(Optimizer):
         return has_complex
 
     #@_use_grad_for_differentiable  # FIXME internal context mgr, can't use
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def step(self, closure=None):
         """Perform a single optimization step.
@@ -203,6 +209,7 @@ class Adopt(Optimizer):
 
         loss = None
         if closure is not None:
+            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.enable_grad():
                 loss = closure()
 
@@ -275,6 +282,7 @@ def _single_tensor_adopt(
 ):
     assert grad_scale is None and found_inf is None
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if torch.jit.is_scripting():
         # this assert is due to JIT being dumb and not realizing that the ops below
         # have overloads to handle both float and Tensor lrs, so we just assert it's
@@ -297,6 +305,7 @@ def _single_tensor_adopt(
         # update step
         step_t += 1
 
+        # 'torch.is_complex' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.is_complex(param):
             grad = torch.view_as_real(grad)  # 'torch.view_as_real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if exp_avg is not None:
@@ -497,9 +506,11 @@ def adopt(
             "API has changed, `state_steps` argument must contain a list of singleton tensors"
         )
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if foreach and torch.jit.is_scripting():
         raise RuntimeError("torch.jit.script not supported with foreach optimizers")
 
+    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     if foreach and not torch.jit.is_scripting():
         func = _multi_tensor_adopt
     else:

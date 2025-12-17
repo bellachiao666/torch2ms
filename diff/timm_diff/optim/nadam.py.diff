@@ -15,7 +15,22 @@
  class NAdamLegacy(Optimizer):
      """Implements Nadam algorithm (a variant of Adam based on Nesterov momentum).
  
-@@ -73,8 +79,8 @@                 if len(state) == 0:
+@@ -49,6 +55,8 @@         )
+         super(NAdamLegacy, self).__init__(params, defaults)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step.
+@@ -59,6 +67,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -73,8 +82,8 @@                 if len(state) == 0:
                      state['step'] = 0
                      state['m_schedule'] = 1.
 -                    state['exp_avg'] = torch.zeros_like(p)

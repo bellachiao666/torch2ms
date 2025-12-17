@@ -413,12 +413,14 @@ class TNT(msnn.Cell):
         patch_embed = patch_embed + self.patch_pos
         patch_embed = self.pos_drop(patch_embed)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
             blocks = self.blocks[:max_index + 1]
 
         for i, blk in enumerate(blocks):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 pixel_embed, patch_embed = checkpoint(blk, pixel_embed, patch_embed)
             else:
@@ -437,6 +439,7 @@ class TNT(msnn.Cell):
             # reshape to BCHW output format
             H, W = self.pixel_embed.dynamic_feat_size((height, width))
             intermediates = [y.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous() for y in intermediates]
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting() and return_prefix_tokens:
             # return_prefix not support in torchscript due to poor type handling
             intermediates = list(zip(intermediates, prefix_tokens))
@@ -474,6 +477,7 @@ class TNT(msnn.Cell):
         patch_embed = self.pos_drop(patch_embed)
 
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 pixel_embed, patch_embed = checkpoint(blk, pixel_embed, patch_embed)
             else:

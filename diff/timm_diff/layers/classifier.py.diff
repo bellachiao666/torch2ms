@@ -71,7 +71,7 @@
      """ A Pool -> Norm -> Mlp Classifier Head for '2D' NCHW tensors
      """
      def __init__(
-@@ -178,24 +182,24 @@         linear_layer = partial(nn.Conv2d, kernel_size=1) if self.use_conv else nn.Linear
+@@ -178,37 +182,40 @@         linear_layer = partial(nn.Conv2d, kernel_size=1) if self.use_conv else nn.Linear
  
          self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
 -        self.norm = norm_layer(in_features, **dd)
@@ -80,11 +80,13 @@
 +        self.flatten = mint.flatten(1) if pool_type else msnn.Identity()
          if hidden_size:
 -            self.pre_logits = nn.Sequential(OrderedDict([
-+            self.pre_logits = msnn.SequentialCell(OrderedDict([
++            self.pre_logits = msnn.SequentialCell([
++                OrderedDict([
                  ('fc', linear_layer(in_features, hidden_size, **dd)),
                  ('act', act_layer()),
 -            ]))
-+            ]))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            ])
++            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              self.num_features = hidden_size
          else:
 -            self.pre_logits = nn.Identity()
@@ -102,7 +104,12 @@
          self.use_conv = self.global_pool.is_identity()
          linear_layer = partial(nn.Conv2d, kernel_size=1) if self.use_conv else nn.Linear
          if self.hidden_size:
-@@ -206,9 +210,9 @@                     new_fc.weight.copy_(self.pre_logits.fc.weight.reshape(new_fc.weight.shape))
+             if ((isinstance(self.pre_logits.fc, nn.Conv2d) and not self.use_conv) or
+                     (isinstance(self.pre_logits.fc, nn.Linear) and self.use_conv)):
++                # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 with torch.no_grad():
+                     new_fc = linear_layer(self.in_features, self.hidden_size)
+                     new_fc.weight.copy_(self.pre_logits.fc.weight.reshape(new_fc.weight.shape))
                      new_fc.bias.copy_(self.pre_logits.fc.bias)
                      self.pre_logits.fc = new_fc
 -        self.fc = linear_layer(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
@@ -114,7 +121,7 @@
          x = self.global_pool(x)
          x = self.norm(x)
          x = self.flatten(x)
-@@ -220,7 +224,7 @@         return x
+@@ -220,7 +227,7 @@         return x
  
  
 -class ClNormMlpClassifierHead(nn.Module):
@@ -122,18 +129,20 @@
      """ A Pool -> Norm -> Mlp Classifier Head for n-D NxxC tensors
      """
      def __init__(
-@@ -258,26 +262,26 @@         norm_layer = get_norm_layer(norm_layer)
+@@ -258,26 +265,28 @@         norm_layer = get_norm_layer(norm_layer)
          act_layer = get_act_layer(act_layer)
  
 -        self.norm = norm_layer(in_features, **dd)
 +        self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
          if hidden_size:
 -            self.pre_logits = nn.Sequential(OrderedDict([
-+            self.pre_logits = msnn.SequentialCell(OrderedDict([
++            self.pre_logits = msnn.SequentialCell([
++                OrderedDict([
                  ('fc', nn.Linear(in_features, hidden_size, **dd)),
                  ('act', act_layer()),
 -            ]))
-+            ]))  # 存在 *args/**kwargs，需手动确认参数映射;
++            ])
++            ])  # 存在 *args/**kwargs，需手动确认参数映射;
              self.num_features = hidden_size
          else:
 -            self.pre_logits = nn.Identity()
@@ -156,7 +165,7 @@
  
      def _global_pool(self, x):
          if self.pool_type:
-@@ -289,7 +293,7 @@                 x = 0.5 * (x.amax(dim=self.pool_dim) + x.mean(dim=self.pool_dim))
+@@ -289,7 +298,7 @@                 x = 0.5 * (x.amax(dim=self.pool_dim) + x.mean(dim=self.pool_dim))
          return x
  
 -    def forward(self, x, pre_logits: bool = False):

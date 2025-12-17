@@ -21,7 +21,22 @@
  class RMSpropTF(Optimizer):
      """Implements RMSprop algorithm (TensorFlow style epsilon)
  
-@@ -120,11 +126,11 @@                 # State initialization
+@@ -95,6 +101,8 @@             group.setdefault('caution', False)
+             group.setdefault('corrected_weight_decay', False)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step.
+@@ -105,6 +113,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -120,11 +129,11 @@                 # State initialization
                  if len(state) == 0:
                      state['step'] = 0
 -                    state['square_avg'] = torch.ones_like(p)  # PyTorch inits to zero

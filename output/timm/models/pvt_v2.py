@@ -296,6 +296,7 @@ class PyramidVisionTransformerStage(msnn.Cell):
         feat_size = (H, W)
         x = x.reshape(B, -1, C)
         for blk in self.blocks:
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x, feat_size)
             else:
@@ -451,6 +452,7 @@ class PyramidVisionTransformerV2(msnn.Cell):
 
         # forward pass
         x = self.patch_embed(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

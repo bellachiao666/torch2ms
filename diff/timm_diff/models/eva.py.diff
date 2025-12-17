@@ -422,7 +422,35 @@
          """ Forward features that returns intermediates.
          Args:
              x: Input image tensor
-@@ -949,14 +954,14 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+@@ -895,6 +900,7 @@         x = self.patch_embed(x)
+         x, rot_pos_embed = self._pos_embed(x)
+         x = self.norm_pre(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+@@ -903,6 +909,7 @@         # Handle depth-dependent embeddings for mixed mode
+         if getattr(self, 'rope_mixed', False) and rot_pos_embed is not None:
+             for i, blk in enumerate(blocks):
++                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if self.grad_checkpointing and not torch.jit.is_scripting():
+                     x = checkpoint(blk, x, rope=rot_pos_embed[i])
+                 else:
+@@ -911,6 +918,7 @@                     intermediates.append(self.norm(x) if norm else x)
+         else:
+             for i, blk in enumerate(blocks):
++                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if self.grad_checkpointing and not torch.jit.is_scripting():
+                     x = checkpoint(blk, x, rope=rot_pos_embed)
+                 else:
+@@ -927,6 +935,7 @@             # reshape to BCHW output format
+             H, W = self.patch_embed.dynamic_feat_size((height, width))
+             intermediates = [y.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous() for y in intermediates]
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if not torch.jit.is_scripting() and return_prefix_tokens:
+             # return_prefix not support in torchscript due to poor type handling
+             intermediates = list(zip(intermediates, prefix_tokens))
+@@ -949,14 +958,14 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
          self.blocks = self.blocks[:max_index + 1]  # truncate blocks
          if prune_norm:
 -            self.norm = nn.Identity()
@@ -439,7 +467,7 @@
          if self.attn_pool is not None:
              x = self.attn_pool(x)
              return x
-@@ -964,7 +969,7 @@         x = global_pool_nlc(x, pool_type=pool_type, num_prefix_tokens=self.num_prefix_tokens)
+@@ -964,7 +973,7 @@         x = global_pool_nlc(x, pool_type=pool_type, num_prefix_tokens=self.num_prefix_tokens)
          return x
  
 -    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -447,7 +475,21 @@
          """Forward pass through feature extraction layers.
  
          Args:
-@@ -996,7 +1001,7 @@         x = self.norm(x)
+@@ -981,6 +990,7 @@             # Handle depth-dependent embeddings for mixed mode
+             # pos embed has shape (depth, num_heads, H*W, dim) or (depth, batch_size, num_heads, H*W, dim)
+             for i, blk in enumerate(self.blocks):
++                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if self.grad_checkpointing and not torch.jit.is_scripting():
+                     x = checkpoint(blk, x, rope=rot_pos_embed[i])
+                 else:
+@@ -988,6 +998,7 @@         else:
+             # Standard path for non-mixed mode
+             for blk in self.blocks:
++                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if self.grad_checkpointing and not torch.jit.is_scripting():
+                     x = checkpoint(blk, x, rope=rot_pos_embed)
+                 else:
+@@ -996,7 +1007,7 @@         x = self.norm(x)
          return x
  
 -    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
@@ -455,7 +497,7 @@
          """Forward pass through classifier head.
  
          Args:
-@@ -1011,7 +1016,7 @@         x = self.head_drop(x)
+@@ -1011,7 +1022,7 @@         x = self.head_drop(x)
          return x if pre_logits else self.head(x)
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -463,7 +505,7 @@
          """Forward pass.
  
          Args:
-@@ -1026,10 +1031,10 @@ 
+@@ -1026,10 +1037,10 @@ 
  
  def _convert_pe(
 -    state_dict: Dict[str, torch.Tensor],
@@ -476,7 +518,7 @@
      """Convert Perception Encoder weights.
  
      Args:
-@@ -1084,7 +1089,7 @@         elif k == 'proj':
+@@ -1084,7 +1095,7 @@         elif k == 'proj':
              k = 'head.weight'
              v = v.transpose(0, 1)
 -            out_dict['head.bias'] = torch.zeros(v.shape[0])
@@ -484,7 +526,7 @@
          elif k == 'class_embedding':
              k = 'cls_token'
              v = v.unsqueeze(0).unsqueeze(1)
-@@ -1096,11 +1101,11 @@ 
+@@ -1096,11 +1107,11 @@ 
  
  def checkpoint_filter_fn(
 -        state_dict: Dict[str, torch.Tensor],
@@ -498,7 +540,7 @@
      """Convert patch embedding weight from manual patchify + linear proj to conv.
  
      Args:
-@@ -1238,7 +1243,7 @@     if use_naflex:
+@@ -1238,7 +1249,7 @@     if use_naflex:
          # Import here to avoid circular import
          from .naflexvit import _create_naflexvit_from_eva
 -        return _create_naflexvit_from_eva(variant, pretrained, **kwargs)
@@ -506,7 +548,7 @@
  
      out_indices = kwargs.pop('out_indices', 3)
      model = build_model_with_cfg(
-@@ -1246,7 +1251,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+@@ -1246,7 +1257,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
          feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
          **kwargs,
 -    )
@@ -514,7 +556,7 @@
      return model
  
  
-@@ -1716,7 +1721,7 @@ def eva_giant_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
+@@ -1716,7 +1727,7 @@ def eva_giant_patch14_224(pretrained: bool = False, **kwargs) -> Eva:
      """EVA-g model https://arxiv.org/abs/2211.07636"""
      model_args = dict(patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408)
 -    model = _create_eva('eva_giant_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -522,7 +564,7 @@
      return model
  
  
-@@ -1724,7 +1729,7 @@ def eva_giant_patch14_336(pretrained: bool = False, **kwargs) -> Eva:
+@@ -1724,7 +1735,7 @@ def eva_giant_patch14_336(pretrained: bool = False, **kwargs) -> Eva:
      """EVA-g model https://arxiv.org/abs/2211.07636"""
      model_args = dict(patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408)
 -    model = _create_eva('eva_giant_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -530,7 +572,7 @@
      return model
  
  
-@@ -1732,7 +1737,7 @@ def eva_giant_patch14_560(pretrained: bool = False, **kwargs) -> Eva:
+@@ -1732,7 +1743,7 @@ def eva_giant_patch14_560(pretrained: bool = False, **kwargs) -> Eva:
      """EVA-g model https://arxiv.org/abs/2211.07636"""
      model_args = dict(patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408)
 -    model = _create_eva('eva_giant_patch14_560', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -538,7 +580,7 @@
      return model
  
  
-@@ -1750,7 +1755,7 @@         use_rot_pos_emb=True,
+@@ -1750,7 +1761,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_tiny_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -546,7 +588,7 @@
      return model
  
  
-@@ -1768,7 +1773,7 @@         use_rot_pos_emb=True,
+@@ -1768,7 +1779,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_small_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -554,7 +596,7 @@
      return model
  
  
-@@ -1788,7 +1793,7 @@         use_rot_pos_emb=True,
+@@ -1788,7 +1799,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_base_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -562,7 +604,7 @@
      return model
  
  
-@@ -1808,7 +1813,7 @@         use_rot_pos_emb=True,
+@@ -1808,7 +1819,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_large_patch14_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -570,7 +612,7 @@
      return model
  
  
-@@ -1826,7 +1831,7 @@         use_rot_pos_emb=True,
+@@ -1826,7 +1837,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_tiny_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -578,7 +620,7 @@
      return model
  
  
-@@ -1844,7 +1849,7 @@         use_rot_pos_emb=True,
+@@ -1844,7 +1855,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_small_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -586,7 +628,7 @@
      return model
  
  
-@@ -1864,7 +1869,7 @@         use_rot_pos_emb=True,
+@@ -1864,7 +1875,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_base_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -594,7 +636,7 @@
      return model
  
  
-@@ -1884,7 +1889,7 @@         use_rot_pos_emb=True,
+@@ -1884,7 +1895,7 @@         use_rot_pos_emb=True,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('eva02_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -602,7 +644,7 @@
      return model
  
  
-@@ -1894,7 +1899,7 @@     model_args = dict(
+@@ -1894,7 +1905,7 @@     model_args = dict(
          patch_size=14, embed_dim=1408, depth=40, num_heads=16, mlp_ratio=6144 / 1408,
          global_pool=kwargs.pop('global_pool', 'token'))
 -    model = _create_eva('eva_giant_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -610,7 +652,7 @@
      return model
  
  
-@@ -1916,7 +1921,7 @@         ref_feat_shape=(16, 16),  # 224/14
+@@ -1916,7 +1927,7 @@         ref_feat_shape=(16, 16),  # 224/14
          global_pool=kwargs.pop('global_pool', 'token'),
      )
 -    model = _create_eva('eva02_base_patch16_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -618,7 +660,7 @@
      return model
  
  
-@@ -1938,7 +1943,7 @@         ref_feat_shape=(16, 16),  # 224/14
+@@ -1938,7 +1949,7 @@         ref_feat_shape=(16, 16),  # 224/14
          global_pool=kwargs.pop('global_pool', 'token'),
      )
 -    model = _create_eva('eva02_large_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -626,7 +668,7 @@
      return model
  
  
-@@ -1960,7 +1965,7 @@         ref_feat_shape=(16, 16),  # 224/14
+@@ -1960,7 +1971,7 @@         ref_feat_shape=(16, 16),  # 224/14
          global_pool=kwargs.pop('global_pool', 'token'),
      )
 -    model = _create_eva('eva02_large_patch14_clip_336', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -634,7 +676,7 @@
      return model
  
  
-@@ -1977,7 +1982,7 @@         use_post_norm=True,
+@@ -1977,7 +1988,7 @@         use_post_norm=True,
          global_pool=kwargs.pop('global_pool', 'token'),
      )
 -    model = _create_eva('eva02_enormous_patch14_clip_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -642,7 +684,7 @@
      return model
  
  
-@@ -1999,7 +2004,7 @@         use_abs_pos_emb=False,
+@@ -1999,7 +2010,7 @@         use_abs_pos_emb=False,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('vit_medium_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -650,7 +692,7 @@
      return model
  
  
-@@ -2021,7 +2026,7 @@         use_abs_pos_emb=False,
+@@ -2021,7 +2032,7 @@         use_abs_pos_emb=False,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('vit_mediumd_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -658,7 +700,7 @@
      return model
  
  
-@@ -2043,7 +2048,7 @@         use_abs_pos_emb=False,
+@@ -2043,7 +2054,7 @@         use_abs_pos_emb=False,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('vit_betwixt_patch16_rope_reg4_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -666,7 +708,7 @@
      return model
  
  
-@@ -2065,7 +2070,7 @@         use_abs_pos_emb=False,
+@@ -2065,7 +2076,7 @@         use_abs_pos_emb=False,
          ref_feat_shape=(16, 16),  # 224/14
      )
 -    model = _create_eva('vit_base_patch16_rope_reg1_gap_256', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -674,7 +716,7 @@
      return model
  
  
-@@ -2090,7 +2095,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2090,7 +2101,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True
      )
 -    return _create_eva('vit_pe_core_tiny_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -682,7 +724,7 @@
  
  
  
-@@ -2115,7 +2120,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2115,7 +2126,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True
      )
 -    return _create_eva('vit_pe_core_small_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -690,7 +732,7 @@
  
  
  @register_model
-@@ -2139,7 +2144,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2139,7 +2150,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True
      )
 -    return _create_eva('vit_pe_core_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -698,7 +740,7 @@
  
  
  @register_model
-@@ -2163,7 +2168,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2163,7 +2174,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True,
      )
 -    return _create_eva('vit_pe_core_large_patch14_336', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -706,7 +748,7 @@
  
  
  @register_model
-@@ -2187,7 +2192,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2187,7 +2198,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True,
      )
 -    return _create_eva('vit_pe_core_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -714,7 +756,7 @@
  
  
  @register_model
-@@ -2212,7 +2217,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2212,7 +2223,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True,
      )
 -    return _create_eva('vit_pe_lang_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -722,7 +764,7 @@
  
  
  @register_model
-@@ -2236,7 +2241,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2236,7 +2247,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True,
      )
 -    return _create_eva('vit_pe_lang_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -730,7 +772,7 @@
  
  
  @register_model
-@@ -2259,7 +2264,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2259,7 +2270,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True
      )
 -    return _create_eva('vit_pe_spatial_tiny_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -738,7 +780,7 @@
  
  
  @register_model
-@@ -2282,7 +2287,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2282,7 +2293,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True
      )
 -    return _create_eva('vit_pe_spatial_small_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -746,7 +788,7 @@
  
  
  @register_model
-@@ -2305,7 +2310,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2305,7 +2316,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True
      )
 -    return _create_eva('vit_pe_spatial_base_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -754,7 +796,7 @@
  
  
  @register_model
-@@ -2328,7 +2333,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2328,7 +2339,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True,
      )
 -    return _create_eva('vit_pe_spatial_large_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -762,7 +804,7 @@
  
  
  @register_model
-@@ -2352,7 +2357,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2352,7 +2363,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
          #dynamic_img_size=True,
      )
 -    return _create_eva('vit_pe_spatial_gigantic_patch14_448', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -770,7 +812,7 @@
  
  
  # RoPE-ViT models from https://github.com/naver-ai/rope-vit
-@@ -2375,7 +2380,7 @@         rope_grid_indexing='xy',
+@@ -2375,7 +2386,7 @@         rope_grid_indexing='xy',
          rope_temperature=100.0,
      )
 -    model = _create_eva('vit_small_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -778,7 +820,7 @@
      return model
  
  
-@@ -2399,7 +2404,7 @@         rope_grid_indexing='xy',
+@@ -2399,7 +2410,7 @@         rope_grid_indexing='xy',
          rope_temperature=100.0,
      )
 -    model = _create_eva('vit_base_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -786,7 +828,7 @@
      return model
  
  
-@@ -2422,7 +2427,7 @@         rope_grid_indexing='xy',
+@@ -2422,7 +2433,7 @@         rope_grid_indexing='xy',
          rope_temperature=100.0,
      )
 -    model = _create_eva('vit_large_patch16_rope_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -794,7 +836,7 @@
      return model
  
  
-@@ -2446,7 +2451,7 @@         rope_temperature=10.0,
+@@ -2446,7 +2457,7 @@         rope_temperature=10.0,
          rope_type='mixed'
      )
 -    model = _create_eva('vit_small_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -802,7 +844,7 @@
      return model
  
  
-@@ -2470,7 +2475,7 @@         rope_temperature=10.0,
+@@ -2470,7 +2481,7 @@         rope_temperature=10.0,
          rope_type='mixed'
      )
 -    model = _create_eva('vit_base_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -810,7 +852,7 @@
      return model
  
  
-@@ -2494,7 +2499,7 @@         rope_temperature=10.0,
+@@ -2494,7 +2505,7 @@         rope_temperature=10.0,
          rope_type='mixed'
      )
 -    model = _create_eva('vit_large_patch16_rope_mixed_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -818,7 +860,7 @@
      return model
  
  
-@@ -2519,7 +2524,7 @@         rope_grid_indexing='xy',
+@@ -2519,7 +2530,7 @@         rope_grid_indexing='xy',
          rope_temperature=100.0,
      )
 -    model = _create_eva('vit_small_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -826,7 +868,7 @@
      return model
  
  
-@@ -2544,7 +2549,7 @@         rope_temperature=100.0,
+@@ -2544,7 +2555,7 @@         rope_temperature=100.0,
      )
  
 -    model = _create_eva('vit_base_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -834,7 +876,7 @@
      return model
  
  
-@@ -2569,7 +2574,7 @@         rope_temperature=100.0,
+@@ -2569,7 +2580,7 @@         rope_temperature=100.0,
      )
  
 -    model = _create_eva('vit_large_patch16_rope_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -842,7 +884,7 @@
      return model
  
  
-@@ -2595,7 +2600,7 @@         rope_type='mixed'
+@@ -2595,7 +2606,7 @@         rope_type='mixed'
      )
  
 -    model = _create_eva('vit_small_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -850,7 +892,7 @@
      return model
  
  
-@@ -2620,7 +2625,7 @@         rope_temperature=10.0,
+@@ -2620,7 +2631,7 @@         rope_temperature=10.0,
          rope_type='mixed'
      )
 -    model = _create_eva('vit_base_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -858,7 +900,7 @@
      return model
  
  
-@@ -2645,7 +2650,7 @@         rope_temperature=10.0,
+@@ -2645,7 +2656,7 @@         rope_temperature=10.0,
          rope_type='mixed'
      )
 -    model = _create_eva('vit_large_patch16_rope_mixed_ape_224', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -866,7 +908,7 @@
      return model
  
  
-@@ -2670,7 +2675,7 @@         use_fc_norm=False,
+@@ -2670,7 +2681,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_small_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -874,7 +916,7 @@
      return model
  
  
-@@ -2695,7 +2700,7 @@         use_fc_norm=False,
+@@ -2695,7 +2706,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_small_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -882,7 +924,7 @@
      return model
  
  
-@@ -2722,7 +2727,7 @@         use_fc_norm=False,
+@@ -2722,7 +2733,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_small_plus_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -890,7 +932,7 @@
      return model
  
  
-@@ -2749,7 +2754,7 @@         use_fc_norm=False,
+@@ -2749,7 +2760,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_small_plus_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -898,7 +940,7 @@
      return model
  
  
-@@ -2774,7 +2779,7 @@         use_fc_norm=False,
+@@ -2774,7 +2785,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_base_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -906,7 +948,7 @@
      return model
  
  
-@@ -2799,7 +2804,7 @@         use_fc_norm=False,
+@@ -2799,7 +2810,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_base_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -914,7 +956,7 @@
      return model
  
  
-@@ -2824,7 +2829,7 @@         use_fc_norm=False,
+@@ -2824,7 +2835,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_large_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -922,7 +964,7 @@
      return model
  
  
-@@ -2849,7 +2854,7 @@         use_fc_norm=False,
+@@ -2849,7 +2860,7 @@         use_fc_norm=False,
          norm_layer=partial(LayerNorm, eps=1e-5),
      )
 -    model = _create_eva('vit_large_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -930,7 +972,7 @@
      return model
  
  
-@@ -2877,7 +2882,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2877,7 +2888,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
      )
  
 -    model = _create_eva('vit_huge_plus_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -938,7 +980,7 @@
      return model
  
  
-@@ -2905,7 +2910,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2905,7 +2916,7 @@         norm_layer=partial(LayerNorm, eps=1e-5),
      )
  
 -    model = _create_eva('vit_huge_plus_patch16_dinov3_qkvb', pretrained=pretrained, **dict(model_args, **kwargs))
@@ -946,7 +988,7 @@
      return model
  
  @register_model
-@@ -2933,5 +2938,5 @@         norm_layer=partial(LayerNorm, eps=1e-5),
+@@ -2933,5 +2944,5 @@         norm_layer=partial(LayerNorm, eps=1e-5),
      )
  
 -    model = _create_eva('vit_7b_patch16_dinov3', pretrained=pretrained, **dict(model_args, **kwargs))

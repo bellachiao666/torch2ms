@@ -202,6 +202,8 @@ def calculate_naflex_grid_sizes(_coord: ms.Tensor):
 class NaFlexRopeIterator:
     """Iterator for generating batched ROPE embeddings for mixed mode with multiple grid sizes."""
 
+    # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def __init__(
         self,
         rope_module,
@@ -908,6 +910,7 @@ class NaFlexEmbeds(msnn.Cell):
         return x, grid_size
 
 
+# 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 @register_notrace_function
 def create_attention_mask(
         patch_valid: ms.Tensor,
@@ -1239,6 +1242,7 @@ class NaFlexVit(msnn.Cell):
     def fix_init_weight(self) -> None:
         """Apply initialization weight fix with layer-wise scaling."""
         def rescale(param: ms.Tensor, _layer_id: int) -> None:
+            # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             with torch.no_grad():
                 param.div_(math.sqrt(2.0 * _layer_id))
 
@@ -1547,6 +1551,7 @@ class NaFlexVit(msnn.Cell):
         attn_mask = embeds.get('attn_mask', None)
 
         # Forward pass through blocks
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
@@ -1622,6 +1627,7 @@ class NaFlexVit(msnn.Cell):
             return result_dict
 
         # For non-dictionary output, maintain the original behavior
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not torch.jit.is_scripting() and return_prefix_tokens and prefix_tokens is not None:
             # return_prefix not support in torchscript due to poor type handling
             intermediates = list(zip(intermediates, prefix_tokens))

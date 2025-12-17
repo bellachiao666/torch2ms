@@ -39,6 +39,8 @@ class Residual(msnn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         return x + self.m(x)
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self) -> msnn.Cell:
         if isinstance(self.m, Conv2dNorm):
@@ -73,6 +75,8 @@ class Conv2dNorm(msnn.SequentialCell):
         nn.init.constant_(self.bn.weight, bn_weight_init)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         nn.init.constant_(self.bn.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self) -> nn.Conv2d:
         c, bn = self._modules.values()
@@ -104,6 +108,8 @@ class NormLinear(msnn.SequentialCell):
         if bias:
             nn.init.constant_(self.l.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self) -> nn.Linear:
         bn, l = self._modules.values()
@@ -193,7 +199,10 @@ class SHSA(msnn.Cell):
         self.pre_norm = norm_layer(pdim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.qkv = Conv2dNorm(pdim, qk_dim * 2 + pdim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
-        self.proj = msnn.SequentialCell(act_layer(), Conv2dNorm(dim, dim, bn_weight_init=0, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.proj = msnn.SequentialCell([
+            act_layer(),
+            Conv2dNorm(dim, dim, bn_weight_init=0, **dd)
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         B, _, H, W = x.shape
@@ -256,12 +265,13 @@ class StageBlock(msnn.Cell):
         super().__init__()
         self.grad_checkpointing = False
         self.downsample = msnn.SequentialCell(
+            [
             Residual(Conv2dNorm(prev_dim, prev_dim, 3, 1, 1, groups=prev_dim, **dd)),
             Residual(FFN(prev_dim, int(prev_dim * 2), act_layer, **dd)),
             PatchMerging(prev_dim, dim, act_layer, **dd),
             Residual(Conv2dNorm(dim, dim, 3, 1, 1, groups=dim, **dd)),
-            Residual(FFN(dim, int(dim * 2), act_layer, **dd)),
-        ) if prev_dim != dim else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            Residual(FFN(dim, int(dim * 2), act_layer, **dd))
+        ]) if prev_dim != dim else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.blocks = msnn.SequentialCell(*[
             BasicBlock(dim, qk_dim, pdim, type, norm_layer, act_layer, **dd) for _ in range(depth)
@@ -269,6 +279,7 @@ class StageBlock(msnn.Cell):
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -302,6 +313,7 @@ class SHViT(msnn.Cell):
         # Patch embedding
         stem_chs = embed_dim[0]
         self.patch_embed = msnn.SequentialCell(
+            [
             Conv2dNorm(in_chans, stem_chs // 8, 3, 2, 1, **dd),
             act_layer(),
             Conv2dNorm(stem_chs // 8, stem_chs // 4, 3, 2, 1, **dd),
@@ -309,7 +321,7 @@ class SHViT(msnn.Cell):
             Conv2dNorm(stem_chs // 4, stem_chs // 2, 3, 2, 1, **dd),
             act_layer(),
             Conv2dNorm(stem_chs // 2, stem_chs, 3, 2, 1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         # Build SHViT blocks
         stages = []
@@ -394,6 +406,7 @@ class SHViT(msnn.Cell):
 
         # forward pass
         x = self.patch_embed(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
@@ -440,6 +453,8 @@ class SHViT(msnn.Cell):
         x = self.forward_head(x)
         return x
 
+    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.no_grad()
     def fuse(self):
         def fuse_children(net):

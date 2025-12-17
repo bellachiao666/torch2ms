@@ -267,11 +267,13 @@ class EfficientNet(msnn.Cell):
         if feat_idx in take_indices:
             intermediates.append(x)
 
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
             blocks = self.blocks[:max_index]
         for feat_idx, blk in enumerate(blocks, start=1):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint_seq(blk, x)
             else:
@@ -323,6 +325,7 @@ class EfficientNet(msnn.Cell):
         """Forward pass through feature extraction layers."""
         x = self.conv_stem(x)
         x = self.bn1(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x, flatten=True)
         else:
@@ -438,6 +441,7 @@ class EfficientNetFeatures(msnn.Cell):
             if 0 in self._stage_out_idx:
                 features.append(x)  # add stem out
             for i, b in enumerate(self.blocks):
+                # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
                 if self.grad_checkpointing and not torch.jit.is_scripting():
                     x = checkpoint(b, x)
                 else:

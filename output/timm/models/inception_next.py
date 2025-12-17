@@ -214,6 +214,7 @@ class MetaNeXtStage(msnn.Cell):
         self.grad_checkpointing = False
         if stride > 1 or dilation[0] != dilation[1]:
             self.downsample = msnn.SequentialCell(
+                [
                 norm_layer(in_chs, **dd),
                 nn.Conv2d(
                     in_chs,
@@ -222,8 +223,8 @@ class MetaNeXtStage(msnn.Cell):
                     stride=stride,
                     dilation=dilation[0],
                     **dd,
-                ),
-            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
+                )
+            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;; 存在 *args/**kwargs，需手动确认参数映射;
         else:
             self.downsample = msnn.Identity()
 
@@ -245,6 +246,7 @@ class MetaNeXtStage(msnn.Cell):
 
     def construct(self, x):
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -301,9 +303,10 @@ class MetaNeXt(msnn.Cell):
         self.feature_info = []
 
         self.stem = msnn.SequentialCell(
+            [
             nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4, **dd),
             norm_layer(dims[0], **dd)
-        )  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         dp_rates = calculate_drop_path_rates(drop_path_rate, depths, stagewise=True)
         prev_chs = dims[0]
@@ -400,6 +403,7 @@ class MetaNeXt(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:

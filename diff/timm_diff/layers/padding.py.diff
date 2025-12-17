@@ -49,7 +49,10 @@
      return x
  
  
-@@ -73,7 +75,7 @@             # TF compatible 'SAME' padding, has a performance and GPU memory allocation impact
+@@ -71,9 +73,10 @@         padding = padding.lower()
+         if padding == 'same':
+             # TF compatible 'SAME' padding, has a performance and GPU memory allocation impact
++            # 存在 *args/**kwargs，未转换，需手动确认参数映射;
              if is_static_pad(kernel_size, **kwargs):
                  # static case, no extra overhead
 -                padding = get_padding(kernel_size, **kwargs)
@@ -57,7 +60,7 @@
              else:
                  # dynamic 'SAME' padding, has runtime/GPU memory overhead
                  padding = 0
-@@ -83,5 +85,5 @@             padding = 0
+@@ -83,5 +86,5 @@             padding = 0
          else:
              # Default to PyTorch style 'same'-ish symmetric padding
 -            padding = get_padding(kernel_size, **kwargs)

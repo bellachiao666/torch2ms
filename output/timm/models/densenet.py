@@ -62,6 +62,7 @@ class DenseLayer(msnn.Cell):
         self.drop_rate = float(drop_rate)
         self.grad_checkpointing = grad_checkpointing
 
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def bottleneck_fn(self, xs: List[ms.Tensor]) -> ms.Tensor:
         """Bottleneck function for concatenated features."""
         concated_features = mint.cat(xs, 1)
@@ -69,6 +70,7 @@ class DenseLayer(msnn.Cell):
         return bottleneck_output
 
     # todo: rewrite when torchscript supports any
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def any_requires_grad(self, x: List[ms.Tensor]) -> bool:
         """Check if any tensor in list requires gradient."""
         for tensor in x:
@@ -76,6 +78,8 @@ class DenseLayer(msnn.Cell):
                 return True
         return False
 
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    # 装饰器 'torch.jit.unused' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit.unused  # noqa: T484
     def call_checkpoint_bottleneck(self, x: List[ms.Tensor]) -> ms.Tensor:
         """Call bottleneck function with gradient checkpointing."""
@@ -84,11 +88,13 @@ class DenseLayer(msnn.Cell):
 
         return checkpoint(closure, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (List[torch.Tensor]) -> (torch.Tensor)
         pass
 
+    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     @torch.jit._overload_method  # noqa: F811
     def construct(self, x):
         # type: (torch.Tensor) -> (torch.Tensor)
@@ -96,6 +102,7 @@ class DenseLayer(msnn.Cell):
 
     # torchscript does not yet support *args, so we overload method
     # allowing it to take either a List[Tensor] or single Tensor
+    # 'torch.jit.annotations.List' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     def construct(self, x: Union[ms.Tensor, List[ms.Tensor]]) -> ms.Tensor:  # noqa: F811
         """Forward pass.
 
@@ -111,6 +118,7 @@ class DenseLayer(msnn.Cell):
             prev_features = x
 
         if self.grad_checkpointing and self.any_requires_grad(prev_features):
+            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             if torch.jit.is_scripting():
                 raise Exception("Memory Efficient not supported in JIT")
             bottleneck_output = self.call_checkpoint_bottleneck(prev_features)
@@ -291,7 +299,8 @@ class DenseNet(msnn.Cell):
             if 'tiered' in stem_type:
                 stem_chs_1 = 3 * (growth_rate // 4)
                 stem_chs_2 = num_init_features if 'narrow' in stem_type else 6 * (growth_rate // 4)
-            self.features = msnn.SequentialCell(OrderedDict([
+            self.features = msnn.SequentialCell([
+                OrderedDict([
                 ('conv0', nn.Conv2d(in_chans, stem_chs_1, 3, stride=2, padding=1, bias=False, **dd)),
                 ('norm0', norm_layer(stem_chs_1, **dd)),
                 ('conv1', nn.Conv2d(stem_chs_1, stem_chs_2, 3, stride=1, padding=1, bias=False, **dd)),
@@ -299,13 +308,16 @@ class DenseNet(msnn.Cell):
                 ('conv2', nn.Conv2d(stem_chs_2, num_init_features, 3, stride=1, padding=1, bias=False, **dd)),
                 ('norm2', norm_layer(num_init_features, **dd)),
                 ('pool0', stem_pool),
-            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            ])
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         else:
-            self.features = msnn.SequentialCell(OrderedDict([
+            self.features = msnn.SequentialCell([
+                OrderedDict([
                 ('conv0', nn.Conv2d(in_chans, num_init_features, kernel_size=7, stride=2, padding=3, bias=False, **dd)),
                 ('norm0', norm_layer(num_init_features, **dd)),
                 ('pool0', stem_pool),
-            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            ])
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
         self.feature_info = [
             dict(num_chs=num_init_features, reduction=2, module=f'features.norm{2 if deep_stem else 0}')]
         current_stride = 4

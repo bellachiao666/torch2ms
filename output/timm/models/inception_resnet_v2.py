@@ -34,20 +34,23 @@ class Mixed_5b(msnn.Cell):
         self.branch0 = conv_block(192, 96, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(192, 48, kernel_size=1, stride=1, **dd),
             conv_block(48, 64, kernel_size=5, stride=1, padding=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
+            [
             conv_block(192, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(96, 96, kernel_size=3, stride=1, padding=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch3 = msnn.SequentialCell(
+            [
             nn.AvgPool2d(3, stride = 1, padding = 1, count_include_pad = False),
             conv_block(192, 64, kernel_size=1, stride=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
     def construct(self, x):
         x0 = self.branch0(x)
@@ -74,15 +77,17 @@ class Block35(msnn.Cell):
         self.branch0 = conv_block(320, 32, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(320, 32, kernel_size=1, stride=1, **dd),
             conv_block(32, 32, kernel_size=3, stride=1, padding=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
+            [
             conv_block(320, 32, kernel_size=1, stride=1, **dd),
             conv_block(32, 48, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(48, 64, kernel_size=3, stride=1, padding=1, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.conv2d = nn.Conv2d(128, 320, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = nn.ReLU()
@@ -112,10 +117,11 @@ class Mixed_6a(msnn.Cell):
         self.branch0 = conv_block(320, 384, kernel_size=3, stride=2, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(320, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 256, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(256, 384, kernel_size=3, stride=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = nn.MaxPool2d(3, stride = 2)
 
@@ -143,10 +149,11 @@ class Block17(msnn.Cell):
         self.branch0 = conv_block(1088, 192, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(1088, 128, kernel_size=1, stride=1, **dd),
             conv_block(128, 160, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(160, 192, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.conv2d = nn.Conv2d(384, 1088, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.act = nn.ReLU()
@@ -173,20 +180,23 @@ class Mixed_7a(msnn.Cell):
         conv_block = conv_block or ConvNormAct
 
         self.branch0 = msnn.SequentialCell(
+            [
             conv_block(1088, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 384, kernel_size=3, stride=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(1088, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 288, kernel_size=3, stride=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch2 = msnn.SequentialCell(
+            [
             conv_block(1088, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 288, kernel_size=3, stride=1, padding=1, **dd),
             conv_block(288, 320, kernel_size=3, stride=2, **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch3 = nn.MaxPool2d(3, stride = 2)
 
@@ -217,10 +227,11 @@ class Block8(msnn.Cell):
         self.branch0 = conv_block(2080, 192, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.branch1 = msnn.SequentialCell(
+            [
             conv_block(2080, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 224, kernel_size=(1, 3), stride=1, padding=(0, 1), **dd),
             conv_block(224, 256, kernel_size=(3, 1), stride=1, padding=(1, 0), **dd)
-        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
 
         self.conv2d = nn.Conv2d(448, 2080, kernel_size=1, stride=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
         self.relu = None if no_relu else nn.ReLU()

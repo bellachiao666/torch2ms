@@ -163,11 +163,13 @@ class MlpHead(msnn.Cell):
 
         self.norm = norm_layer(in_features, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
         if hidden_size:
-            self.pre_logits = msnn.SequentialCell(OrderedDict([
+            self.pre_logits = msnn.SequentialCell([
+                OrderedDict([
                 ('fc', nn.Linear(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
                 ('norm', norm_layer(hidden_size, **dd))
-            ]))  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+            ])
+            ])  # 存在 *args/**kwargs，需手动确认参数映射;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
             self.num_features = hidden_size
         else:
             self.num_features = in_features
@@ -302,6 +304,7 @@ class MambaOutStage(msnn.Cell):
 
     def construct(self, x):
         x = self.downsample(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if self.grad_checkpointing and not torch.jit.is_scripting():
             x = checkpoint_seq(self.blocks, x)
         else:
@@ -482,6 +485,7 @@ class MambaOut(msnn.Cell):
 
         # forward pass
         x = self.stem(x)
+        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
