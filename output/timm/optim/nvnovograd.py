@@ -119,7 +119,7 @@ class NvNovoGrad(Optimizer):
 
                 if amsgrad:
                     # Maintains the maximum of all 2nd moment running avg. till now
-                    mint.max(max_exp_avg_sq, exp_avg_sq)
+                    mint.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
                     # Use the max. for normalizing running avg. of gradient
                     denom = max_exp_avg_sq.sqrt().add_(group['eps'])
                 else:

@@ -19,7 +19,7 @@ class LabelSmoothingCrossEntropy(msnn.Cell):
         self.confidence = 1. - smoothing
 
     def construct(self, x: ms.Tensor, target: ms.Tensor) -> ms.Tensor:
-        logprobs = mint.special.log_softmax(x, dim = -1)
+        logprobs = mint.special.log_softmax(x, dim=-1)
         nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
         nll_loss = nll_loss.squeeze(1)
         smooth_loss = -logprobs.mean(dim=-1)
@@ -33,5 +33,5 @@ class SoftTargetCrossEntropy(msnn.Cell):
         super(SoftTargetCrossEntropy, self).__init__()
 
     def construct(self, x: ms.Tensor, target: ms.Tensor) -> ms.Tensor:
-        loss = mint.sum(-target * mint.special.log_softmax(x, dim = -1))
+        loss = mint.sum(-target * mint.special.log_softmax(x, dim=-1), dim=-1)
         return loss.mean()

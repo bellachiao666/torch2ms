@@ -37,7 +37,7 @@ def patch_dropout_forward(
     B = x.shape[0]
     L = x.shape[1]
     num_keep = max(1, int(L * (1. - prob)))
-    keep_indices = mint.argsort(mint.randn(size = (B, L)), dim = -1)[:, :num_keep]  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
+    keep_indices = mint.argsort(mint.randn(B, L, device=x.device), dim=-1)[:, :num_keep]
 
     if ordered:
         # NOTE does not need to maintain patch order in typical transformer use,
@@ -47,7 +47,7 @@ def patch_dropout_forward(
     x = x.gather(1, keep_indices.unsqueeze(-1).expand((-1, -1) + x.shape[2:]))
 
     if prefix_tokens is not None:
-        x = mint.cat((prefix_tokens, x), dim = 1)
+        x = mint.cat((prefix_tokens, x), dim=1)
 
     return x, keep_indices
 

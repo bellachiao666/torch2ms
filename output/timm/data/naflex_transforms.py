@@ -780,11 +780,11 @@ def patchify_image(
 
     if include_info:
         # Create coordinate indices
-        y_idx, x_idx = mint.meshgrid(mint.arange(nh), mint.arange(nw), indexing = 'ij')
+        y_idx, x_idx = mint.meshgrid(mint.arange(nh), mint.arange(nw), indexing='ij')
         # Stack into a single coords tensor [N, 2] with (y, x) order
-        coord = mint.stack([y_idx.reshape(-1), x_idx.reshape(-1)], dim = 1)
+        coord = mint.stack([y_idx.reshape(-1), x_idx.reshape(-1)], dim=1)
         # Create type indicators (all 1s for regular patches)
-        valid = mint.ones(nh * nw, dtype = ms.bool)
+        valid = mint.ones(nh * nw, dtype=ms.bool_)
         return patches, coord, valid
 
     return patches

@@ -169,7 +169,7 @@ def _is_contiguous(tensor: ms.Tensor) -> bool:
 
 
 def _layer_norm_cf(x: ms.Tensor, weight: ms.Tensor, bias: ms.Tensor, eps: float):
-    s, u = mint.var_mean(x, dim = 1, keepdim = True)
+    s, u = mint.var_mean(x, dim=1, unbiased=False, keepdim=True)
     x = (x - u) * mint.rsqrt(s + eps)
     x = x * weight[:, None, None] + bias[:, None, None]
     return x

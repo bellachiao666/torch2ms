@@ -17,6 +17,14 @@
      """Activated Batch Normalization
  
      This gathers a BatchNorm and an activation function in a single module
+@@ -66,7 +70,7 @@                     self.act_name = 'elu'
+                 elif act_layer == nn.LeakyReLU:
+                     self.act_name = 'leaky_relu'
+-                elif act_layer is None or act_layer == nn.Identity:
++                elif act_layer is None or act_layer == msnn.Identity:
+                     self.act_name = 'identity'
+                 else:
+                     assert False, f'Invalid act layer {act_layer.__name__} for IABN'
 @@ -74,23 +78,23 @@             self.act_name = 'identity'
          self.act_param = act_param
          if self.affine:

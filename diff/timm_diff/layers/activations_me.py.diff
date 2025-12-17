@@ -114,7 +114,7 @@
 -    m = torch.ones_like(x) * (x >= 3.)
 -    m = torch.where((x >= -3.) & (x <= 3.),  x / 3. + .5, m)
 +    m = mint.ones_like(x) * (x >= 3.)
-+    m = mint.where((x >= -3.) & (x <= 3.), x / 3. + .5, m)
++    m = mint.where((x >= -3.) & (x <= 3.),  x / 3. + .5, m)
      return grad_output * m
  
  
@@ -128,9 +128,9 @@
 -        input = g.op("Add", self, g.op('Constant', value_t=torch.tensor(3, dtype=torch.float)))
 -        hardtanh_ = g.op("Clip", input, g.op('Constant', value_t=torch.tensor(0, dtype=torch.float)), g.op('Constant', value_t=torch.tensor(6, dtype=torch.float)))
 -        hardtanh_ = g.op("Div", hardtanh_, g.op('Constant', value_t=torch.tensor(6, dtype=torch.float)))
-+        input = g.op("Add", self, g.op('Constant', value_t=ms.Tensor(3, dtype = ms.float)))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
-+        hardtanh_ = g.op("Clip", input, g.op('Constant', value_t=ms.Tensor(0, dtype = ms.float)), g.op('Constant', value_t=ms.Tensor(6, dtype = ms.float)))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
-+        hardtanh_ = g.op("Div", hardtanh_, g.op('Constant', value_t=ms.Tensor(6, dtype = ms.float)))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++        input = g.op("Add", self, g.op('Constant', value_t=ms.Tensor(3, dtype=ms.float32)))
++        hardtanh_ = g.op("Clip", input, g.op('Constant', value_t=ms.Tensor(0, dtype=ms.float32)), g.op('Constant', value_t=ms.Tensor(6, dtype=ms.float32)))
++        hardtanh_ = g.op("Div", hardtanh_, g.op('Constant', value_t=ms.Tensor(6, dtype=ms.float32)))
          return g.op("Mul", self, hardtanh_)
  
  

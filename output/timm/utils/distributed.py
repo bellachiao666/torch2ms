@@ -21,7 +21,7 @@ _logger = logging.getLogger(__name__)
 
 def reduce_tensor(tensor, n):
     rt = tensor.clone()
-    mint.distributed.all_reduce(rt, op = dist.ReduceOp.SUM)
+    mint.distributed.all_reduce(rt, op=dist.ReduceOp.SUM)
     rt /= n
     return rt
 
@@ -32,7 +32,7 @@ def distribute_bn(model, world_size, reduce=False):
         if ('running_mean' in bn_name) or ('running_var' in bn_name):
             if reduce:
                 # average bn stats across whole group
-                mint.distributed.all_reduce(bn_buf, op = dist.ReduceOp.SUM)
+                mint.distributed.all_reduce(bn_buf, op=dist.ReduceOp.SUM)
                 bn_buf /= float(world_size)
             else:
                 # broadcast bn stats from rank 0 to whole group
@@ -147,12 +147,18 @@ def init_distributed_device_so(
             os.environ['RANK'] = str(global_rank)
             os.environ['WORLD_SIZE'] = str(world_size)
             mint.distributed.init_process_group(
-                backend = dist_backend, init_method = dist_url, world_size = world_size, rank = global_rank)
+                backend=dist_backend,
+                init_method=dist_url,
+                world_size=world_size,
+                rank=global_rank,
+            )
         else:
             # DDP via torchrun, torch.distributed.launch
             local_rank, _, _ = world_info_from_env()
             mint.distributed.init_process_group(
-                backend = dist_backend, init_method = dist_url)
+                backend=dist_backend,
+                init_method=dist_url,
+            )
             world_size = mint.distributed.get_world_size()
             global_rank = mint.distributed.get_rank()
         distributed = True

@@ -138,7 +138,7 @@ def hard_swish_fwd(x):
 
 def hard_swish_bwd(x, grad_output):
     m = mint.ones_like(x) * (x >= 3.)
-    m = mint.where((x >= -3.) & (x <= 3.), x / 3. + .5, m)
+    m = mint.where((x >= -3.) & (x <= 3.),  x / 3. + .5, m)
     return grad_output * m
 
 
@@ -157,9 +157,9 @@ class HardSwishAutoFn(torch.autograd.Function):
 
     @staticmethod
     def symbolic(g, self):
-        input = g.op("Add", self, g.op('Constant', value_t=ms.Tensor(3, dtype = ms.float)))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
-        hardtanh_ = g.op("Clip", input, g.op('Constant', value_t=ms.Tensor(0, dtype = ms.float)), g.op('Constant', value_t=ms.Tensor(6, dtype = ms.float)))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
-        hardtanh_ = g.op("Div", hardtanh_, g.op('Constant', value_t=ms.Tensor(6, dtype = ms.float)))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+        input = g.op("Add", self, g.op('Constant', value_t=ms.Tensor(3, dtype=ms.float32)))
+        hardtanh_ = g.op("Clip", input, g.op('Constant', value_t=ms.Tensor(0, dtype=ms.float32)), g.op('Constant', value_t=ms.Tensor(6, dtype=ms.float32)))
+        hardtanh_ = g.op("Div", hardtanh_, g.op('Constant', value_t=ms.Tensor(6, dtype=ms.float32)))
         return g.op("Mul", self, hardtanh_)
 
 

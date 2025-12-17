@@ -19,11 +19,11 @@ def _get_pixels(per_pixel, rand_color, patch_size, dtype=ms.float32, device='cud
     # paths, flip the order so normal is run on CPU if this becomes a problem
     # Issue has been fixed in master https://github.com/pytorch/pytorch/issues/19508
     if per_pixel:
-        return mint.empty(patch_size, dtype = dtype, device = device).normal_()
+        return mint.empty(patch_size, dtype=dtype, device=device).normal_()
     elif rand_color:
-        return mint.empty((patch_size[0], 1, 1), dtype = dtype, device = device).normal_()
+        return mint.empty((patch_size[0], 1, 1), dtype=dtype, device=device).normal_()
     else:
-        return mint.zeros((patch_size[0], 1, 1), dtype = dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+        return mint.zeros((patch_size[0], 1, 1), dtype=dtype, device=device)
 
 
 class RandomErasing:

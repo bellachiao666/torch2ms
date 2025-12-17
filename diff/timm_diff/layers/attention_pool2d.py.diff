@@ -75,9 +75,9 @@
 -            x = torch.cat([x.mean(1, keepdim=True), x], dim=1)
 -        else:
 -            x = torch.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim=1)
-+            x = mint.cat([x.mean(1, keepdim=True), x], dim = 1)
++            x = mint.cat([x.mean(1, keepdim=True), x], dim=1)
 +        else:
-+            x = mint.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim = 1)
++            x = mint.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim=1)
          if self.qkv is None:
              q = self.q(x).reshape(B, N + 1, self.num_heads, self.head_dim).transpose(1, 2)
              k = self.k(x).reshape(B, N + 1, self.num_heads, self.head_dim).transpose(1, 2)
@@ -87,9 +87,9 @@
 -            rope = torch.cat(rope, dim=-1)
 -        q = torch.cat([q[:, :, :1, :], apply_rot_embed_cat(q[:, :, 1:, :], rope)], dim=2).type_as(v)
 -        k = torch.cat([k[:, :, :1, :], apply_rot_embed_cat(k[:, :, 1:, :], rope)], dim=2).type_as(v)
-+            rope = mint.cat(rope, dim = -1)
-+        q = mint.cat([q[:, :, :1, :], apply_rot_embed_cat(q[:, :, 1:, :], rope)], dim = 2).type_as(v)
-+        k = mint.cat([k[:, :, :1, :], apply_rot_embed_cat(k[:, :, 1:, :], rope)], dim = 2).type_as(v)
++            rope = mint.cat(rope, dim=-1)
++        q = mint.cat([q[:, :, :1, :], apply_rot_embed_cat(q[:, :, 1:, :], rope)], dim=2).type_as(v)
++        k = mint.cat([k[:, :, :1, :], apply_rot_embed_cat(k[:, :, 1:, :], rope)], dim=2).type_as(v)
  
          if self.fused_attn:
 -            x = nn.functional.scaled_dot_product_attention(q, k, v)
@@ -164,9 +164,9 @@
 -            x = torch.cat([x.mean(1, keepdim=True), x], dim=1)
 -        else:
 -            x = torch.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim=1)
-+            x = mint.cat([x.mean(1, keepdim=True), x], dim = 1)
++            x = mint.cat([x.mean(1, keepdim=True), x], dim=1)
 +        else:
-+            x = mint.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim = 1)
++            x = mint.cat([self.cls_token.expand(x.shape[0], -1, -1), x], dim=1)
          pos_embed = resample_abs_pos_embed(self.pos_embed.unsqueeze(0), (H, W), num_prefix_tokens=1)
          x = x + pos_embed
  

@@ -106,10 +106,10 @@ class NaFlexCollator:
 
         # Extract targets
         targets = [item[1] for item in batch]
-        if isinstance(targets[0], torch.Tensor):
+        if isinstance(targets[0], ms.Tensor):
             targets = mint.stack(targets)
         else:
-            targets = ms.Tensor(targets, dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+            targets = ms.Tensor(targets, dtype=ms.int64)
 
         # Get patch dictionaries
         patch_dicts = [item[0] for item in batch]
@@ -128,15 +128,15 @@ class NaFlexCollator:
         if is_unflattened:
             # Patches are [N, Ph, Pw, C] - variable patch size mode
             _, ph, pw, c = patches_tensor.shape
-            patches = mint.zeros((batch_size, max_patches, ph, pw, c), dtype = ms.float32)
+            patches = mint.zeros((batch_size, max_patches, ph, pw, c), dtype=ms.float32)
         else:
             # Patches are [N, P*P*C] - normal mode
             patch_dim = patches_tensor.shape[1]
-            patches = mint.zeros((batch_size, max_patches, patch_dim), dtype = ms.float32)
+            patches = mint.zeros((batch_size, max_patches, patch_dim), dtype=ms.float32)
 
         # Prepare other tensors
-        patch_coord = mint.zeros((batch_size, max_patches, 2), dtype = ms.int64)  # [B, N, 2] for (y, x)
-        patch_valid = mint.zeros((batch_size, max_patches), dtype = ms.bool)
+        patch_coord = mint.zeros((batch_size, max_patches, 2), dtype=ms.int64)  # [B, N, 2] for (y, x)
+        patch_valid = mint.zeros((batch_size, max_patches), dtype=ms.bool_)
 
         # Fill in the tensors
         for i, patch_dict in enumerate(patch_dicts):
@@ -355,7 +355,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
 
         while remaining_samples > 0:
             # Sample sequence length deterministically based on base seed
-            seq_idx = mint.randint(0, len(self.seq_lens), (1,), generator = g).item()
+            seq_idx = mint.randint(0, len(self.seq_lens), (1,), generator=g).item()
             seq_len = self.seq_lens[seq_idx]
 
             # Calculate batch size
@@ -410,7 +410,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
         # 1. Get shuffled global indices
         total_len = len(self.base_dataset)
         if self.shuffle:
-            all_indices_shuffled = mint.randperm(total_len, generator = g).tolist()  # 'torch.randperm'默认值不一致(position 3): PyTorch=torch.int64, MindSpore=mindspore.int64;
+            all_indices_shuffled = mint.randperm(total_len, generator=g).tolist()
         else:
             all_indices_shuffled = list(range(total_len))
 
@@ -450,7 +450,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
 
         # 4. Shuffle the order of the canonical batch schedule for this epoch
         if self.shuffle:
-            schedule_perm = mint.randperm(self._num_batches_per_rank, generator = g).tolist()  # 'torch.randperm'默认值不一致(position 3): PyTorch=torch.int64, MindSpore=mindspore.int64;
+            schedule_perm = mint.randperm(self._num_batches_per_rank, generator=g).tolist()
             shuffled_schedule = [self._canonical_batch_schedule[i] for i in schedule_perm]
         else:
             shuffled_schedule = list(self._canonical_batch_schedule) # Keep original order
@@ -521,7 +521,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
             patch_idx = 0
             if self.variable_patch_size:
                 # Use torch multinomial for weighted random choice
-                patch_idx = mint.multinomial(ms.Tensor(self.patch_size_probs), 1).item()  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                patch_idx = mint.multinomial(ms.Tensor(self.patch_size_probs), 1).item()
 
             # Get the pre-initialized transform and patchifier using patch_idx
             transform_key = (seq_len, patch_idx)

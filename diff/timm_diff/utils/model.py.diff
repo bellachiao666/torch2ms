@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,12 +1,15 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -6,17 +6,17 @@
  """ Model / state_dict utils
  
  Hacked together by / Copyright 2020 Ross Wightman
-@@ -5,8 +10,8 @@ import fnmatch
+ """
+ import fnmatch
  from copy import deepcopy
- 
+-
 -import torch
 -from torchvision.ops.misc import FrozenBatchNorm2d
-+# import torch
 +# from torchvision.ops.misc import FrozenBatchNorm2d
  
  from timm.layers import BatchNormAct2d, SyncBatchNormAct, FrozenBatchNormAct2d,\
      freeze_batch_norm_2d, unfreeze_batch_norm_2d
-@@ -32,19 +37,19 @@ def avg_sq_ch_mean(model, input, output):
+@@ -32,19 +35,19 @@ def avg_sq_ch_mean(model, input, output):
      """ calculate average channel square mean of output activations
      """
 -    return torch.mean(output.mean(axis=[0, 2, 3]) ** 2).item()
@@ -38,7 +38,7 @@
  
  
  class ActivationStatsHook:
-@@ -102,7 +107,7 @@ 
+@@ -102,7 +105,7 @@ 
      Example Usage: https://gist.github.com/amaarora/6e56942fcb46e67ba203f3009b30d950
      """
 -    x = torch.normal(0., 1., input_shape)
@@ -46,7 +46,27 @@
      hook = ActivationStatsHook(model, hook_fn_locs=hook_fn_locs, hook_fns=hook_fns)
      _ = model(x)
      return hook.stats
-@@ -230,7 +235,7 @@     _freeze_unfreeze(root_module, submodules, include_bn_running_stats=include_bn_running_stats, mode="unfreeze")
+@@ -125,8 +128,8 @@     assert mode in ["freeze", "unfreeze"], '`mode` must be one of "freeze" or "unfreeze"'
+ 
+     if isinstance(root_module, (
+-            torch.nn.modules.batchnorm.BatchNorm2d,
+-            torch.nn.modules.batchnorm.SyncBatchNorm,
++            nn.BatchNorm2d,
++            nn.SyncBatchNorm,
+             BatchNormAct2d,
+             SyncBatchNormAct,
+     )):
+@@ -164,8 +167,8 @@                 # convert it in place, but will return the converted result. In this case `res` holds the converted
+                 # result and we may try to re-assign the named module
+                 if isinstance(m, (
+-                        torch.nn.modules.batchnorm.BatchNorm2d,
+-                        torch.nn.modules.batchnorm.SyncBatchNorm,
++                        nn.BatchNorm2d,
++                        nn.SyncBatchNorm,
+                         BatchNormAct2d,
+                         SyncBatchNormAct,
+                 )):
+@@ -230,7 +233,7 @@     _freeze_unfreeze(root_module, submodules, include_bn_running_stats=include_bn_running_stats, mode="unfreeze")
  
  
 -def reparameterize_model(model: torch.nn.Module, inplace=False) -> torch.nn.Module:

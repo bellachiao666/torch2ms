@@ -24,20 +24,19 @@
      r"""Creates a module that computes blurs and downsample a given feature map.
      See :cite:`zhang2019shiftinvar` for more details.
      Corresponds to the Downsample class, which does blurring and subsampling
-@@ -48,11 +50,8 @@         self.padding = [get_padding(filt_size, stride, dilation=1)] * 4
+@@ -48,10 +50,10 @@         self.padding = [get_padding(filt_size, stride, dilation=1)] * 4
  
          # (0.5 + 0.5 x)^N => coefficients = C(N,k) / 2^N,  k = 0..N
 -        coeffs = torch.tensor(
--            [comb(filt_size - 1, k) for k in range(filt_size)],
--            device='cpu',
--            dtype=torch.float32,
--        ) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1
 +        coeffs = ms.Tensor(
-+            [comb(filt_size - 1, k) for k in range(filt_size)], dtype = ms.float32) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1; 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+             [comb(filt_size - 1, k) for k in range(filt_size)],
+             device='cpu',
+-            dtype=torch.float32,
++            dtype=ms.float32,
+         ) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1
          blur_filter = (coeffs[:, None] * coeffs[None, :])[None, None, :, :]
          if channels is not None:
-             blur_filter = blur_filter.repeat(self.channels, 1, 1, 1)
-@@ -63,18 +62,18 @@             persistent=False,
+@@ -63,18 +65,18 @@             persistent=False,
          )
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -59,7 +58,7 @@
      """Map string shorthands to callables (class or partial)."""
      if isinstance(aa_layer, str):
          key = aa_layer.lower().replace('_', '').replace('-', '')
-@@ -89,14 +88,14 @@     return aa_layer
+@@ -89,14 +91,14 @@     return aa_layer
  
  
 -def _underlying_cls(layer_callable: Callable[..., nn.Module]):
@@ -75,11 +74,11 @@
      """True if callable is BlurPool2d or a partial of it."""
      cls = _underlying_cls(layer_callable)
      try:
-@@ -112,10 +111,10 @@         channels: Optional[int] = None,
+@@ -112,10 +114,10 @@         channels: Optional[int] = None,
          stride: int = 2,
          enable: bool = True,
 -        noop: Optional[Type[nn.Module]] = nn.Identity,
-+        noop: Optional[Type[msnn.Cell]] = nn.Identity,
++        noop: Optional[Type[msnn.Cell]] = msnn.Identity,
          device=None,
          dtype=None,
 -) -> Optional[nn.Module]:

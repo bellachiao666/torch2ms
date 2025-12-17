@@ -230,8 +230,8 @@ class AttentionRope(msnn.Cell):
         if rope is not None:
             npt = self.num_prefix_tokens
             half = getattr(self, 'rotate_half', False)
-            q = mint.cat([q[:, :, :npt, :], apply_rot_embed_cat(q[:, :, npt:, :], rope, half=half)], dim = 2).type_as(v)
-            k = mint.cat([k[:, :, :npt, :], apply_rot_embed_cat(k[:, :, npt:, :], rope, half=half)], dim = 2).type_as(v)
+            q = mint.cat([q[:, :, :npt, :], apply_rot_embed_cat(q[:, :, npt:, :], rope, half=half)], dim=2).type_as(v)
+            k = mint.cat([k[:, :, :npt, :], apply_rot_embed_cat(k[:, :, npt:, :], rope, half=half)], dim=2).type_as(v)
 
         if self.fused_attn:
             x = F.scaled_dot_product_attention(

@@ -75,7 +75,7 @@ def precond_update_prob_schedule(
     """
 
     """Exponential anneal with flat start."""
-    n = ms.Tensor(n, dtype = ms.float32)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+    n = ms.Tensor(n, dtype=ms.float32)
     prob = max_prob * mint.exp(-decay * (n - flat_start))
     prob.clamp_(min=min_prob, max=max_prob)
 
@@ -253,7 +253,7 @@ class Kron(torch.optim.Optimizer):
                 if len(state) == 0:
                     state["step"] = 0
                     state["update_counter"] = 0
-                    state["momentum_buffer"] = mint.zeros_like(grad, dtype = mu_dtype or grad.dtype)
+                    state["momentum_buffer"] = mint.zeros_like(grad, dtype=mu_dtype or grad.dtype)
                     # init Q and einsum expressions on first step
                     state["Q"], exprs = _init_Q_exprs(
                         grad,
@@ -329,7 +329,11 @@ class Kron(torch.optim.Optimizer):
                     else:
                         torch_rng = None
                     V = mint.randn(
-                        debiased_momentum.shape, generator = torch_rng, dtype = precond_dtype)  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
+                        debiased_momentum.shape,
+                        generator=torch_rng,
+                        dtype=precond_dtype,
+                        device=debiased_momentum.device,
+                    )
                     G = debiased_momentum if momentum_into_precond_update else grad
 
                     A, conjB = self._calc_A_and_conjB(exprA, G, Q, V)
@@ -356,7 +360,7 @@ class Kron(torch.optim.Optimizer):
                 ).to(dtype=p.dtype)
 
                 # RMS of pre_grad should be 1.0, so let's cap at 1.1
-                pre_grad.mul_(mint.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max = 1.0))
+                pre_grad.mul_(mint.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max=1.0))
                 if flattened:
                     pre_grad = pre_grad.view(p.shape)
 
@@ -418,7 +422,7 @@ def _init_Q_exprs(
     Q = []
     if len(shape) == 0:  # scalar
         if init_q:
-            Q.append(scale * mint.ones_like(t, dtype = dtype))
+            Q.append(scale * mint.ones_like(t, dtype=dtype))
         exprA = ",->"
         exprGs = [",->"]
         exprP = ",,->"
@@ -459,7 +463,7 @@ def _init_Q_exprs(
             ):
                 # use diagonal matrix as preconditioner for this dim
                 if init_q:
-                    Q.append(scale * mint.ones(size, dtype = dtype))  # 'torch.ones':没有对应的mindspore参数 'device' (position 4);
+                    Q.append(scale * mint.ones(size, dtype=dtype, device=t.device))
 
                 piece1A.append(letters[i])
                 piece2A = piece2A + letters[i]
@@ -476,7 +480,7 @@ def _init_Q_exprs(
             else:
                 # use triangular matrix as preconditioner for this dim
                 if init_q:
-                    Q.append(scale * mint.eye(size, dtype = dtype))  # 'torch.eye':没有对应的mindspore参数 'device' (position 5);
+                    Q.append(scale * mint.eye(size, dtype=dtype, device=t.device))
 
                 piece1A.append(letters[i] + letters[i + 13])
                 piece2A = piece2A + letters[i + 13]
@@ -506,8 +510,8 @@ def _init_Q_exprs(
 def _lb(A, max_abs):
     A = A / max_abs
     aa = torch.real(A * A.conj())  # 'torch.real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    value0, i = mint.max(mint.sum(aa), 0)
-    value1, j = mint.max(mint.sum(aa), 0)
+    value0, i = mint.max(mint.sum(aa, dim=0), 0)
+    value1, j = mint.max(mint.sum(aa, dim=1), 0)
     if value0 > value1:
         x = A[:, i].conj() @ A
         return max_abs * mint.linalg.vector_norm((x / mint.linalg.vector_norm(x)) @ A.H)

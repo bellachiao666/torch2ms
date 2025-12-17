@@ -61,7 +61,7 @@ def transforms_noaug_train(
                 mean=ms.Tensor(mean),
                 std=ms.Tensor(std)
             )
-        ]  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torchvision.transforms.Normalize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        ]  # 'torchvision.transforms.Normalize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
     return ms.dataset.transforms.Compose(tfl)
 
 
@@ -251,7 +251,7 @@ def transforms_imagenet_train(
                 mean=ms.Tensor(mean),
                 std=ms.Tensor(std),
             ),
-        ]  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torchvision.transforms.Normalize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        ]  # 'torchvision.transforms.Normalize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if re_prob > 0.:
             final_tfl += [
                 RandomErasing(
@@ -369,7 +369,7 @@ def transforms_imagenet_eval(
                 mean=ms.Tensor(mean),
                 std=ms.Tensor(std),
             ),
-        ]  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torchvision.transforms.Normalize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        ]  # 'torchvision.transforms.Normalize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     if patchify:
         tfl += [Patchify(patch_size=patch_size)]

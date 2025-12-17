@@ -185,12 +185,10 @@ class NormMlpClassifierHead(msnn.Cell):
         self.norm = norm_layer(in_features, **dd)
         self.flatten = mint.flatten(1) if pool_type else msnn.Identity()
         if hidden_size:
-            self.pre_logits = msnn.SequentialCell([
-                OrderedDict([
+            self.pre_logits = msnn.SequentialCell(OrderedDict([
                 ('fc', linear_layer(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
-            ])
-            ])
+            ]))
             self.num_features = hidden_size
         else:
             self.pre_logits = msnn.Identity()
@@ -266,12 +264,10 @@ class ClNormMlpClassifierHead(msnn.Cell):
 
         self.norm = norm_layer(in_features, **dd)
         if hidden_size:
-            self.pre_logits = msnn.SequentialCell([
-                OrderedDict([
+            self.pre_logits = msnn.SequentialCell(OrderedDict([
                 ('fc', nn.Linear(in_features, hidden_size, **dd)),
                 ('act', act_layer()),
-            ])
-            ])
+            ]))
             self.num_features = hidden_size
         else:
             self.pre_logits = msnn.Identity()

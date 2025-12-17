@@ -88,9 +88,9 @@
          else:
              x_paths = [op(x) for op in self.paths]
 -        x = torch.stack(x_paths, dim=1)
-+        x = mint.stack(x_paths, dim = 1)
++        x = mint.stack(x_paths, dim=1)
          x_attn = self.attn(x)
          x = x * x_attn
 -        x = torch.sum(x, dim=1)
-+        x = mint.sum(x)
++        x = mint.sum(x, dim=1)
          return x

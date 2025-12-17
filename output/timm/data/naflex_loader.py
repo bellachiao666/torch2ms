@@ -75,9 +75,9 @@ class NaFlexPrefetchLoader:
         normalization_shape = (1, 1, channels)
         self.channels = channels
         self.mean = ms.Tensor(
-            [x * 255 for x in mean], dtype = self.img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            [x * 255 for x in mean], device=device, dtype=self.img_dtype).view(normalization_shape)
         self.std = ms.Tensor(
-            [x * 255 for x in std], dtype = self.img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            [x * 255 for x in std], device=device, dtype=self.img_dtype).view(normalization_shape)
 
         if re_prob > 0.:
             self.random_erasing = PatchRandomErasing(
@@ -115,7 +115,7 @@ class NaFlexPrefetchLoader:
             with stream_context():
                 # Move all tensors in input_dict to device
                 for k, v in next_input_dict.items():
-                    if isinstance(v, torch.Tensor):
+                    if isinstance(v, ms.Tensor):
                         dtype = self.img_dtype if k == 'patches' else None
                         next_input_dict[k] = next_input_dict[k].to(
                             device=self.device,

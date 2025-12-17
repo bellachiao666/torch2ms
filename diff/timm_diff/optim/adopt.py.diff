@@ -46,9 +46,15 @@
      else:
          return False
  
-@@ -56,6 +61,7 @@         return x.item() if isinstance(x, torch.Tensor) else x
- 
- 
+@@ -53,9 +58,10 @@     if not torch.jit.is_scripting() and _is_compiling():
+         return x
+     else:
+-        return x.item() if isinstance(x, torch.Tensor) else x
+-
+-
++        return x.item() if isinstance(x, ms.Tensor) else x
++
++
 +# 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
  class Adopt(Optimizer):
      """
@@ -61,25 +67,22 @@
              betas: Tuple[float, float] = (0.9, 0.9999),
              eps: float = 1e-6,
              clip_exp: Optional[float] = 0.333,
-@@ -127,14 +133,11 @@                 if len(p_state) != 0 and not torch.is_tensor(p_state["step"]):
+@@ -127,13 +133,13 @@                 if len(p_state) != 0 and not torch.is_tensor(p_state["step"]):
                      step_val = float(p_state["step"])
                      p_state["step"] = (
 -                        torch.tensor(
--                            step_val,
--                            dtype=_get_scalar_dtype(),
--                            device=p.device,
--                        )
 +                        ms.Tensor(
-+                            step_val, dtype = _get_scalar_dtype())
+                             step_val,
+                             dtype=_get_scalar_dtype(),
+                             device=p.device,
+                         )
                          if group["capturable"]
 -                        else torch.tensor(step_val, dtype=_get_scalar_dtype())
--                    )
-+                        else ms.Tensor(step_val, dtype = _get_scalar_dtype())
-+                    )  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
++                        else ms.Tensor(step_val, dtype=_get_scalar_dtype())
+                     )
  
      def _init_group(
-             self,
-@@ -149,7 +152,7 @@         for p in group["params"]:
+@@ -149,7 +155,7 @@         for p in group["params"]:
              if p.grad is None:
                  continue
 -            has_complex |= torch.is_complex(p)
@@ -87,33 +90,32 @@
              params_with_grad.append(p)
              if p.grad.is_sparse:
                  raise RuntimeError("ADOPT does not support sparse gradients")
-@@ -162,14 +165,14 @@                 # Deliberately host `step` on CPU if both capturable and fused are off.
+@@ -162,14 +168,14 @@                 # Deliberately host `step` on CPU if both capturable and fused are off.
                  # This is because kernel launches are costly on CUDA and XLA.
                  state["step"] = (
 -                    torch.zeros((), dtype=_get_scalar_dtype(), device=p.grad.device)
-+                    mint.zeros((), dtype = _get_scalar_dtype())
++                    mint.zeros((), dtype=_get_scalar_dtype(), device=p.grad.device)
                      if group["capturable"]
 -                    else torch.tensor(0.0, dtype=_get_scalar_dtype())
--                )
-+                    else ms.Tensor(0.0, dtype = _get_scalar_dtype())
-+                )  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);; 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++                    else ms.Tensor(0.0, dtype=_get_scalar_dtype())
+                 )
                  # Exponential moving average of gradient values
 -                state["exp_avg"] = torch.zeros_like(p.grad, memory_format=torch.preserve_format)
-+                state["exp_avg"] = mint.zeros_like(p.grad)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
++                state["exp_avg"] = mint.zeros_like(p.grad, memory_format=torch.preserve_format)
                  # Exponential moving average of squared gradient values
 -                state["exp_avg_sq"] = torch.zeros_like(p.grad, memory_format=torch.preserve_format)
-+                state["exp_avg_sq"] = mint.zeros_like(p.grad)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
++                state["exp_avg_sq"] = mint.zeros_like(p.grad, memory_format=torch.preserve_format)
  
              exp_avgs.append(state["exp_avg"])
              exp_avg_sqs.append(state["exp_avg_sq"])
-@@ -185,7 +188,6 @@         return has_complex
+@@ -185,7 +191,6 @@         return has_complex
  
      #@_use_grad_for_differentiable  # FIXME internal context mgr, can't use
 -    @torch.no_grad()
      def step(self, closure=None):
          """Perform a single optimization step.
  
-@@ -201,11 +203,11 @@                 loss = closure()
+@@ -201,11 +206,11 @@                 loss = closure()
  
          for group in self.param_groups:
 -            params_with_grad: List[Tensor] = []
@@ -129,7 +131,7 @@
              beta1, beta2 = group["betas"]
  
              has_complex = self._init_group(
-@@ -245,18 +247,18 @@ 
+@@ -245,18 +250,18 @@ 
  
  def _single_tensor_adopt(
 -        params: List[Tensor],
@@ -155,7 +157,7 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -283,8 +285,8 @@ 
+@@ -283,8 +288,8 @@ 
          # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
          if capturable and not _is_compiling():
 -            from torch.optim.optimizer import _get_capturable_supported_devices
@@ -165,7 +167,7 @@
              assert param.device.type == step_t.device.type and param.device.type in capturable_supported_devices,\
                  f"If capturable=True, params and state_steps must be on supported devices: {capturable_supported_devices}."
  
-@@ -292,12 +294,12 @@         step_t += 1
+@@ -292,12 +297,12 @@         step_t += 1
  
          if torch.is_complex(param):
 -            grad = torch.view_as_real(grad)
@@ -181,7 +183,7 @@
  
          if weight_decay != 0 and not decoupled:
              grad = grad.add(param, alpha=weight_decay)
-@@ -311,7 +313,7 @@             wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
+@@ -311,7 +316,7 @@             wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
              param.add_(param, alpha=-wd_scale * weight_decay)
  
 -        denom = torch.clamp(exp_avg_sq.sqrt(), eps)
@@ -189,7 +191,7 @@
          normed_grad = grad.div(denom)
  
          if clip_exp is not None:
-@@ -332,18 +334,18 @@ 
+@@ -332,18 +337,18 @@ 
  
  def _multi_tensor_adopt(
 -        params: List[Tensor],
@@ -215,7 +217,7 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
-@@ -364,10 +366,10 @@ 
+@@ -364,10 +369,10 @@ 
      # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
      if capturable and not _is_compiling():
 -        from torch.optim.optimizer import _get_capturable_supported_devices
@@ -227,7 +229,7 @@
          assert all(
              p.device.type == step.device.type and p.device.type in capturable_supported_devices
              for p, step in zip(params, state_steps)
-@@ -379,7 +381,7 @@ 
+@@ -379,7 +384,7 @@ 
      grouped_tensors = Optimizer._group_tensors_by_device_and_dtype(
          [params, grads, exp_avgs, exp_avg_sqs, state_steps]  # type: ignore[list-item]
 -    )
@@ -235,7 +237,7 @@
      for (
              device_params_,
              device_grads_,
-@@ -398,78 +400,78 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
+@@ -398,78 +403,78 @@             _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs)
  
          if maximize:
 -            device_grads = torch._foreach_neg(device_grads)  # type: ignore[assignment]
@@ -247,7 +249,7 @@
          # wrapped it once now. The alpha is required to assure we go to the right overload.
          if not _is_compiling() and device_state_steps[0].is_cpu:
 -            torch._foreach_add_(device_state_steps, torch.tensor(1.0, device="cpu"), alpha=1.0)
-+            torch._foreach_add_(device_state_steps, ms.Tensor(1.0), alpha=1.0)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);; 'torch._foreach_add_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            torch._foreach_add_(device_state_steps, ms.Tensor(1.0, device="cpu"), alpha=1.0)  # 'torch._foreach_add_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          else:
 -            torch._foreach_add_(device_state_steps, 1)
 +            torch._foreach_add_(device_state_steps, 1)  # 'torch._foreach_add_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -346,3 +348,11 @@
          weight_decay: float,
          clip_exp: Optional[float],
          max_lr: Optional[float],
+@@ -486,7 +491,7 @@ 
+     # this check is slow during compilation, so we skip it
+     # if it's strictly needed we can add this check back in dynamo
+-    if not _is_compiling() and not all(isinstance(t, torch.Tensor) for t in state_steps):
++    if not _is_compiling() and not all(isinstance(t, ms.Tensor) for t in state_steps):
+         raise RuntimeError(
+             "API has changed, `state_steps` argument must contain a list of singleton tensors"
+         )

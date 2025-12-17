@@ -40,8 +40,8 @@ def fast_collate(batch):
         is_np = isinstance(batch[0][0], np.ndarray)
         inner_tuple_size = len(batch[0][0])
         flattened_batch_size = batch_size * inner_tuple_size
-        targets = mint.zeros(flattened_batch_size, dtype = ms.int64)
-        tensor = mint.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype = ms.uint8)
+        targets = mint.zeros(flattened_batch_size, dtype=ms.int64)
+        tensor = mint.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype=ms.uint8)
         for i in range(batch_size):
             assert len(batch[i][0]) == inner_tuple_size  # all input tensor tuples must be same length
             for j in range(inner_tuple_size):
@@ -52,16 +52,16 @@ def fast_collate(batch):
                     tensor[i + j * batch_size] += batch[i][0][j]
         return tensor, targets
     elif isinstance(batch[0][0], np.ndarray):
-        targets = ms.Tensor([b[1] for b in batch], dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+        targets = ms.Tensor([b[1] for b in batch], dtype=ms.int64)
         assert len(targets) == batch_size
-        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype = ms.uint8)
+        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype=ms.uint8)
         for i in range(batch_size):
             tensor[i] += torch.from_numpy(batch[i][0])  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         return tensor, targets
-    elif isinstance(batch[0][0], torch.Tensor):
-        targets = ms.Tensor([b[1] for b in batch], dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+    elif isinstance(batch[0][0], ms.Tensor):
+        targets = ms.Tensor([b[1] for b in batch], dtype=ms.int64)
         assert len(targets) == batch_size
-        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype = ms.uint8)
+        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype=ms.uint8)
         for i in range(batch_size):
             tensor[i].copy_(batch[i][0])
         return tensor, targets
@@ -114,9 +114,9 @@ class PrefetchLoader:
             img_dtype = ms.float16
         self.img_dtype = img_dtype or ms.float32
         self.mean = ms.Tensor(
-            [x * 255 for x in mean], dtype = img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            [x * 255 for x in mean], device=device, dtype=img_dtype).view(normalization_shape)
         self.std = ms.Tensor(
-            [x * 255 for x in std], dtype = img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            [x * 255 for x in std], device=device, dtype=img_dtype).view(normalization_shape)
         if re_prob > 0.:
             self.random_erasing = RandomErasing(
                 probability=re_prob,

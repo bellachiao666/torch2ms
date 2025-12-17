@@ -31,7 +31,7 @@
      """Exponential anneal with flat start."""
 -    n = torch.tensor(n, dtype=torch.float32)
 -    prob = max_prob * torch.exp(-decay * (n - flat_start))
-+    n = ms.Tensor(n, dtype = ms.float32)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++    n = ms.Tensor(n, dtype=ms.float32)
 +    prob = max_prob * mint.exp(-decay * (n - flat_start))
      prob.clamp_(min=min_prob, max=max_prob)
  
@@ -90,11 +90,11 @@
                      state["step"] = 0
                      state["update_counter"] = 0
 -                    state["momentum_buffer"] = torch.zeros_like(grad, dtype=mu_dtype or grad.dtype)
-+                    state["momentum_buffer"] = mint.zeros_like(grad, dtype = mu_dtype or grad.dtype)
++                    state["momentum_buffer"] = mint.zeros_like(grad, dtype=mu_dtype or grad.dtype)
                      # init Q and einsum expressions on first step
                      state["Q"], exprs = _init_Q_exprs(
                          grad,
-@@ -318,16 +324,12 @@                     exprA, exprGs, _ = exprs
+@@ -318,11 +324,11 @@                     exprA, exprGs, _ = exprs
                      Q = state["Q"]
                      if self.deterministic:
 -                        torch_rng = torch.Generator(device=debiased_momentum.device)
@@ -104,17 +104,11 @@
                      else:
                          torch_rng = None
 -                    V = torch.randn(
--                        debiased_momentum.shape,
--                        generator=torch_rng,
--                        dtype=precond_dtype,
--                        device=debiased_momentum.device,
--                    )
 +                    V = mint.randn(
-+                        debiased_momentum.shape, generator = torch_rng, dtype = precond_dtype)  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
-                     G = debiased_momentum if momentum_into_precond_update else grad
- 
-                     A, conjB = self._calc_A_and_conjB(exprA, G, Q, V)
-@@ -341,7 +343,7 @@                             tmp *= q
+                         debiased_momentum.shape,
+                         generator=torch_rng,
+                         dtype=precond_dtype,
+@@ -341,7 +347,7 @@                             tmp *= q
                              tmp /= (term1 + term2).norm(float("inf")) + self._tiny
                          else:
 -                            tmp = torch.triu(tmp)
@@ -122,47 +116,47 @@
                              tmp /= _norm_lower_bound(term1 + term2) + self._tiny
                              tmp @= q
                          q.sub_(tmp)
-@@ -354,7 +356,7 @@                 ).to(dtype=p.dtype)
+@@ -354,7 +360,7 @@                 ).to(dtype=p.dtype)
  
                  # RMS of pre_grad should be 1.0, so let's cap at 1.1
 -                pre_grad.mul_(torch.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max=1.0))
-+                pre_grad.mul_(mint.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max = 1.0))
++                pre_grad.mul_(mint.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max=1.0))
                  if flattened:
                      pre_grad = pre_grad.view(p.shape)
  
-@@ -416,7 +418,7 @@     Q = []
+@@ -416,7 +422,7 @@     Q = []
      if len(shape) == 0:  # scalar
          if init_q:
 -            Q.append(scale * torch.ones_like(t, dtype=dtype))
-+            Q.append(scale * mint.ones_like(t, dtype = dtype))
++            Q.append(scale * mint.ones_like(t, dtype=dtype))
          exprA = ",->"
          exprGs = [",->"]
          exprP = ",,->"
-@@ -457,7 +459,7 @@             ):
+@@ -457,7 +463,7 @@             ):
                  # use diagonal matrix as preconditioner for this dim
                  if init_q:
 -                    Q.append(scale * torch.ones(size, dtype=dtype, device=t.device))
-+                    Q.append(scale * mint.ones(size, dtype = dtype))  # 'torch.ones':没有对应的mindspore参数 'device' (position 4);
++                    Q.append(scale * mint.ones(size, dtype=dtype, device=t.device))
  
                  piece1A.append(letters[i])
                  piece2A = piece2A + letters[i]
-@@ -474,7 +476,7 @@             else:
+@@ -474,7 +480,7 @@             else:
                  # use triangular matrix as preconditioner for this dim
                  if init_q:
 -                    Q.append(scale * torch.eye(size, dtype=dtype, device=t.device))
-+                    Q.append(scale * mint.eye(size, dtype = dtype))  # 'torch.eye':没有对应的mindspore参数 'device' (position 5);
++                    Q.append(scale * mint.eye(size, dtype=dtype, device=t.device))
  
                  piece1A.append(letters[i] + letters[i + 13])
                  piece2A = piece2A + letters[i + 13]
-@@ -503,34 +505,34 @@ 
+@@ -503,34 +509,34 @@ 
  def _lb(A, max_abs):
      A = A / max_abs
 -    aa = torch.real(A * A.conj())
 -    value0, i = torch.max(torch.sum(aa, dim=0), 0)
 -    value1, j = torch.max(torch.sum(aa, dim=1), 0)
 +    aa = torch.real(A * A.conj())  # 'torch.real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-+    value0, i = mint.max(mint.sum(aa), 0)
-+    value1, j = mint.max(mint.sum(aa), 0)
++    value0, i = mint.max(mint.sum(aa, dim=0), 0)
++    value1, j = mint.max(mint.sum(aa, dim=1), 0)
      if value0 > value1:
          x = A[:, i].conj() @ A
 -        return max_abs * torch.linalg.vector_norm((x / torch.linalg.vector_norm(x)) @ A.H)
@@ -198,7 +192,7 @@
      geometric_mean = norms.prod() ** (1 / len(Q_in))
      norms = geometric_mean / norms
      for i, q in enumerate(Q_in):
-@@ -539,25 +541,25 @@ 
+@@ -539,25 +545,25 @@ 
  def _precond_grad(Q, exprs, G):
      """Precondition gradient G with preconditioner Q."""
 -    return torch.einsum(exprs[-1], *[q.conj() for q in Q], *Q, G)

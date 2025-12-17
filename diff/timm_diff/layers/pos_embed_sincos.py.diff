@@ -27,10 +27,10 @@
  ):
      if linear_bands:
 -        bands = torch.linspace(1.0, max_freq / 2, num_bands, dtype=torch.float32, device=device)
-+        bands = mint.linspace(1.0, max_freq / 2, num_bands, dtype = ms.float32)  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
++        bands = mint.linspace(1.0, max_freq / 2, num_bands, dtype=ms.float32, device=device)
      else:
 -        bands = 2 ** torch.linspace(0, math.log(max_freq, 2) - 1, num_bands, dtype=torch.float32, device=device)
-+        bands = 2 ** mint.linspace(0, math.log(max_freq, 2) - 1, num_bands, dtype = ms.float32)  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
++        bands = 2 ** mint.linspace(0, math.log(max_freq, 2) - 1, num_bands, dtype=ms.float32, device=device)
      return bands * torch.pi
  
  
@@ -44,7 +44,7 @@
 -) -> torch.Tensor:
 -    exp = torch.arange(0, num_bands, step, dtype=torch.int64, device=device).to(torch.float32) / num_bands
 +) -> ms.Tensor:
-+    exp = mint.arange(0, num_bands, step, dtype = ms.int64).to(ms.float32) / num_bands  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++    exp = mint.arange(0, num_bands, step, dtype=ms.int64, device=device).to(ms.float32) / num_bands
      bands = 1. / (temperature ** exp)
      return bands
  
@@ -71,16 +71,15 @@
 -    grid = torch.stack(ndgrid([
 -        torch.arange(s, device=device, dtype=torch.int64).to(torch.float32)
 +    grid = mint.stack(ndgrid([
-+        mint.arange(s, dtype = ms.int64).to(ms.float32)
++        mint.arange(s, device=device, dtype=ms.int64).to(ms.float32)
          for s in feat_shape
--    ])).flatten(1).transpose(0, 1)
-+    ])).flatten(1).transpose(0, 1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+     ])).flatten(1).transpose(0, 1)
      pos2 = grid.unsqueeze(-1) * bands.unsqueeze(0)
      # FIXME add support for unflattened spatial dim?
  
      stack_dim = 2 if interleave_sin_cos else 1  # stack sin, cos, sin, cos  instead of sin sin cos cos
 -    pos_emb = torch.stack([torch.sin(pos2), torch.cos(pos2)], dim=stack_dim).flatten(1)
-+    pos_emb = mint.stack([mint.sin(pos2), mint.cos(pos2)], dim = stack_dim).flatten(1)
++    pos_emb = mint.stack([mint.sin(pos2), mint.cos(pos2)], dim=stack_dim).flatten(1)
      return pos_emb.to(dtype=dtype)
  
  
@@ -107,28 +106,25 @@
      """
  
      Args:
-@@ -147,20 +161,20 @@ 
+@@ -147,12 +161,12 @@ 
      if in_pixels:
          t = [
 -            torch.linspace(-1., 1., steps=s, device=device, dtype=torch.float32)
-+            mint.linspace(-1., 1., steps = s, dtype = ms.float32)
++            mint.linspace(-1., 1., steps=s, device=device, dtype=ms.float32)
              for s in feat_shape
--        ]
-+        ]  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
+         ]
      else:
          t = [
 -            torch.arange(s, device=device, dtype=torch.int64).to(torch.float32) + grid_offset
-+            mint.arange(s, dtype = ms.int64).to(ms.float32) + grid_offset
++            mint.arange(s, device=device, dtype=ms.int64).to(ms.float32) + grid_offset
              for s in feat_shape
--        ]
-+        ]  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+         ]
  
-     if ref_feat_shape is not None:
-         # eva's scheme for resizing rope embeddings (ref shape = pretrain)
+@@ -160,7 +174,7 @@         # eva's scheme for resizing rope embeddings (ref shape = pretrain)
          t = [x / f * r for x, f, r in zip(t, feat_shape, ref_feat_shape)]
  
 -    grid = torch.stack(torch.meshgrid(t, indexing=grid_indexing), dim=-1)
-+    grid = mint.stack(mint.meshgrid(t, indexing = grid_indexing), dim = -1)
++    grid = mint.stack(mint.meshgrid(t, indexing=grid_indexing), dim=-1)
      grid = grid.unsqueeze(-1)
      pos = grid * bands
  
@@ -152,7 +148,7 @@
              device=x.device,
          )
 -        emb = torch.cat(emb, dim=-1)
-+        emb = mint.cat(emb, dim = -1)
++        emb = mint.cat(emb, dim=-1)
          emb = emb.transpose(-1, -2).flatten(len(feat_shape))
          batch_expand = (B,) + (-1,) * (x.ndim - 1)
  
@@ -161,9 +157,9 @@
 -            x = torch.cat([x, emb.unsqueeze(0).expand(batch_expand).permute(0, 3, 1, 2)], dim=1)
 -        else:
 -            x = torch.cat([x.permute(0, 2, 3, 1), emb.unsqueeze(0).expand(batch_expand)], dim=-1)
-+            x = mint.cat([x, emb.unsqueeze(0).expand(batch_expand).permute(0, 3, 1, 2)], dim = 1)
++            x = mint.cat([x, emb.unsqueeze(0).expand(batch_expand).permute(0, 3, 1, 2)], dim=1)
 +        else:
-+            x = mint.cat([x.permute(0, 2, 3, 1), emb.unsqueeze(0).expand(batch_expand)], dim = -1)
++            x = mint.cat([x.permute(0, 2, 3, 1), emb.unsqueeze(0).expand(batch_expand)], dim=-1)
              x = x.reshape(B, feat_shape.numel(), -1)
  
          return x
@@ -182,7 +178,7 @@
      # out: [-x3 -x4 -x5  x0  x1  x2]
      x1, x2 = x.chunk(2, dim=-1)
 -    return torch.cat([-x2, x1], dim=-1)
-+    return mint.cat([-x2, x1], dim = -1)
++    return mint.cat([-x2, x1], dim=-1)
  
  
  def apply_rot_embed(
@@ -198,7 +194,7 @@
      # x: [..., D], eg [x0, x1, x2, x3, x4, x5]
      if half:
          # sin: [..., D], eg [sin0, sin1, sin2, sin0, sin1, sin2]
-@@ -248,11 +262,11 @@ 
+@@ -248,12 +262,12 @@ 
  
  def apply_rot_embed_list(
 -        x: List[torch.Tensor],
@@ -209,10 +205,12 @@
 +        cos_emb: ms.Tensor,
          half: bool = False
 -) -> List[torch.Tensor]:
+-    if isinstance(x, torch.Tensor):
 +) -> List[ms.Tensor]:
-     if isinstance(x, torch.Tensor):
++    if isinstance(x, ms.Tensor):
          x = [x]
      # x: [..., D], eg [x0, x1, x2, x3, x4, x5]
+     if half:
 @@ -269,10 +283,10 @@ 
  
  def apply_rot_embed_cat(
@@ -329,11 +327,11 @@
          # sin_emb and cos_emb are (max_h * max_w, dim//2)
          # concat and reshape to 2D for slicing
 -        rope_embed_2d = torch.cat([sin_emb, cos_emb], dim=-1).view(max_h, max_w, -1)
-+        rope_embed_2d = mint.cat([sin_emb, cos_emb], dim = -1).view(max_h, max_w, -1)
++        rope_embed_2d = mint.cat([sin_emb, cos_emb], dim=-1).view(max_h, max_w, -1)
  
          if seq_len is not None:
 -            flat_embeds = torch.zeros(len(shapes), seq_len, rope_embed_2d.shape[-1]).type_as(sin_emb)
-+            flat_embeds = mint.zeros(size = (len(shapes), seq_len, rope_embed_2d.shape[-1])).type_as(sin_emb)
++            flat_embeds = mint.zeros(len(shapes), seq_len, rope_embed_2d.shape[-1]).type_as(sin_emb)
              for i, (h, w) in enumerate(shapes):
                  src_len = h * w
                  flat_embeds[i, :src_len] = rope_embed_2d[:h, :w].reshape(src_len, -1)
@@ -345,7 +343,7 @@
          # assuming channel-first tensor where spatial dim are >= 2
          pos_embed = self.get_embed(x.shape[2:])
          return apply_rot_embed_cat(x, pos_embed)
-@@ -675,57 +692,57 @@         rotate: bool = True,
+@@ -675,45 +692,48 @@         rotate: bool = True,
          *,
          device=None,
 -        dtype=torch.float32,
@@ -358,7 +356,7 @@
      """
      # base magnitudes, shape: (head_dim//4,)
 -    mag = 1.0 / (temperature ** (torch.arange(0, head_dim, 4, device=device, dtype=dtype) / head_dim))
-+    mag = 1.0 / (temperature ** (mint.arange(0, head_dim, 4, dtype = dtype) / head_dim))  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++    mag = 1.0 / (temperature ** (mint.arange(0, head_dim, 4, device=device, dtype=dtype) / head_dim))
  
      # (1,1,L) so it broadcasts over both depth and heads
      mag = mag.unsqueeze(0).unsqueeze(0)  # (1,1,L)
@@ -366,22 +364,22 @@
      # random (or zero) rotation per head *and* per block
      if rotate:
 -        angles = torch.rand(depth, num_heads, 1, device=device, dtype=dtype) * 2 * torch.pi
-+        angles = mint.rand(size = (depth, num_heads, 1), dtype = dtype) * 2 * torch.pi  # 'torch.rand':没有对应的mindspore参数 'device' (position 5);
++        angles = mint.rand(depth, num_heads, 1, device=device, dtype=dtype) * 2 * torch.pi
      else:
 -        angles = torch.zeros(depth, num_heads, 1, device=device, dtype=dtype)
-+        angles = mint.zeros(size = (depth, num_heads, 1), dtype = dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
++        angles = mint.zeros(depth, num_heads, 1, device=device, dtype=dtype)
  
      # build (depth, num_heads, 2·L) == head_dim//2 on the last axis
 -    fx = torch.cat([mag * torch.cos(angles), mag * torch.cos(angles + torch.pi / 2)], dim=-1)
 -    fy = torch.cat([mag * torch.sin(angles), mag * torch.sin(angles + torch.pi / 2)], dim=-1)
-+    fx = mint.cat([mag * mint.cos(angles), mag * mint.cos(angles + torch.pi / 2)], dim = -1)
-+    fy = mint.cat([mag * mint.sin(angles), mag * mint.sin(angles + torch.pi / 2)], dim = -1)
++    fx = mint.cat([mag * mint.cos(angles), mag * mint.cos(angles + torch.pi / 2)], dim=-1)
++    fy = mint.cat([mag * mint.sin(angles), mag * mint.sin(angles + torch.pi / 2)], dim=-1)
  
      # (2, depth, num_heads, head_dim//2)
 -    return torch.stack([fx, fy], dim=0)
 -
 -
-+    return mint.stack([fx, fy], dim = 0)
++    return mint.stack([fx, fy], dim=0)
 +
 +
 +# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -402,14 +400,13 @@
 -    x_pos, y_pos = torch.meshgrid(
 -        torch.arange(shape[0], device=device, dtype=torch.float32),
 -        torch.arange(shape[1], device=device, dtype=torch.float32),
--        indexing=grid_indexing,
--    )
 +    x_pos, y_pos = mint.meshgrid(
-+        mint.arange(shape[0], dtype = ms.float32), mint.arange(shape[1], dtype = ms.float32), indexing = grid_indexing)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++        mint.arange(shape[0], device=device, dtype=ms.float32),
++        mint.arange(shape[1], device=device, dtype=ms.float32),
+         indexing=grid_indexing,
+     )
      t_x = x_pos.to(dtype).flatten()
-     t_y = y_pos.to(dtype).flatten()
-     return t_x, t_y
- 
+@@ -722,10 +742,10 @@ 
  
  def get_mixed_freqs(
 -        freqs: torch.Tensor,
@@ -423,7 +420,7 @@
      """Compute mixed (learnable) frequencies."""
      # Create position indices
      dtype = freqs.dtype
-@@ -733,13 +750,13 @@     freqs_x = (t_x.unsqueeze(-1) @ freqs[0].unsqueeze(-2))
+@@ -733,13 +753,13 @@     freqs_x = (t_x.unsqueeze(-1) @ freqs[0].unsqueeze(-2))
      freqs_y = (t_y.unsqueeze(-1) @ freqs[1].unsqueeze(-2))
      combined = freqs_x + freqs_y  # shape: (num_heads, N, dim//4)
 -    sin_emb = torch.sin(combined).repeat_interleave(2, -1)  # (N, dim//2)
@@ -431,7 +428,7 @@
 -    rope_embeds = torch.cat([sin_emb, cos_emb], dim=-1)  # (num_heads, H*W, head_dim)
 +    sin_emb = mint.sin(combined).repeat_interleave(2, -1)  # (N, dim//2)
 +    cos_emb = mint.cos(combined).repeat_interleave(2, -1)  # (N, dim//2)
-+    rope_embeds = mint.cat([sin_emb, cos_emb], dim = -1)  # (num_heads, H*W, head_dim)
++    rope_embeds = mint.cat([sin_emb, cos_emb], dim=-1)  # (num_heads, H*W, head_dim)
      return rope_embeds.to(dtype)
  
  
@@ -440,7 +437,7 @@
      """Rotary position embedding with depth-dependent learnable frequencies.
  
      This implementation supports mixed (learnable) ROPE. In mixed mode,
-@@ -789,7 +806,7 @@             device=device,
+@@ -789,7 +809,7 @@             device=device,
              dtype=dtype,
          )  # (2, depth, num_heads, head_dim//2)
 -        self.freqs = nn.Parameter(freqs)
@@ -448,7 +445,7 @@
  
          if feat_shape is not None:
              # cache pre-computed grid
-@@ -816,7 +833,7 @@             self.t_y = t_y.to(self.t_y.device, self.t_y.dtype)
+@@ -816,7 +836,7 @@             self.t_y = t_y.to(self.t_y.device, self.t_y.dtype)
              self.feat_shape = feat_shape
  
 -    def get_embed(self, shape: Optional[List[int]] = None) -> torch.Tensor:
@@ -456,7 +453,7 @@
          """Generate rotary embeddings for the given spatial shape.
  
          Args:
-@@ -842,7 +859,7 @@             self,
+@@ -842,7 +862,7 @@             self,
              shapes: List[Tuple[int, int]],
              seq_len: Optional[int] = None,
 -    ) -> Union[torch.Tensor, List[torch.Tensor]]:
@@ -464,15 +461,15 @@
          """Generate ROPE embeddings for multiple grid shapes efficiently.
  
          Computes embeddings for the maximum grid size once, then extracts
-@@ -878,7 +895,7 @@         if seq_len is not None:
+@@ -878,7 +898,7 @@         if seq_len is not None:
              # Return padded tensor
              B = len(shapes)
 -            padded = torch.zeros(B, depth, num_heads, seq_len, dim, device=self.freqs.device, dtype=self.freqs.dtype)
-+            padded = mint.zeros(size = (B, depth, num_heads, seq_len, dim), dtype = self.freqs.dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
++            padded = mint.zeros(B, depth, num_heads, seq_len, dim, device=self.freqs.device, dtype=self.freqs.dtype)
              for i, (h, w) in enumerate(shapes):
                  # Slice and flatten
                  embed_slice = max_embed_2d[:, :, :h, :w].reshape(depth, num_heads, h * w, dim)
-@@ -894,7 +911,7 @@                 results.append(embed_slice)
+@@ -894,7 +914,7 @@                 results.append(embed_slice)
              return results
  
 -    def forward(self, x):
@@ -480,7 +477,7 @@
          # assuming channel-first tensor where spatial dim are >= 2
          pos_embed = self.get_embed(x.shape[2:])
          return apply_rot_embed_cat(x, pos_embed)
-@@ -904,6 +921,9 @@         return {'freqs'}
+@@ -904,6 +924,9 @@         return {'freqs'}
  
  
 +# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -489,7 +486,7 @@
  @torch.fx.wrap
  @register_notrace_function
  def make_coords_dinov3(
-@@ -913,14 +933,14 @@         grid_indexing: str = 'ij',
+@@ -913,14 +936,14 @@         grid_indexing: str = 'ij',
          grid_offset: float = 0.,
          device: torch.device = 'cpu',
 -        dtype: torch.dtype = torch.float32,
@@ -502,21 +499,21 @@
      # 0.5-centered indices with optional offset
 -    coords_h = torch.arange(0.5, height, device=device, dtype=torch.float32) + grid_offset
 -    coords_w = torch.arange(0.5, width, device=device, dtype=torch.float32) + grid_offset
-+    coords_h = mint.arange(0.5, height, dtype = ms.float32) + grid_offset  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
-+    coords_w = mint.arange(0.5, width, dtype = ms.float32) + grid_offset  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++    coords_h = mint.arange(0.5, height, device=device, dtype=ms.float32) + grid_offset
++    coords_w = mint.arange(0.5, width, device=device, dtype=ms.float32) + grid_offset
  
      # Normalization denominators
      if normalize_coords == "max":
-@@ -945,16 +965,16 @@ 
+@@ -945,16 +968,16 @@ 
      # Create grid then map to [-1, 1]
      if grid_indexing == "xy":
 -        grid_w, grid_h = torch.meshgrid(coords_w, coords_h, indexing="xy")
 -        coords = torch.stack([grid_h, grid_w], dim=-1)  # (H, W, 2) -> (h, w order)
-+        grid_w, grid_h = mint.meshgrid(coords_w, coords_h, indexing = "xy")
-+        coords = mint.stack([grid_h, grid_w], dim = -1)  # (H, W, 2) -> (h, w order)
++        grid_w, grid_h = mint.meshgrid(coords_w, coords_h, indexing="xy")
++        coords = mint.stack([grid_h, grid_w], dim=-1)  # (H, W, 2) -> (h, w order)
      else:
 -        coords = torch.stack(torch.meshgrid(coords_h, coords_w, indexing="ij"), dim=-1)  # (H, W, 2)
-+        coords = mint.stack(mint.meshgrid(coords_h, coords_w, indexing = "ij"), dim = -1)  # (H, W, 2)
++        coords = mint.stack(mint.meshgrid(coords_h, coords_w, indexing="ij"), dim=-1)  # (H, W, 2)
      coords = coords.flatten(0, 1)  # (HW, 2)
      coords = 2.0 * coords - 1.0  # (H, W, 2) in [-1, 1]
      return coords
@@ -527,7 +524,7 @@
      """RoPE for timm DinoV3 port, numerically matching original.
  
      Math is aligned to original DinoV3 RopePositionEmbedding at https://github.com/facebookresearch/dinov3:
-@@ -1013,24 +1033,27 @@             self.register_buffer("pos_embed_cached", None, persistent=False)
+@@ -1013,24 +1036,27 @@             self.register_buffer("pos_embed_cached", None, persistent=False)
              self.feat_shape = None
  
 -    def _compute_periods(self, device: torch.device = 'cpu', dtype: torch.dtype = torch.float32) -> torch.Tensor:
@@ -540,13 +537,13 @@
  
          if self.min_period is not None and self.max_period is not None:
 -            exponents = torch.linspace(0, 1, dim, device='cpu', dtype=torch.float32)
-+            exponents = mint.linspace(0, 1, dim, dtype = ms.float32)  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
++            exponents = mint.linspace(0, 1, dim, device='cpu', dtype=ms.float32)
              periods = self.min_period * ((self.max_period / self.min_period) ** exponents)
          else:
              if self.temperature is None:
                  raise ValueError("Provide either min/max periods or `temperature`.")
 -            exponents = 2.0 * torch.arange(dim, device='cpu', dtype=torch.float32) / (self.dim // 2)
-+            exponents = 2.0 * mint.arange(dim, dtype = ms.float32) / (self.dim // 2)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++            exponents = 2.0 * mint.arange(dim, device='cpu', dtype=ms.float32) / (self.dim // 2)
              periods = self.temperature ** exponents
  
          # NOTE: The original dinv3 model weights have periods downcast to bfloat16 in persistent buffers,
@@ -558,27 +555,27 @@
          """Apply shift/jitter/rescale train time augmentations."""
          if not self.training or not self.aug_active:
              return coords
-@@ -1041,7 +1064,7 @@         # Shift per-axis in [-s, +s]
+@@ -1041,7 +1067,7 @@         # Shift per-axis in [-s, +s]
          if self.shift_coords is not None:
              shift = float(self.shift_coords)
 -            shift_hw = torch.empty(2, device=device, dtype=dtype).uniform_(-shift, shift)
-+            shift_hw = mint.empty(2, dtype = dtype, device = device).uniform_(-shift, shift)
++            shift_hw = mint.empty(2, device=device, dtype=dtype).uniform_(-shift, shift)
              coords = coords + shift_hw[None, :]
  
          # Jitter: per-axis log-uniform factor in [1/J, J]
-@@ -1050,7 +1073,7 @@             if jitter_factor <= 0:
+@@ -1050,7 +1076,7 @@             if jitter_factor <= 0:
                  raise ValueError("jitter_coords must be > 0 (interpreted as multiplicative factor).")
              jitter_max = math.log(jitter_factor)
 -            jitter_hw = torch.empty(2, device=device, dtype=dtype).uniform_(-jitter_max, jitter_max).exp()
-+            jitter_hw = mint.empty(2, dtype = dtype, device = device).uniform_(-jitter_max, jitter_max).exp()
++            jitter_hw = mint.empty(2, device=device, dtype=dtype).uniform_(-jitter_max, jitter_max).exp()
              coords = coords * jitter_hw[None, :]
  
          # Rescale: shared scalar log-uniform factor in [1/R, R]
-@@ -1059,12 +1082,12 @@             if rescale_factor <= 0:
+@@ -1059,12 +1085,12 @@             if rescale_factor <= 0:
                  raise ValueError("rescale_coords must be > 0 (interpreted as multiplicative factor).")
              rescale_max = math.log(rescale_factor)
 -            rescale = torch.empty(1, device=device, dtype=dtype).uniform_(-rescale_max, rescale_max).exp()
-+            rescale = mint.empty(1, dtype = dtype, device = device).uniform_(-rescale_max, rescale_max).exp()
++            rescale = mint.empty(1, device=device, dtype=dtype).uniform_(-rescale_max, rescale_max).exp()
              coords = coords * rescale
  
          return coords
@@ -588,7 +585,7 @@
          """Return sin/cos embeddings with either 'half' or 'interleaved' layout."""
          # coords: (HW, 2); periods: (dim)
          dim = self.dim // 4
-@@ -1084,15 +1107,15 @@             # Interleaved layout (HW, dim // 2) -> (HW, dim)
+@@ -1084,15 +1110,15 @@             # Interleaved layout (HW, dim // 2) -> (HW, dim)
              angles = angles.repeat_interleave(2, dim=-1)
  
 -        sin = torch.sin(angles)
@@ -606,15 +603,15 @@
          H, W = feat_shape
          coords = make_coords_dinov3(
              H, W,
-@@ -1103,7 +1126,7 @@         if not no_aug:
+@@ -1103,7 +1129,7 @@         if not no_aug:
              coords = self._apply_coord_augs(coords)
          sin, cos = self._get_pos_embed_from_coords(coords)  # 2 * (HW, dim)
 -        rope_embed = torch.cat([sin, cos], dim=-1)  # (HW, 2*dim)
-+        rope_embed = mint.cat([sin, cos], dim = -1)  # (HW, 2*dim)
++        rope_embed = mint.cat([sin, cos], dim=-1)  # (HW, 2*dim)
          return rope_embed
  
      def _cache_embed(self, feat_shape: List[int]):
-@@ -1117,7 +1140,7 @@             # only update if feat_shape was set (valid cache) and different from previous value
+@@ -1117,7 +1143,7 @@             # only update if feat_shape was set (valid cache) and different from previous value
              self._cache_embed(feat_shape)
  
 -    def get_embed(self, shape: Optional[List[int]] = None) -> torch.Tensor:
@@ -622,7 +619,7 @@
          """Generate rope_embed matching DINOv3 RopePositionEmbedding numerics.
  
          Returns: (HW, num_heads, 2 * head_dim) with last dim = [sin, cos] cat.
-@@ -1135,7 +1158,7 @@ 
+@@ -1135,7 +1161,7 @@ 
          return rope_embed
  
 -    def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -630,7 +627,7 @@
          """Get and apply rotary embeddings to x"""
          # assuming channel-first tensor where spatial dim are >= 2
          pos_embed = self.get_embed(x.shape[2:])
-@@ -1147,7 +1170,7 @@         dim: int = 768,
+@@ -1147,7 +1173,7 @@         dim: int = 768,
          num_heads: int = 12,
          **kwargs
 -) -> nn.Module:

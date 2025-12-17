@@ -84,7 +84,7 @@
          # NOTE head vs channel split ordering in qkv projection was decided before I allowed qk to differ from v
          # So, this is more verbose than if heads were before qkv splits, but throughput is not impacted.
 -        q, k, v = torch.split(x, [self.dim_out_qk, self.dim_out_qk, self.dim_out_v], dim=1)
-+        q, k, v = mint.split(x, [self.dim_out_qk, self.dim_out_qk, self.dim_out_v], dim = 1)
++        q, k, v = mint.split(x, [self.dim_out_qk, self.dim_out_qk, self.dim_out_v], dim=1)
          q = q.reshape(B * self.num_heads, self.dim_head_qk, -1).transpose(-1, -2)
          k = k.reshape(B * self.num_heads, self.dim_head_qk, -1)  # no transpose, for q @ k
          v = v.reshape(B * self.num_heads, self.dim_head_v, -1).transpose(-1, -2)

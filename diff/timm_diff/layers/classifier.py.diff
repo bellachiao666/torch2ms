@@ -71,20 +71,17 @@
      """ A Pool -> Norm -> Mlp Classifier Head for '2D' NCHW tensors
      """
      def __init__(
-@@ -179,23 +183,25 @@ 
+@@ -179,23 +183,23 @@ 
          self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
          self.norm = norm_layer(in_features, **dd)
 -        self.flatten = nn.Flatten(1) if pool_type else nn.Identity()
 +        self.flatten = mint.flatten(1) if pool_type else msnn.Identity()
          if hidden_size:
 -            self.pre_logits = nn.Sequential(OrderedDict([
-+            self.pre_logits = msnn.SequentialCell([
-+                OrderedDict([
++            self.pre_logits = msnn.SequentialCell(OrderedDict([
                  ('fc', linear_layer(in_features, hidden_size, **dd)),
                  ('act', act_layer()),
--            ]))
-+            ])
-+            ])
+             ]))
              self.num_features = hidden_size
          else:
 -            self.pre_logits = nn.Identity()
@@ -102,7 +99,7 @@
          self.use_conv = self.global_pool.is_identity()
          linear_layer = partial(nn.Conv2d, kernel_size=1) if self.use_conv else nn.Linear
          if self.hidden_size:
-@@ -206,9 +212,9 @@                     new_fc.weight.copy_(self.pre_logits.fc.weight.reshape(new_fc.weight.shape))
+@@ -206,9 +210,9 @@                     new_fc.weight.copy_(self.pre_logits.fc.weight.reshape(new_fc.weight.shape))
                      new_fc.bias.copy_(self.pre_logits.fc.bias)
                      self.pre_logits.fc = new_fc
 -        self.fc = linear_layer(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
@@ -114,7 +111,7 @@
          x = self.global_pool(x)
          x = self.norm(x)
          x = self.flatten(x)
-@@ -220,7 +226,7 @@         return x
+@@ -220,7 +224,7 @@         return x
  
  
 -class ClNormMlpClassifierHead(nn.Module):
@@ -122,17 +119,14 @@
      """ A Pool -> Norm -> Mlp Classifier Head for n-D NxxC tensors
      """
      def __init__(
-@@ -260,24 +266,26 @@ 
+@@ -260,24 +264,24 @@ 
          self.norm = norm_layer(in_features, **dd)
          if hidden_size:
 -            self.pre_logits = nn.Sequential(OrderedDict([
-+            self.pre_logits = msnn.SequentialCell([
-+                OrderedDict([
++            self.pre_logits = msnn.SequentialCell(OrderedDict([
                  ('fc', nn.Linear(in_features, hidden_size, **dd)),
                  ('act', act_layer()),
--            ]))
-+            ])
-+            ])
+             ]))
              self.num_features = hidden_size
          else:
 -            self.pre_logits = nn.Identity()
@@ -155,7 +149,7 @@
  
      def _global_pool(self, x):
          if self.pool_type:
-@@ -289,7 +297,7 @@                 x = 0.5 * (x.amax(dim=self.pool_dim) + x.mean(dim=self.pool_dim))
+@@ -289,7 +293,7 @@                 x = 0.5 * (x.amax(dim=self.pool_dim) + x.mean(dim=self.pool_dim))
          return x
  
 -    def forward(self, x, pre_logits: bool = False):

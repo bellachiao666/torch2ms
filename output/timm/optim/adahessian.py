@@ -114,7 +114,7 @@ class Adahessian(torch.optim.Optimizer):
 
         for i in range(self.n_samples):
             # Rademacher distribution {-1.0, 1.0}
-            zs = [mint.randint(0, 2, p.size(), generator = self.generator) * 2.0 - 1.0 for p in params]  # 'torch.randint':没有对应的mindspore参数 'device' (position 7);
+            zs = [mint.randint(0, 2, p.size(), generator=self.generator, device=p.device) * 2.0 - 1.0 for p in params]
             h_zs = torch.autograd.grad(
                 grads, params, grad_outputs=zs, only_inputs=True, retain_graph=i < self.n_samples - 1)  # 'torch.autograd.grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             for h_z, z, p in zip(h_zs, zs, params):

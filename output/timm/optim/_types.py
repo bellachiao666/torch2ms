@@ -18,7 +18,7 @@ except ImportError:
 try:
     # from torch.optim.optimizer import ParamsT
 except (ImportError, TypeError):
-    ParamsT: TypeAlias = Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]
+    ParamsT: TypeAlias = Union[Iterable[ms.Tensor], Iterable[Dict[str, Any]]]
 
 
 OptimType = Type[torch.optim.Optimizer]

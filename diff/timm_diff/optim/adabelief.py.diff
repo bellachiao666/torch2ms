@@ -77,7 +77,7 @@
                      max_exp_avg_var = state['max_exp_avg_var']
                      # Maintains the maximum of all 2nd moment running avg. till now
 -                    torch.max(max_exp_avg_var, exp_avg_var.add_(group['eps']), out=max_exp_avg_var)
-+                    mint.max(max_exp_avg_var, exp_avg_var.add_(group['eps']))
++                    mint.max(max_exp_avg_var, exp_avg_var.add_(group['eps']), out=max_exp_avg_var)
  
                      # Use the max. for normalizing running avg. of gradient
                      denom = (max_exp_avg_var.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])

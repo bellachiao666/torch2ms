@@ -167,11 +167,11 @@ def zeropower_via_newtonschulz(
         X.div_(X.norm(2, dim=(-2, -1), keepdim=True).mul(safety_factor).clamp_min_(eps))
 
     # Batched vs unbatched fused MM
-    mm_fn = torch.baddbmm if X.ndim > 2 else torch.addmm
+    mm_fn = mint.baddbmm if X.ndim > 2 else mint.addmm
 
     # Pre-allocate
     X = X.contiguous()
-    A = mint.empty((*X.shape[:-1], X.size(-2)), dtype = X.dtype, device = X.device)
+    A = mint.empty((*X.shape[:-1], X.size(-2)), device=X.device, dtype=X.dtype)
     B = mint.empty_like(A)
     C = mint.empty_like(X)
 
@@ -821,14 +821,14 @@ class Muon(torch.optim.Optimizer):
 
                     # State initialization for Muon/AdaMuon
                     if "momentum_buffer" not in state:
-                        state["momentum_buffer"] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                        state["momentum_buffer"] = mint.zeros_like(p, memory_format=torch.preserve_format)
                     muon_momentum_bufs.append(state["momentum_buffer"])
 
                     # Additional state for adamuon mode
                     if algo == "adamuon":
                         if "step" not in state:
-                            state["step"] = ms.Tensor(0.)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
-                            state["exp_avg_sq"] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                            state["step"] = ms.Tensor(0.)
+                            state["exp_avg_sq"] = mint.zeros_like(p, memory_format=torch.preserve_format)
                         muon_exp_avg_sqs.append(state["exp_avg_sq"])
                         muon_state_steps.append(state["step"])
                 else:
@@ -839,9 +839,9 @@ class Muon(torch.optim.Optimizer):
 
                     # State initialization for AdamW
                     if "step" not in state:
-                        state["step"] = ms.Tensor(0.)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
-                        state["exp_avg"] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
-                        state["exp_avg_sq"] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                        state["step"] = ms.Tensor(0.)
+                        state["exp_avg"] = mint.zeros_like(p, memory_format=torch.preserve_format)
+                        state["exp_avg_sq"] = mint.zeros_like(p, memory_format=torch.preserve_format)
 
                     adamw_exp_avgs.append(state["exp_avg"])
                     adamw_exp_avg_sqs.append(state["exp_avg_sq"])

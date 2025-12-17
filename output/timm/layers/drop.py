@@ -63,7 +63,7 @@ def drop_block_2d(
     # couple_channels=True means all channels share same spatial mask (matches paper)
     noise_shape = (B, 1 if couple_channels else C, H, W)
     with torch.no_grad():
-        block_mask = mint.empty(noise_shape, dtype = x.dtype, device = x.device).bernoulli_(gamma)
+        block_mask = mint.empty(noise_shape, dtype=x.dtype, device=x.device).bernoulli_(gamma)
 
         # Expand block centers to full blocks using max pooling
         block_mask = nn.functional.max_pool2d(
@@ -216,16 +216,16 @@ def calculate_drop_path_rates(
         # Single depth value - per-block pattern
         if stagewise:
             raise ValueError("stagewise=True requires depths to be a list of stage depths")
-        dpr = [x.item() for x in mint.linspace(0, drop_path_rate, depths)]  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
+        dpr = [x.item() for x in mint.linspace(0, drop_path_rate, depths, device='cpu')]
         return dpr
     else:
         # List of depths - can be either pattern
         total_depth = sum(depths)
         if stagewise:
             # Stage-wise pattern: same drop rate within each stage
-            dpr = [x.tolist() for x in mint.linspace(0, drop_path_rate, total_depth).split(depths)]  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
+            dpr = [x.tolist() for x in mint.linspace(0, drop_path_rate, total_depth, device='cpu').split(depths)]
             return dpr
         else:
             # Per-block pattern across all stages
-            dpr = [x.item() for x in mint.linspace(0, drop_path_rate, total_depth)]  # 'torch.linspace':没有对应的mindspore参数 'device' (position 6);
+            dpr = [x.item() for x in mint.linspace(0, drop_path_rate, total_depth, device='cpu')]
             return dpr

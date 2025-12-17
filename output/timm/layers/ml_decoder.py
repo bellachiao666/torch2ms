@@ -60,7 +60,7 @@ class TransformerDecoderLayerOptimal(msnn.Cell):
 
     def __setstate__(self, state):
         if 'activation' not in state:
-            state['activation'] = torch.nn.functional.relu
+            state['activation'] = nn.functional.relu
         super(TransformerDecoderLayerOptimal, self).__setstate__(state)
 
     def construct(self, tgt: ms.Tensor, memory: ms.Tensor, tgt_mask: Optional[ms.Tensor] = None,
@@ -140,7 +140,7 @@ class MLDecoder(msnn.Cell):
         h = self.decoder(tgt, embedding_spatial_786.transpose(0, 1))  # [embed_len_decoder, batch, 768]
         h = h.transpose(0, 1)
 
-        out_extrap = mint.zeros(size = (h.shape[0], h.shape[1], self.duplicate_factor), dtype = h.dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+        out_extrap = mint.zeros(h.shape[0], h.shape[1], self.duplicate_factor, device=h.device, dtype=h.dtype)
         for i in range(self.embed_len_decoder):  # group FC
             h_i = h[:, i, :]
             w_i = self.duplicate_pooling[i, :, :]

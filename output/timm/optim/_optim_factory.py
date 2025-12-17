@@ -15,7 +15,6 @@ from fnmatch import fnmatch
 import importlib
 
 # import torch
-# import torch.nn as nn
 
 from ._param_groups import param_groups_layer_decay, param_groups_weight_decay
 from ._types import ParamsT, OptimType, OptimizerCallable
@@ -246,7 +245,7 @@ class OptimizerRegistry:
             layer_decay: Optional[float] = None,
             layer_decay_min_scale: Optional[float] = None,
             layer_decay_no_opt_scale: Optional[float] = None,
-            param_group_fn: Optional[Callable[[nn.Module], ParamsT]] = None,
+            param_group_fn: Optional[Callable[[msnn.Cell], ParamsT]] = None,
             **kwargs: Any,
     ) -> torch.optim.Optimizer:
         """Create an optimizer instance.
@@ -275,7 +274,7 @@ class OptimizerRegistry:
         """
 
         # Get parameters to optimize
-        if isinstance(model_or_params, nn.Module):
+        if isinstance(model_or_params, msnn.Cell):
             # Extract parameters from a nn.Module, build param groups w/ weight-decay and/or layer-decay applied
             no_weight_decay = getattr(model_or_params, 'no_weight_decay', lambda: set())()
 
@@ -400,13 +399,13 @@ def _register_adam_variants(registry: OptimizerRegistry) -> None:
     adam_optimizers = [
         OptimInfo(
             name='adam',
-            opt_class=torch.optim.Adam,
+            opt_class=mint.optim.Adam,
             description='torch.optim.Adam, Adaptive Moment Estimation',
             has_betas=True
         ),
         OptimInfo(
             name='adamw',
-            opt_class=torch.optim.AdamW,
+            opt_class=mint.optim.AdamW,
             description='torch.optim.AdamW, Adam with decoupled weight decay',
             has_betas=True
         ),
@@ -1204,7 +1203,7 @@ def create_optimizer_v2(
         layer_decay: Optional[float] = None,
         layer_decay_min_scale: float = 0.0,
         layer_decay_no_opt_scale: Optional[float] = None,
-        param_group_fn: Optional[Callable[[nn.Module], ParamsT]] = None,
+        param_group_fn: Optional[Callable[[msnn.Cell], ParamsT]] = None,
         **kwargs: Any,
 ) -> torch.optim.Optimizer:
     """Create an optimizer instance via timm registry.

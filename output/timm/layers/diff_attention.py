@@ -93,15 +93,15 @@ class DiffAttention(msnn.Cell):
 
         self.dual_lambda = dual_lambda
         if dual_lambda:
-            self.lambda_a = ms.Parameter(mint.empty((), dtype = ms.float32, device = device))
-            self.lambda_b = ms.Parameter(mint.empty((), dtype = ms.float32, device = device))
+            self.lambda_a = ms.Parameter(mint.empty((), dtype=ms.float32, device=device))
+            self.lambda_b = ms.Parameter(mint.empty((), dtype=ms.float32, device=device))
             self.lambda_q1 = self.lambda_k1 = self.lambda_q2 = self.lambda_k2 = None
         else:
             self.lambda_a = self.lambda_b = None
-            self.lambda_q1 = ms.Parameter(mint.empty(self.head_dim, dtype = ms.float32, device = device))
-            self.lambda_k1 = ms.Parameter(mint.empty(self.head_dim, dtype = ms.float32, device = device))
-            self.lambda_q2 = ms.Parameter(mint.empty(self.head_dim, dtype = ms.float32, device = device))
-            self.lambda_k2 = ms.Parameter(mint.empty(self.head_dim, dtype = ms.float32, device = device))
+            self.lambda_q1 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
+            self.lambda_k1 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
+            self.lambda_q2 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
+            self.lambda_k2 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
 
         self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)
 
@@ -127,8 +127,8 @@ class DiffAttention(msnn.Cell):
             lambda_1 = mint.exp(self.lambda_a)
             lambda_2 = mint.exp(self.lambda_b)
         else:
-            lambda_1 = mint.exp(mint.sum(self.lambda_q1 * self.lambda_k1).float())
-            lambda_2 = mint.exp(mint.sum(self.lambda_q2 * self.lambda_k2).float())
+            lambda_1 = mint.exp(mint.sum(self.lambda_q1 * self.lambda_k1, dim=-1).float())
+            lambda_2 = mint.exp(mint.sum(self.lambda_q2 * self.lambda_k2, dim=-1).float())
         return lambda_1 - lambda_2 + self.lambda_init
 
     def construct(

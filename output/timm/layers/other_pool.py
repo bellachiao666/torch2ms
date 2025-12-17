@@ -54,9 +54,9 @@ class LsePlus2d(msnn.Cell):
         """
         super().__init__()
         if r_learnable:
-            self.r = ms.Parameter(ms.Tensor(r, dtype = dtype))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            self.r = ms.Parameter(ms.Tensor(r, device=device, dtype=dtype))
         else:
-            self.register_buffer('r', ms.Tensor(r, dtype = dtype))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            self.register_buffer('r', ms.Tensor(r, device=device, dtype=dtype))
         self.flatten = flatten
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -91,9 +91,9 @@ class LsePlus1d(msnn.Cell):
         """
         super().__init__()
         if r_learnable:
-            self.r = ms.Parameter(ms.Tensor(r, dtype = dtype))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            self.r = ms.Parameter(ms.Tensor(r, device=device, dtype=dtype))
         else:
-            self.register_buffer('r', ms.Tensor(r, dtype = dtype))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            self.register_buffer('r', ms.Tensor(r, device=device, dtype=dtype))
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         # x: (B, N, C)

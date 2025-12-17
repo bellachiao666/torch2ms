@@ -115,10 +115,10 @@ class BilinearAttnTransform(msnn.Cell):
         if t <= 1:
             return x
         x = x.view(B * C, -1, 1, 1)
-        x = x * mint.eye(t, t, dtype = x.dtype)  # 'torch.eye':没有对应的mindspore参数 'device' (position 5);
+        x = x * mint.eye(t, t, dtype=x.dtype, device=x.device)
         x = x.view(B * C, block_size, block_size, t, t)
-        x = mint.cat(mint.split(x, 1, dim = 1), dim = 3)
-        x = mint.cat(mint.split(x, 1, dim = 2), dim = 4)
+        x = mint.cat(mint.split(x, 1, dim=1), dim=3)
+        x = mint.cat(mint.split(x, 1, dim=2), dim=4)
         x = x.view(B, C, block_size * t, block_size * t)
         return x
 

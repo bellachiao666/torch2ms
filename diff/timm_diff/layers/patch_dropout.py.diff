@@ -25,7 +25,7 @@
      L = x.shape[1]
      num_keep = max(1, int(L * (1. - prob)))
 -    keep_indices = torch.argsort(torch.randn(B, L, device=x.device), dim=-1)[:, :num_keep]
-+    keep_indices = mint.argsort(mint.randn(size = (B, L)), dim = -1)[:, :num_keep]  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
++    keep_indices = mint.argsort(mint.randn(B, L, device=x.device), dim=-1)[:, :num_keep]
  
      if ordered:
          # NOTE does not need to maintain patch order in typical transformer use,
@@ -33,7 +33,7 @@
  
      if prefix_tokens is not None:
 -        x = torch.cat((prefix_tokens, x), dim=1)
-+        x = mint.cat((prefix_tokens, x), dim = 1)
++        x = mint.cat((prefix_tokens, x), dim=1)
  
      return x, keep_indices
  

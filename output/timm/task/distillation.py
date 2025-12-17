@@ -73,8 +73,8 @@ class DistillationTeacher(msnn.Cell):
 
         # Register normalization values as non-persistent buffers
         # Shape: [1, 3, 1, 1] for proper broadcasting over BCHW images
-        mean_kd = ms.Tensor(model_kd.pretrained_cfg['mean'], dtype = dtype).view(1, -1, 1, 1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
-        std_kd = ms.Tensor(model_kd.pretrained_cfg['std'], dtype = dtype).view(1, -1, 1, 1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+        mean_kd = ms.Tensor(model_kd.pretrained_cfg['mean'], device=device, dtype=dtype).view(1, -1, 1, 1)
+        std_kd = ms.Tensor(model_kd.pretrained_cfg['std'], device=device, dtype=dtype).view(1, -1, 1, 1)
         self.register_buffer('mean_kd', mean_kd, persistent=False)
         self.register_buffer('std_kd', std_kd, persistent=False)
 
@@ -204,9 +204,15 @@ class LogitDistillationTask(TrainingTask):
         # Shape: [1, 3, 1, 1] for proper broadcasting over BCHW images
         student_unwrapped = unwrap_model(student_model)
         student_mean = ms.Tensor(
-            student_unwrapped.pretrained_cfg['mean'], dtype = self.dtype).view(1, -1, 1, 1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            student_unwrapped.pretrained_cfg['mean'],
+            device=self.device,
+            dtype=self.dtype,
+        ).view(1, -1, 1, 1)
         student_std = ms.Tensor(
-            student_unwrapped.pretrained_cfg['std'], dtype = self.dtype).view(1, -1, 1, 1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            student_unwrapped.pretrained_cfg['std'],
+            device=self.device,
+            dtype=self.dtype,
+        ).view(1, -1, 1, 1)
         self.register_buffer('student_mean', student_mean, persistent=False)
         self.register_buffer('student_std', student_std, persistent=False)
 
@@ -301,8 +307,8 @@ class LogitDistillationTask(TrainingTask):
             teacher_logits = self.teacher(input_kd.detach(), return_features=False)
 
         # Compute distillation loss (KL divergence with temperature scaling)
-        prob_s = mint.special.log_softmax(student_logits / self.temperature, dim = -1)
-        prob_t = mint.special.log_softmax(teacher_logits / self.temperature, dim = -1)
+        prob_s = mint.special.log_softmax(student_logits / self.temperature, dim=-1)
+        prob_t = mint.special.log_softmax(teacher_logits / self.temperature, dim=-1)
         kd_loss = F.kl_div(prob_s, prob_t, reduction='batchmean', log_target=True) * (self.temperature ** 2)  # 'torch.nn.functional.kl_div' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
         # Combine losses with weights
@@ -474,9 +480,15 @@ class FeatureDistillationTask(TrainingTask):
         # Shape: [1, 3, 1, 1] for proper broadcasting over BCHW images
         student_unwrapped = unwrap_model(student_model)
         student_mean = ms.Tensor(
-            student_unwrapped.pretrained_cfg['mean'], dtype = self.dtype).view(1, -1, 1, 1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            student_unwrapped.pretrained_cfg['mean'],
+            device=self.device,
+            dtype=self.dtype,
+        ).view(1, -1, 1, 1)
         student_std = ms.Tensor(
-            student_unwrapped.pretrained_cfg['std'], dtype = self.dtype).view(1, -1, 1, 1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            student_unwrapped.pretrained_cfg['std'],
+            device=self.device,
+            dtype=self.dtype,
+        ).view(1, -1, 1, 1)
         self.register_buffer('student_mean', student_mean, persistent=False)
         self.register_buffer('student_std', student_std, persistent=False)
 

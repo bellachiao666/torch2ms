@@ -234,10 +234,13 @@ class Lamb(Optimizer):
                     # FIXME nested where required since logical and/or not working in PT XLA
                     # Set the ratio to 1.0 (no change) if either weight norm or grad norm is zero
                     trust_ratio = mint.where(
-                        w_norm > 0, mint.where(g_norm > 0, trust_ratio, 1.0), 1.0)
+                        w_norm > 0,
+                        mint.where(g_norm > 0, trust_ratio, 1.0),
+                        1.0,
+                    )
                     if group['trust_clip']:
                         # LAMBC trust clipping, upper bound fixed at one
-                        trust_ratio = mint.clamp(trust_ratio, max = 1.0)
+                        trust_ratio = mint.clamp(trust_ratio, max=1.0)
                     update.mul_(trust_ratio)
 
                 p.add_(update, alpha=-group['lr'])

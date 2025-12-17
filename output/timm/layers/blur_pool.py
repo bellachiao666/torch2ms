@@ -51,7 +51,10 @@ class BlurPool2d(msnn.Cell):
 
         # (0.5 + 0.5 x)^N => coefficients = C(N,k) / 2^N,  k = 0..N
         coeffs = ms.Tensor(
-            [comb(filt_size - 1, k) for k in range(filt_size)], dtype = ms.float32) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1; 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+            [comb(filt_size - 1, k) for k in range(filt_size)],
+            device='cpu',
+            dtype=ms.float32,
+        ) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1
         blur_filter = (coeffs[:, None] * coeffs[None, :])[None, None, :, :]
         if channels is not None:
             blur_filter = blur_filter.repeat(self.channels, 1, 1, 1)
@@ -111,7 +114,7 @@ def create_aa(
         channels: Optional[int] = None,
         stride: int = 2,
         enable: bool = True,
-        noop: Optional[Type[msnn.Cell]] = nn.Identity,
+        noop: Optional[Type[msnn.Cell]] = msnn.Identity,
         device=None,
         dtype=None,
 ) -> Optional[msnn.Cell]:

@@ -22,8 +22,6 @@ import math
 import random
 from typing import Dict, List, Tuple, Union
 
-# import torch
-
 
 def mix_batch_variable_size(
         imgs: List[ms.Tensor],
@@ -144,7 +142,11 @@ def smoothed_sparse_target(
     on_val = 1.0 - smoothing + off_val
 
     y_onehot = mint.full(
-        size = ((targets.size(0), num_classes), off_val), dtype = ms.float32)  # 'torch.full':没有对应的mindspore参数 'device' (position 5);
+        (targets.size(0), num_classes),
+        off_val,
+        dtype=ms.float32,
+        device=targets.device
+    )
     y_onehot.scatter_(1, targets.unsqueeze(1), on_val)
     return y_onehot
 
@@ -226,8 +228,8 @@ class NaFlexMixup:
             mixed_imgs: List of mixed images in the same order and shapes as the input.
             targets: Soft‑label tensor shaped (B, num_classes) suitable for cross‑entropy with soft targets.
         """
-        if not isinstance(targets, torch.Tensor):
-            targets = ms.Tensor(targets)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+        if not isinstance(targets, ms.Tensor):
+            targets = ms.Tensor(targets)
 
         if random.random() > self.prob:
             targets = smoothed_sparse_target(targets, num_classes=self.num_classes, smoothing=self.smoothing)

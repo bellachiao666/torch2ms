@@ -291,7 +291,7 @@ def freeze_batch_norm_2d(module):
         res.eps = module.eps
         res.drop = module.drop
         res.act = module.act
-    elif isinstance(module, (torch.nn.modules.batchnorm.BatchNorm2d, torch.nn.modules.batchnorm.SyncBatchNorm)):
+    elif isinstance(module, (nn.BatchNorm2d, nn.SyncBatchNorm)):
         res = FrozenBatchNorm2d(module.num_features)  # 'torchvision.ops.misc.FrozenBatchNorm2d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         res.num_features = module.num_features
         res.affine = module.affine

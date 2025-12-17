@@ -84,11 +84,11 @@ class CoordAttn(msnn.Cell):
         x_w = x.mean(2, keepdim=True)
 
         x_w = x_w.transpose(-1, -2)
-        y = mint.cat([x_h, x_w], dim = 2)
+        y = mint.cat([x_h, x_w], dim=2)
         y = self.conv1(y)
         y = self.bn1(y)
         y = self.act(y)
-        x_h, x_w = mint.split(y, [H, W], dim = 2)
+        x_h, x_w = mint.split(y, [H, W], dim=2)
         x_w = x_w.transpose(-1, -2)
 
         a_h = self.gate(self.conv_h(x_h))

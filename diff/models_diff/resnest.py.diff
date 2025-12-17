@@ -1,0 +1,93 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ ResNeSt Models
+ 
+ Paper: `ResNeSt: Split-Attention Networks` - https://arxiv.org/abs/2004.08955
+@@ -8,7 +13,7 @@ """
+ from typing import Optional, Type
+ 
+-from torch import nn
++# from torch import nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import SplitAttn
+@@ -17,7 +22,7 @@ from .resnet import ResNet
+ 
+ 
+-class ResNestBottleneck(nn.Module):
++class ResNestBottleneck(msnn.Cell):
+     """ResNet Bottleneck
+     """
+     # pylint: disable=unused-argument
+@@ -28,7 +33,7 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             radix: int = 1,
+             cardinality: int = 1,
+             base_width: int = 64,
+@@ -38,12 +43,12 @@             reduce_first: int = 1,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
+-            drop_path: Optional[nn.Module] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -65,7 +70,7 @@         self.conv1 = nn.Conv2d(inplanes, group_width, kernel_size=1, bias=False, **dd)
+         self.bn1 = norm_layer(group_width, **dd)
+         self.act1 = act_layer(inplace=True)
+-        self.avd_first = nn.AvgPool2d(3, avd_stride, padding=1) if avd_stride > 0 and avd_first else None
++        self.avd_first = nn.AvgPool2d(3, avd_stride, padding = 1) if avd_stride > 0 and avd_first else None
+ 
+         if self.radix >= 1:
+             self.conv2 = SplitAttn(
+@@ -81,9 +86,9 @@                 drop_layer=drop_block,
+                 **dd,
+             )
+-            self.bn2 = nn.Identity()
+-            self.drop_block = nn.Identity()
+-            self.act2 = nn.Identity()
++            self.bn2 = msnn.Identity()
++            self.drop_block = msnn.Identity()
++            self.act2 = msnn.Identity()
+         else:
+             self.conv2 = nn.Conv2d(
+                 group_width,
+@@ -97,9 +102,9 @@                 **dd,
+             )
+             self.bn2 = norm_layer(group_width, **dd)
+-            self.drop_block = drop_block() if drop_block is not None else nn.Identity()
++            self.drop_block = drop_block() if drop_block is not None else msnn.Identity()
+             self.act2 = act_layer(inplace=True)
+-        self.avd_last = nn.AvgPool2d(3, avd_stride, padding=1) if avd_stride > 0 and not avd_first else None
++        self.avd_last = nn.AvgPool2d(3, avd_stride, padding = 1) if avd_stride > 0 and not avd_first else None
+ 
+         self.conv3 = nn.Conv2d(group_width, planes * 4, kernel_size=1, bias=False, **dd)
+         self.bn3 = norm_layer(planes * 4, **dd)
+@@ -109,9 +114,9 @@ 
+     def zero_init_last(self):
+         if getattr(self.bn3, 'weight', None) is not None:
+-            nn.init.zeros_(self.bn3.weight)
+-
+-    def forward(self, x):
++            nn.init.zeros_(self.bn3.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x):
+         shortcut = x
+ 
+         out = self.conv1(x)

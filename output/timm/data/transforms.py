@@ -8,8 +8,6 @@ import numbers
 import random
 import warnings
 from typing import List, Sequence, Tuple, Union
-
-# import torch
 # import torchvision.transforms as transforms
 # import torchvision.transforms.functional as F
 try:
@@ -62,7 +60,7 @@ class MaybeToTensor(transforms.ToTensor):
         Returns:
             Tensor: Converted image.
         """
-        if isinstance(pic, torch.Tensor):
+        if isinstance(pic, ms.Tensor):
             return pic
         return F.to_tensor(pic)  # 'torchvision.transforms.functional.to_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
@@ -87,7 +85,7 @@ class MaybePILToTensor:
         Returns:
             Tensor: Converted image.
         """
-        if isinstance(pic, torch.Tensor):
+        if isinstance(pic, ms.Tensor):
             return pic
         return F.pil_to_tensor(pic)  # 'torchvision.transforms.functional.pil_to_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 

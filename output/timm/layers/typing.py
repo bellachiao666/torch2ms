@@ -12,7 +12,7 @@ from typing import Callable, Optional, Tuple, Type, TypeVar, Union, overload, Co
 __all__ = ["LayerType", "PadType", "nullwrap", "disable_compiler"]
 
 
-LayerType = Union[str, Callable, Type[torch.nn.Module]]
+LayerType = Union[str, Callable, Type[msnn.Cell]]
 PadType = Union[str, int, Tuple[int, int]]
 
 F = TypeVar("F", bound=Callable[..., object])

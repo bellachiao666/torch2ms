@@ -26,7 +26,7 @@
      def __init__(
              self,
              loader: torch.utils.data.DataLoader,
-@@ -56,17 +67,17 @@         """
+@@ -56,16 +67,16 @@         """
          self.loader = loader
          self.device = device
 -        self.img_dtype = img_dtype or torch.float32
@@ -38,16 +38,13 @@
          normalization_shape = (1, 1, channels)
          self.channels = channels
 -        self.mean = torch.tensor(
--            [x * 255 for x in mean], device=device, dtype=self.img_dtype).view(normalization_shape)
--        self.std = torch.tensor(
--            [x * 255 for x in std], device=device, dtype=self.img_dtype).view(normalization_shape)
 +        self.mean = ms.Tensor(
-+            [x * 255 for x in mean], dtype = self.img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+             [x * 255 for x in mean], device=device, dtype=self.img_dtype).view(normalization_shape)
+-        self.std = torch.tensor(
 +        self.std = ms.Tensor(
-+            [x * 255 for x in std], dtype = self.img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+             [x * 255 for x in std], device=device, dtype=self.img_dtype).view(normalization_shape)
  
          if re_prob > 0.:
-             self.random_erasing = PatchRandomErasing(
 @@ -80,10 +91,10 @@             self.random_erasing = None
  
          # Check for CUDA/NPU availability
@@ -74,6 +71,14 @@
              stream_context = partial(torch.npu.stream, stream=stream)
          else:
              stream = None
+@@ -104,7 +115,7 @@             with stream_context():
+                 # Move all tensors in input_dict to device
+                 for k, v in next_input_dict.items():
+-                    if isinstance(v, torch.Tensor):
++                    if isinstance(v, ms.Tensor):
+                         dtype = self.img_dtype if k == 'patches' else None
+                         next_input_dict[k] = next_input_dict[k].to(
+                             device=self.device,
 @@ -152,9 +163,9 @@ 
              if stream is not None:
                  if self.is_cuda:

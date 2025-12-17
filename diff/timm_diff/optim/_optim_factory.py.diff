@@ -6,18 +6,17 @@
  """ Optimizer Factory w/ custom Weight Decay & Layer Decay support
  
  Hacked together by / Copyright 2021 Ross Wightman
-@@ -9,9 +14,8 @@ from fnmatch import fnmatch
+@@ -9,9 +14,7 @@ from fnmatch import fnmatch
  import importlib
  
 -import torch
 -import torch.nn as nn
 -import torch.optim
 +# import torch
-+# import torch.nn as nn
  
  from ._param_groups import param_groups_layer_decay, param_groups_weight_decay
  from ._types import ParamsT, OptimType, OptimizerCallable
-@@ -203,13 +207,13 @@         if isinstance(opt_info.opt_class, str):
+@@ -203,13 +206,13 @@         if isinstance(opt_info.opt_class, str):
              # Special handling for APEX and BNB optimizers
              if opt_info.opt_class.startswith('apex.'):
 -                assert torch.cuda.is_available(), 'CUDA required for APEX optimizers'
@@ -32,7 +31,7 @@
                  try:
                      opt_class = _import_class(opt_info.opt_class)
                  except ImportError as e:
-@@ -225,9 +229,12 @@ 
+@@ -225,9 +228,12 @@ 
          return opt_class
  
 +    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -45,7 +44,38 @@
              opt: str,
              lr: Optional[float] = None,
              weight_decay: float = 0.,
-@@ -1181,8 +1188,11 @@     return default_registry.get_optimizer_class(name, bind_defaults=bind_defaults)
+@@ -239,7 +245,7 @@             layer_decay: Optional[float] = None,
+             layer_decay_min_scale: Optional[float] = None,
+             layer_decay_no_opt_scale: Optional[float] = None,
+-            param_group_fn: Optional[Callable[[nn.Module], ParamsT]] = None,
++            param_group_fn: Optional[Callable[[msnn.Cell], ParamsT]] = None,
+             **kwargs: Any,
+     ) -> torch.optim.Optimizer:
+         """Create an optimizer instance.
+@@ -268,7 +274,7 @@         """
+ 
+         # Get parameters to optimize
+-        if isinstance(model_or_params, nn.Module):
++        if isinstance(model_or_params, msnn.Cell):
+             # Extract parameters from a nn.Module, build param groups w/ weight-decay and/or layer-decay applied
+             no_weight_decay = getattr(model_or_params, 'no_weight_decay', lambda: set())()
+ 
+@@ -393,13 +399,13 @@     adam_optimizers = [
+         OptimInfo(
+             name='adam',
+-            opt_class=torch.optim.Adam,
++            opt_class=mint.optim.Adam,
+             description='torch.optim.Adam, Adaptive Moment Estimation',
+             has_betas=True
+         ),
+         OptimInfo(
+             name='adamw',
+-            opt_class=torch.optim.AdamW,
++            opt_class=mint.optim.AdamW,
+             description='torch.optim.AdamW, Adam with decoupled weight decay',
+             has_betas=True
+         ),
+@@ -1181,8 +1187,11 @@     return default_registry.get_optimizer_class(name, bind_defaults=bind_defaults)
  
  
 +# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -57,7 +87,15 @@
          opt: str = 'sgd',
          lr: Optional[float] = None,
          weight_decay: float = 0.,
-@@ -1308,9 +1318,12 @@     return kwargs
+@@ -1194,7 +1203,7 @@         layer_decay: Optional[float] = None,
+         layer_decay_min_scale: float = 0.0,
+         layer_decay_no_opt_scale: Optional[float] = None,
+-        param_group_fn: Optional[Callable[[nn.Module], ParamsT]] = None,
++        param_group_fn: Optional[Callable[[msnn.Cell], ParamsT]] = None,
+         **kwargs: Any,
+ ) -> torch.optim.Optimizer:
+     """Create an optimizer instance via timm registry.
+@@ -1308,9 +1317,12 @@     return kwargs
  
  
 +# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

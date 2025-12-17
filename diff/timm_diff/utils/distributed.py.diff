@@ -20,7 +20,7 @@
  def reduce_tensor(tensor, n):
      rt = tensor.clone()
 -    dist.all_reduce(rt, op=dist.ReduceOp.SUM)
-+    mint.distributed.all_reduce(rt, op = dist.ReduceOp.SUM)
++    mint.distributed.all_reduce(rt, op=dist.ReduceOp.SUM)
      rt /= n
      return rt
  
@@ -28,7 +28,7 @@
              if reduce:
                  # average bn stats across whole group
 -                torch.distributed.all_reduce(bn_buf, op=dist.ReduceOp.SUM)
-+                mint.distributed.all_reduce(bn_buf, op = dist.ReduceOp.SUM)
++                mint.distributed.all_reduce(bn_buf, op=dist.ReduceOp.SUM)
                  bn_buf /= float(world_size)
              else:
                  # broadcast bn stats from rank 0 to whole group
@@ -45,28 +45,24 @@
      return device
  
  
-@@ -141,27 +146,21 @@             os.environ['LOCAL_RANK'] = str(local_rank)
+@@ -141,7 +146,7 @@             os.environ['LOCAL_RANK'] = str(local_rank)
              os.environ['RANK'] = str(global_rank)
              os.environ['WORLD_SIZE'] = str(world_size)
 -            torch.distributed.init_process_group(
--                backend=dist_backend,
--                init_method=dist_url,
--                world_size=world_size,
--                rank=global_rank,
--            )
 +            mint.distributed.init_process_group(
-+                backend = dist_backend, init_method = dist_url, world_size = world_size, rank = global_rank)
-         else:
+                 backend=dist_backend,
+                 init_method=dist_url,
+                 world_size=world_size,
+@@ -150,18 +155,18 @@         else:
              # DDP via torchrun, torch.distributed.launch
              local_rank, _, _ = world_info_from_env()
 -            torch.distributed.init_process_group(
--                backend=dist_backend,
--                init_method=dist_url,
--            )
++            mint.distributed.init_process_group(
+                 backend=dist_backend,
+                 init_method=dist_url,
+             )
 -            world_size = torch.distributed.get_world_size()
 -            global_rank = torch.distributed.get_rank()
-+            mint.distributed.init_process_group(
-+                backend = dist_backend, init_method = dist_url)
 +            world_size = mint.distributed.get_world_size()
 +            global_rank = mint.distributed.get_rank()
          distributed = True
@@ -80,7 +76,7 @@
  
      if distributed and device != 'cpu':
          # Ignore manually specified device index in distributed mode and
-@@ -171,7 +170,7 @@         device = f'{device_type}:{local_rank}'
+@@ -171,7 +176,7 @@         device = f'{device_type}:{local_rank}'
  
      if device.startswith('cuda:'):
 -        torch.cuda.set_device(device)

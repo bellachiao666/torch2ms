@@ -31,9 +31,9 @@ def gen_relative_position_index(
     assert k_size is None, 'Different q & k sizes not currently supported'  # FIXME
 
     coords = mint.stack(ndgrid(
-        mint.arange(q_size[0]),
-        mint.arange(q_size[1]),
-    )).flatten(1)  # 2, Wh, Ww; 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+        mint.arange(q_size[0], device=device),
+        mint.arange(q_size[1], device=device),
+    )).flatten(1)  # 2, Wh, Ww
     relative_coords = coords[:, :, None] - coords[:, None, :]  # 2, Wh*Ww, Wh*Ww
     relative_coords = relative_coords.permute(1, 2, 0)  # Qh*Qw, Kh*Kw, 2
     relative_coords[:, :, 0] += q_size[0] - 1  # shift to start from 0
@@ -108,7 +108,7 @@ def resize_rel_pos_bias_table_simple(
             rel_pos_bias = mint.transpose(0, 1)  # 'torch.nn.functional.interpolate.view' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
             if extra_tokens is not None:
-                rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim = 0)
+                rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim=0)
 
     return rel_pos_bias
 
@@ -213,7 +213,7 @@ def resize_rel_pos_bias_table(
 
         y = _calc(src_size[0], dst_size[0])
         x = _calc(src_size[1], dst_size[1])
-        yx = [ms.Tensor(y), ms.Tensor(x)]  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+        yx = [ms.Tensor(y), ms.Tensor(x)]
         # print("Original positions = %s" % str(x))
 
         ty = dst_size[0] // 2.0
@@ -246,13 +246,13 @@ def resize_rel_pos_bias_table(
             all_rel_pos_bias.append(r)
 
         if has_flat_shape:
-            rel_pos_bias = mint.cat(all_rel_pos_bias, dim = -1)
+            rel_pos_bias = mint.cat(all_rel_pos_bias, dim=-1)
         else:
-            rel_pos_bias = mint.cat(all_rel_pos_bias, dim = 0)
+            rel_pos_bias = mint.cat(all_rel_pos_bias, dim=0)
 
         if extra_tokens is not None:
             assert has_flat_shape
-            rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim = 0)
+            rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim=0)
 
     return rel_pos_bias
 
@@ -309,8 +309,8 @@ def gen_relative_log_coords(
 ):
     assert mode in ('swin', 'cr')
     # as per official swin-v2 impl, supporting timm specific 'cr' log coords as well
-    relative_coords_h = mint.arange(-(win_size[0] - 1), win_size[0]).to(ms.float32)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
-    relative_coords_w = mint.arange(-(win_size[1] - 1), win_size[1]).to(ms.float32)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+    relative_coords_h = mint.arange(-(win_size[0] - 1), win_size[0], device=device).to(ms.float32)
+    relative_coords_w = mint.arange(-(win_size[1] - 1), win_size[1], device=device).to(ms.float32)
     relative_coords_table = mint.stack(ndgrid(relative_coords_h, relative_coords_w))
     relative_coords_table = relative_coords_table.permute(1, 2, 0).contiguous()  # 2*Wh-1, 2*Ww-1, 2
     if mode == 'swin':
@@ -425,7 +425,7 @@ def generate_lookup_tensor(
         max_relative_position = length - 1
     # Return the cached lookup tensor, otherwise compute it and cache it.
     vocab_size = 2 * max_relative_position + 1
-    ret = mint.zeros(size = (length, length, vocab_size), dtype = dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+    ret = mint.zeros(length, length, vocab_size, device=device, dtype=dtype)
     for i in range(length):
         for x in range(length):
             v = x - i + max_relative_position

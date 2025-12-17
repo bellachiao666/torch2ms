@@ -21,7 +21,7 @@ class LayerScale(msnn.Cell):
         super().__init__()
         self.init_values = init_values
         self.inplace = inplace
-        self.gamma = ms.Parameter(mint.empty(dim, dtype = dtype, device = device))
+        self.gamma = ms.Parameter(mint.empty(dim, device=device, dtype=dtype))
 
         self.reset_parameters()
 
@@ -46,7 +46,7 @@ class LayerScale2d(msnn.Cell):
         super().__init__()
         self.init_values = init_values
         self.inplace = inplace
-        self.gamma = ms.Parameter(mint.empty(dim, dtype = dtype, device = device))
+        self.gamma = ms.Parameter(mint.empty(dim, device=device, dtype=dtype))
 
         self.reset_parameters()
 

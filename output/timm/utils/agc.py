@@ -20,7 +20,6 @@ Code references:
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-# import torch
 
 
 def unitwise_norm(x, norm_type=2.0):
@@ -33,7 +32,7 @@ def unitwise_norm(x, norm_type=2.0):
 
 
 def adaptive_clip_grad(parameters, clip_factor=0.01, eps=1e-3, norm_type=2.0):
-    if isinstance(parameters, torch.Tensor):
+    if isinstance(parameters, ms.Tensor):
         parameters = [parameters]
     for p in parameters:
         if p.grad is None:

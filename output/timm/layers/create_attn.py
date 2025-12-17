@@ -7,7 +7,6 @@ from mindspore.mint import nn, ops
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-# import torch
 from functools import partial
 
 from .bottleneck_attn import BottleneckAttn
@@ -25,7 +24,7 @@ from .squeeze_excite import SEModule, EffectiveSEModule
 
 
 def get_attn(attn_type):
-    if isinstance(attn_type, torch.nn.Module):
+    if isinstance(attn_type, msnn.Cell):
         return attn_type
     module_cls = None
     if attn_type:

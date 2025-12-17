@@ -1,4 +1,4 @@
---- pytorch+++ mindspore@@ -1,8 +1,13 @@+import mindspore as ms
+--- pytorch+++ mindspore@@ -1,13 +1,18 @@+import mindspore as ms
 +import mindspore.nn as msnn
 +import mindspore.ops as msops
 +import mindspore.mint as mint
@@ -12,3 +12,9 @@
  
  __all__ = ["LayerType", "PadType", "nullwrap", "disable_compiler"]
  
+ 
+-LayerType = Union[str, Callable, Type[torch.nn.Module]]
++LayerType = Union[str, Callable, Type[msnn.Cell]]
+ PadType = Union[str, int, Tuple[int, int]]
+ 
+ F = TypeVar("F", bound=Callable[..., object])

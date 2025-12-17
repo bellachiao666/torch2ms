@@ -6,7 +6,7 @@
  from typing import Any, Dict, Iterable, Union, Protocol, Type
  try:
      from typing import TypeAlias
-@@ -8,11 +13,10 @@ except ImportError:
+@@ -8,13 +13,12 @@ except ImportError:
      from typing_extensions import TypeVar
  
 -import torch
@@ -17,8 +17,11 @@
 -    from torch.optim.optimizer import ParamsT
 +    # from torch.optim.optimizer import ParamsT
  except (ImportError, TypeError):
-     ParamsT: TypeAlias = Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]
+-    ParamsT: TypeAlias = Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]
++    ParamsT: TypeAlias = Union[Iterable[ms.Tensor], Iterable[Dict[str, Any]]]
  
+ 
+ OptimType = Type[torch.optim.Optimizer]
 @@ -23,6 +27,10 @@ class OptimizerCallable(Protocol):
      """Protocol for optimizer constructor signatures."""
  

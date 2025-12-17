@@ -145,8 +145,8 @@ class SelectiveKernel(msnn.Cell):
             x_paths = [op(x_split[i]) for i, op in enumerate(self.paths)]
         else:
             x_paths = [op(x) for op in self.paths]
-        x = mint.stack(x_paths, dim = 1)
+        x = mint.stack(x_paths, dim=1)
         x_attn = self.attn(x)
         x = x * x_attn
-        x = mint.sum(x)
+        x = mint.sum(x, dim=1)
         return x

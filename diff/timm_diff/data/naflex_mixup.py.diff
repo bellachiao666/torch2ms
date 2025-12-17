@@ -6,12 +6,11 @@
  """Variable‑size Mixup / CutMix utilities for NaFlex data loaders.
  
  This module provides:
-@@ -17,17 +22,17 @@ import random
+@@ -17,17 +22,15 @@ import random
  from typing import Dict, List, Tuple, Union
  
 -import torch
-+# import torch
- 
+-
  
  def mix_batch_variable_size(
 -        imgs: List[torch.Tensor],
@@ -26,7 +25,7 @@
      """Apply Mixup or CutMix on a batch of variable-sized images.
  
      Sorts images by aspect ratio and pairs neighboring samples. Only the mutual
-@@ -51,7 +56,7 @@ 
+@@ -51,7 +54,7 @@ 
      # Decide augmentation mode and raw λ
      if mixup_alpha > 0.0 and cutmix_alpha > 0.0:
 -        use_cutmix = torch.rand(()).item() < switch_prob
@@ -34,7 +33,7 @@
          alpha = cutmix_alpha if use_cutmix else mixup_alpha
      elif mixup_alpha > 0.0:
          use_cutmix = False
-@@ -62,7 +67,7 @@     else:
+@@ -62,7 +65,7 @@     else:
          raise ValueError("Both mixup_alpha and cutmix_alpha are zero – nothing to do.")
  
 -    lam_raw = torch.distributions.Beta(alpha, alpha).sample().item()
@@ -42,7 +41,7 @@
      lam_raw = max(0.0, min(1.0, lam_raw))  # numerical safety
  
      # Pair images by nearest aspect ratio
-@@ -78,7 +83,7 @@ 
+@@ -78,7 +81,7 @@ 
      odd_one = order[-1] if len(imgs) % 2 else None
  
 -    mixed_imgs: List[torch.Tensor] = [None] * len(imgs)
@@ -50,7 +49,7 @@
      lam_list: List[float] = [1.0] * len(imgs)
  
      for i in range(len(imgs)):
-@@ -130,32 +135,28 @@ 
+@@ -130,18 +133,18 @@ 
  
  def smoothed_sparse_target(
 -        targets: torch.Tensor,
@@ -64,16 +63,15 @@
      on_val = 1.0 - smoothing + off_val
  
 -    y_onehot = torch.full(
--        (targets.size(0), num_classes),
--        off_val,
--        dtype=torch.float32,
--        device=targets.device
--    )
 +    y_onehot = mint.full(
-+        size = ((targets.size(0), num_classes), off_val), dtype = ms.float32)  # 'torch.full':没有对应的mindspore参数 'device' (position 5);
+         (targets.size(0), num_classes),
+         off_val,
+-        dtype=torch.float32,
++        dtype=ms.float32,
+         device=targets.device
+     )
      y_onehot.scatter_(1, targets.unsqueeze(1), on_val)
-     return y_onehot
- 
+@@ -149,13 +152,13 @@ 
  
  def pairwise_mixup_target(
 -        targets: torch.Tensor,
@@ -88,7 +86,7 @@
      """Create soft targets that match the pixel‑level mixing performed.
  
      Args:
-@@ -212,9 +213,9 @@ 
+@@ -212,9 +215,9 @@ 
      def __call__(
              self,
 -            imgs: List[torch.Tensor],
@@ -100,11 +98,13 @@
          """Apply the augmentation and generate matching targets.
  
          Args:
-@@ -226,7 +227,7 @@             targets: Soft‑label tensor shaped (B, num_classes) suitable for cross‑entropy with soft targets.
+@@ -225,8 +228,8 @@             mixed_imgs: List of mixed images in the same order and shapes as the input.
+             targets: Soft‑label tensor shaped (B, num_classes) suitable for cross‑entropy with soft targets.
          """
-         if not isinstance(targets, torch.Tensor):
+-        if not isinstance(targets, torch.Tensor):
 -            targets = torch.tensor(targets)
-+            targets = ms.Tensor(targets)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++        if not isinstance(targets, ms.Tensor):
++            targets = ms.Tensor(targets)
  
          if random.random() > self.prob:
              targets = smoothed_sparse_target(targets, num_classes=self.num_classes, smoothing=self.smoothing)

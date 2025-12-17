@@ -126,10 +126,10 @@ def rms_norm(
         # dims = list(range(ndim - norm_ndim, ndim))  # this doesn't work on pytorch <= 1.13.x
         # NOTE -ve dims cause torchscript to crash in some cases, out of options to work around
         assert norm_ndim == 1
-        v = mint.mean(v, dim = -1).unsqueeze(-1)  # ts crashes with -ve dim + keepdim=True
+        v = mint.mean(v, dim=-1).unsqueeze(-1)  # ts crashes with -ve dim + keepdim=True
     else:
         dims = tuple(range(-1, -norm_ndim - 1, -1))
-        v = mint.mean(v, dim = dims, keepdim = True)
+        v = mint.mean(v, dim=dims, keepdim=True)
     x = x * mint.rsqrt(v + eps)
     if weight is not None:
         x = x * weight
@@ -175,7 +175,7 @@ def rms_norm2d(
 ):
     assert len(normalized_shape) == 1
     v = x.pow(2)
-    v = mint.mean(v, dim = 1, keepdim = True)
+    v = mint.mean(v, dim=1, keepdim=True)
     x = x * mint.rsqrt(v + eps)
     if weight is not None:
         x = x * weight.reshape(1, -1, 1, 1)
@@ -224,10 +224,10 @@ def simple_norm(
         # dims = list(range(ndim - norm_ndim, ndim))  # this doesn't work on pytorch <= 1.13.x
         # NOTE -ve dims cause torchscript to crash in some cases, out of options to work around
         assert norm_ndim == 1
-        v = mint.var(x, dim = -1).unsqueeze(-1)  # ts crashes with -ve dim + keepdim=True
+        v = mint.var(x, dim=-1).unsqueeze(-1)  # ts crashes with -ve dim + keepdim=True
     else:
         dims = tuple(range(-1, -norm_ndim - 1, -1))
-        v = mint.var(x, dim = dims, keepdim = True)
+        v = mint.var(x, dim=dims, keepdim=True)
     x = x * mint.rsqrt(v + eps)
     if weight is not None:
         x = x * weight

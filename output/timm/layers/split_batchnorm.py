@@ -50,7 +50,7 @@ class SplitBatchNorm2d(nn.BatchNorm2d):
             x = [super().forward(split_input[0])]
             for i, a in enumerate(self.aux_bn):
                 x.append(a(split_input[i + 1]))
-            return mint.cat(x, dim = 0)
+            return mint.cat(x, dim=0)
         else:
             return super().forward(input)
 

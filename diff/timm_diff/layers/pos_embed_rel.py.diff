@@ -17,7 +17,7 @@
  
  from .grid import ndgrid
  from .interpolate import RegularGridInterpolator
-@@ -23,15 +25,15 @@         k_size: Optional[Tuple[int, int]] = None,
+@@ -23,14 +25,14 @@         k_size: Optional[Tuple[int, int]] = None,
          class_token: bool = False,
          device=None,
 -) -> torch.Tensor:
@@ -29,14 +29,12 @@
 -    coords = torch.stack(ndgrid(
 -        torch.arange(q_size[0], device=device),
 -        torch.arange(q_size[1], device=device),
--    )).flatten(1)  # 2, Wh, Ww
 +    coords = mint.stack(ndgrid(
-+        mint.arange(q_size[0]),
-+        mint.arange(q_size[1]),
-+    )).flatten(1)  # 2, Wh, Ww; 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++        mint.arange(q_size[0], device=device),
++        mint.arange(q_size[1], device=device),
+     )).flatten(1)  # 2, Wh, Ww
      relative_coords = coords[:, :, None] - coords[:, None, :]  # 2, Wh*Ww, Wh*Ww
      relative_coords = relative_coords.permute(1, 2, 0)  # Qh*Qw, Kh*Kw, 2
-     relative_coords[:, :, 0] += q_size[0] - 1  # shift to start from 0
 @@ -66,7 +68,7 @@     if class_token:
          # handle cls to token & token 2 cls & cls to cls as per beit for rel pos bias
          # NOTE not intended or tested with MLP log-coords
@@ -71,7 +69,7 @@
  
              if extra_tokens is not None:
 -                rel_pos_bias = torch.cat((rel_pos_bias, extra_tokens), dim=0)
-+                rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim = 0)
++                rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim=0)
  
      return rel_pos_bias
  
@@ -93,7 +91,7 @@
          y = _calc(src_size[0], dst_size[0])
          x = _calc(src_size[1], dst_size[1])
 -        yx = [torch.tensor(y), torch.tensor(x)]
-+        yx = [ms.Tensor(y), ms.Tensor(x)]  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++        yx = [ms.Tensor(y), ms.Tensor(x)]
          # print("Original positions = %s" % str(x))
  
          ty = dst_size[0] // 2.0
@@ -117,15 +115,15 @@
  
          if has_flat_shape:
 -            rel_pos_bias = torch.cat(all_rel_pos_bias, dim=-1)
-+            rel_pos_bias = mint.cat(all_rel_pos_bias, dim = -1)
++            rel_pos_bias = mint.cat(all_rel_pos_bias, dim=-1)
          else:
 -            rel_pos_bias = torch.cat(all_rel_pos_bias, dim=0)
-+            rel_pos_bias = mint.cat(all_rel_pos_bias, dim = 0)
++            rel_pos_bias = mint.cat(all_rel_pos_bias, dim=0)
  
          if extra_tokens is not None:
              assert has_flat_shape
 -            rel_pos_bias = torch.cat((rel_pos_bias, extra_tokens), dim=0)
-+            rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim = 0)
++            rel_pos_bias = mint.cat((rel_pos_bias, extra_tokens), dim=0)
  
      return rel_pos_bias
  
@@ -164,8 +162,8 @@
 -    relative_coords_h = torch.arange(-(win_size[0] - 1), win_size[0], device=device).to(torch.float32)
 -    relative_coords_w = torch.arange(-(win_size[1] - 1), win_size[1], device=device).to(torch.float32)
 -    relative_coords_table = torch.stack(ndgrid(relative_coords_h, relative_coords_w))
-+    relative_coords_h = mint.arange(-(win_size[0] - 1), win_size[0]).to(ms.float32)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
-+    relative_coords_w = mint.arange(-(win_size[1] - 1), win_size[1]).to(ms.float32)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++    relative_coords_h = mint.arange(-(win_size[0] - 1), win_size[0], device=device).to(ms.float32)
++    relative_coords_w = mint.arange(-(win_size[1] - 1), win_size[1], device=device).to(ms.float32)
 +    relative_coords_table = mint.stack(ndgrid(relative_coords_h, relative_coords_w))
      relative_coords_table = relative_coords_table.permute(1, 2, 0).contiguous()  # 2*Wh-1, 2*Ww-1, 2
      if mode == 'swin':
@@ -222,7 +220,7 @@
      # Return the cached lookup tensor, otherwise compute it and cache it.
      vocab_size = 2 * max_relative_position + 1
 -    ret = torch.zeros(length, length, vocab_size, device=device, dtype=dtype)
-+    ret = mint.zeros(size = (length, length, vocab_size), dtype = dtype)  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
++    ret = mint.zeros(length, length, vocab_size, device=device, dtype=dtype)
      for i in range(length):
          for x in range(length):
              v = x - i + max_relative_position

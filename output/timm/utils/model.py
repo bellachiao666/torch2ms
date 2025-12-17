@@ -9,8 +9,6 @@ Hacked together by / Copyright 2020 Ross Wightman
 """
 import fnmatch
 from copy import deepcopy
-
-# import torch
 # from torchvision.ops.misc import FrozenBatchNorm2d
 
 from timm.layers import BatchNormAct2d, SyncBatchNormAct, FrozenBatchNormAct2d,\
@@ -130,8 +128,8 @@ def _freeze_unfreeze(root_module, submodules=[], include_bn_running_stats=True, 
     assert mode in ["freeze", "unfreeze"], '`mode` must be one of "freeze" or "unfreeze"'
 
     if isinstance(root_module, (
-            torch.nn.modules.batchnorm.BatchNorm2d,
-            torch.nn.modules.batchnorm.SyncBatchNorm,
+            nn.BatchNorm2d,
+            nn.SyncBatchNorm,
             BatchNormAct2d,
             SyncBatchNormAct,
     )):
@@ -169,8 +167,8 @@ def _freeze_unfreeze(root_module, submodules=[], include_bn_running_stats=True, 
                 # convert it in place, but will return the converted result. In this case `res` holds the converted
                 # result and we may try to re-assign the named module
                 if isinstance(m, (
-                        torch.nn.modules.batchnorm.BatchNorm2d,
-                        torch.nn.modules.batchnorm.SyncBatchNorm,
+                        nn.BatchNorm2d,
+                        nn.SyncBatchNorm,
                         BatchNormAct2d,
                         SyncBatchNormAct,
                 )):

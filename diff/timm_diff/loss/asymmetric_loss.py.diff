@@ -76,7 +76,7 @@
          """"
          Parameters
          ----------
-@@ -71,17 +76,16 @@ 
+@@ -71,16 +76,16 @@ 
          num_classes = inputs.size()[-1]
          log_preds = self.logsoftmax(inputs)
 -        self.targets_classes = torch.zeros_like(inputs).scatter_(1, target.long().unsqueeze(1), 1)
@@ -91,8 +91,7 @@
          xs_pos = xs_pos * targets
          xs_neg = xs_neg * anti_targets
 -        asymmetric_w = torch.pow(1 - xs_pos - xs_neg,
--                                 self.gamma_pos * targets + self.gamma_neg * anti_targets)
-+        asymmetric_w = mint.pow(1 - xs_pos - xs_neg, self.gamma_pos * targets + self.gamma_neg * anti_targets)
++        asymmetric_w = mint.pow(1 - xs_pos - xs_neg,
+                                  self.gamma_pos * targets + self.gamma_neg * anti_targets)
          log_preds = log_preds * asymmetric_w
  
-         if self.eps > 0:  # label smoothing

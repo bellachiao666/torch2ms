@@ -121,7 +121,7 @@ class AdafactorBigVision(Optimizer):
             for p in group['params']:
                 p_state = self.state.get(p, {})
                 if len(p_state) != 0 and not torch.is_tensor(p_state['step']):
-                    p_state['step'] = ms.Tensor(float(p_state['step']), dtype = _get_scalar_dtype())  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                    p_state['step'] = ms.Tensor(float(p_state['step']), dtype=_get_scalar_dtype())
 
                 if 'exp_avg' in p_state and torch.is_tensor(p_state['exp_avg']):
                     # FIXME this is a bit of a hack, optimizer.load_state_dict appears to upcast
@@ -158,7 +158,7 @@ class AdafactorBigVision(Optimizer):
 
                 if len(state) == 0:
                     # NOTE step on CPU, probably need some more though to make capturable
-                    state['step'] = ms.Tensor(0.0, dtype = _get_scalar_dtype())  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                    state['step'] = ms.Tensor(0.0, dtype=_get_scalar_dtype())
 
                     shape = p.grad.shape
                     factored_dims = _factored_dims(
@@ -176,10 +176,10 @@ class AdafactorBigVision(Optimizer):
                         state['exp_avg_sq_r'] = p.grad.new_zeros(row_shape)
                         state['exp_avg_sq_c'] = p.grad.new_zeros(col_shape)
                     else:
-                        state['exp_avg_sq'] = mint.zeros_like(p.grad)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                        state['exp_avg_sq'] = mint.zeros_like(p.grad, memory_format=torch.preserve_format)
 
                     if self.defaults['momentum'] is not None:
-                        state['exp_avg'] = mint.zeros_like(p.grad, dtype = self.defaults['momentum_dtype'])
+                        state['exp_avg'] = mint.zeros_like(p.grad, dtype=self.defaults['momentum_dtype'])
 
                 state_steps.append(state['step'])
                 exp_avg_sq_rs.append(state.get('exp_avg_sq_r', None))

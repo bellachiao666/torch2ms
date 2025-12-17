@@ -21,7 +21,7 @@ import numpy as np
 
 def one_hot(x, num_classes, on_value=1., off_value=0.):
     x = x.long().view(-1, 1)
-    return mint.full(size = ((x.size()[0], num_classes), off_value)).scatter_(1, x, on_value)  # 'torch.full':没有对应的mindspore参数 'device' (position 5);
+    return mint.full((x.size()[0], num_classes), off_value, device=x.device).scatter_(1, x, on_value)
 
 
 def mixup_target(target, num_classes, lam=1., smoothing=0.0):
@@ -176,7 +176,7 @@ class Mixup:
                     lam_batch[i] = lam
                 else:
                     x[i] = x[i] * lam + x_orig[j] * (1 - lam)
-        return ms.Tensor(lam_batch, dtype = x.dtype).unsqueeze(1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+        return ms.Tensor(lam_batch, device=x.device, dtype=x.dtype).unsqueeze(1)
 
     def _mix_pair(self, x):
         batch_size = len(x)
@@ -196,7 +196,7 @@ class Mixup:
                     x[i] = x[i] * lam + x_orig[j] * (1 - lam)
                     x[j] = x[j] * lam + x_orig[i] * (1 - lam)
         lam_batch = np.concatenate((lam_batch, lam_batch[::-1]))
-        return ms.Tensor(lam_batch, dtype = x.dtype).unsqueeze(1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+        return ms.Tensor(lam_batch, device=x.device, dtype=x.dtype).unsqueeze(1)
 
     def _mix_batch(self, x):
         lam, use_cutmix = self._params_per_batch()
@@ -258,11 +258,11 @@ class FastCollateMixup(Mixup):
                         np.rint(mixed, out=mixed)
                     else:
                         mixed = mixed.float() * lam + batch[j][0].float() * (1 - lam)
-                        ms.Tensor.round(mixed)
+                        ms.Tensor.round(mixed, out=mixed)
             output[i] += torch.from_numpy(mixed.astype(np.uint8)) if is_np else mixed.byte()  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if half:
             lam_batch = np.concatenate((lam_batch, np.ones(num_elem)))
-        return ms.Tensor(lam_batch).unsqueeze(1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+        return ms.Tensor(lam_batch).unsqueeze(1)
 
     def _mix_pair_collate(self, output, batch):
         batch_size = len(batch)
@@ -298,12 +298,12 @@ class FastCollateMixup(Mixup):
                         mixed_temp = mixed_i.float() * lam + mixed_j.float() * (1 - lam)
                         mixed_j = mixed_j.float() * lam + mixed_i.float() * (1 - lam)
                         mixed_i = mixed_temp
-                        ms.Tensor.round(mixed_j)
-                        ms.Tensor.round(mixed_i)
+                        ms.Tensor.round(mixed_j, out=mixed_j)
+                        ms.Tensor.round(mixed_i, out=mixed_i)
             output[i] += torch.from_numpy(mixed_i.astype(np.uint8)) if is_np else mixed_i.byte()  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
             output[j] += torch.from_numpy(mixed_j.astype(np.uint8)) if is_np else mixed_j.byte()  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         lam_batch = np.concatenate((lam_batch, lam_batch[::-1]))
-        return ms.Tensor(lam_batch).unsqueeze(1)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+        return ms.Tensor(lam_batch).unsqueeze(1)
 
     def _mix_batch_collate(self, output, batch):
         batch_size = len(batch)
@@ -330,7 +330,7 @@ class FastCollateMixup(Mixup):
                         np.rint(mixed, out=mixed)
                     else:
                         mixed = mixed.float() * lam + batch[j][0].float() * (1 - lam)
-                        ms.Tensor.round(mixed)
+                        ms.Tensor.round(mixed, out=mixed)
             output[i] += torch.from_numpy(mixed.astype(np.uint8)) if is_np else mixed.byte()  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         return lam
 
@@ -340,14 +340,14 @@ class FastCollateMixup(Mixup):
         half = 'half' in self.mode
         if half:
             batch_size //= 2
-        output = mint.zeros((batch_size, *batch[0][0].shape), dtype = ms.uint8)
+        output = mint.zeros((batch_size, *batch[0][0].shape), dtype=ms.uint8)
         if self.mode == 'elem' or self.mode == 'half':
             lam = self._mix_elem_collate(output, batch, half=half)
         elif self.mode == 'pair':
             lam = self._mix_pair_collate(output, batch)
         else:
             lam = self._mix_batch_collate(output, batch)
-        target = ms.Tensor([b[1] for b in batch], dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+        target = ms.Tensor([b[1] for b in batch], dtype=ms.int64)
         target = mixup_target(target, self.num_classes, lam, self.label_smoothing)
         target = target[:batch_size]
         return output, target

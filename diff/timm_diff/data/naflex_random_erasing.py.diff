@@ -46,22 +46,22 @@
          if self.erase_mode == 'pixel':
              # only mode with erase shape that includes pixels
 -            return torch.empty(shape, dtype=dtype, device=device).normal_()
-+            return mint.empty(shape, dtype = dtype, device = device).normal_()
++            return mint.empty(shape, dtype=dtype, device=device).normal_()
          else:
              shape = (1, 1, shape[-1]) if len(shape) == 3 else (1, shape[-1])
              if self.erase_mode == 'const' or value is not None:
                  erase_value = value or self.const_value
                  if isinstance(erase_value, (int, float)):
 -                    values = torch.full(shape, erase_value, dtype=dtype, device=device)
-+                    values = mint.full(size = (shape, erase_value), dtype = dtype)  # 'torch.full':没有对应的mindspore参数 'device' (position 5);
++                    values = mint.full(shape, erase_value, dtype=dtype, device=device)
                  else:
 -                    erase_value = torch.tensor(erase_value, dtype=dtype, device=device)
 -                    values = torch.expand_copy(erase_value, shape)
-+                    erase_value = ms.Tensor(erase_value, dtype = dtype)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
++                    erase_value = ms.Tensor(erase_value, dtype=dtype, device=device)
 +                    values = torch.expand_copy(erase_value, shape)  # 'torch.expand_copy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
              else:
 -                values = torch.empty(shape, dtype=dtype, device=device).normal_()
-+                values = mint.empty(shape, dtype = dtype, device = device).normal_()
++                values = mint.empty(shape, dtype=dtype, device=device).normal_()
              return values
  
      def _drop_patches(
@@ -81,7 +81,7 @@
  
          # Get indices of valid patches
 -        valid_indices = torch.nonzero(patch_valid, as_tuple=True)[0].tolist()
-+        valid_indices = mint.nonzero(patch_valid, as_tuple = True)[0].tolist()
++        valid_indices = mint.nonzero(patch_valid, as_tuple=True)[0].tolist()
  
          # Skip if no valid patches
          if not valid_indices:
@@ -89,7 +89,7 @@
              # patch dropout mode, completely remove dropped patches (FIXME needs downstream support in model)
              num_keep = max(1, int(num_valid * (1. - self.patch_drop_prob)))
 -            keep_indices = torch.argsort(torch.randn(1, num_valid, device=self.device), dim=-1)[:, :num_keep]
-+            keep_indices = mint.argsort(mint.randn(size = (1, num_valid)), dim = -1)[:, :num_keep]  # 'torch.randn':没有对应的mindspore参数 'device' (position 5);
++            keep_indices = mint.argsort(mint.randn(1, num_valid, device=self.device), dim=-1)[:, :num_keep]
              # maintain patch order, possibly useful for debug / visualization
              keep_indices = keep_indices.sort(dim=-1)[0]
              patches = patches.gather(1, keep_indices.unsqueeze(-1).expand((-1, -1) + patches.shape[2:]))
@@ -117,7 +117,7 @@
  
          # Get indices of valid patches
 -        valid_indices = torch.nonzero(patch_valid, as_tuple=True)[0]
-+        valid_indices = mint.nonzero(patch_valid, as_tuple = True)[0]
++        valid_indices = mint.nonzero(patch_valid, as_tuple=True)[0]
          num_valid = len(valid_indices)
          if num_valid == 0:
              return
@@ -125,7 +125,7 @@
  
          # Randomly select valid patches to erase
 -        erase_idx = valid_indices[torch.randperm(num_valid, device=patches.device)[:num_erase]]
-+        erase_idx = valid_indices[mint.randperm(num_valid)[:num_erase]]  # 'torch.randperm'默认值不一致(position 3): PyTorch=torch.int64, MindSpore=mindspore.int64;; 'torch.randperm':没有对应的mindspore参数 'device' (position 5);
++        erase_idx = valid_indices[mint.randperm(num_valid, device=patches.device)[:num_erase]]
  
          if self.unique_noise_per_patch and self.erase_mode == 'pixel':
              # generate unique noise for the whole selection of patches
@@ -167,7 +167,7 @@
          # Create default valid mask if not provided
          if patch_valid is None:
 -            patch_valid = torch.ones((batch_size, num_patches), dtype=torch.bool, device=patches.device)
-+            patch_valid = mint.ones((batch_size, num_patches), dtype = ms.bool)  # 'torch.ones':没有对应的mindspore参数 'device' (position 4);
++            patch_valid = mint.ones((batch_size, num_patches), dtype=ms.bool_, device=patches.device)
  
          # Skip the first part of the batch if num_splits is set
          batch_start = batch_size // self.num_splits if self.num_splits > 1 else 0

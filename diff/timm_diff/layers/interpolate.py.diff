@@ -13,6 +13,22 @@
  from itertools import product
  
  
+@@ -20,7 +25,7 @@         self.values = values
+ 
+         assert isinstance(self.points, tuple) or isinstance(self.points, list)
+-        assert isinstance(self.values, torch.Tensor)
++        assert isinstance(self.values, ms.Tensor)
+ 
+         self.ms = list(self.values.shape)
+         self.n = len(self.points)
+@@ -28,7 +33,7 @@         assert len(self.ms) == self.n
+ 
+         for i, p in enumerate(self.points):
+-            assert isinstance(p, torch.Tensor)
++            assert isinstance(p, ms.Tensor)
+             assert p.shape[0] == self.values.shape[i]
+ 
+     def __call__(self, points_to_interp):
 @@ -44,7 +49,7 @@         dists = []
          overalls = []
          for p, x in zip(self.points, points_to_interp):
@@ -26,6 +42,6 @@
              numerator += self.values[as_s] * \
 -                torch.prod(torch.stack(bs_s), dim=0)
 -        denominator = torch.prod(torch.stack(overalls), dim=0)
-+                mint.prod(mint.stack(bs_s))
-+        denominator = mint.prod(mint.stack(overalls))
++                mint.prod(mint.stack(bs_s), dim=0)
++        denominator = mint.prod(mint.stack(overalls), dim=0)
          return numerator / denominator

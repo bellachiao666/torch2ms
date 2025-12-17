@@ -49,7 +49,7 @@ class HybridEmbed(msnn.Cell):
     ):
         dd = {'device': device, 'dtype': dtype}
         super().__init__()
-        assert isinstance(backbone, nn.Module)
+        assert isinstance(backbone, msnn.Cell)
         self.backbone = backbone
         self.in_chans = in_chans
         (
@@ -113,7 +113,7 @@ class HybridEmbed(msnn.Cell):
                 if training:
                     self.backbone.eval()
                 # FIXME whatif meta device?
-                o = self.backbone(mint.zeros(size = (1, self.in_chans, img_size[0], img_size[1]), dtype = dtype))  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);
+                o = self.backbone(mint.zeros(1, self.in_chans, img_size[0], img_size[1], device=device, dtype=dtype))
                 if isinstance(o, (list, tuple)):
                     o = o[-1]  # last feature if backbone outputs list/tuple of features
                 feature_size = o.shape[-2:]

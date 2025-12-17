@@ -116,7 +116,7 @@ class Lion(Optimizer):
 
                 # State initialization
                 if len(state) == 0:
-                    state['exp_avg'] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                    state['exp_avg'] = mint.zeros_like(p, memory_format=torch.preserve_format)
 
                 exp_avgs.append(state['exp_avg'])
 

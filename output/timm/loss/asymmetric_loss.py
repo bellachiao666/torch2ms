@@ -85,7 +85,8 @@ class AsymmetricLossSingleLabel(msnn.Cell):
         xs_neg = 1 - xs_pos
         xs_pos = xs_pos * targets
         xs_neg = xs_neg * anti_targets
-        asymmetric_w = mint.pow(1 - xs_pos - xs_neg, self.gamma_pos * targets + self.gamma_neg * anti_targets)
+        asymmetric_w = mint.pow(1 - xs_pos - xs_neg,
+                                 self.gamma_pos * targets + self.gamma_neg * anti_targets)
         log_preds = log_preds * asymmetric_w
 
         if self.eps > 0:  # label smoothing

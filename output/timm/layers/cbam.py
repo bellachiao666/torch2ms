@@ -89,7 +89,7 @@ class SpatialAttn(msnn.Cell):
         self.gate = create_act_layer(gate_layer)
 
     def construct(self, x):
-        x_attn = mint.cat([x.mean(dim=1, keepdim=True), x.amax(dim=1, keepdim=True)], dim = 1)
+        x_attn = mint.cat([x.mean(dim=1, keepdim=True), x.amax(dim=1, keepdim=True)], dim=1)
         x_attn = self.conv(x_attn)
         return x * self.gate(x_attn)
 

@@ -58,7 +58,7 @@ def _get_value(x):
     if not torch.jit.is_scripting() and _is_compiling():
         return x
     else:
-        return x.item() if isinstance(x, torch.Tensor) else x
+        return x.item() if isinstance(x, ms.Tensor) else x
 
 
 # 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
@@ -134,10 +134,13 @@ class Adopt(Optimizer):
                     step_val = float(p_state["step"])
                     p_state["step"] = (
                         ms.Tensor(
-                            step_val, dtype = _get_scalar_dtype())
+                            step_val,
+                            dtype=_get_scalar_dtype(),
+                            device=p.device,
+                        )
                         if group["capturable"]
-                        else ms.Tensor(step_val, dtype = _get_scalar_dtype())
-                    )  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+                        else ms.Tensor(step_val, dtype=_get_scalar_dtype())
+                    )
 
     def _init_group(
             self,
@@ -165,14 +168,14 @@ class Adopt(Optimizer):
                 # Deliberately host `step` on CPU if both capturable and fused are off.
                 # This is because kernel launches are costly on CUDA and XLA.
                 state["step"] = (
-                    mint.zeros((), dtype = _get_scalar_dtype())
+                    mint.zeros((), dtype=_get_scalar_dtype(), device=p.grad.device)
                     if group["capturable"]
-                    else ms.Tensor(0.0, dtype = _get_scalar_dtype())
-                )  # 'torch.zeros':没有对应的mindspore参数 'device' (position 4);; 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                    else ms.Tensor(0.0, dtype=_get_scalar_dtype())
+                )
                 # Exponential moving average of gradient values
-                state["exp_avg"] = mint.zeros_like(p.grad)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                state["exp_avg"] = mint.zeros_like(p.grad, memory_format=torch.preserve_format)
                 # Exponential moving average of squared gradient values
-                state["exp_avg_sq"] = mint.zeros_like(p.grad)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                state["exp_avg_sq"] = mint.zeros_like(p.grad, memory_format=torch.preserve_format)
 
             exp_avgs.append(state["exp_avg"])
             exp_avg_sqs.append(state["exp_avg_sq"])
@@ -407,7 +410,7 @@ def _multi_tensor_adopt(
         # and over. 1 will then be wrapped into a Tensor over and over again, which is slower than if we just
         # wrapped it once now. The alpha is required to assure we go to the right overload.
         if not _is_compiling() and device_state_steps[0].is_cpu:
-            torch._foreach_add_(device_state_steps, ms.Tensor(1.0), alpha=1.0)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);; 'torch._foreach_add_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+            torch._foreach_add_(device_state_steps, ms.Tensor(1.0, device="cpu"), alpha=1.0)  # 'torch._foreach_add_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         else:
             torch._foreach_add_(device_state_steps, 1)  # 'torch._foreach_add_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
@@ -488,7 +491,7 @@ def adopt(
 
     # this check is slow during compilation, so we skip it
     # if it's strictly needed we can add this check back in dynamo
-    if not _is_compiling() and not all(isinstance(t, torch.Tensor) for t in state_steps):
+    if not _is_compiling() and not all(isinstance(t, ms.Tensor) for t in state_steps):
         raise RuntimeError(
             "API has changed, `state_steps` argument must contain a list of singleton tensors"
         )

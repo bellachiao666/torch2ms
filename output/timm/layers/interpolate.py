@@ -25,7 +25,7 @@ class RegularGridInterpolator:
         self.values = values
 
         assert isinstance(self.points, tuple) or isinstance(self.points, list)
-        assert isinstance(self.values, torch.Tensor)
+        assert isinstance(self.values, ms.Tensor)
 
         self.ms = list(self.values.shape)
         self.n = len(self.points)
@@ -33,7 +33,7 @@ class RegularGridInterpolator:
         assert len(self.ms) == self.n
 
         for i, p in enumerate(self.points):
-            assert isinstance(p, torch.Tensor)
+            assert isinstance(p, ms.Tensor)
             assert p.shape[0] == self.values.shape[i]
 
     def __call__(self, points_to_interp):
@@ -68,6 +68,6 @@ class RegularGridInterpolator:
             as_s = [idx[onoff] for onoff, idx in zip(indexer, idxs)]
             bs_s = [dist[1 - onoff] for onoff, dist in zip(indexer, dists)]
             numerator += self.values[as_s] * \
-                mint.prod(mint.stack(bs_s))
-        denominator = mint.prod(mint.stack(overalls))
+                mint.prod(mint.stack(bs_s), dim=0)
+        denominator = mint.prod(mint.stack(overalls), dim=0)
         return numerator / denominator

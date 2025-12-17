@@ -127,9 +127,9 @@ class Scheduler(ABC):
         if self.noise_type == 'normal':
             while True:
                 # resample if noise out of percent limit, brute force but shouldn't spin much
-                noise = mint.randn(1, generator = g).item()
+                noise = mint.randn(1, generator=g).item()
                 if abs(noise) < self.noise_pct:
                     return noise
         else:
-            noise = 2 * (mint.rand(1, generator = g).item() - 0.5) * self.noise_pct
+            noise = 2 * (mint.rand(1, generator=g).item() - 0.5) * self.noise_pct
         return noise

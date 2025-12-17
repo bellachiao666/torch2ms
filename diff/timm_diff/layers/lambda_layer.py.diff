@@ -6,32 +6,30 @@
  """ Lambda Layer
  
  Paper: `LambdaNetworks: Modeling Long-Range Interactions Without Attention`
-@@ -22,9 +27,8 @@ """
+@@ -21,10 +26,7 @@ Hacked together by / Copyright 2021 Ross Wightman
+ """
  from typing import Optional, Tuple
- 
+-
 -import torch
 -from torch import nn
 -import torch.nn.functional as F
-+# import torch
 +# from torch import nn
  
  from .grid import ndgrid
  from .helpers import to_2tuple, make_divisible
-@@ -33,17 +37,17 @@ 
+@@ -33,9 +35,9 @@ 
  def rel_pos_indices(size, device=None):
      size = to_2tuple(size)
 -    pos = torch.stack(ndgrid(
 -        torch.arange(size[0], device=device, dtype=torch.long),
 -        torch.arange(size[1], device=device, dtype=torch.long),
--    )).flatten(1)
 +    pos = mint.stack(ndgrid(
-+        mint.arange(size[0], dtype = torch.long),
-+        mint.arange(size[1], dtype = torch.long),
-+    )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
++        mint.arange(size[0], device=device, dtype=ms.int64),
++        mint.arange(size[1], device=device, dtype=ms.int64),
+     )).flatten(1)
      rel_pos = pos[:, None, :] - pos[:, :, None]
      rel_pos[0] += size[0] - 1
-     rel_pos[1] += size[1] - 1
-     return rel_pos  # 2, H * W, H * W
+@@ -43,7 +45,7 @@     return rel_pos  # 2, H * W, H * W
  
  
 -class LambdaLayer(nn.Module):
@@ -39,7 +37,7 @@
      """Lambda Layer
  
      Paper: `LambdaNetworks: Modeling Long-Range Interactions Without Attention`
-@@ -113,14 +117,14 @@             feat_size = to_2tuple(feat_size)
+@@ -113,14 +115,14 @@             feat_size = to_2tuple(feat_size)
              rel_size = [2 * s - 1 for s in feat_size]
              self.conv_lambda = None
 -            self.pos_emb = nn.Parameter(torch.empty(rel_size[0], rel_size[1], self.dim_qk, **dd))
@@ -55,7 +53,7 @@
  
          self.reset_parameters()
  
-@@ -131,15 +135,15 @@         if self.pos_emb is not None:
+@@ -131,15 +133,15 @@         if self.pos_emb is not None:
              trunc_normal_(self.pos_emb, std=.02)
  
 -    def forward(self, x):
@@ -64,9 +62,8 @@
          M = H * W
          qkv = self.qkv(x)
 -        q, k, v = torch.split(qkv, [
--            self.num_heads * self.dim_qk, self.dim_qk, self.dim_v], dim=1)
 +        q, k, v = mint.split(qkv, [
-+            self.num_heads * self.dim_qk, self.dim_qk, self.dim_v], dim = 1)
+             self.num_heads * self.dim_qk, self.dim_qk, self.dim_v], dim=1)
          q = self.norm_q(q).reshape(B, self.num_heads, self.dim_qk, M).transpose(-1, -2)  # B, num_heads, M, K
          v = self.norm_v(v).reshape(B, self.dim_v, M).transpose(-1, -2)  # B, M, V
 -        k = F.softmax(k.reshape(B, self.dim_qk, M), dim=-1)  # B, K, M

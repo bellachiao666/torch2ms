@@ -94,7 +94,7 @@ class AdamWLegacy(Optimizer):
         step_is_tensor = (len(state_values) != 0) and torch.is_tensor(state_values[0]['step'])  # 'torch.is_tensor' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         if not step_is_tensor:
             for s in state_values:
-                s['step'] = ms.Tensor(float(s['step']))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                s['step'] = ms.Tensor(float(s['step']))
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
             group.setdefault('caution', False)
@@ -139,14 +139,14 @@ class AdamWLegacy(Optimizer):
 
                 # State initialization
                 if len(state) == 0:
-                    state['step'] = ms.Tensor(0.)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+                    state['step'] = ms.Tensor(0.)
                     # Exponential moving average of gradient values
-                    state['exp_avg'] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                    state['exp_avg'] = mint.zeros_like(p, memory_format=torch.preserve_format)
                     # Exponential moving average of squared gradient values
-                    state['exp_avg_sq'] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                    state['exp_avg_sq'] = mint.zeros_like(p, memory_format=torch.preserve_format)
                     if amsgrad:
                         # Maintains max of all exp. moving avg. of sq. grad. values
-                        state['max_exp_avg_sq'] = mint.zeros_like(p)  # 'torch.zeros_like':没有对应的mindspore参数 'memory_format' (position 5);
+                        state['max_exp_avg_sq'] = mint.zeros_like(p, memory_format=torch.preserve_format)
 
                 exp_avgs.append(state['exp_avg'])
                 exp_avg_sqs.append(state['exp_avg_sq'])
@@ -201,7 +201,7 @@ def adamw(
       See AdamWLegacy class for details.
     """
 
-    if not all(isinstance(t, torch.Tensor) for t in state_steps):
+    if not all(isinstance(t, ms.Tensor) for t in state_steps):
         raise RuntimeError(
             'API has changed, `state_steps` argument must contain a list of' +
             ' singleton tensors')
@@ -278,7 +278,7 @@ def _single_tensor_adamw(
         if amsgrad:
             max_exp_avg_sq = max_exp_avg_sqs[i]
             # Maintains the maximum of all 2nd moment running avg. till now
-            mint.max(max_exp_avg_sq, exp_avg_sq)
+            mint.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
             denom_base = max_exp_avg_sq
         else:
             denom_base = exp_avg_sq

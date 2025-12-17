@@ -26,8 +26,6 @@ https://github.com/lucidrains/lambda-networks
 Hacked together by / Copyright 2021 Ross Wightman
 """
 from typing import Optional, Tuple
-
-# import torch
 # from torch import nn
 
 from .grid import ndgrid
@@ -38,9 +36,9 @@ from .weight_init import trunc_normal_
 def rel_pos_indices(size, device=None):
     size = to_2tuple(size)
     pos = mint.stack(ndgrid(
-        mint.arange(size[0], dtype = torch.long),
-        mint.arange(size[1], dtype = torch.long),
-    )).flatten(1)  # 'torch.arange':没有对应的mindspore参数 'device' (position 6);
+        mint.arange(size[0], device=device, dtype=ms.int64),
+        mint.arange(size[1], device=device, dtype=ms.int64),
+    )).flatten(1)
     rel_pos = pos[:, None, :] - pos[:, :, None]
     rel_pos[0] += size[0] - 1
     rel_pos[1] += size[1] - 1
@@ -140,7 +138,7 @@ class LambdaLayer(msnn.Cell):
         M = H * W
         qkv = self.qkv(x)
         q, k, v = mint.split(qkv, [
-            self.num_heads * self.dim_qk, self.dim_qk, self.dim_v], dim = 1)
+            self.num_heads * self.dim_qk, self.dim_qk, self.dim_v], dim=1)
         q = self.norm_q(q).reshape(B, self.num_heads, self.dim_qk, M).transpose(-1, -2)  # B, num_heads, M, K
         v = self.norm_v(v).reshape(B, self.dim_v, M).transpose(-1, -2)  # B, M, V
         k = nn.functional.softmax(k.reshape(B, self.dim_qk, M), dim = -1)  # B, K, M

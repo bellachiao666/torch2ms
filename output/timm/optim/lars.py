@@ -111,9 +111,12 @@ class Lars(Optimizer):
                     # FIXME nested where required since logical and/or not working in PT XLA
                     # Set the ratio to 1.0 (no change) if either weight norm or grad norm is zero
                     trust_ratio = mint.where(
-                        w_norm > 0, mint.where(g_norm > 0, trust_ratio, 1.0), 1.0)
+                        w_norm > 0,
+                        mint.where(g_norm > 0, trust_ratio, 1.0),
+                        1.0,
+                    )
                     if group['trust_clip']:
-                        trust_ratio = mint.clamp(trust_ratio / group['lr'], max = 1.0)
+                        trust_ratio = mint.clamp(trust_ratio / group['lr'], max=1.0)
                     grad.add_(p, alpha=weight_decay)
                     grad.mul_(trust_ratio)
 

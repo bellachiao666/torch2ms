@@ -243,7 +243,7 @@ def resample_patch_embed_old(
         return np.stack(mat).T
 
     resize_mat = get_resize_mat(old_size, new_size)
-    resize_mat_pinv = ms.Tensor(np.linalg.pinv(resize_mat.T))  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+    resize_mat_pinv = ms.Tensor(np.linalg.pinv(resize_mat.T), device=patch_embed.device)
 
     def resample_kernel(kernel):
         resampled_kernel = resize_mat_pinv @ kernel.reshape(-1)
@@ -277,7 +277,7 @@ def _compute_resize_matrix(
     old_total = old_h * old_w
     new_total = new_h * new_w
 
-    eye_matrix = mint.eye(old_total, dtype = dtype)  # 'torch.eye':没有对应的mindspore参数 'device' (position 5);
+    eye_matrix = mint.eye(old_total, device=device, dtype=dtype)
     basis_vectors_batch = eye_matrix.reshape(old_total, 1, old_h, old_w)
     resized_basis_vectors_batch = nn.functional.interpolate(
         basis_vectors_batch, size = new_size, mode = interpolation, align_corners = False)  # Output shape: (old_total, 1, new_h, new_w); 'torch.nn.functional.interpolate':没有对应的mindspore参数 'antialias' (position 6);

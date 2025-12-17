@@ -70,7 +70,7 @@ class InplaceAbn(msnn.Cell):
                     self.act_name = 'elu'
                 elif act_layer == nn.LeakyReLU:
                     self.act_name = 'leaky_relu'
-                elif act_layer is None or act_layer == nn.Identity:
+                elif act_layer is None or act_layer == msnn.Identity:
                     self.act_name = 'identity'
                 else:
                     assert False, f'Invalid act layer {act_layer.__name__} for IABN'

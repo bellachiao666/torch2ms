@@ -8,8 +8,6 @@ from mindspore.mint import nn, ops
 Hacked together by / Copyright 2021 Ross Wightman
 """
 from typing import Optional, Union
-
-# import torch
 # import torch.nn as nn
 
 
@@ -29,8 +27,8 @@ class BinaryCrossEntropy(msnn.Cell):
         super(BinaryCrossEntropy, self).__init__()
         assert 0. <= smoothing < 1.0
         if pos_weight is not None:
-            if not isinstance(pos_weight, torch.Tensor):
-                pos_weight = ms.Tensor(pos_weight)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
+            if not isinstance(pos_weight, ms.Tensor):
+                pos_weight = ms.Tensor(pos_weight)
         self.smoothing = smoothing
         self.target_threshold = target_threshold
         self.reduction = 'none' if sum_classes else reduction
@@ -50,7 +48,9 @@ class BinaryCrossEntropy(msnn.Cell):
             on_value = 1. - self.smoothing + off_value
             target = target.long().view(-1, 1)
             target = mint.full(
-                size = ((batch_size, num_classes), off_value), dtype = x.dtype).scatter_(1, target, on_value)  # 'torch.full':没有对应的mindspore参数 'device' (position 5);
+                (batch_size, num_classes),
+                off_value,
+                device=x.device, dtype=x.dtype).scatter_(1, target, on_value)
 
         if self.target_threshold is not None:
             # Make target 0, or 1 if threshold set

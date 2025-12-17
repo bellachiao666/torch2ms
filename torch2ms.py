@@ -16,6 +16,7 @@ from typing import Optional
 import libcst as cst
 from libcst import helpers as cst_helpers
 from libcst import metadata
+from tqdm import tqdm
 
 
 with open("api_mapping_out_excel.json", "r", encoding="utf8") as f:
@@ -1449,7 +1450,7 @@ def _convert_and_save(filename: str, input_root: Optional[str] = None, show_diff
     if show_diff:
         print(f"已保存 diff 到: {diff_path}")
 
-    print(f"已生成新文件: {new_filename}")
+    # print(f"已生成新文件: {new_filename}")
 
 
 if __name__ == "__main__":
@@ -1463,13 +1464,15 @@ if __name__ == "__main__":
 
     if os.path.isdir(target):
         print(f"检测到目录，开始批量转换: {target}")
+        file_list = []
         for root, _, files in os.walk(target):
             for name in files:
-                if not name.endswith(".py"):
-                    continue
-                src_path = os.path.join(root, name)
-                print(f"\n[文件] {src_path}")
-                _convert_and_save(src_path, input_root=target, show_diff=False)
+                if name.endswith(".py"):
+                    file_list.append(os.path.join(root, name))
+
+        for src_path in tqdm(file_list, desc="批量转换", unit="file"):
+            _convert_and_save(src_path, input_root=target, show_diff=False)
+
         print("\n批量转换完成。")
     else:
         abs_target = os.path.abspath(target)

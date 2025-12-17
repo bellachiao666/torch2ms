@@ -20,8 +20,8 @@
          flattened_batch_size = batch_size * inner_tuple_size
 -        targets = torch.zeros(flattened_batch_size, dtype=torch.int64)
 -        tensor = torch.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype=torch.uint8)
-+        targets = mint.zeros(flattened_batch_size, dtype = ms.int64)
-+        tensor = mint.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype = ms.uint8)
++        targets = mint.zeros(flattened_batch_size, dtype=ms.int64)
++        tensor = mint.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype=ms.uint8)
          for i in range(batch_size):
              assert len(batch[i][0]) == inner_tuple_size  # all input tensor tuples must be same length
              for j in range(inner_tuple_size):
@@ -34,20 +34,21 @@
          return tensor, targets
      elif isinstance(batch[0][0], np.ndarray):
 -        targets = torch.tensor([b[1] for b in batch], dtype=torch.int64)
-+        targets = ms.Tensor([b[1] for b in batch], dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++        targets = ms.Tensor([b[1] for b in batch], dtype=ms.int64)
          assert len(targets) == batch_size
 -        tensor = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
-+        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype = ms.uint8)
++        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype=ms.uint8)
          for i in range(batch_size):
 -            tensor[i] += torch.from_numpy(batch[i][0])
 +            tensor[i] += torch.from_numpy(batch[i][0])  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
          return tensor, targets
-     elif isinstance(batch[0][0], torch.Tensor):
+-    elif isinstance(batch[0][0], torch.Tensor):
 -        targets = torch.tensor([b[1] for b in batch], dtype=torch.int64)
-+        targets = ms.Tensor([b[1] for b in batch], dtype = ms.int64)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;
++    elif isinstance(batch[0][0], ms.Tensor):
++        targets = ms.Tensor([b[1] for b in batch], dtype=ms.int64)
          assert len(targets) == batch_size
 -        tensor = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
-+        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype = ms.uint8)
++        tensor = mint.zeros((batch_size, *batch[0][0].shape), dtype=ms.uint8)
          for i in range(batch_size):
              tensor[i].copy_(batch[i][0])
          return tensor, targets
@@ -63,24 +64,21 @@
      def __init__(
              self,
              loader: torch.utils.data.DataLoader,
-@@ -101,12 +111,12 @@         self.device = device
+@@ -101,11 +111,11 @@         self.device = device
          if fp16:
              # fp16 arg is deprecated, but will override dtype arg if set for bwd compat
 -            img_dtype = torch.float16
 -        self.img_dtype = img_dtype or torch.float32
 -        self.mean = torch.tensor(
--            [x * 255 for x in mean], device=device, dtype=img_dtype).view(normalization_shape)
--        self.std = torch.tensor(
--            [x * 255 for x in std], device=device, dtype=img_dtype).view(normalization_shape)
 +            img_dtype = ms.float16
 +        self.img_dtype = img_dtype or ms.float32
 +        self.mean = ms.Tensor(
-+            [x * 255 for x in mean], dtype = img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+             [x * 255 for x in mean], device=device, dtype=img_dtype).view(normalization_shape)
+-        self.std = torch.tensor(
 +        self.std = ms.Tensor(
-+            [x * 255 for x in std], dtype = img_dtype).view(normalization_shape)  # 'torch.tensor':默认参数名不一致(position 0): PyTorch=data, MindSpore=input_data;; 'torch.tensor':没有对应的mindspore参数 'device' (position 2);
+             [x * 255 for x in std], device=device, dtype=img_dtype).view(normalization_shape)
          if re_prob > 0.:
              self.random_erasing = RandomErasing(
-                 probability=re_prob,
 @@ -117,16 +127,16 @@             )
          else:
              self.random_erasing = None
