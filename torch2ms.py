@@ -636,6 +636,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                     return module
                 result_parts = [module]
                 result_parts.extend(suffix)
+
                 return ".".join(result_parts)
 
         if full_path.startswith("torch"):
@@ -685,6 +686,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
 
         pos_idx = 0
         force_keyword = False
+        used_keywords = set()
 
         vararg_param_names = {"tensors", "inputs"}
         if (
@@ -755,6 +757,7 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             if pt_name and pt_name in keyword_values:
                 value = keyword_values[pt_name]
                 used_keyword = True
+                used_keywords.add(pt_name)
             elif pos_idx < len(positional_values):
                 value = positional_values[pos_idx]
                 pos_idx += 1
@@ -776,6 +779,8 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                 mismatch_notes.append(
                     f"'{api_conf['pytorch']}':没有对应的mindspore参数 '{pt_name}' (position {idx});"
                 )
+                if pt_name:
+                    used_keywords.add(pt_name)
                 force_keyword = True
                 continue
 
@@ -792,6 +797,10 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             if force_keyword is False and used_keyword:
                 force_keyword = True
 
+        if pos_idx < len(positional_values):
+            mismatch_notes.append(
+                f"'{api_conf['pytorch']}':位置参数超过 MindSpore 参数数量，需手动确认;"
+            )
         for extra_val in positional_values[pos_idx:]:
             ms_args.append(cst.Arg(keyword=None, value=extra_val))
             
@@ -799,6 +808,13 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
             positional = [arg for arg in ms_args if arg.keyword is None]
             keyword = [arg for arg in ms_args if arg.keyword is not None]
             ms_args = positional + keyword
+
+        remaining_kwargs = set(keyword_values) - used_keywords
+        if remaining_kwargs:
+            names = ", ".join(sorted(remaining_kwargs))
+            mismatch_notes.append(
+                f"'{api_conf['pytorch']}':存在 MindSpore 未支持的参数 {names}，需手动确认;"
+            )
 
         return ms_args, mismatch_notes
 
@@ -821,39 +837,35 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         full_name = cst_helpers.get_full_name_for_node(updated_node.func)
         pt_full_name = self._resolve_pt_full_name(full_name)
         api_conf = None
-        missing_recorded = False
+
+        def _apply_conf(conf, replace_func: bool = True):
+            new_args, notes = self._reconstruct_args(updated_node, conf)
+            if conf["mindspore"].endswith("SequentialCell"):
+                new_args = self._wrap_sequential_args(new_args)
+            new_call = updated_node.with_changes(
+                func=cst.parse_expression(self._resolve_ms_full_name(conf["mindspore"])) if replace_func else updated_node.func,
+                args=new_args,
+            )
+            if notes:
+                self._record_note(original_node, notes)
+            return new_call
 
         if pt_full_name:
             api_conf = self.api_by_pt_full.get(pt_full_name) or self.api_by_class.get(pt_full_name.split(".")[-1])
             if api_conf:
-                new_args, notes = self._reconstruct_args(updated_node, api_conf)
-                ms_full_name = self._resolve_ms_full_name(api_conf["mindspore"])
-                if api_conf["mindspore"].endswith("SequentialCell"):
-                    new_args = self._wrap_sequential_args(new_args)
-                new_callee = cst.parse_expression(ms_full_name)
-                new_call = updated_node.with_changes(func=new_callee, args=new_args)
-                if notes:
-                    self._record_note(original_node, notes)
-                return new_call
+                return _apply_conf(api_conf)
 
         wrapper_pt_full = self.pt_assignment_wrapped.get(full_name)
         if wrapper_pt_full:
             api_conf = self.api_by_pt_full.get(wrapper_pt_full) or self.api_by_class.get(wrapper_pt_full.split(".")[-1])
             if api_conf:
-                new_args, notes = self._reconstruct_args(updated_node, api_conf)
-                if api_conf["mindspore"].endswith("SequentialCell"):
-                    new_args = self._wrap_sequential_args(new_args)
-                new_call = updated_node.with_changes(args=new_args)
-                if notes:
-                    self._record_note(original_node, notes)
-                return new_call
+                return _apply_conf(api_conf, replace_func=False)
             self._record_note(
                 original_node,
                 [f"'{wrapper_pt_full}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
             )
-            missing_recorded = True
 
-        if pt_full_name and not missing_recorded:
+        if pt_full_name and not api_conf:
             self._record_note(
                 original_node,
                 [f"'{pt_full_name}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
