@@ -1,0 +1,139 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ PyTorch Feature Extraction Helpers
+ 
+ A collection of classes, functions, modules to help extract features from models
+@@ -13,8 +18,8 @@ from functools import partial
+ from typing import Dict, List, Optional, Sequence, Tuple, Union
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from timm.layers import Format, _assert
+ from ._manipulate import checkpoint
+@@ -60,6 +65,7 @@             _assert(0 <= idx < num_features, f'feature index {idx} is out of range (0 to {num_features - 1})')
+             take_indices.append(idx)
+ 
++    # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if not torch.jit.is_scripting() and as_set:
+         return set(take_indices), max(take_indices)
+ 
+@@ -189,7 +195,7 @@             x = x[0]  # unwrap input tuple
+         self._feature_outputs[x.device][hook_id] = x
+ 
+-    def get_output(self, device) -> Dict[str, torch.tensor]:
++    def get_output(self, device) -> Dict[str, ms.Tensor]:
+         output = self._feature_outputs[device]
+         self._feature_outputs[device] = OrderedDict()  # clear after reading
+         return output
+@@ -199,7 +205,7 @@     # a yield/iter would be better for this but wouldn't be compatible with torchscript
+     ml = []
+     for name, module in module.named_children():
+-        if flatten_sequential and isinstance(module, nn.Sequential):
++        if flatten_sequential and isinstance(module, msnn.SequentialCell):
+             # first level of Sequential containers is flattened into containing model
+             for child_name, child_module in module.named_children():
+                 combined = [name, child_name]
+@@ -227,6 +233,7 @@     return return_layers
+ 
+ 
++# 'torch.nn.ModuleDict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class FeatureDictNet(nn.ModuleDict):
+     """ Feature extractor with OrderedDict return
+ 
+@@ -244,7 +251,7 @@     """
+     def __init__(
+             self,
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
+             out_map: Sequence[Union[int, str]] = None,
+             output_fmt: str = 'NCHW',
+@@ -286,9 +293,10 @@     def set_grad_checkpointing(self, enable: bool = True):
+         self.grad_checkpointing = enable
+ 
+-    def _collect(self, x) -> (Dict[str, torch.Tensor]):
++    def _collect(self, x) -> (Dict[str, ms.Tensor]):
+         out = OrderedDict()
+         for i, (name, module) in enumerate(self.items()):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 # Skipping checkpoint of first module because need a gradient at input
+                 # Skipping last because networks with in-place ops might fail w/ checkpointing enabled
+@@ -303,12 +311,12 @@                 if isinstance(x, (tuple, list)):
+                     # If model tap is a tuple or list, concat or select first element
+                     # FIXME this may need to be more generic / flexible for some nets
+-                    out[out_id] = torch.cat(x, 1) if self.concat else x[0]
++                    out[out_id] = mint.cat(x, 1) if self.concat else x[0]
+                 else:
+                     out[out_id] = x
+         return out
+ 
+-    def forward(self, x) -> Dict[str, torch.Tensor]:
++    def forward(self, x) -> Dict[str, ms.Tensor]:
+         return self._collect(x)
+ 
+ 
+@@ -319,7 +327,7 @@     """
+     def __init__(
+             self,
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
+             output_fmt: str = 'NCHW',
+             feature_concat: bool = False,
+@@ -341,10 +349,11 @@             flatten_sequential=flatten_sequential,
+         )
+ 
+-    def forward(self, x) -> (List[torch.Tensor]):
++    def forward(self, x) -> (List[ms.Tensor]):
+         return list(self._collect(x).values())
+ 
+ 
++# 'torch.nn.ModuleDict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class FeatureHookNet(nn.ModuleDict):
+     """ FeatureHookNet
+ 
+@@ -360,7 +369,7 @@     """
+     def __init__(
+             self,
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = (0, 1, 2, 3, 4),
+             out_map: Optional[Sequence[Union[int, str]]] = None,
+             return_dict: bool = False,
+@@ -382,7 +391,7 @@             default_hook_type: The default hook type to use if not specified in model.feature_info.
+         """
+         super().__init__()
+-        assert not torch.jit.is_scripting()
++        assert not torch.jit.is_scripting()  # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         self.feature_info = _get_feature_info(model, out_indices)
+         self.return_dict = return_dict
+         self.output_fmt = Format(output_fmt)
+@@ -420,6 +429,7 @@ 
+     def forward(self, x):
+         for i, (name, module) in enumerate(self.items()):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 # Skipping checkpoint of first module because need a gradient at input
+                 # Skipping last because networks with in-place ops might fail w/ checkpointing enabled
+@@ -432,6 +442,7 @@         return out if self.return_dict else list(out.values())
+ 
+ 
++# 'torch.nn.ModuleDict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class FeatureGetterNet(nn.ModuleDict):
+     """ FeatureGetterNet
+ 
+@@ -440,7 +451,7 @@     """
+     def __init__(
+             self,
+-            model: nn.Module,
++            model: msnn.Cell,
+             out_indices: OutIndicesT = 4,
+             out_map: Optional[Sequence[Union[int, str]]] = None,
+             return_dict: bool = False,

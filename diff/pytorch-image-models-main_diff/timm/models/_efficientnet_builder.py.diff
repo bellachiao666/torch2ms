@@ -1,0 +1,106 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ EfficientNet, MobileNetV3, etc Builder
+ 
+ Assembles EfficieNet and related network feature blocks from string definitions.
+@@ -14,7 +19,7 @@ from functools import partial
+ from typing import Any, Dict, List
+ 
+-import torch.nn as nn
++# import torch.nn as nn
+ 
+ from timm.layers import CondConv2d, get_condconv_initializer, get_act_layer, get_attn, make_divisible, LayerType
+ from ._efficientnet_blocks import *
+@@ -405,25 +410,25 @@ 
+         if bt == 'ir':
+             _log_info_if('  InvertedResidual {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
+-            block = CondConvResidual(**ba) if ba.get('num_experts', 0) else InvertedResidual(**ba)
++            block = CondConvResidual(**ba) if ba.get('num_experts', 0) else InvertedResidual(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif bt == 'ds' or bt == 'dsa':
+             _log_info_if('  DepthwiseSeparable {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
+-            block = DepthwiseSeparableConv(**ba)
++            block = DepthwiseSeparableConv(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif bt == 'er':
+             _log_info_if('  EdgeResidual {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
+-            block = EdgeResidual(**ba)
++            block = EdgeResidual(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif bt == 'cn':
+             _log_info_if('  ConvBnAct {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
+-            block = ConvBnAct(**ba)
++            block = ConvBnAct(**ba)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif bt == 'uir':
+             _log_info_if('  UniversalInvertedResidual {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
+-            block = UniversalInvertedResidual(**ba, layer_scale_init_value=self.layer_scale_init_value)
++            block = UniversalInvertedResidual(**ba, layer_scale_init_value=self.layer_scale_init_value)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif bt == 'mqa':
+             _log_info_if('  MobileMultiQueryAttention {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
+-            block = MobileAttention(**ba, use_multi_query=True, layer_scale_init_value=self.layer_scale_init_value)
++            block = MobileAttention(**ba, use_multi_query=True, layer_scale_init_value=self.layer_scale_init_value)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif bt == 'mha':
+             _log_info_if('  MobileMultiHeadAttention {}, Args: {}'.format(block_idx, str(ba)), self.verbose)
+-            block = MobileAttention(**ba, layer_scale_init_value=self.layer_scale_init_value)
++            block = MobileAttention(**ba, layer_scale_init_value=self.layer_scale_init_value)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             assert False, 'Unknown block type (%s) while building model.' % bt
+ 
+@@ -515,7 +520,7 @@                         stage=stack_idx + 1,
+                         reduction=current_stride,
+                         **block.feature_info(self.feature_location),
+-                    )
++                    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                     leaf_name = feature_info.get('module', '')
+                     if leaf_name:
+                         feature_info['module'] = '.'.join([f'blocks.{stack_idx}.{block_idx}', leaf_name])
+@@ -525,7 +530,7 @@                     self.features.append(feature_info)
+ 
+                 total_block_idx += 1  # incr global block idx (across all stacks)
+-            stages.append(nn.Sequential(*blocks))
++            stages.append(msnn.SequentialCell(*blocks))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         return stages
+ 
+ 
+@@ -546,31 +551,31 @@         if fix_group_fanout:
+             fan_out //= m.groups
+         init_weight_fn = get_condconv_initializer(
+-            lambda w: nn.init.normal_(w, 0, math.sqrt(2.0 / fan_out)), m.num_experts, m.weight_shape)
++            lambda w: nn.init.normal_(w, 0, math.sqrt(2.0 / fan_out)), m.num_experts, m.weight_shape)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         init_weight_fn(m.weight)
+         if m.bias is not None:
+-            nn.init.zeros_(m.bias)
++            nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(m, nn.Conv2d):
+         fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+         if fix_group_fanout:
+             fan_out //= m.groups
+-        nn.init.normal_(m.weight, 0, math.sqrt(2.0 / fan_out))
++        nn.init.normal_(m.weight, 0, math.sqrt(2.0 / fan_out))  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if m.bias is not None:
+-            nn.init.zeros_(m.bias)
++            nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(m, nn.BatchNorm2d):
+-        nn.init.ones_(m.weight)
+-        nn.init.zeros_(m.bias)
++        nn.init.ones_(m.weight)  # 'torch.nn.init.ones_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(m, nn.Linear):
+         fan_out = m.weight.size(0)  # fan-out
+         fan_in = 0
+         if 'routing_fn' in n:
+             fan_in = m.weight.size(1)
+         init_range = 1.0 / math.sqrt(fan_in + fan_out)
+-        nn.init.uniform_(m.weight, -init_range, init_range)
+-        nn.init.zeros_(m.bias)
+-
+-
+-def efficientnet_init_weights(model: nn.Module, init_fn=None):
++        nn.init.uniform_(m.weight, -init_range, init_range)  # 'torch.nn.init.uniform_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.zeros_(m.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++
++def efficientnet_init_weights(model: msnn.Cell, init_fn=None):
+     init_fn = init_fn or _init_weight_goog
+     for n, m in model.named_modules():
+         init_fn(m, n)

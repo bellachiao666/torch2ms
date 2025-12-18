@@ -1,0 +1,73 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ PyTorch Lamb optimizer w/ behaviour similar to NVIDIA FusedLamb
+ 
+ This optimizer code was adapted from the following (starting with latest)
+@@ -58,12 +63,13 @@ import math
+ from typing import Optional, Tuple
+ 
+-import torch
+-from torch.optim import Optimizer
++# import torch
++# from torch.optim import Optimizer
+ 
+ from ._types import ParamsT
+ 
+ 
++# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class Lamb(Optimizer):
+     """Implements a pure pytorch variant of FuseLAMB (NvLamb variant) optimizer from apex.optimizers.FusedLAMB
+     reference: https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/LanguageModeling/Transformer-XL/pytorch/lamb.py
+@@ -139,11 +145,13 @@                 grad = p.grad
+                 if grad.is_sparse:
+                     raise RuntimeError('Lamb does not support sparse gradients, consider SparseAdam instead.')
+-                norms.append(torch.linalg.vector_norm(grad))
+-        global_norm = torch.linalg.vector_norm(torch.stack(norms))
++                norms.append(mint.linalg.vector_norm(grad))
++        global_norm = mint.linalg.vector_norm(mint.stack(norms))
+         clip_global_norm = (global_norm / max_grad_norm).clamp_(min=1.0)
+         return clip_global_norm
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         """Performs a single optimization step.
+@@ -153,6 +161,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -190,9 +199,9 @@                 # State initialization
+                 if len(state) == 0:
+                     # Exponential moving average of gradient valuesa
+-                    state['exp_avg'] = torch.zeros_like(p)
++                    state['exp_avg'] = mint.zeros_like(p)
+                     # Exponential moving average of squared gradient values
+-                    state['exp_avg_sq'] = torch.zeros_like(p)
++                    state['exp_avg_sq'] = mint.zeros_like(p)
+ 
+                 exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
+ 
+@@ -228,14 +237,14 @@                     trust_ratio = w_norm / g_norm
+                     # FIXME nested where required since logical and/or not working in PT XLA
+                     # Set the ratio to 1.0 (no change) if either weight norm or grad norm is zero
+-                    trust_ratio = torch.where(
++                    trust_ratio = mint.where(
+                         w_norm > 0,
+-                        torch.where(g_norm > 0, trust_ratio, 1.0),
++                        mint.where(g_norm > 0, trust_ratio, 1.0),
+                         1.0,
+                     )
+                     if group['trust_clip']:
+                         # LAMBC trust clipping, upper bound fixed at one
+-                        trust_ratio = torch.clamp(trust_ratio, max=1.0)
++                        trust_ratio = mint.clamp(trust_ratio, max=1.0)
+                     update.mul_(trust_ratio)
+ 
+                 p.add_(update, alpha=-group['lr'])

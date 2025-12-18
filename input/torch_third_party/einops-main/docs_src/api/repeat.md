@@ -1,3 +1,0 @@
-# einops.repeat
-
-::: einops.repeat

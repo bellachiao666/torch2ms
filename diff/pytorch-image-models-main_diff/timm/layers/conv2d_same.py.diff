@@ -1,0 +1,69 @@
+--- pytorch+++ mindspore@@ -1,10 +1,13 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Conv2d w/ Same Padding
+ 
+ Hacked together by / Copyright 2020 Ross Wightman
+ """
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch.nn as nn
+ from typing import Tuple, Optional, Union
+ 
+ from ._fx import register_notrace_module
+@@ -17,15 +20,15 @@ 
+ def conv2d_same(
+         x,
+-        weight: torch.Tensor,
+-        bias: Optional[torch.Tensor] = None,
++        weight: ms.Tensor,
++        bias: Optional[ms.Tensor] = None,
+         stride: Tuple[int, int] = (1, 1),
+         padding: Tuple[int, int] = (0, 0),
+         dilation: Tuple[int, int] = (1, 1),
+         groups: int = 1,
+ ):
+     x = pad_same(x, weight.shape[-2:], stride, dilation)
+-    return F.conv2d(x, weight, bias, stride, (0, 0), dilation, groups)
++    return nn.functional.conv2d(x, weight, bias, stride, (0, 0), dilation, groups)
+ 
+ 
+ @register_notrace_module
+@@ -114,29 +117,22 @@             self.pad_input_size = input_size
+ 
+         x = self.pad(x)
+-        return F.conv2d(
+-            x,
+-            self.weight,
+-            self.bias,
+-            self.stride,
+-            self.padding,
+-            self.dilation,
+-            self.groups,
+-        )
++        return nn.functional.conv2d(
++            x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+ 
+ 
+ def create_conv2d_pad(in_chs, out_chs, kernel_size, **kwargs):
+     padding = kwargs.pop('padding', '')
+     kwargs.setdefault('bias', False)
+-    padding, is_dynamic = get_padding_value(padding, kernel_size, **kwargs)
++    padding, is_dynamic = get_padding_value(padding, kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     if is_dynamic:
+         if _USE_EXPORT_CONV and is_exportable():
+             # older PyTorch ver needed this to export same padding reasonably
+             assert not is_scriptable()  # Conv2DSameExport does not work with jit
+-            return Conv2dSameExport(in_chs, out_chs, kernel_size, **kwargs)
++            return Conv2dSameExport(in_chs, out_chs, kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+-            return Conv2dSame(in_chs, out_chs, kernel_size, **kwargs)
++            return Conv2dSame(in_chs, out_chs, kernel_size, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     else:
+-        return nn.Conv2d(in_chs, out_chs, kernel_size, padding=padding, **kwargs)
++        return nn.Conv2d(in_chs, out_chs, kernel_size, padding=padding, **kwargs)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+ 

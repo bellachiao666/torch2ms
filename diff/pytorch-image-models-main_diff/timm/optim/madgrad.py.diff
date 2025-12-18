@@ -1,0 +1,61 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ PyTorch MADGRAD optimizer
+ 
+ MADGRAD: https://arxiv.org/abs/2101.11075
+@@ -12,15 +17,15 @@ import math
+ from typing import TYPE_CHECKING, Any, Callable, Optional
+ 
+-import torch
+-import torch.optim
++# import torch
+ 
+ if TYPE_CHECKING:
+-    from torch.optim.optimizer import _params_t
++    # from torch.optim.optimizer import _params_t
+ else:
+     _params_t = Any
+ 
+ 
++# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class MADGRAD(torch.optim.Optimizer):
+     """
+     MADGRAD_: A Momentumized, Adaptive, Dual Averaged Gradient Method for Stochastic
+@@ -52,6 +57,7 @@             Term added to the denominator outside of the root operation to improve numerical stability. (default: 1e-6).
+     """
+ 
++    # 'torch.optim.optimizer._params_t' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             params: _params_t,
+@@ -87,6 +93,8 @@     def supports_flat_params(self) -> bool:
+         return True
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure: Optional[Callable[[], float]] = None) -> Optional[float]:
+         """Performs a single optimization step.
+@@ -96,6 +104,7 @@         """
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -116,10 +125,10 @@                 state = self.state[p]
+                 if len(state) == 0:
+                     state['step'] = 0
+-                    state['grad_sum_sq'] = torch.zeros_like(p)
+-                    state['s'] = torch.zeros_like(p)
++                    state['grad_sum_sq'] = mint.zeros_like(p)
++                    state['s'] = mint.zeros_like(p)
+                     if momentum != 0:
+-                        state['x0'] = torch.clone(p).detach()
++                        state['x0'] = mint.clone(p).detach()
+ 
+                 state['step'] += 1
+                 grad_sum_sq = state['grad_sum_sq']

@@ -1,0 +1,771 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Cross-Covariance Image Transformer (XCiT) in PyTorch
+ 
+ Paper:
+@@ -15,8 +20,8 @@ from functools import partial
+ from typing import List, Optional, Tuple, Union, Type, Any
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import DropPath, trunc_normal_, to_2tuple, use_fused_attn, Mlp
+@@ -31,7 +36,7 @@ 
+ 
+ @register_notrace_module  # reason: FX can't symbolically trace torch.arange in forward method
+-class PositionalEncodingFourier(nn.Module):
++class PositionalEncodingFourier(msnn.Cell):
+     """
+     Positional encoding relying on a fourier kernel matching the one used in the "Attention is all you Need" paper.
+     Based on the official XCiT code
+@@ -48,27 +53,27 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)
++        self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.scale = 2 * math.pi
+         self.temperature = temperature
+         self.hidden_dim = hidden_dim
+         self.dim = dim
+         self.eps = 1e-6
+ 
+-    def forward(self, B: int, H: int, W: int):
++    def construct(self, B: int, H: int, W: int):
+         device = self.token_projection.weight.device
+         dtype = self.token_projection.weight.dtype
+-        y_embed = torch.arange(1, H + 1, device=device).to(torch.float32).unsqueeze(1).repeat(1, 1, W)
+-        x_embed = torch.arange(1, W + 1, device=device).to(torch.float32).repeat(1, H, 1)
++        y_embed = mint.arange(1, H + 1, device=device).to(ms.float32).unsqueeze(1).repeat(1, 1, W)
++        x_embed = mint.arange(1, W + 1, device=device).to(ms.float32).repeat(1, H, 1)
+         y_embed = y_embed / (y_embed[:, -1:, :] + self.eps) * self.scale
+         x_embed = x_embed / (x_embed[:, :, -1:] + self.eps) * self.scale
+-        dim_t = torch.arange(self.hidden_dim, device=device).to(torch.float32)
+-        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode='floor') / self.hidden_dim)
++        dim_t = mint.arange(self.hidden_dim, device=device).to(ms.float32)
++        dim_t = self.temperature ** (2 * mint.div(dim_t, 2, rounding_mode='floor') / self.hidden_dim)
+         pos_x = x_embed[:, :, :, None] / dim_t
+         pos_y = y_embed[:, :, :, None] / dim_t
+-        pos_x = torch.stack([pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()], dim=4).flatten(3)
+-        pos_y = torch.stack([pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()], dim=4).flatten(3)
+-        pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
++        pos_x = mint.stack([pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()], dim=4).flatten(3)
++        pos_y = mint.stack([pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()], dim=4).flatten(3)
++        pos = mint.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
+         pos = self.token_projection(pos.to(dtype))
+         return pos.repeat(B, 1, 1, 1)  # (B, C, H, W)
+ 
+@@ -76,13 +81,14 @@ def conv3x3(in_planes, out_planes, stride=1, device=None, dtype=None):
+     """3x3 convolution + batch norm"""
+     dd = {'device': device, 'dtype': dtype}
+-    return torch.nn.Sequential(
++    return msnn.SequentialCell(
++        [
+         nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False, **dd),
+         nn.BatchNorm2d(out_planes, **dd)
+-    )
+-
+-
+-class ConvPatchEmbed(nn.Module):
++    ])  # 存在 *args/**kwargs，需手动确认参数映射;
++
++
++class ConvPatchEmbed(msnn.Cell):
+     """Image to Patch Embedding using multiple convolutional layers"""
+ 
+     def __init__(
+@@ -91,7 +97,7 @@             patch_size: int = 16,
+             in_chans: int = 3,
+             embed_dim: int = 768,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             device=None,
+             dtype=None,
+     ):
+@@ -104,34 +110,36 @@         self.num_patches = num_patches
+ 
+         if patch_size == 16:
+-            self.proj = torch.nn.Sequential(
++            self.proj = msnn.SequentialCell(
++                [
+                 conv3x3(in_chans, embed_dim // 8, 2, **dd),
+                 act_layer(),
+                 conv3x3(embed_dim // 8, embed_dim // 4, 2, **dd),
+                 act_layer(),
+                 conv3x3(embed_dim // 4, embed_dim // 2, 2, **dd),
+                 act_layer(),
+-                conv3x3(embed_dim // 2, embed_dim, 2, **dd),
+-            )
++                conv3x3(embed_dim // 2, embed_dim, 2, **dd)
++            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         elif patch_size == 8:
+-            self.proj = torch.nn.Sequential(
++            self.proj = msnn.SequentialCell(
++                [
+                 conv3x3(in_chans, embed_dim // 4, 2, **dd),
+                 act_layer(),
+                 conv3x3(embed_dim // 4, embed_dim // 2, 2, **dd),
+                 act_layer(),
+-                conv3x3(embed_dim // 2, embed_dim, 2, **dd),
+-            )
++                conv3x3(embed_dim // 2, embed_dim, 2, **dd)
++            ])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             raise('For convolutional projection, patch size has to be in [8, 16]')
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.proj(x)
+         Hp, Wp = x.shape[2], x.shape[3]
+         x = x.flatten(2).transpose(1, 2)  # (B, N, C)
+         return x, (Hp, Wp)
+ 
+ 
+-class LPI(nn.Module):
++class LPI(msnn.Cell):
+     """
+     Local Patch Interaction module that allows explicit communication between tokens in 3x3 windows to augment the
+     implicit communication performed by the block diagonal scatter attention. Implemented using 2 layers of separable
+@@ -142,7 +150,7 @@             self,
+             in_features: int,
+             out_features: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             kernel_size: int = 3,
+             device=None,
+             dtype=None,
+@@ -152,14 +160,14 @@         out_features = out_features or in_features
+         padding = kernel_size // 2
+ 
+-        self.conv1 = torch.nn.Conv2d(
+-            in_features, in_features, kernel_size=kernel_size, padding=padding, groups=in_features, **dd)
++        self.conv1 = nn.Conv2d(
++            in_features, in_features, kernel_size=kernel_size, padding=padding, groups=in_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.act = act_layer()
+-        self.bn = nn.BatchNorm2d(in_features, **dd)
+-        self.conv2 = torch.nn.Conv2d(
+-            in_features, out_features, kernel_size=kernel_size, padding=padding, groups=out_features, **dd)
+-
+-    def forward(self, x, H: int, W: int):
++        self.bn = nn.BatchNorm2d(in_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.conv2 = nn.Conv2d(
++            in_features, out_features, kernel_size=kernel_size, padding=padding, groups=out_features, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++    def construct(self, x, H: int, W: int):
+         B, N, C = x.shape
+         x = x.permute(0, 2, 1).reshape(B, C, H, W)
+         x = self.conv1(x)
+@@ -170,7 +178,7 @@         return x
+ 
+ 
+-class ClassAttentionBlock(nn.Module):
++class ClassAttentionBlock(msnn.Cell):
+     """Class Attention Layer as in CaiT https://arxiv.org/abs/2103.17239"""
+ 
+     def __init__(
+@@ -182,8 +190,8 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             eta: Optional[float] = 1.,
+             tokens_norm: bool = False,
+             device=None,
+@@ -191,7 +199,7 @@     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.norm1 = norm_layer(dim, **dd)
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = ClassAttn(
+             dim,
+             num_heads=num_heads,
+@@ -199,47 +207,47 @@             attn_drop=attn_drop,
+             proj_drop=proj_drop,
+             **dd,
+-        )
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-        self.norm2 = norm_layer(dim, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp = Mlp(
+             in_features=dim,
+             hidden_features=int(dim * mlp_ratio),
+             act_layer=act_layer,
+             drop=proj_drop,
+             **dd,
+-        )
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+ 
+         if eta is not None:  # LayerScale Initialization (no layerscale when None)
+-            self.gamma1 = nn.Parameter(eta * torch.ones(dim, **dd))
+-            self.gamma2 = nn.Parameter(eta * torch.ones(dim, **dd))
++            self.gamma1 = ms.Parameter(eta * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.gamma2 = ms.Parameter(eta * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.gamma1, self.gamma2 = 1.0, 1.0
+ 
+         # See https://github.com/rwightman/pytorch-image-models/pull/747#issuecomment-877795721
+         self.tokens_norm = tokens_norm
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x_norm1 = self.norm1(x)
+-        x_attn = torch.cat([self.attn(x_norm1), x_norm1[:, 1:]], dim=1)
++        x_attn = mint.cat([self.attn(x_norm1), x_norm1[:, 1:]], dim=1)
+         x = x + self.drop_path1(self.gamma1 * x_attn)
+ 
+         if self.tokens_norm:
+             x = self.norm2(x)
+         else:
+-            x = torch.cat([self.norm2(x[:, 0:1]), x[:, 1:]], dim=1)
++            x = mint.cat([self.norm2(x[:, 0:1]), x[:, 1:]], dim=1)
+         x_res = x
+         cls_token = x[:, 0:1]
+         cls_token = self.gamma2 * self.mlp(cls_token)
+-        x = torch.cat([cls_token, x[:, 1:]], dim=1)
++        x = mint.cat([cls_token, x[:, 1:]], dim=1)
+         x = x_res + self.drop_path2(x)
+         return x
+ 
+ 
+-class XCA(nn.Module):
+-    fused_attn: torch.jit.Final[bool]
++class XCA(msnn.Cell):
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     """ Cross-Covariance Attention (XCA)
+     Operation where the channels are updated using a weighted sum. The weights are obtained from the (softmax
+     normalized) Cross-covariance matrix (Q^T \\cdot K \\in d_h \\times d_h)
+@@ -259,26 +267,26 @@         super().__init__()
+         self.num_heads = num_heads
+         self.fused_attn = use_fused_attn(experimental=True)
+-        self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1, **dd))
+-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
++        self.temperature = ms.Parameter(mint.ones(num_heads, 1, 1, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.attn_drop = nn.Dropout(attn_drop)
+-        self.proj = nn.Linear(dim, dim, **dd)
++        self.proj = nn.Linear(dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.proj_drop = nn.Dropout(proj_drop)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         B, N, C = x.shape
+         # Result of next line is (qkv, B, num (H)eads,  (C')hannels per head, N)
+         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 4, 1)
+         q, k, v = qkv.unbind(0)  # make torchscript happy (cannot use tensor as tuple)
+ 
+         if self.fused_attn:
+-            q = torch.nn.functional.normalize(q, dim=-1) * self.temperature
+-            k = torch.nn.functional.normalize(k, dim=-1)
+-            x = torch.nn.functional.scaled_dot_product_attention(q, k, v, scale=1.0)
++            q = nn.functional.normalize(q, dim = -1) * self.temperature
++            k = nn.functional.normalize(k, dim = -1)
++            x = torch.nn.functional.scaled_dot_product_attention(q, k, v, scale=1.0)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             # Paper section 3.2 l2-Normalization and temperature scaling
+-            q = torch.nn.functional.normalize(q, dim=-1)
+-            k = torch.nn.functional.normalize(k, dim=-1)
++            q = nn.functional.normalize(q, dim = -1)
++            k = nn.functional.normalize(k, dim = -1)
+             attn = (q @ k.transpose(-2, -1)) * self.temperature
+             attn = attn.softmax(dim=-1)
+             attn = self.attn_drop(attn)
+@@ -289,12 +297,12 @@         x = self.proj_drop(x)
+         return x
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def no_weight_decay(self):
+         return {'temperature'}
+ 
+ 
+-class XCABlock(nn.Module):
++class XCABlock(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -304,15 +312,15 @@             proj_drop: float = 0.,
+             attn_drop: float = 0.,
+             drop_path: float = 0.,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             eta: float = 1.,
+             device=None,
+             dtype=None,
+     ):
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.norm1 = norm_layer(dim, **dd)
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = XCA(
+             dim,
+             num_heads=num_heads,
+@@ -320,28 +328,28 @@             attn_drop=attn_drop,
+             proj_drop=proj_drop,
+             **dd,
+-        )
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-        self.norm3 = norm_layer(dim, **dd)
+-        self.local_mp = LPI(in_features=dim, act_layer=act_layer, **dd)
+-        self.drop_path3 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-        self.norm2 = norm_layer(dim, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++        self.norm3 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.local_mp = LPI(in_features=dim, act_layer=act_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path3 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp = Mlp(
+             in_features=dim,
+             hidden_features=int(dim * mlp_ratio),
+             act_layer=act_layer,
+             drop=proj_drop,
+             **dd,
+-        )
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-        self.gamma1 = nn.Parameter(eta * torch.ones(dim, **dd))
+-        self.gamma3 = nn.Parameter(eta * torch.ones(dim, **dd))
+-        self.gamma2 = nn.Parameter(eta * torch.ones(dim, **dd))
+-
+-    def forward(self, x, H: int, W: int):
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++        self.gamma1 = ms.Parameter(eta * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma3 = ms.Parameter(eta * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.gamma2 = ms.Parameter(eta * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    def construct(self, x, H: int, W: int):
+         x = x + self.drop_path1(self.gamma1 * self.attn(self.norm1(x)))
+         # NOTE official code has 3 then 2, so keeping it the same to be consistent with loaded weights
+         # See https://github.com/rwightman/pytorch-image-models/pull/747#issuecomment-877795721
+@@ -350,7 +358,7 @@         return x
+ 
+ 
+-class Xcit(nn.Module):
++class Xcit(msnn.Cell):
+     """
+     Based on timm and DeiT code bases
+     https://github.com/rwightman/pytorch-image-models/tree/master/timm
+@@ -374,8 +382,8 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            act_layer: Optional[Type[nn.Module]] = None,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            act_layer: Optional[Type[msnn.Cell]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             cls_attn_layers: int = 2,
+             use_pos_embed: bool = True,
+             eta: float = 1.,
+@@ -430,17 +438,17 @@             embed_dim=embed_dim,
+             act_layer=act_layer,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         r = patch_size
+ 
+-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd))
++        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if use_pos_embed:
+-            self.pos_embed = PositionalEncodingFourier(dim=embed_dim, **dd)
++            self.pos_embed = PositionalEncodingFourier(dim=embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.pos_embed = None
+-        self.pos_drop = nn.Dropout(p=pos_drop_rate)
+-
+-        self.blocks = nn.ModuleList([
++        self.pos_drop = nn.Dropout(p = pos_drop_rate)
++
++        self.blocks = msnn.CellList([
+             XCABlock(
+                 dim=embed_dim,
+                 num_heads=num_heads,
+@@ -454,10 +462,10 @@                 eta=eta,
+                 **dd,
+             )
+-            for _ in range(depth)])
++            for _ in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.feature_info = [dict(num_chs=embed_dim, reduction=r, module=f'blocks.{i}') for i in range(depth)]
+ 
+-        self.cls_attn_blocks = nn.ModuleList([
++        self.cls_attn_blocks = msnn.CellList([
+             ClassAttentionBlock(
+                 dim=embed_dim,
+                 num_heads=num_heads,
+@@ -471,12 +479,12 @@                 tokens_norm=tokens_norm,
+                 **dd,
+             )
+-            for _ in range(cls_attn_layers)])
++            for _ in range(cls_attn_layers)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Classifier head
+-        self.norm = norm_layer(embed_dim, **dd)
++        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.head_drop = nn.Dropout(drop_rate)
+-        self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+         # Init weights
+         trunc_normal_(self.cls_token, std=.02)
+@@ -486,13 +494,13 @@         if isinstance(m, nn.Linear):
+             trunc_normal_(m.weight, std=.02)
+             if isinstance(m, nn.Linear) and m.bias is not None:
+-                nn.init.constant_(m.bias, 0)
+-
+-    @torch.jit.ignore
++                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    @ms.jit
+     def no_weight_decay(self):
+         return {'pos_embed', 'cls_token'}
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse=False):
+         return dict(
+             stem=r'^cls_token|pos_embed|patch_embed',  # stem and embed
+@@ -500,12 +508,12 @@             cls_attn_blocks=[(r'^cls_attn_blocks\.(\d+)', None), (r'^norm', (99999,))]
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
+-    def get_classifier(self) -> nn.Module:
++    @ms.jit
++    def get_classifier(self) -> msnn.Cell:
+         return self.head
+ 
+     def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+@@ -515,17 +523,17 @@             self.global_pool = global_pool
+         device = self.head.weight.device if hasattr(self.head, 'weight') else None
+         dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
+-        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.num_features, num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -552,11 +560,13 @@             x = x + pos_encoding
+         x = self.pos_drop(x)
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, Hp, Wp)
+             else:
+@@ -574,8 +584,9 @@             return intermediates
+ 
+         # NOTE not supporting return of class tokens
+-        x = torch.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
++        x = mint.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
+         for blk in self.cls_attn_blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -596,9 +607,9 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+         self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+-            self.cls_attn_blocks = nn.ModuleList()  # prune token blocks with head
++            self.cls_attn_blocks = msnn.CellList()  # prune token blocks with head
+             self.reset_classifier(0, '')
+         return take_indices
+ 
+@@ -614,14 +625,16 @@         x = self.pos_drop(x)
+ 
+         for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, Hp, Wp)
+             else:
+                 x = blk(x, Hp, Wp)
+ 
+-        x = torch.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
++        x = mint.cat((self.cls_token.expand(B, -1, -1), x), dim=1)
+ 
+         for blk in self.cls_attn_blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -636,7 +649,7 @@         x = self.head_drop(x)
+         return x if pre_logits else self.head(x)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
+@@ -680,7 +693,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -832,7 +845,7 @@ def xcit_nano_12_p16_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
+-    model = _create_xcit('xcit_nano_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_nano_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -840,7 +853,7 @@ def xcit_nano_12_p16_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False, img_size=384)
+-    model = _create_xcit('xcit_nano_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_nano_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -848,7 +861,7 @@ def xcit_tiny_12_p16_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -856,7 +869,7 @@ def xcit_tiny_12_p16_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -864,7 +877,7 @@ def xcit_small_12_p16_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_small_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -872,7 +885,7 @@ def xcit_small_12_p16_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_small_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -880,7 +893,7 @@ def xcit_tiny_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -888,7 +901,7 @@ def xcit_tiny_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -896,7 +909,7 @@ def xcit_small_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_small_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -904,7 +917,7 @@ def xcit_small_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_small_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -912,7 +925,7 @@ def xcit_medium_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_medium_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_medium_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -920,7 +933,7 @@ def xcit_medium_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_medium_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_medium_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -928,7 +941,7 @@ def xcit_large_24_p16_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_large_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_large_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -936,7 +949,7 @@ def xcit_large_24_p16_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=16, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_large_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_large_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -945,7 +958,7 @@ def xcit_nano_12_p8_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
+-    model = _create_xcit('xcit_nano_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_nano_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -953,7 +966,7 @@ def xcit_nano_12_p8_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
+-    model = _create_xcit('xcit_nano_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_nano_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -961,7 +974,7 @@ def xcit_tiny_12_p8_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -969,7 +982,7 @@ def xcit_tiny_12_p8_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -977,7 +990,7 @@ def xcit_small_12_p8_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_small_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -985,7 +998,7 @@ def xcit_small_12_p8_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
+-    model = _create_xcit('xcit_small_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -993,7 +1006,7 @@ def xcit_tiny_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1001,7 +1014,7 @@ def xcit_tiny_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_tiny_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_tiny_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1009,7 +1022,7 @@ def xcit_small_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_small_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1017,7 +1030,7 @@ def xcit_small_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_small_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_small_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1025,7 +1038,7 @@ def xcit_medium_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_medium_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_medium_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1033,7 +1046,7 @@ def xcit_medium_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_medium_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_medium_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1041,7 +1054,7 @@ def xcit_large_24_p8_224(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_large_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_large_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -1049,7 +1062,7 @@ def xcit_large_24_p8_384(pretrained=False, **kwargs) -> Xcit:
+     model_args = dict(
+         patch_size=8, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
+-    model = _create_xcit('xcit_large_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_xcit('xcit_large_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 

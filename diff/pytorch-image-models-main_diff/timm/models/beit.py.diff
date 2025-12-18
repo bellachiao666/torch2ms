@@ -1,0 +1,506 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ BEiT: BERT Pre-Training of Image Transformers (https://arxiv.org/abs/2106.08254)
+ 
+ Model from official source: https://github.com/microsoft/unilm/tree/master/beit
+@@ -41,9 +46,9 @@ import math
+ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.nn as nn
++# import torch.nn.functional as F
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import (
+@@ -69,7 +74,7 @@ __all__ = ['Beit']
+ 
+ 
+-def gen_relative_position_index(window_size: Tuple[int, int], device=None) -> torch.Tensor:
++def gen_relative_position_index(window_size: Tuple[int, int], device=None) -> ms.Tensor:
+     """Generate relative position index for window-based attention.
+ 
+     Creates a lookup table for relative position indices between all pairs of positions
+@@ -86,17 +91,17 @@     # cls to token & token 2 cls & cls to cls
+     # get pair-wise relative position index for each token inside the window
+     window_area = window_size[0] * window_size[1]
+-    coords = torch.stack(ndgrid(
+-        torch.arange(window_size[0], device=device, dtype=torch.long),
+-        torch.arange(window_size[1], device=device, dtype=torch.long),
++    coords = mint.stack(ndgrid(
++        mint.arange(window_size[0], device=device, dtype=ms.int64),
++        mint.arange(window_size[1], device=device, dtype=ms.int64),
+     ))  # 2, Wh, Ww
+-    coords_flatten = torch.flatten(coords, 1)  # 2, Wh*Ww
++    coords_flatten = mint.flatten(coords, 1)  # 2, Wh*Ww
+     relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
+     relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # Wh*Ww, Wh*Ww, 2
+     relative_coords[:, :, 0] += window_size[0] - 1  # shift to start from 0
+     relative_coords[:, :, 1] += window_size[1] - 1
+     relative_coords[:, :, 0] *= 2 * window_size[1] - 1
+-    relative_position_index = torch.zeros(size=(window_area + 1,) * 2, device=device, dtype=relative_coords.dtype)
++    relative_position_index = mint.zeros(size=(window_area + 1,) * 2, device=device, dtype=relative_coords.dtype)
+     relative_position_index[1:, 1:] = relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
+     relative_position_index[0, 0:] = num_relative_distance - 3
+     relative_position_index[0:, 0] = num_relative_distance - 2
+@@ -104,13 +109,13 @@     return relative_position_index
+ 
+ 
+-class Attention(nn.Module):
++class Attention(msnn.Cell):
+     """Multi-head attention module with optional relative position bias.
+ 
+     Implements multi-head self-attention with support for relative position bias
+     and fused attention operations. Can use either standard or custom head dimensions.
+     """
+-    fused_attn: torch.jit.Final[bool]
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
+@@ -148,11 +153,11 @@         self.fused_attn = use_fused_attn()
+         self.qkv_bias_separate = qkv_bias_separate
+ 
+-        self.qkv = nn.Linear(dim, all_head_dim * 3, bias=False, **dd)
++        self.qkv = nn.Linear(dim, all_head_dim * 3, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         if qkv_bias:
+-            self.q_bias = nn.Parameter(torch.zeros(all_head_dim, **dd))
+-            self.register_buffer('k_bias', torch.zeros(all_head_dim, **dd), persistent=False)
+-            self.v_bias = nn.Parameter(torch.zeros(all_head_dim, **dd))
++            self.q_bias = ms.Parameter(mint.zeros(all_head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.register_buffer('k_bias', mint.zeros(all_head_dim, **dd), persistent=False)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.v_bias = ms.Parameter(mint.zeros(all_head_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.q_bias = None
+             self.k_bias = None
+@@ -161,8 +166,8 @@         if window_size:
+             self.window_size = window_size
+             self.num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3
+-            self.relative_position_bias_table = nn.Parameter(
+-                torch.zeros(self.num_relative_distance, num_heads, **dd))  # 2*Wh-1 * 2*Ww-1, nH
++            self.relative_position_bias_table = ms.Parameter(
++                mint.zeros(self.num_relative_distance, num_heads, **dd))  # 2*Wh-1 * 2*Ww-1, nH; 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             self.register_buffer(
+                 "relative_position_index",
+                 gen_relative_position_index(window_size, device=device),
+@@ -174,10 +179,10 @@             self.relative_position_index = None
+ 
+         self.attn_drop = nn.Dropout(attn_drop)
+-        self.proj = nn.Linear(all_head_dim, dim, **dd)
++        self.proj = nn.Linear(all_head_dim, dim, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.proj_drop = nn.Dropout(proj_drop)
+ 
+-    def _get_rel_pos_bias(self) -> torch.Tensor:
++    def _get_rel_pos_bias(self) -> ms.Tensor:
+         """Get relative position bias for the attention window.
+ 
+         Returns:
+@@ -190,7 +195,7 @@         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
+         return relative_position_bias.unsqueeze(0)
+ 
+-    def forward(self, x: torch.Tensor, shared_rel_pos_bias: Optional[torch.Tensor] = None) -> torch.Tensor:
++    def construct(self, x: ms.Tensor, shared_rel_pos_bias: Optional[ms.Tensor] = None) -> ms.Tensor:
+         """Forward pass of attention module.
+ 
+         Args:
+@@ -205,12 +210,12 @@         if self.q_bias is None:
+             qkv = self.qkv(x)
+         else:
+-            qkv_bias = torch.cat((self.q_bias, self.k_bias, self.v_bias))
++            qkv_bias = mint.cat((self.q_bias, self.k_bias, self.v_bias))
+             if self.qkv_bias_separate:
+                 qkv = self.qkv(x)
+                 qkv += qkv_bias
+             else:
+-                qkv = F.linear(x, weight=self.qkv.weight, bias=qkv_bias)
++                qkv = nn.functional.linear(x, weight = self.qkv.weight, bias = qkv_bias)
+         qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+         q, k, v = qkv.unbind(0)  # B, num_heads, N, head_dim
+ 
+@@ -227,7 +232,7 @@                 q, k, v,
+                 attn_mask=rel_pos_bias,
+                 dropout_p=self.attn_drop.p if self.training else 0.,
+-            )
++            )  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = (q @ k.transpose(-2, -1))
+@@ -247,7 +252,7 @@         return x
+ 
+ 
+-class Block(nn.Module):
++class Block(msnn.Cell):
+     """Transformer block with attention and MLP.
+ 
+     Standard transformer block consisting of multi-head self-attention and MLP
+@@ -267,8 +272,8 @@             attn_drop: float = 0.,
+             drop_path: float = 0.,
+             init_values: Optional[float] = None,
+-            act_layer: Type[nn.Module] = nn.GELU,
+-            norm_layer: Type[nn.Module] = LayerNorm,
++            act_layer: Type[msnn.Cell] = nn.GELU,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
+             window_size: Optional[Tuple[int, int]] = None,
+             attn_head_dim: Optional[int] = None,
+             device=None,
+@@ -294,7 +299,7 @@         """
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.norm1 = norm_layer(dim, **dd)
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = Attention(
+             dim,
+             num_heads=num_heads,
+@@ -304,11 +309,11 @@             window_size=window_size,
+             attn_head_dim=attn_head_dim,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-        self.norm2 = norm_layer(dim, **dd)
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         if swiglu_mlp:
+             self.mlp = SwiGLU(
+                 in_features=dim,
+@@ -316,7 +321,7 @@                 norm_layer=norm_layer if scale_mlp else None,
+                 drop=proj_drop,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.mlp = Mlp(
+                 in_features=dim,
+@@ -325,16 +330,16 @@                 norm_layer=norm_layer if scale_mlp else None,
+                 drop=proj_drop,
+                 **dd,
+-            )
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
+ 
+         if init_values:
+-            self.gamma_1 = nn.Parameter(init_values * torch.ones(dim, **dd))
+-            self.gamma_2 = nn.Parameter(init_values * torch.ones(dim, **dd))
++            self.gamma_1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.gamma_2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.gamma_1, self.gamma_2 = None, None
+ 
+-    def forward(self, x: torch.Tensor, shared_rel_pos_bias: Optional[torch.Tensor] = None) -> torch.Tensor:
++    def construct(self, x: ms.Tensor, shared_rel_pos_bias: Optional[ms.Tensor] = None) -> ms.Tensor:
+         """Forward pass of transformer block.
+ 
+         Args:
+@@ -353,7 +358,7 @@         return x
+ 
+ 
+-class RelativePositionBias(nn.Module):
++class RelativePositionBias(msnn.Cell):
+     """Relative position bias module for window-based attention.
+ 
+     Generates learnable relative position biases for all pairs of positions
+@@ -372,11 +377,11 @@         self.window_size = window_size
+         self.window_area = window_size[0] * window_size[1]
+         num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3
+-        self.relative_position_bias_table = nn.Parameter(torch.zeros(num_relative_distance, num_heads, **dd))
++        self.relative_position_bias_table = ms.Parameter(mint.zeros(num_relative_distance, num_heads, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         # trunc_normal_(self.relative_position_bias_table, std=.02)
+         self.register_buffer("relative_position_index", gen_relative_position_index(window_size))
+ 
+-    def forward(self) -> torch.Tensor:
++    def construct(self) -> ms.Tensor:
+         """Generate relative position bias.
+ 
+         Returns:
+@@ -387,7 +392,7 @@         return relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
+ 
+ 
+-class Beit(nn.Module):
++class Beit(msnn.Cell):
+     """BEiT: BERT Pre-Training of Image Transformers.
+ 
+     Vision Transformer model with support for relative position bias and
+@@ -414,7 +419,7 @@             proj_drop_rate: float = 0.,
+             attn_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+-            norm_layer: Type[nn.Module] = LayerNorm,
++            norm_layer: Type[msnn.Cell] = LayerNorm,
+             init_values: Optional[float] = None,
+             use_abs_pos_emb: bool = True,
+             use_rel_pos_bias: bool = False,
+@@ -464,26 +469,26 @@             in_chans=in_chans,
+             embed_dim=embed_dim,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         num_patches = self.patch_embed.num_patches
+         r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
+ 
+-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim, **dd))
++        self.cls_token = ms.Parameter(mint.zeros(1, 1, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         # self.mask_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+-        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim, **dd)) if use_abs_pos_emb else None
+-        self.pos_drop = nn.Dropout(p=pos_drop_rate)
++        self.pos_embed = ms.Parameter(mint.zeros(1, num_patches + 1, embed_dim, **dd)) if use_abs_pos_emb else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.pos_drop = nn.Dropout(p = pos_drop_rate)
+ 
+         if use_shared_rel_pos_bias:
+             self.rel_pos_bias = RelativePositionBias(
+                 window_size=self.patch_embed.grid_size,
+                 num_heads=num_heads,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.rel_pos_bias = None
+ 
+         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
+-        self.blocks = nn.ModuleList([
++        self.blocks = msnn.CellList([
+             Block(
+                 dim=embed_dim,
+                 num_heads=num_heads,
+@@ -499,15 +504,15 @@                 window_size=self.patch_embed.grid_size if use_rel_pos_bias else None,
+                 **dd,
+             )
+-            for i in range(depth)])
++            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.feature_info = [
+             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
+ 
+         use_fc_norm = self.global_pool == 'avg'
+-        self.norm = nn.Identity() if use_fc_norm else norm_layer(embed_dim, **dd)
+-        self.fc_norm = norm_layer(embed_dim, **dd) if use_fc_norm else nn.Identity()
++        self.norm = msnn.Identity() if use_fc_norm else norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.fc_norm = norm_layer(embed_dim, **dd) if use_fc_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.head_drop = nn.Dropout(drop_rate)
+-        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+         self.apply(self._init_weights)
+         if self.pos_embed is not None:
+@@ -533,7 +538,7 @@             rescale(layer.attn.proj.weight.data, layer_id + 1)
+             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
+ 
+-    def _init_weights(self, m: nn.Module):
++    def _init_weights(self, m: msnn.Cell):
+         """Initialize model weights.
+ 
+         Args:
+@@ -542,12 +547,12 @@         if isinstance(m, nn.Linear):
+             trunc_normal_(m.weight, std=.02)
+             if isinstance(m, nn.Linear) and m.bias is not None:
+-                nn.init.constant_(m.bias, 0)
++                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         elif isinstance(m, nn.LayerNorm):
+-            nn.init.constant_(m.bias, 0)
+-            nn.init.constant_(m.weight, 1.0)
+-
+-    @torch.jit.ignore
++            nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    @ms.jit
+     def no_weight_decay(self) -> Set[str]:
+         """Get parameter names that should not use weight decay.
+ 
+@@ -560,7 +565,7 @@                 nwd.add(n)
+         return nwd
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True):
+         """Enable or disable gradient checkpointing.
+ 
+@@ -569,7 +574,7 @@         """
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+         """Create parameter group matcher for optimizer parameter groups.
+ 
+@@ -585,8 +590,8 @@         )
+         return matcher
+ 
+-    @torch.jit.ignore
+-    def get_classifier(self) -> nn.Module:
++    @ms.jit
++    def get_classifier(self) -> msnn.Cell:
+         """Get the classifier head.
+ 
+         Returns:
+@@ -604,18 +609,18 @@         self.num_classes = num_classes
+         if global_pool is not None:
+             self.global_pool = global_pool
+-        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else msnn.Identity()
+ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             return_prefix_tokens: bool = False,
+             norm: bool = False,
+             stop_early: bool = False,
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward pass that returns intermediate feature maps.
+ 
+         Args:
+@@ -639,17 +644,19 @@         # forward pass
+         B, _, height, width = x.shape
+         x = self.patch_embed(x)
+-        x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
++        x = mint.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
+         if self.pos_embed is not None:
+             x = x + self.pos_embed
+         x = self.pos_drop(x)
+ 
+         rel_pos_bias = self.rel_pos_bias() if self.rel_pos_bias is not None else None
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, shared_rel_pos_bias=rel_pos_bias)
+             else:
+@@ -667,6 +674,7 @@             # reshape to BCHW output format
+             H, W = self.patch_embed.dynamic_feat_size((height, width))
+             intermediates = [y.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous() for y in intermediates]
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if not torch.jit.is_scripting() and return_prefix_tokens:
+             # return_prefix not support in torchscript due to poor type handling
+             intermediates = list(zip(intermediates, prefix_tokens))
+@@ -697,13 +705,13 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+         self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+-            self.fc_norm = nn.Identity()
++            self.fc_norm = msnn.Identity()
+             self.reset_classifier(0, '')
+         return take_indices
+ 
+-    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
++    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass through feature extraction layers.
+ 
+         Args:
+@@ -713,13 +721,14 @@             Feature tensor of shape (batch_size, num_tokens, embed_dim).
+         """
+         x = self.patch_embed(x)
+-        x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
++        x = mint.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
+         if self.pos_embed is not None:
+             x = x + self.pos_embed
+         x = self.pos_drop(x)
+ 
+         rel_pos_bias = self.rel_pos_bias() if self.rel_pos_bias is not None else None
+         for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x, shared_rel_pos_bias=rel_pos_bias)
+             else:
+@@ -727,7 +736,7 @@         x = self.norm(x)
+         return x
+ 
+-    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
++    def forward_head(self, x: ms.Tensor, pre_logits: bool = False) -> ms.Tensor:
+         """Forward pass through classification head.
+ 
+         Args:
+@@ -743,7 +752,7 @@         x = self.head_drop(x)
+         return x if pre_logits else self.head(x)
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass through the model.
+ 
+         Args:
+@@ -844,7 +853,7 @@ })
+ 
+ 
+-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module, interpolation: str = 'bicubic', antialias: bool = True) -> Dict[str, torch.Tensor]:
++def checkpoint_filter_fn(state_dict: Dict[str, ms.Tensor], model: msnn.Cell, interpolation: str = 'bicubic', antialias: bool = True) -> Dict[str, ms.Tensor]:
+     """Filter and process checkpoint state dict for loading.
+ 
+     Handles resizing of patch embeddings, position embeddings, and relative position
+@@ -917,7 +926,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -927,7 +936,7 @@     model_args = dict(
+         patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
+         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=0.1)
+-    model = _create_beit('beit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_beit('beit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -937,7 +946,7 @@     model_args = dict(
+         img_size=384, patch_size=16, embed_dim=768, depth=12, num_heads=12,
+         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=0.1)
+-    model = _create_beit('beit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_beit('beit_base_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -947,7 +956,7 @@     model_args = dict(
+         patch_size=16, embed_dim=1024, depth=24, num_heads=16,
+         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
+-    model = _create_beit('beit_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_beit('beit_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -957,7 +966,7 @@     model_args = dict(
+         img_size=384, patch_size=16, embed_dim=1024, depth=24, num_heads=16,
+         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
+-    model = _create_beit('beit_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_beit('beit_large_patch16_384', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -967,7 +976,7 @@     model_args = dict(
+         img_size=512, patch_size=16, embed_dim=1024, depth=24, num_heads=16,
+         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
+-    model = _create_beit('beit_large_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_beit('beit_large_patch16_512', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -977,7 +986,7 @@     model_args = dict(
+         patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
+         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
+-    model = _create_beit('beitv2_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_beit('beitv2_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -987,5 +996,5 @@     model_args = dict(
+         patch_size=16, embed_dim=1024, depth=24, num_heads=16,
+         use_abs_pos_emb=False, use_rel_pos_bias=True, init_values=1e-5)
+-    model = _create_beit('beitv2_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
++    model = _create_beit('beitv2_large_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model

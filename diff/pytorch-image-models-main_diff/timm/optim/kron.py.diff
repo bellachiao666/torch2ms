@@ -1,0 +1,230 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ PyTorch Implementation of the Kron (PSGD) optimizer
+ 
+ This is a PSGD optimizer using a Kronecker-factored preconditioner.
+@@ -30,11 +35,10 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
+ 
+ import numpy as np
+-import torch
++# import torch
+ try:
+     # NOTE opt_einsum needed to avoid blowing up memory with einsum ops
+     import opt_einsum
+-    import torch.backends.opt_einsum
+     torch.backends.opt_einsum.enabled = True
+     torch.backends.opt_einsum.strategy = "auto-hq"
+     has_opt_einsum = True
+@@ -58,7 +62,7 @@         min_prob: float = 0.03,
+         decay: float = 0.001,
+         flat_start: float = 500,
+-) -> torch.Tensor:
++) -> ms.Tensor:
+     """Anneal preconditioner update probability during beginning of training.
+ 
+     PSGD benefits from more preconditioner updates at the beginning of training,
+@@ -71,13 +75,14 @@     """
+ 
+     """Exponential anneal with flat start."""
+-    n = torch.tensor(n, dtype=torch.float32)
+-    prob = max_prob * torch.exp(-decay * (n - flat_start))
++    n = ms.Tensor(n, dtype=ms.float32)
++    prob = max_prob * mint.exp(-decay * (n - flat_start))
+     prob.clamp_(min=min_prob, max=max_prob)
+ 
+     return prob
+ 
+ 
++# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class Kron(torch.optim.Optimizer):
+     """Implements PSGD Kron from https://github.com/lixilinx/psgd_torch.
+ 
+@@ -106,6 +111,7 @@         deterministic: Deterministic behaviour across save / load (resume). FIXME slow, needs work
+     """
+ 
++    # 'torch.dtype' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+         self,
+         params: ParamsT,
+@@ -162,16 +168,16 @@         super(Kron, self).__init__(params, defaults)
+ 
+         self._param_exprs = {}  # cache for einsum expr
+-        self._tiny = torch.finfo(torch.bfloat16).tiny
++        self._tiny = torch.finfo(ms.bfloat16).tiny  # 'torch.finfo' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         self.rng = random.Random(1337)
+         self.deterministic = deterministic
+ 
+         # make compile optional (for bwd compat)
+         if has_dynamo:
+-            self._calc_A_and_conjB = torch.compile(_calc_A_and_conjB, fullgraph=True, dynamic=False)
+-            self._q_terms = torch.compile(_q_terms, fullgraph=True, dynamic=False)
+-            self._precond_grad = torch.compile(_precond_grad, fullgraph=True, dynamic=False)
+-            self._balance_Q = torch.compile(_balance_Q, fullgraph=True, dynamic=False)
++            self._calc_A_and_conjB = torch.compile(_calc_A_and_conjB, fullgraph=True, dynamic=False)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            self._q_terms = torch.compile(_q_terms, fullgraph=True, dynamic=False)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            self._precond_grad = torch.compile(_precond_grad, fullgraph=True, dynamic=False)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            self._balance_Q = torch.compile(_balance_Q, fullgraph=True, dynamic=False)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             self._calc_A_and_conjB = _calc_A_and_conjB
+             self._q_terms = _q_terms
+@@ -214,10 +220,13 @@         super().__setstate__(state)
+         self._param_exprs = {}
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -228,7 +237,7 @@ 
+         for group in self.param_groups:
+             mu_dtype = group.get("mu_dtype")
+-            precond_dtype = group.get("precond_dtype", torch.float32)
++            precond_dtype = group.get("precond_dtype", ms.float32)
+             momentum_into_precond_update = group.get("momentum_into_precond_update", True)
+             update_prob = group.get("preconditioner_update_probability", None)
+ 
+@@ -247,7 +256,7 @@                 if len(state) == 0:
+                     state["step"] = 0
+                     state["update_counter"] = 0
+-                    state["momentum_buffer"] = torch.zeros_like(grad, dtype=mu_dtype or grad.dtype)
++                    state["momentum_buffer"] = mint.zeros_like(grad, dtype=mu_dtype or grad.dtype)
+                     # init Q and einsum expressions on first step
+                     state["Q"], exprs = _init_Q_exprs(
+                         grad,
+@@ -318,11 +327,11 @@                     exprA, exprGs, _ = exprs
+                     Q = state["Q"]
+                     if self.deterministic:
+-                        torch_rng = torch.Generator(device=debiased_momentum.device)
+-                        torch_rng.manual_seed(self.rng.randint(0, 2 ** 31))
++                        torch_rng = torch.Generator(device=debiased_momentum.device)  # 'torch.Generator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++                        torch_rng.manual_seed(self.rng.randint(0, 2 ** 31))  # 'torch_rng.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                     else:
+                         torch_rng = None
+-                    V = torch.randn(
++                    V = mint.randn(
+                         debiased_momentum.shape,
+                         generator=torch_rng,
+                         dtype=precond_dtype,
+@@ -341,7 +350,7 @@                             tmp *= q
+                             tmp /= (term1 + term2).norm(float("inf")) + self._tiny
+                         else:
+-                            tmp = torch.triu(tmp)
++                            tmp = mint.triu(tmp)
+                             tmp /= _norm_lower_bound(term1 + term2) + self._tiny
+                             tmp @= q
+                         q.sub_(tmp)
+@@ -354,7 +363,7 @@                 ).to(dtype=p.dtype)
+ 
+                 # RMS of pre_grad should be 1.0, so let's cap at 1.1
+-                pre_grad.mul_(torch.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max=1.0))
++                pre_grad.mul_(mint.clamp(1.1 / (pre_grad.square().mean().sqrt_() + 1e-8), max=1.0))
+                 if flattened:
+                     pre_grad = pre_grad.view(p.shape)
+ 
+@@ -416,7 +425,7 @@     Q = []
+     if len(shape) == 0:  # scalar
+         if init_q:
+-            Q.append(scale * torch.ones_like(t, dtype=dtype))
++            Q.append(scale * mint.ones_like(t, dtype=dtype))
+         exprA = ",->"
+         exprGs = [",->"]
+         exprP = ",,->"
+@@ -457,7 +466,7 @@             ):
+                 # use diagonal matrix as preconditioner for this dim
+                 if init_q:
+-                    Q.append(scale * torch.ones(size, dtype=dtype, device=t.device))
++                    Q.append(scale * mint.ones(size, dtype=dtype, device=t.device))
+ 
+                 piece1A.append(letters[i])
+                 piece2A = piece2A + letters[i]
+@@ -474,7 +483,7 @@             else:
+                 # use triangular matrix as preconditioner for this dim
+                 if init_q:
+-                    Q.append(scale * torch.eye(size, dtype=dtype, device=t.device))
++                    Q.append(scale * mint.eye(size, dtype=dtype, device=t.device))
+ 
+                 piece1A.append(letters[i] + letters[i + 13])
+                 piece2A = piece2A + letters[i + 13]
+@@ -503,34 +512,34 @@ 
+ def _lb(A, max_abs):
+     A = A / max_abs
+-    aa = torch.real(A * A.conj())
+-    value0, i = torch.max(torch.sum(aa, dim=0), 0)
+-    value1, j = torch.max(torch.sum(aa, dim=1), 0)
++    aa = torch.real(A * A.conj())  # 'torch.real' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    value0, i = mint.max(mint.sum(aa, dim=0), 0)
++    value1, j = mint.max(mint.sum(aa, dim=1), 0)
+     if value0 > value1:
+         x = A[:, i].conj() @ A
+-        return max_abs * torch.linalg.vector_norm((x / torch.linalg.vector_norm(x)) @ A.H)
++        return max_abs * mint.linalg.vector_norm((x / mint.linalg.vector_norm(x)) @ A.H)
+     else:
+         x = A @ A[j].conj()
+-        return max_abs * torch.linalg.vector_norm(A.H @ (x / torch.linalg.vector_norm(x)))
++        return max_abs * mint.linalg.vector_norm(A.H @ (x / mint.linalg.vector_norm(x)))
+ 
+ 
+ def _norm_lower_bound(A):
+     """Cheap lower bound for the spectral norm of A."""
+     max_abs = A.norm(float("inf"))
+-    return torch.where(max_abs > 0, _lb(A, max_abs), max_abs)
++    return mint.where(max_abs > 0, _lb(A, max_abs), max_abs)
+ 
+ 
+ def _solve_triangular_right(X, A):
+     """X @ inv(A)"""
+     orig_dtype = X.dtype
+-    X = X.to(dtype=torch.float32)
+-    A = A.to(dtype=torch.float32)
+-    out = torch.linalg.solve_triangular(A, X.reshape(-1, X.size(-1)), upper=True, left=False).reshape_as(X)
++    X = X.to(dtype=ms.float32)
++    A = A.to(dtype=ms.float32)
++    out = torch.linalg.solve_triangular(A, X.reshape(-1, X.size(-1)), upper=True, left=False).reshape_as(X)  # 'torch.linalg.solve_triangular' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.linalg.solve_triangular.reshape_as' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     return out.to(dtype=orig_dtype)
+ 
+ 
+ def _balance_Q(Q_in):
+-    norms = torch.stack([q.norm(float("inf")) for q in Q_in])
++    norms = mint.stack([q.norm(float("inf")) for q in Q_in])
+     geometric_mean = norms.prod() ** (1 / len(Q_in))
+     norms = geometric_mean / norms
+     for i, q in enumerate(Q_in):
+@@ -539,25 +548,25 @@ 
+ def _precond_grad(Q, exprs, G):
+     """Precondition gradient G with preconditioner Q."""
+-    return torch.einsum(exprs[-1], *[q.conj() for q in Q], *Q, G)
++    return mint.einsum(exprs[-1], *[q.conj() for q in Q], *Q, G)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _calc_A_and_conjB(exprA, G, Q, V):
+-    A = torch.einsum(exprA, *Q, G)
++    A = mint.einsum(exprA, *Q, G)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     order = G.dim()
+     p = tuple(range(order))
+-    conjB = torch.permute(V.conj(), p[1:] + p[:1])
++    conjB = mint.permute(V.conj(), p[1:] + p[:1])
+     for i, q in enumerate(Q):
+         conjB = conjB / q if q.dim() < 2 else _solve_triangular_right(conjB, q)
+         if i < order - 1:
+-            conjB = torch.transpose(conjB, i, order - 1)
++            conjB = mint.transpose(conjB, i, order - 1)
+     return A, conjB
+ 
+ 
+ def _q_terms(exprGs, A, conjB):
+     terms = []
+     for exprG in exprGs:
+-        term1 = torch.einsum(exprG, A, A.conj())
+-        term2 = torch.einsum(exprG, conjB.conj(), conjB)
++        term1 = mint.einsum(exprG, A, A.conj())
++        term2 = mint.einsum(exprG, conjB.conj(), conjB)
+         terms.append((term1, term2))
+     return terms

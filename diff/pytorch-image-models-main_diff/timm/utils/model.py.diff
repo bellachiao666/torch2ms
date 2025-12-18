@@ -1,0 +1,84 @@
+--- pytorch+++ mindspore@@ -1,12 +1,15 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Model / state_dict utils
+ 
+ Hacked together by / Copyright 2020 Ross Wightman
+ """
+ import fnmatch
+ from copy import deepcopy
+-
+-import torch
+-from torchvision.ops.misc import FrozenBatchNorm2d
++# from torchvision.ops.misc import FrozenBatchNorm2d
+ 
+ from timm.layers import BatchNormAct2d, SyncBatchNormAct, FrozenBatchNormAct2d,\
+     freeze_batch_norm_2d, unfreeze_batch_norm_2d
+@@ -32,19 +35,19 @@ def avg_sq_ch_mean(model, input, output):
+     """ calculate average channel square mean of output activations
+     """
+-    return torch.mean(output.mean(axis=[0, 2, 3]) ** 2).item()
++    return mint.mean(output.mean(axis=[0, 2, 3]) ** 2).item()
+ 
+ 
+ def avg_ch_var(model, input, output):
+     """ calculate average channel variance of output activations
+     """
+-    return torch.mean(output.var(axis=[0, 2, 3])).item()
++    return mint.mean(output.var(axis=[0, 2, 3])).item()
+ 
+ 
+ def avg_ch_var_residual(model, input, output):
+     """ calculate average channel variance of output activations
+     """
+-    return torch.mean(output.var(axis=[0, 2, 3])).item()
++    return mint.mean(output.var(axis=[0, 2, 3])).item()
+ 
+ 
+ class ActivationStatsHook:
+@@ -102,7 +105,7 @@ 
+     Example Usage: https://gist.github.com/amaarora/6e56942fcb46e67ba203f3009b30d950
+     """
+-    x = torch.normal(0., 1., input_shape)
++    x = mint.normal(0., 1., input_shape)
+     hook = ActivationStatsHook(model, hook_fn_locs=hook_fn_locs, hook_fns=hook_fns)
+     _ = model(x)
+     return hook.stats
+@@ -125,8 +128,8 @@     assert mode in ["freeze", "unfreeze"], '`mode` must be one of "freeze" or "unfreeze"'
+ 
+     if isinstance(root_module, (
+-            torch.nn.modules.batchnorm.BatchNorm2d,
+-            torch.nn.modules.batchnorm.SyncBatchNorm,
++            nn.BatchNorm2d,
++            nn.SyncBatchNorm,
+             BatchNormAct2d,
+             SyncBatchNormAct,
+     )):
+@@ -142,7 +145,7 @@     submodules = [root_module.get_submodule(m) for m in submodules]
+ 
+     if not len(submodules):
+-        named_modules, submodules = list(zip(*root_module.named_children()))
++        named_modules, submodules = list(zip(*root_module.named_children()))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     for n, m in zip(named_modules, submodules):
+         # (Un)freeze parameters
+@@ -164,8 +167,8 @@                 # convert it in place, but will return the converted result. In this case `res` holds the converted
+                 # result and we may try to re-assign the named module
+                 if isinstance(m, (
+-                        torch.nn.modules.batchnorm.BatchNorm2d,
+-                        torch.nn.modules.batchnorm.SyncBatchNorm,
++                        nn.BatchNorm2d,
++                        nn.SyncBatchNorm,
+                         BatchNormAct2d,
+                         SyncBatchNormAct,
+                 )):
+@@ -230,7 +233,7 @@     _freeze_unfreeze(root_module, submodules, include_bn_running_stats=include_bn_running_stats, mode="unfreeze")
+ 
+ 
+-def reparameterize_model(model: torch.nn.Module, inplace=False) -> torch.nn.Module:
++def reparameterize_model(model: msnn.Cell, inplace=False) -> msnn.Cell:
+     if not inplace:
+         model = deepcopy(model)
+ 

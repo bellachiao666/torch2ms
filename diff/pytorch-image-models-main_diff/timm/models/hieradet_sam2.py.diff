@@ -1,0 +1,385 @@
+--- pytorch+++ mindspore@@ -1,11 +1,16 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import math
+ from copy import deepcopy
+ from functools import partial
+ from typing import Dict, List, Optional, Tuple, Type, Union
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.nn as nn
++# import torch.nn.functional as F
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import (
+@@ -45,7 +50,7 @@     return windows
+ 
+ 
+-def window_unpartition(windows: torch.Tensor, window_size: Tuple[int, int], hw: Tuple[int, int]):
++def window_unpartition(windows: ms.Tensor, window_size: Tuple[int, int], hw: Tuple[int, int]):
+     """
+     Window unpartition into original sequences and removing padding.
+     Args:
+@@ -69,15 +74,15 @@     return Hp, Wp, pad_h, pad_w
+ 
+ 
+-class MultiScaleAttention(nn.Module):
+-    fused_attn: torch.jit.Final[bool]
++class MultiScaleAttention(msnn.Cell):
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
+             dim: int,
+             dim_out: int,
+             num_heads: int,
+-            q_pool: nn.Module = None,
++            q_pool: msnn.Cell = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -91,17 +96,17 @@         self.fused_attn = use_fused_attn()
+ 
+         self.q_pool = q_pool
+-        self.qkv = nn.Linear(dim, dim_out * 3, **dd)
+-        self.proj = nn.Linear(dim_out, dim_out, **dd)
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.qkv = nn.Linear(dim, dim_out * 3, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.proj = nn.Linear(dim_out, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         B, H, W, _ = x.shape
+ 
+         # qkv with shape (B, H * W, 3, nHead, C)
+         qkv = self.qkv(x).reshape(B, H * W, 3, self.num_heads, -1)
+ 
+         # q, k, v with shape (B, H * W, nheads, C)
+-        q, k, v = torch.unbind(qkv, 2)
++        q, k, v = mint.unbind(qkv, 2)
+ 
+         # Q pooling (for downsample at stage changes)
+         if self.q_pool is not None:
+@@ -115,7 +120,7 @@         k = k.transpose(1, 2)
+         v = v.transpose(1, 2)
+         if self.fused_attn:
+-            x = F.scaled_dot_product_attention(q, k, v)
++            x = F.scaled_dot_product_attention(q, k, v)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             q = q * self.scale
+             attn = q @ k.transpose(-1, -2)
+@@ -129,7 +134,7 @@         return x
+ 
+ 
+-class MultiScaleBlock(nn.Module):
++class MultiScaleBlock(msnn.Cell):
+     def __init__(
+             self,
+             dim: int,
+@@ -137,8 +142,8 @@             num_heads: int,
+             mlp_ratio: float = 4.0,
+             q_stride: Optional[Tuple[int, int]] = None,
+-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
+-            act_layer: Union[Type[nn.Module], str] = "GELU",
++            norm_layer: Union[Type[msnn.Cell], str] = "LayerNorm",
++            act_layer: Union[Type[msnn.Cell], str] = "GELU",
+             window_size: int = 0,
+             init_values: Optional[float] = None,
+             drop_path: float = 0.0,
+@@ -156,40 +161,37 @@         self.q_stride = q_stride
+ 
+         if dim != dim_out:
+-            self.proj = nn.Linear(dim, dim_out, **dd)
++            self.proj = nn.Linear(dim, dim_out, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         else:
+-            self.proj = nn.Identity()
++            self.proj = msnn.Identity()
+         self.pool = None
+         if self.q_stride:
+             # note make a different instance for this Module so that it's not shared with attn module
+             self.pool = nn.MaxPool2d(
+-                kernel_size=q_stride,
+-                stride=q_stride,
+-                ceil_mode=False,
+-            )
+-
+-        self.norm1 = norm_layer(dim, **dd)
++                kernel_size = q_stride, stride = q_stride, ceil_mode = False)
++
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn = MultiScaleAttention(
+             dim,
+             dim_out,
+             num_heads=num_heads,
+             q_pool=deepcopy(self.pool),
+             **dd,
+-        )
+-        self.ls1 = LayerScale(dim_out, init_values, **dd) if init_values is not None else nn.Identity()
+-        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+-
+-        self.norm2 = norm_layer(dim_out, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls1 = LayerScale(dim_out, init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
++
++        self.norm2 = norm_layer(dim_out, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp = Mlp(
+             dim_out,
+             int(dim_out * mlp_ratio),
+             act_layer=act_layer,
+             **dd,
+-        )
+-        self.ls2 = LayerScale(dim_out, init_values, **dd) if init_values is not None else nn.Identity()
+-        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls2 = LayerScale(dim_out, init_values, **dd) if init_values is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else msnn.Identity()
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         shortcut = x  # B, H, W, C
+         x = self.norm1(x)
+ 
+@@ -206,7 +208,7 @@         Hp, Wp = H, W  # keep torchscript happy
+         if self.is_windowed:
+             Hp, Wp, pad_h, pad_w = _calc_pad(H, W, window_size)
+-            x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
++            x = nn.functional.pad(x, (0, 0, 0, pad_w, 0, pad_h))
+             x = window_partition(x, window_size)
+ 
+         # Window Attention + Q Pooling (if stage change)
+@@ -227,7 +229,7 @@         return x
+ 
+ 
+-class HieraPatchEmbed(nn.Module):
++class HieraPatchEmbed(msnn.Cell):
+     """
+     Image to Patch Embedding.
+     """
+@@ -259,16 +261,16 @@             stride=stride,
+             padding=padding,
+             **dd,
+-        )
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         x = self.proj(x)
+         # B C H W -> B H W C
+         x = x.permute(0, 2, 3, 1)
+         return x
+ 
+ 
+-class HieraDet(nn.Module):
++class HieraDet(msnn.Cell):
+     """
+     Reference: https://arxiv.org/abs/2306.00989
+     """
+@@ -309,8 +311,8 @@             head_init_scale: float = 0.001,
+             drop_rate: float = 0.0,
+             drop_path_rate: float = 0.0,  # stochastic depth
+-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
+-            act_layer: Union[Type[nn.Module], str] = "GELU",
++            norm_layer: Union[Type[msnn.Cell], str] = "LayerNorm",
++            act_layer: Union[Type[msnn.Cell], str] = "GELU",
+             device=None,
+             dtype=None,
+     ):
+@@ -340,7 +342,7 @@                 output_fmt='NHWC',
+                 dynamic_img_pad=True,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             self.patch_embed = HieraPatchEmbed(
+                 kernel_size=patch_kernel,
+@@ -349,18 +351,18 @@                 in_chans=in_chans,
+                 embed_dim=embed_dim,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         # Which blocks have global att?
+         self.global_att_blocks = global_att_blocks
+ 
+         # Windowed positional embedding (https://arxiv.org/abs/2311.05613)
+         self.global_pos_size = global_pos_size
+-        self.pos_embed = nn.Parameter(torch.zeros(1, embed_dim, *self.global_pos_size, **dd))
+-        self.pos_embed_window = nn.Parameter(torch.zeros(1, embed_dim, self.window_spec[0], self.window_spec[0], **dd))
++        self.pos_embed = ms.Parameter(mint.zeros(1, embed_dim, *self.global_pos_size, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.pos_embed_window = ms.Parameter(mint.zeros(1, embed_dim, self.window_spec[0], self.window_spec[0], **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         dpr = calculate_drop_path_rates(drop_path_rate, depth)  # stochastic depth decay rule
+         cur_stage = 0
+-        self.blocks = nn.Sequential()
++        self.blocks = msnn.SequentialCell()
+         self.feature_info = []
+         for i in range(depth):
+             dim_out = embed_dim
+@@ -388,7 +390,7 @@                 act_layer=act_layer,
+                 init_values=init_values,
+                 **dd,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+             embed_dim = dim_out
+             self.blocks.append(block)
+@@ -404,14 +406,14 @@             drop_rate=drop_rate,
+             norm_layer=norm_layer,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Initialize everything
+         if self.pos_embed is not None:
+-            nn.init.trunc_normal_(self.pos_embed, std=0.02)
++            nn.init.trunc_normal_(self.pos_embed, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         if self.pos_embed_window is not None:
+-            nn.init.trunc_normal_(self.pos_embed_window, std=0.02)
++            nn.init.trunc_normal_(self.pos_embed_window, std=0.02)  # 'torch.nn.init.trunc_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         if weight_init != 'skip':
+             init_fn = init_weight_jax if weight_init == 'jax' else init_weight_vit
+@@ -425,10 +427,10 @@             self.head.fc.weight.data.mul_(head_init_scale)
+             self.head.fc.bias.data.mul_(head_init_scale)
+ 
+-    def _pos_embed(self, x: torch.Tensor) -> torch.Tensor:
++    def _pos_embed(self, x: ms.Tensor) -> ms.Tensor:
+         h, w = x.shape[1:3]
+         window_embed = self.pos_embed_window
+-        pos_embed = F.interpolate(self.pos_embed, size=(h, w), mode="bicubic")
++        pos_embed = nn.functional.interpolate(self.pos_embed, size = (h, w), mode = "bicubic")
+         tile_h = pos_embed.shape[-2] // window_embed.shape[-2]
+         tile_w = pos_embed.shape[-1] // window_embed.shape[-1]
+         pos_embed = pos_embed + window_embed.tile((tile_h, tile_w))
+@@ -443,22 +445,22 @@             rescale(layer.attn.proj.weight.data, layer_id + 1)
+             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def no_weight_decay(self):
+         return ['pos_embed', 'pos_embed_window']
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict:
+         return dict(
+             stem=r'^pos_embed|pos_embed_window|patch_embed',
+             blocks=[(r'^blocks\.(\d+)', None)]
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True) -> None:
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def get_classifier(self):
+         return self.head.fc
+ 
+@@ -468,14 +470,14 @@ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = True,
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+             coarse: bool = True,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -502,11 +504,13 @@         x = self._pos_embed(x)
+ 
+         intermediates = []
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -539,21 +543,22 @@             self.head.reset(0, reset_other=prune_norm)
+         return take_indices
+ 
+-    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
++    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
+         x = self.patch_embed(x)  # BHWC
+         x = self._pos_embed(x)
+         for blk in self.blocks:
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+                 x = blk(x)
+         return x
+ 
+-    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
++    def forward_head(self, x, pre_logits: bool = False) -> ms.Tensor:
+         x = self.head(x, pre_logits=pre_logits) if pre_logits else self.head(x)
+         return x
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
+@@ -654,25 +659,25 @@         pretrained_filter_fn=partial(checkpoint_filter_fn, prefix=checkpoint_prefix),
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def sam2_hiera_tiny(pretrained=False, **kwargs):
+     model_args = dict(stages=(1, 2, 7, 2), global_att_blocks=(5, 7, 9))
+-    return _create_hiera_det('sam2_hiera_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_hiera_det('sam2_hiera_tiny', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def sam2_hiera_small(pretrained=False, **kwargs):
+     model_args = dict(stages=(1, 2, 11, 2), global_att_blocks=(7, 10, 13))
+-    return _create_hiera_det('sam2_hiera_small', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_hiera_det('sam2_hiera_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def sam2_hiera_base_plus(pretrained=False, **kwargs):
+     model_args = dict(embed_dim=112, num_heads=2, global_pos_size=(14, 14))
+-    return _create_hiera_det('sam2_hiera_base_plus', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_hiera_det('sam2_hiera_base_plus', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -684,13 +689,13 @@         global_att_blocks=(23, 33, 43),
+         window_spec=(8, 4, 16, 8),
+     )
+-    return _create_hiera_det('sam2_hiera_large', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_hiera_det('sam2_hiera_large', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def hieradet_small(pretrained=False, **kwargs):
+     model_args = dict(stages=(1, 2, 11, 2), global_att_blocks=(7, 10, 13), window_spec=(8, 4, 16, 8), init_values=1e-5)
+-    return _create_hiera_det('hieradet_small', pretrained=pretrained, **dict(model_args, **kwargs))
++    return _create_hiera_det('hieradet_small', pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ # @register_model

@@ -1,0 +1,135 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Dynamic Sequence Length Datasets for Variable Resolution Image Processing
+ 
+ Implements two dataset wrappers:
+@@ -19,8 +24,8 @@ from functools import partial
+ from typing import Any, Iterator, List, Tuple, Dict, Optional, Union, Callable
+ 
+-import torch
+-from torch.utils.data import Dataset, IterableDataset, DataLoader
++# import torch
++# from torch.utils.data import Dataset, IterableDataset, 
+ from PIL import Image
+ 
+ from .naflex_transforms import Patchify
+@@ -84,7 +89,7 @@         """
+         self.max_seq_len = max_seq_len or 576  # Default ViT-B/16 sequence length (577 = 24*24)
+ 
+-    def __call__(self, batch: List[Tuple[Dict[str, torch.Tensor], Union[int, torch.Tensor]]]) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
++    def __call__(self, batch: List[Tuple[Dict[str, ms.Tensor], Union[int, ms.Tensor]]]) -> Tuple[Dict[str, ms.Tensor], ms.Tensor]:
+         """Collate batch of NaFlex samples.
+ 
+         Args:
+@@ -101,10 +106,10 @@ 
+         # Extract targets
+         targets = [item[1] for item in batch]
+-        if isinstance(targets[0], torch.Tensor):
+-            targets = torch.stack(targets)
+-        else:
+-            targets = torch.tensor(targets, dtype=torch.int64)
++        if isinstance(targets[0], ms.Tensor):
++            targets = mint.stack(targets)
++        else:
++            targets = ms.Tensor(targets, dtype=ms.int64)
+ 
+         # Get patch dictionaries
+         patch_dicts = [item[0] for item in batch]
+@@ -123,15 +128,15 @@         if is_unflattened:
+             # Patches are [N, Ph, Pw, C] - variable patch size mode
+             _, ph, pw, c = patches_tensor.shape
+-            patches = torch.zeros((batch_size, max_patches, ph, pw, c), dtype=torch.float32)
++            patches = mint.zeros((batch_size, max_patches, ph, pw, c), dtype=ms.float32)
+         else:
+             # Patches are [N, P*P*C] - normal mode
+             patch_dim = patches_tensor.shape[1]
+-            patches = torch.zeros((batch_size, max_patches, patch_dim), dtype=torch.float32)
++            patches = mint.zeros((batch_size, max_patches, patch_dim), dtype=ms.float32)
+ 
+         # Prepare other tensors
+-        patch_coord = torch.zeros((batch_size, max_patches, 2), dtype=torch.int64)  # [B, N, 2] for (y, x)
+-        patch_valid = torch.zeros((batch_size, max_patches), dtype=torch.bool)
++        patch_coord = mint.zeros((batch_size, max_patches, 2), dtype=ms.int64)  # [B, N, 2] for (y, x)
++        patch_valid = mint.zeros((batch_size, max_patches), dtype=ms.bool_)
+ 
+         # Fill in the tensors
+         for i, patch_dict in enumerate(patch_dicts):
+@@ -195,6 +200,7 @@     return sizes, probs, variable
+ 
+ 
++# 'torch.utils.data.IterableDataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class NaFlexMapDatasetWrapper(IterableDataset):
+     """
+     IterableDataset wrapper for a map-style base dataset.
+@@ -207,6 +213,7 @@     across all ranks. Handles distributed training and multiple workers.
+     """
+ 
++    # 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def __init__(
+             self,
+             base_dataset: Dataset,
+@@ -339,7 +346,7 @@              return
+ 
+         # Use a fixed seed for generating the canonical schedule structure
+-        g = torch.Generator()
++        g = torch.Generator()  # 'torch.Generator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         g.manual_seed(self.seed) # Use base seed, NOT epoch seed
+ 
+         current_schedule: List[Tuple[int, int]] = []
+@@ -348,7 +355,7 @@ 
+         while remaining_samples > 0:
+             # Sample sequence length deterministically based on base seed
+-            seq_idx = torch.randint(0, len(self.seq_lens), (1,), generator=g).item()
++            seq_idx = mint.randint(0, len(self.seq_lens), (1,), generator=g).item()
+             seq_len = self.seq_lens[seq_idx]
+ 
+             # Calculate batch size
+@@ -397,13 +404,13 @@         4. Shuffling the *order* of the canonical batch schedule (using epoch seed).
+         5. Assigning the rank's indices to the shuffled batches.
+         """
+-        g = torch.Generator()
++        g = torch.Generator()  # 'torch.Generator' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         g.manual_seed(self.seed + epoch) # Epoch-specific seed for shuffling
+ 
+         # 1. Get shuffled global indices
+         total_len = len(self.base_dataset)
+         if self.shuffle:
+-            all_indices_shuffled = torch.randperm(total_len, generator=g).tolist()
++            all_indices_shuffled = mint.randperm(total_len, generator=g).tolist()
+         else:
+             all_indices_shuffled = list(range(total_len))
+ 
+@@ -443,7 +450,7 @@ 
+         # 4. Shuffle the order of the canonical batch schedule for this epoch
+         if self.shuffle:
+-            schedule_perm = torch.randperm(self._num_batches_per_rank, generator=g).tolist()
++            schedule_perm = mint.randperm(self._num_batches_per_rank, generator=g).tolist()
+             shuffled_schedule = [self._canonical_batch_schedule[i] for i in schedule_perm]
+         else:
+             shuffled_schedule = list(self._canonical_batch_schedule) # Keep original order
+@@ -493,13 +500,13 @@         """
+         return self._num_batches_per_rank
+ 
+-    def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
++    def __iter__(self) -> Iterator[Tuple[Dict[str, ms.Tensor], ms.Tensor]]:
+         """Iterates through pre-calculated batches for the current epoch.
+ 
+         Yields:
+             Tuple of (input_dict, targets) for each batch.
+         """
+-        worker_info = torch.utils.data.get_worker_info()
++        worker_info = torch.utils.data.get_worker_info()  # 'torch.utils.data.get_worker_info' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         num_workers = worker_info.num_workers if worker_info else 1
+         worker_id = worker_info.id if worker_info else 0
+ 
+@@ -514,7 +521,7 @@             patch_idx = 0
+             if self.variable_patch_size:
+                 # Use torch multinomial for weighted random choice
+-                patch_idx = torch.multinomial(torch.tensor(self.patch_size_probs), 1).item()
++                patch_idx = mint.multinomial(ms.Tensor(self.patch_size_probs), 1).item()
+ 
+             # Get the pre-initialized transform and patchifier using patch_idx
+             transform_key = (seq_len, patch_idx)

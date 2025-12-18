@@ -1,0 +1,266 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Hybrid Vision Transformer (ViT) in PyTorch
+ 
+ A PyTorch implement of the Hybrid Vision Transformers as described in:
+@@ -15,9 +20,7 @@ """
+ from functools import partial
+ from typing import Dict, Tuple, Type, Union
+-
+-import torch
+-import torch.nn as nn
++# import torch.nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import StdConv2dSame, StdConv2d, ConvNormAct, to_ntuple, HybridEmbed
+@@ -29,7 +32,7 @@ from .vision_transformer import VisionTransformer
+ 
+ 
+-class ConvStem(nn.Sequential):
++class ConvStem(msnn.SequentialCell):
+     def __init__(
+             self,
+             in_chans: int = 3,
+@@ -38,8 +41,8 @@             kernel_size: Union[int, Tuple[int, ...]] = 3,
+             stride: Union[int, Tuple[int, ...]] = (2, 2, 2),
+             padding: Union[str, int, Tuple[int, ...]] = "",
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            act_layer: Type[nn.Module] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
+             device=None,
+             dtype=None,
+     ):
+@@ -68,7 +71,7 @@                 norm_layer=norm_layer,
+                 act_layer=act_layer,
+                 **dd,
+-            ))
++            ))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             in_chs = channels[i]
+ 
+ 
+@@ -91,7 +94,7 @@             stem_type=stem_type,
+             conv_layer=conv_layer,
+             **_dd_from_kwargs(**kwargs),
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     else:
+         backbone = create_resnetv2_stem(
+             kwargs.get('in_chans', 3),
+@@ -99,7 +102,7 @@             preact=False,
+             conv_layer=conv_layer,
+             **_dd_from_kwargs(**kwargs),
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return backbone
+ 
+ 
+@@ -128,17 +131,17 @@             bias_k = k.replace('classifier.proj', 'head.bias')
+             k = k.replace('classifier.proj', 'head.weight')
+             v = v.T
+-            out[bias_k] = torch.zeros(v.shape[0])
++            out[bias_k] = mint.zeros(v.shape[0])
+         out[k] = v
+     return out
+ 
+ 
+ def checkpoint_filter_fn(
+-        state_dict: Dict[str, torch.Tensor],
++        state_dict: Dict[str, ms.Tensor],
+         model: VisionTransformer,
+         interpolation: str = 'bicubic',
+         antialias: bool = True,
+-) -> Dict[str, torch.Tensor]:
++) -> Dict[str, ms.Tensor]:
+     from .vision_transformer import checkpoint_filter_fn as _filter_fn
+ 
+     if 'image_encoder.model.patch_emb.0.block.conv.weight' in state_dict:
+@@ -150,7 +153,7 @@ def _create_vision_transformer_hybrid(variant, backbone, embed_args=None, pretrained=False, **kwargs):
+     out_indices = kwargs.pop('out_indices', 3)
+     embed_args = embed_args or {}
+-    embed_layer = partial(HybridEmbed, backbone=backbone, **embed_args)
++    embed_layer = partial(HybridEmbed, backbone=backbone, **embed_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     kwargs.setdefault('embed_layer', embed_layer)
+     kwargs.setdefault('patch_size', 1)  # default patch size for hybrid models if not set
+     return build_model_with_cfg(
+@@ -160,7 +163,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _cfg(url='', **kwargs):
+@@ -266,10 +269,10 @@ def vit_tiny_r_s16_p8_224(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R+ViT-Ti/S16 w/ 8x8 patch hybrid @ 224 x 224.
+     """
+-    backbone = _resnetv2(layers=(), **kwargs)
++    backbone = _resnetv2(layers=(), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(patch_size=8, embed_dim=192, depth=12, num_heads=3)
+     model = _create_vision_transformer_hybrid(
+-        'vit_tiny_r_s16_p8_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_tiny_r_s16_p8_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -277,10 +280,10 @@ def vit_tiny_r_s16_p8_384(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R+ViT-Ti/S16 w/ 8x8 patch hybrid @ 384 x 384.
+     """
+-    backbone = _resnetv2(layers=(), **kwargs)
++    backbone = _resnetv2(layers=(), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(patch_size=8, embed_dim=192, depth=12, num_heads=3)
+     model = _create_vision_transformer_hybrid(
+-        'vit_tiny_r_s16_p8_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_tiny_r_s16_p8_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -288,10 +291,10 @@ def vit_small_r26_s32_224(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R26+ViT-S/S32 hybrid.
+     """
+-    backbone = _resnetv2((2, 2, 2, 2), **kwargs)
++    backbone = _resnetv2((2, 2, 2, 2), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=384, depth=12, num_heads=6)
+     model = _create_vision_transformer_hybrid(
+-        'vit_small_r26_s32_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_r26_s32_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -299,10 +302,10 @@ def vit_small_r26_s32_384(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R26+ViT-S/S32 hybrid.
+     """
+-    backbone = _resnetv2((2, 2, 2, 2), **kwargs)
++    backbone = _resnetv2((2, 2, 2, 2), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=384, depth=12, num_heads=6)
+     model = _create_vision_transformer_hybrid(
+-        'vit_small_r26_s32_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_r26_s32_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -310,10 +313,10 @@ def vit_base_r26_s32_224(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R26+ViT-B/S32 hybrid.
+     """
+-    backbone = _resnetv2((2, 2, 2, 2), **kwargs)
++    backbone = _resnetv2((2, 2, 2, 2), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=12, num_heads=12)
+     model = _create_vision_transformer_hybrid(
+-        'vit_base_r26_s32_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_r26_s32_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -321,10 +324,10 @@ def vit_base_r50_s16_224(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R50+ViT-B/S16 hybrid from original paper (https://arxiv.org/abs/2010.11929).
+     """
+-    backbone = _resnetv2((3, 4, 9), **kwargs)
++    backbone = _resnetv2((3, 4, 9), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=12, num_heads=12)
+     model = _create_vision_transformer_hybrid(
+-        'vit_base_r50_s16_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_r50_s16_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -333,10 +336,10 @@     """ R50+ViT-B/16 hybrid from original paper (https://arxiv.org/abs/2010.11929).
+     ImageNet-1k weights fine-tuned from in21k @ 384x384, source https://github.com/google-research/vision_transformer.
+     """
+-    backbone = _resnetv2((3, 4, 9), **kwargs)
++    backbone = _resnetv2((3, 4, 9), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=12, num_heads=12)
+     model = _create_vision_transformer_hybrid(
+-        'vit_base_r50_s16_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_r50_s16_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -344,10 +347,10 @@ def vit_large_r50_s32_224(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R50+ViT-L/S32 hybrid.
+     """
+-    backbone = _resnetv2((3, 4, 6, 3), **kwargs)
++    backbone = _resnetv2((3, 4, 6, 3), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=1024, depth=24, num_heads=16)
+     model = _create_vision_transformer_hybrid(
+-        'vit_large_r50_s32_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_r50_s32_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -355,10 +358,10 @@ def vit_large_r50_s32_384(pretrained=False, **kwargs) -> VisionTransformer:
+     """ R50+ViT-L/S32 hybrid.
+     """
+-    backbone = _resnetv2((3, 4, 6, 3), **kwargs)
++    backbone = _resnetv2((3, 4, 6, 3), **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=1024, depth=24, num_heads=16)
+     model = _create_vision_transformer_hybrid(
+-        'vit_large_r50_s32_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_large_r50_s32_384', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -372,10 +375,10 @@         features_only=True,
+         out_indices=[4],
+         **_dd_from_kwargs(**kwargs),
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=8, num_heads=8, mlp_ratio=3)
+     model = _create_vision_transformer_hybrid(
+-        'vit_small_resnet26d_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_resnet26d_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -389,10 +392,10 @@         features_only=True,
+         out_indices=[3],
+         **_dd_from_kwargs(**kwargs),
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=8, num_heads=8, mlp_ratio=3)
+     model = _create_vision_transformer_hybrid(
+-        'vit_small_resnet50d_s16_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_small_resnet50d_s16_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -406,10 +409,10 @@         features_only=True,
+         out_indices=[4],
+         **_dd_from_kwargs(**kwargs),
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=12, num_heads=12)
+     model = _create_vision_transformer_hybrid(
+-        'vit_base_resnet26d_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_resnet26d_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -423,10 +426,10 @@         features_only=True,
+         out_indices=[4],
+         **_dd_from_kwargs(**kwargs),
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=12, num_heads=12)
+     model = _create_vision_transformer_hybrid(
+-        'vit_base_resnet50d_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))
++        'vit_base_resnet50d_224', backbone=backbone, pretrained=pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -442,12 +445,12 @@         in_chans=kwargs.get('in_chans', 3),
+         act_layer=nn.GELU,
+         **_dd_from_kwargs(**kwargs),
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     model_args = dict(embed_dim=768, depth=12, num_heads=12, no_embed_class=True)
+     model = _create_vision_transformer_hybrid(
+         'vit_base_mci_224', backbone=backbone, embed_args=dict(proj=False),
+         pretrained=pretrained, **dict(model_args, **kwargs)
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 

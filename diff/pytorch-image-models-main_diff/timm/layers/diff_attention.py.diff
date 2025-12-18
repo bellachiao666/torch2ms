@@ -1,0 +1,137 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """Differential Attention
+ 
+ Paper: 'Differential Transformer' - https://arxiv.org/abs/2410.05258
+@@ -9,16 +14,16 @@ import math
+ from typing import Optional, Type
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch
++# import torch.nn as nn
++# import torch.nn.functional as F
+ 
+ from .attention import maybe_add_mask
+ from .config import use_fused_attn
+ from .norm import RmsNorm
+ 
+ 
+-class DiffAttention(nn.Module):
++class DiffAttention(msnn.Cell):
+     """Differential Attention module.
+ 
+     Computes attention as the difference between two softmax attention maps, which helps
+@@ -32,7 +37,7 @@ 
+     Supports both fused (scaled_dot_product_attention) and manual implementations.
+     """
+-    fused_attn: torch.jit.Final[bool]
++    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def __init__(
+             self,
+@@ -44,7 +49,7 @@             proj_bias: bool = True,
+             attn_drop: float = 0.,
+             proj_drop: float = 0.,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             depth: int = 0,
+             dual_lambda: bool = False,
+             device=None,
+@@ -77,28 +82,28 @@         self.scale = self.head_dim ** -0.5
+         self.fused_attn = use_fused_attn()
+ 
+-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
+-        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
+-        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else nn.Identity()
++        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.q_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.k_norm = norm_layer(self.head_dim, **dd) if qk_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.attn_drop = nn.Dropout(attn_drop)
+         self.attn_drop_p = attn_drop
+-        self.norm = norm_layer(dim, **dd) if scale_norm else nn.Identity()
+-        self.proj = nn.Linear(dim, dim, bias=proj_bias, **dd)
++        self.norm = norm_layer(dim, **dd) if scale_norm else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.proj = nn.Linear(dim, dim, bias=proj_bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.proj_drop = nn.Dropout(proj_drop)
+ 
+         self.dual_lambda = dual_lambda
+         if dual_lambda:
+-            self.lambda_a = nn.Parameter(torch.empty((), dtype=torch.float32, device=device))
+-            self.lambda_b = nn.Parameter(torch.empty((), dtype=torch.float32, device=device))
++            self.lambda_a = ms.Parameter(mint.empty((), dtype=ms.float32, device=device))
++            self.lambda_b = ms.Parameter(mint.empty((), dtype=ms.float32, device=device))
+             self.lambda_q1 = self.lambda_k1 = self.lambda_q2 = self.lambda_k2 = None
+         else:
+             self.lambda_a = self.lambda_b = None
+-            self.lambda_q1 = nn.Parameter(torch.empty(self.head_dim, dtype=torch.float32, device=device))
+-            self.lambda_k1 = nn.Parameter(torch.empty(self.head_dim, dtype=torch.float32, device=device))
+-            self.lambda_q2 = nn.Parameter(torch.empty(self.head_dim, dtype=torch.float32, device=device))
+-            self.lambda_k2 = nn.Parameter(torch.empty(self.head_dim, dtype=torch.float32, device=device))
++            self.lambda_q1 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
++            self.lambda_k1 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
++            self.lambda_q2 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
++            self.lambda_k2 = ms.Parameter(mint.empty(self.head_dim, dtype=ms.float32, device=device))
+ 
+-        self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)
++        self.sub_norm = RmsNorm(2 * self.head_dim, eps=1e-5, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.lambda_init = 0.8
+         self.set_lambda_init(depth)
+@@ -109,28 +114,28 @@ 
+     def reset_parameters(self):
+         if self.dual_lambda:
+-            nn.init.zeros_(self.lambda_a)
+-            nn.init.zeros_(self.lambda_b)
++            nn.init.zeros_(self.lambda_a)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.zeros_(self.lambda_b)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+-            nn.init.normal_(self.lambda_q1, mean=0, std=0.1)
+-            nn.init.normal_(self.lambda_k1, mean=0, std=0.1)
+-            nn.init.normal_(self.lambda_q2, mean=0, std=0.1)
+-            nn.init.normal_(self.lambda_k2, mean=0, std=0.1)
++            nn.init.normal_(self.lambda_q1, mean=0, std=0.1)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.normal_(self.lambda_k1, mean=0, std=0.1)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.normal_(self.lambda_q2, mean=0, std=0.1)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.normal_(self.lambda_k2, mean=0, std=0.1)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+-    def _compute_lambda(self) -> torch.Tensor:
++    def _compute_lambda(self) -> ms.Tensor:
+         if self.lambda_a is not None:
+-            lambda_1 = torch.exp(self.lambda_a)
+-            lambda_2 = torch.exp(self.lambda_b)
++            lambda_1 = mint.exp(self.lambda_a)
++            lambda_2 = mint.exp(self.lambda_b)
+         else:
+-            lambda_1 = torch.exp(torch.sum(self.lambda_q1 * self.lambda_k1, dim=-1).float())
+-            lambda_2 = torch.exp(torch.sum(self.lambda_q2 * self.lambda_k2, dim=-1).float())
++            lambda_1 = mint.exp(mint.sum(self.lambda_q1 * self.lambda_k1, dim=-1).float())
++            lambda_2 = mint.exp(mint.sum(self.lambda_q2 * self.lambda_k2, dim=-1).float())
+         return lambda_1 - lambda_2 + self.lambda_init
+ 
+-    def forward(
++    def construct(
+             self,
+-            x: torch.Tensor,
+-            attn_mask: Optional[torch.Tensor] = None,
+-    ) -> torch.Tensor:
++            x: ms.Tensor,
++            attn_mask: Optional[ms.Tensor] = None,
++    ) -> ms.Tensor:
+         B, N, C = x.shape
+ 
+         q, k, v = self.qkv(x).chunk(3, dim=2)
+@@ -149,8 +154,8 @@             k1, k2 = k.unbind(2)
+ 
+             dropout_p = self.attn_drop_p if self.training else 0.0
+-            attn1 = F.scaled_dot_product_attention(q1, k1, v, attn_mask=attn_mask, dropout_p=dropout_p)
+-            attn2 = F.scaled_dot_product_attention(q2, k2, v, attn_mask=attn_mask, dropout_p=dropout_p)
++            attn1 = F.scaled_dot_product_attention(q1, k1, v, attn_mask=attn_mask, dropout_p=dropout_p)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            attn2 = F.scaled_dot_product_attention(q2, k2, v, attn_mask=attn_mask, dropout_p=dropout_p)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+             x = attn1 - lambda_full * attn2
+         else:

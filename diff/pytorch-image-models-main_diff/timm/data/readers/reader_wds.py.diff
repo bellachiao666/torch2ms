@@ -1,0 +1,67 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Dataset reader for webdataset
+ 
+ Hacked together by / Copyright 2022 Ross Wightman
+@@ -14,11 +19,11 @@ from itertools import islice
+ from typing import Any, Callable, Dict, List, Optional, Tuple
+ 
+-import torch
+-import torch.distributed as dist
++# import torch
++# import torch.distributed as dist
+ import yaml
+ from PIL import Image
+-from torch.utils.data import Dataset, IterableDataset, get_worker_info
++# from torch.utils.data import IterableDataset, get_worker_info
+ 
+ try:
+     import webdataset as wds
+@@ -170,7 +175,7 @@ 
+ def pytorch_worker_seed():
+     """get dataloader worker seed from pytorch"""
+-    worker_info = get_worker_info()
++    worker_info = get_worker_info()  # 'torch.utils.data.get_worker_info' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if worker_info is not None:
+         # favour the seed already created for pytorch dataloader workers if it exists
+         return worker_info.seed
+@@ -215,6 +220,7 @@     detshuffle2 = None
+ 
+ 
++# 'torch.utils.data.IterableDataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class ResampledShards2(IterableDataset):
+     """An iterable dataset yielding a list of urls."""
+ 
+@@ -316,9 +322,11 @@         # Distributed world state
+         self.dist_rank = 0
+         self.dist_num_replicas = 1
+-        if dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1:
+-            self.dist_rank = dist.get_rank()
+-            self.dist_num_replicas = dist.get_world_size()
++        # 'torch.distributed.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        # 'torch.distributed.is_initialized' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        if dist.is_available() and dist.is_initialized() and mint.distributed.get_world_size() > 1:
++            self.dist_rank = mint.distributed.get_rank()
++            self.dist_num_replicas = mint.distributed.get_world_size()
+ 
+         # Attributes that are updated in _lazy_init
+         self.worker_info = None
+@@ -351,7 +359,7 @@         """ Lazily initialize worker (in worker processes)
+         """
+         if self.worker_info is None:
+-            worker_info = torch.utils.data.get_worker_info()
++            worker_info = torch.utils.data.get_worker_info()  # 'torch.utils.data.get_worker_info' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if worker_info is not None:
+                 self.worker_info = worker_info
+                 self.worker_id = worker_info.id
+@@ -398,7 +406,7 @@             ),
+             wds.rename(image=self.input_key, target=self.target_key)
+         ])
+-        self.ds = wds.DataPipeline(*pipeline)
++        self.ds = wds.DataPipeline(*pipeline)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def _split_by_node_and_worker(self, src):
+         if self.global_num_workers > 1:

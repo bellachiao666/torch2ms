@@ -1,0 +1,200 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Coordinate Attention and Variants
+ 
+ Coordinate Attention decomposes channel attention into two 1D feature encoding processes
+@@ -11,16 +16,14 @@ Hacked together by / Copyright 2025 Ross Wightman
+ """
+ from typing import Optional, Type, Union
+-
+-import torch
+-from torch import nn
++# from torch import nn
+ 
+ from .create_act import create_act_layer
+ from .helpers import make_divisible
+ from .norm import GroupNorm1
+ 
+ 
+-class CoordAttn(nn.Module):
++class CoordAttn(msnn.Cell):
+     def __init__(
+             self,
+             channels: int,
+@@ -29,9 +32,9 @@             rd_divisor: int = 8,
+             se_factor: float = 2/3,
+             bias: bool = False,
+-            act_layer: Type[nn.Module] = nn.Hardswish,
+-            norm_layer: Optional[Type[nn.Module]] = nn.BatchNorm2d,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Type[msnn.Cell] = nn.Hardswish,
++            norm_layer: Optional[Type[msnn.Cell]] = nn.BatchNorm2d,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
+@@ -63,15 +66,15 @@         if not rd_channels:
+             rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
+ 
+-        self.conv1 = nn.Conv2d(channels, rd_channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
+-        self.bn1 = norm_layer(rd_channels, **dd) if norm_layer is not None else nn.Identity()
++        self.conv1 = nn.Conv2d(channels, rd_channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.bn1 = norm_layer(rd_channels, **dd) if norm_layer is not None else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act = act_layer()
+ 
+-        self.conv_h = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
+-        self.conv_w = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
++        self.conv_h = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.conv_w = nn.Conv2d(rd_channels, channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         N, C, H, W = x.size()
+@@ -81,11 +84,11 @@         x_w = x.mean(2, keepdim=True)
+ 
+         x_w = x_w.transpose(-1, -2)
+-        y = torch.cat([x_h, x_w], dim=2)
++        y = mint.cat([x_h, x_w], dim=2)
+         y = self.conv1(y)
+         y = self.bn1(y)
+         y = self.act(y)
+-        x_h, x_w = torch.split(y, [H, W], dim=2)
++        x_h, x_w = mint.split(y, [H, W], dim=2)
+         x_w = x_w.transpose(-1, -2)
+ 
+         a_h = self.gate(self.conv_h(x_h))
+@@ -98,7 +101,7 @@         return out
+ 
+ 
+-class SimpleCoordAttn(nn.Module):
++class SimpleCoordAttn(msnn.Cell):
+     """Simplified Coordinate Attention variant.
+ 
+     Uses
+@@ -117,8 +120,8 @@             rd_divisor: int = 8,
+             se_factor: float = 2 / 3,
+             bias: bool = True,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
+@@ -144,14 +147,14 @@         if not rd_channels:
+             rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
+ 
+-        self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)
++        self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.act = act_layer()
+-        self.fc_h = nn.Linear(rd_channels, channels, bias=bias, **dd)
+-        self.fc_w = nn.Linear(rd_channels, channels, bias=bias, **dd)
++        self.fc_h = nn.Linear(rd_channels, channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.fc_w = nn.Linear(rd_channels, channels, bias=bias, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         # Strip pooling
+@@ -173,7 +176,7 @@         return out
+ 
+ 
+-class EfficientLocalAttn(nn.Module):
++class EfficientLocalAttn(msnn.Cell):
+     """Efficient Local Attention.
+ 
+     Lightweight alternative to Coordinate Attention that preserves spatial
+@@ -188,9 +191,9 @@             channels: int,
+             kernel_size: int = 7,
+             bias: bool = False,
+-            act_layer: Type[nn.Module] = nn.SiLU,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
+-            norm_layer: Optional[Type[nn.Module]] = GroupNorm1,
++            act_layer: Type[msnn.Cell] = nn.SiLU,
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
++            norm_layer: Optional[Type[msnn.Cell]] = GroupNorm1,
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
+@@ -219,7 +222,7 @@             groups=channels,
+             bias=bias,
+             **dd
+-        )
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.conv_w = nn.Conv2d(
+             channels, channels,
+             kernel_size=(1, kernel_size),
+@@ -228,17 +231,17 @@             groups=channels,
+             bias=bias,
+             **dd
+-        )
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
+         if norm_layer is not None:
+-            self.norm_h = norm_layer(channels, **dd)
+-            self.norm_w = norm_layer(channels, **dd)
++            self.norm_h = norm_layer(channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.norm_w = norm_layer(channels, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+-            self.norm_h = nn.Identity()
+-            self.norm_w = nn.Identity()
++            self.norm_h = msnn.Identity()
++            self.norm_w = msnn.Identity()
+         self.act = act_layer()
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         # Strip pooling: (N, C, H, W) -> (N, C, H) and (N, C, W)
+@@ -260,7 +263,7 @@         return out
+ 
+ 
+-class StripAttn(nn.Module):
++class StripAttn(msnn.Cell):
+     """Minimal Strip Attention.
+ 
+     Lightweight spatial attention using strip pooling with optional learned refinement.
+@@ -272,7 +275,7 @@             use_conv: bool = True,
+             kernel_size: int = 3,
+             bias: bool = False,
+-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
++            gate_layer: Union[str, Type[msnn.Cell]] = 'sigmoid',
+             has_skip: bool = False,
+             device=None,
+             dtype=None,
+@@ -303,7 +306,7 @@                 groups=channels,
+                 bias=bias,
+                 **dd
+-            )
++            )  # 存在 *args/**kwargs，需手动确认参数映射;
+             self.conv_w = nn.Conv2d(
+                 channels, channels,
+                 kernel_size=(1, kernel_size),
+@@ -312,14 +315,14 @@                 groups=channels,
+                 bias=bias,
+                 **dd
+-            )
++            )  # 存在 *args/**kwargs，需手动确认参数映射;
+         else:
+-            self.conv_h = nn.Identity()
+-            self.conv_w = nn.Identity()
++            self.conv_h = msnn.Identity()
++            self.conv_w = msnn.Identity()
+ 
+         self.gate = create_act_layer(gate_layer)
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         identity = x
+ 
+         # Strip pooling

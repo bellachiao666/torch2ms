@@ -1,0 +1,68 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ AdamP Optimizer Implementation copied from https://github.com/clovaai/AdamP/blob/master/adamp/adamp.py
+ 
+@@ -8,17 +13,17 @@ MIT license
+ """
+ 
+-import torch
+-import torch.nn.functional as F
+-from torch.optim.optimizer import Optimizer
++# import torch
++# import torch.nn.functional as F
++# from torch.optim.optimizer import Optimizer
+ import math
+ 
+ 
+-def _channel_view(x) -> torch.Tensor:
++def _channel_view(x) -> ms.Tensor:
+     return x.reshape(x.size(0), -1)
+ 
+ 
+-def _layer_view(x) -> torch.Tensor:
++def _layer_view(x) -> ms.Tensor:
+     return x.reshape(1, -1)
+ 
+ 
+@@ -28,7 +33,7 @@     for view_func in [_channel_view, _layer_view]:
+         param_view = view_func(p)
+         grad_view = view_func(grad)
+-        cosine_sim = F.cosine_similarity(grad_view, param_view, dim=1, eps=eps).abs_()
++        cosine_sim = F.cosine_similarity(grad_view, param_view, dim=1, eps=eps).abs_()  # 'torch.nn.functional.cosine_similarity' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.nn.functional.cosine_similarity.abs_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         # FIXME this is a problem for PyTorch XLA
+         if cosine_sim.max() < delta / math.sqrt(param_view.size(1)):
+@@ -40,6 +45,7 @@     return perturb, wd
+ 
+ 
++# 'torch.optim.optimizer.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class AdamP(Optimizer):
+     def __init__(
+             self,
+@@ -63,10 +69,13 @@         )
+         super(AdamP, self).__init__(params, defaults)
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 装饰器 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.no_grad()
+     def step(self, closure=None):
+         loss = None
+         if closure is not None:
++            # 'torch.enable_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             with torch.enable_grad():
+                 loss = closure()
+ 
+@@ -84,8 +93,8 @@                 # State initialization
+                 if len(state) == 0:
+                     state['step'] = 0
+-                    state['exp_avg'] = torch.zeros_like(p)
+-                    state['exp_avg_sq'] = torch.zeros_like(p)
++                    state['exp_avg'] = mint.zeros_like(p)
++                    state['exp_avg_sq'] = mint.zeros_like(p)
+ 
+                 # Adam
+                 exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']

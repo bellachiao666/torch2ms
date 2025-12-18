@@ -1,0 +1,35 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Global Response Normalization Module
+ 
+ Based on the GRN layer presented in
+@@ -11,11 +16,10 @@ Hacked together by / Copyright 2023 Ross Wightman
+ """
+ 
+-import torch
+-from torch import nn as nn
++# import torch
+ 
+ 
+-class GlobalResponseNorm(nn.Module):
++class GlobalResponseNorm(msnn.Cell):
+     """ Global Response Normalization layer
+     """
+     def __init__(
+@@ -38,10 +42,10 @@             self.channel_dim = 1
+             self.wb_shape = (1, -1, 1, 1)
+ 
+-        self.weight = nn.Parameter(torch.zeros(dim, **dd))
+-        self.bias = nn.Parameter(torch.zeros(dim, **dd))
++        self.weight = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.bias = ms.Parameter(mint.zeros(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x_g = x.norm(p=2, dim=self.spatial_dim, keepdim=True)
+         x_n = x_g / (x_g.mean(dim=self.channel_dim, keepdim=True) + self.eps)
+-        return x + torch.addcmul(self.bias.view(self.wb_shape), self.weight.view(self.wb_shape), x * x_n)
++        return x + torch.addcmul(self.bias.view(self.wb_shape), self.weight.view(self.wb_shape), x * x_n)  # 'torch.addcmul' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

@@ -1,0 +1,179 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ ResNeSt Models
+ 
+ Paper: `ResNeSt: Split-Attention Networks` - https://arxiv.org/abs/2004.08955
+@@ -8,7 +13,7 @@ """
+ from typing import Optional, Type
+ 
+-from torch import nn
++# from torch import nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import SplitAttn
+@@ -17,7 +22,7 @@ from .resnet import ResNet
+ 
+ 
+-class ResNestBottleneck(nn.Module):
++class ResNestBottleneck(msnn.Cell):
+     """ResNet Bottleneck
+     """
+     # pylint: disable=unused-argument
+@@ -28,7 +33,7 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             radix: int = 1,
+             cardinality: int = 1,
+             base_width: int = 64,
+@@ -38,12 +43,12 @@             reduce_first: int = 1,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[Type[nn.Module]] = None,
+-            drop_path: Optional[nn.Module] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[Type[msnn.Cell]] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -62,10 +67,10 @@             avd_stride = 0
+         self.radix = radix
+ 
+-        self.conv1 = nn.Conv2d(inplanes, group_width, kernel_size=1, bias=False, **dd)
+-        self.bn1 = norm_layer(group_width, **dd)
++        self.conv1 = nn.Conv2d(inplanes, group_width, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.bn1 = norm_layer(group_width, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act1 = act_layer(inplace=True)
+-        self.avd_first = nn.AvgPool2d(3, avd_stride, padding=1) if avd_stride > 0 and avd_first else None
++        self.avd_first = nn.AvgPool2d(3, avd_stride, padding = 1) if avd_stride > 0 and avd_first else None
+ 
+         if self.radix >= 1:
+             self.conv2 = SplitAttn(
+@@ -80,10 +85,10 @@                 norm_layer=norm_layer,
+                 drop_layer=drop_block,
+                 **dd,
+-            )
+-            self.bn2 = nn.Identity()
+-            self.drop_block = nn.Identity()
+-            self.act2 = nn.Identity()
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.bn2 = msnn.Identity()
++            self.drop_block = msnn.Identity()
++            self.act2 = msnn.Identity()
+         else:
+             self.conv2 = nn.Conv2d(
+                 group_width,
+@@ -95,23 +100,23 @@                 groups=cardinality,
+                 bias=False,
+                 **dd,
+-            )
+-            self.bn2 = norm_layer(group_width, **dd)
+-            self.drop_block = drop_block() if drop_block is not None else nn.Identity()
++            )  # 存在 *args/**kwargs，需手动确认参数映射;
++            self.bn2 = norm_layer(group_width, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++            self.drop_block = drop_block() if drop_block is not None else msnn.Identity()
+             self.act2 = act_layer(inplace=True)
+-        self.avd_last = nn.AvgPool2d(3, avd_stride, padding=1) if avd_stride > 0 and not avd_first else None
+-
+-        self.conv3 = nn.Conv2d(group_width, planes * 4, kernel_size=1, bias=False, **dd)
+-        self.bn3 = norm_layer(planes * 4, **dd)
++        self.avd_last = nn.AvgPool2d(3, avd_stride, padding = 1) if avd_stride > 0 and not avd_first else None
++
++        self.conv3 = nn.Conv2d(group_width, planes * 4, kernel_size=1, bias=False, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.bn3 = norm_layer(planes * 4, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act3 = act_layer(inplace=True)
+         self.downsample = downsample
+         self.drop_path = drop_path
+ 
+     def zero_init_last(self):
+         if getattr(self.bn3, 'weight', None) is not None:
+-            nn.init.zeros_(self.bn3.weight)
+-
+-    def forward(self, x):
++            nn.init.zeros_(self.bn3.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x):
+         shortcut = x
+ 
+         out = self.conv1(x)
+@@ -149,7 +154,7 @@         variant,
+         pretrained,
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _cfg(url='', **kwargs):
+@@ -194,7 +199,7 @@         block=ResNestBottleneck, layers=[1, 1, 1, 1],
+         stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
+         block_args=dict(radix=2, avd=True, avd_first=False))
+-    return _create_resnest('resnest14d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest14d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -205,7 +210,7 @@         block=ResNestBottleneck, layers=[2, 2, 2, 2],
+         stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
+         block_args=dict(radix=2, avd=True, avd_first=False))
+-    return _create_resnest('resnest26d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest26d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -217,7 +222,7 @@         block=ResNestBottleneck, layers=[3, 4, 6, 3],
+         stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
+         block_args=dict(radix=2, avd=True, avd_first=False))
+-    return _create_resnest('resnest50d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest50d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -229,7 +234,7 @@         block=ResNestBottleneck, layers=[3, 4, 23, 3],
+         stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
+         block_args=dict(radix=2, avd=True, avd_first=False))
+-    return _create_resnest('resnest101e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest101e', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -241,7 +246,7 @@         block=ResNestBottleneck, layers=[3, 24, 36, 3],
+         stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
+         block_args=dict(radix=2, avd=True, avd_first=False))
+-    return _create_resnest('resnest200e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest200e', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -253,7 +258,7 @@         block=ResNestBottleneck, layers=[3, 30, 48, 8],
+         stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
+         block_args=dict(radix=2, avd=True, avd_first=False))
+-    return _create_resnest('resnest269e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest269e', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -264,7 +269,7 @@         block=ResNestBottleneck, layers=[3, 4, 6, 3],
+         stem_type='deep', stem_width=32, avg_down=True, base_width=40, cardinality=2,
+         block_args=dict(radix=4, avd=True, avd_first=True))
+-    return _create_resnest('resnest50d_4s2x40d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest50d_4s2x40d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -275,4 +280,4 @@         block=ResNestBottleneck, layers=[3, 4, 6, 3],
+         stem_type='deep', stem_width=32, avg_down=True, base_width=24, cardinality=4,
+         block_args=dict(radix=1, avd=True, avd_first=True))
+-    return _create_resnest('resnest50d_1s4x24d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
++    return _create_resnest('resnest50d_1s4x24d', pretrained=pretrained, **dict(model_kwargs, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

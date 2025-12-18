@@ -1,0 +1,159 @@
+--- pytorch+++ mindspore@@ -1,4 +1,9 @@ #!/usr/bin/env python3
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ ImageNet Validation Script
+ 
+ This is intended to be a lean and easily modifiable ImageNet validation script for evaluating pretrained
+@@ -18,9 +23,8 @@ from contextlib import suppress
+ from functools import partial
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.parallel
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import create_dataset, create_loader, resolve_data_config, RealLabelsImagenet
+ from timm.layers import apply_test_time_pool, set_fast_norm
+@@ -30,7 +34,7 @@ 
+ 
+ try:
+-    from functorch.compile import memory_efficient_fusion
++    # from functorch.compile import memory_efficient_fusion
+     has_functorch = True
+ except ImportError as e:
+     has_functorch = False
+@@ -174,11 +178,12 @@     args.pretrained = args.pretrained or not args.checkpoint
+     args.prefetcher = not args.no_prefetcher
+ 
++    # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if torch.cuda.is_available():
+-        torch.backends.cuda.matmul.allow_tf32 = True
++        ms.Tensor.matmul.allow_tf32 = True
+         torch.backends.cudnn.benchmark = True
+ 
+-    device = torch.device(args.device)
++    device = torch.device(args.device)  # 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     if args.metrics_avg and not has_sklearn:
+         _logger.warning(
+@@ -193,13 +198,13 @@     # resolve AMP arguments based on PyTorch availability
+     amp_autocast = suppress
+     if args.amp:
+-        assert model_dtype is None or model_dtype == torch.float32, 'float32 model dtype must be used with AMP'
++        assert model_dtype is None or model_dtype == ms.float32, 'float32 model dtype must be used with AMP'
+         assert args.amp_dtype in ('float16', 'bfloat16')
+-        amp_dtype = torch.bfloat16 if args.amp_dtype == 'bfloat16' else torch.float16
++        amp_dtype = ms.bfloat16 if args.amp_dtype == 'bfloat16' else ms.float16
+         amp_autocast = partial(torch.autocast, device_type=device.type, dtype=amp_dtype)
+         _logger.info('Validating in mixed precision with native PyTorch AMP.')
+     else:
+-        _logger.info(f'Validating in {model_dtype or torch.float32}. AMP not enabled.')
++        _logger.info(f'Validating in {model_dtype or ms.float32}. AMP not enabled.')
+ 
+     if args.fuser:
+         set_jit_fuser(args.fuser)
+@@ -222,7 +227,7 @@         global_pool=args.gp,
+         scriptable=args.torchscript,
+         **args.model_kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     if args.num_classes is None:
+         assert hasattr(model, 'num_classes'), 'Model must have `num_classes` attr if not set on cmd line/config.'
+         args.num_classes = model.num_classes
+@@ -251,19 +256,19 @@         model = model.to(memory_format=torch.channels_last)
+ 
+     if args.torchscript:
+-        model = torch.jit.script(model)
++        model = ms.jit(model)
+     elif args.torchcompile:
+         assert has_compile, 'A version of torch w/ torch.compile() is required for --compile, possibly a nightly.'
+-        torch._dynamo.reset()
+-        model = torch.compile(model, backend=args.torchcompile, mode=args.torchcompile_mode)
++        torch._dynamo.reset()  # 'torch._dynamo.reset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        model = torch.compile(model, backend=args.torchcompile, mode=args.torchcompile_mode)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif args.aot_autograd:
+         assert has_functorch, "functorch is needed for --aot-autograd"
+         model = memory_efficient_fusion(model)
+ 
+     if args.num_gpu > 1:
+-        model = torch.nn.DataParallel(model, device_ids=list(range(args.num_gpu)))
+-
+-    criterion = nn.CrossEntropyLoss().to(device)
++        model = torch.nn.DataParallel(model, device_ids=list(range(args.num_gpu)))  # 'torch.nn.DataParallel' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    criterion = nn.CrossEntropyLoss().to(device)  # 'torch.nn.CrossEntropyLoss.to' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     root_dir = args.data or args.data_dir
+     if args.input_img_mode is None:
+@@ -315,7 +320,7 @@             crop_border_pixels=args.crop_border_pixels,
+             pin_memory=args.pin_mem,
+             device=device,
+-            img_dtype=model_dtype or torch.float32,
++            img_dtype=model_dtype or ms.float32,
+             patch_size=model_patch_size or (16, 16),
+             max_seq_len=args.naflex_max_seq_len,
+         )
+@@ -334,7 +339,7 @@             crop_border_pixels=args.crop_border_pixels,
+             pin_memory=args.pin_mem,
+             device=device,
+-            img_dtype=model_dtype or torch.float32,
++            img_dtype=model_dtype or ms.float32,
+             tf_preprocessing=args.tf_preprocessing,
+         )
+ 
+@@ -348,10 +353,11 @@         all_targets = []
+ 
+     model.eval()
++    # 'torch.inference_mode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     with torch.inference_mode():
+         # warmup, reduce variability of first batch time, especially for comparing torchscript vs non
+         if not args.naflex_loader:
+-            input = torch.randn((args.batch_size,) + tuple(data_config['input_size'])).to(device=device, dtype=model_dtype)
++            input = mint.randn((args.batch_size,) + tuple(data_config['input_size'])).to(device=device, dtype=model_dtype)
+             if args.channels_last:
+                 input = input.contiguous(memory_format=torch.channels_last)
+             with amp_autocast():
+@@ -384,7 +390,7 @@             top5.update(acc5.item(), batch_size)
+ 
+             if args.metrics_avg:
+-                predictions = torch.argmax(output, dim=1)
++                predictions = mint.argmax(output, dim=1)
+                 all_preds.append(predictions.cpu())
+                 all_targets.append(target.cpu())
+ 
+@@ -417,8 +423,8 @@ 
+     metric_results = {}
+     if args.metrics_avg:
+-        all_preds = torch.cat(all_preds).numpy()
+-        all_targets = torch.cat(all_targets).numpy()
++        all_preds = mint.cat(all_preds).numpy()
++        all_targets = mint.cat(all_targets).numpy()
+         precision = precision_score(all_targets, all_preds, average=args.metrics_avg, zero_division=0)
+         recall = recall_score(all_targets, all_preds, average=args.metrics_avg, zero_division=0)
+         f1 = f1_score(all_targets, all_preds, average=args.metrics_avg, zero_division=0)
+@@ -437,7 +443,7 @@         img_size=data_config['input_size'][-1],
+         crop_pct=crop_pct,
+         interpolation=data_config['interpolation'],
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     log_string = ' * Acc@1 {:.3f} ({:.3f}) Acc@5 {:.3f} ({:.3f})'.format(
+        results['top1'], results['top1_err'], results['top5'], results['top5_err'])
+@@ -460,10 +466,12 @@     while batch_size:
+         args.batch_size = batch_size * args.num_gpu  # multiply by num-gpu for DataParallel case
+         try:
++            # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if 'cuda' in args.device and torch.cuda.is_available():
+-                torch.cuda.empty_cache()
++                torch.cuda.empty_cache()  # 'torch.cuda.empty_cache' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            # 'torch.npu.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             elif "npu" in args.device and torch.npu.is_available():
+-                torch.npu.empty_cache()
++                torch.npu.empty_cache()  # 'torch.npu.empty_cache' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             results = validate(args)
+             return results
+         except RuntimeError as e:

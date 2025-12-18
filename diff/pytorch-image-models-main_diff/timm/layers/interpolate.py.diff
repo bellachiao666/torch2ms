@@ -1,0 +1,47 @@
+--- pytorch+++ mindspore@@ -1,9 +1,14 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Interpolation helpers for timm layers
+ 
+ RegularGridInterpolator from https://github.com/sbarratt/torch_interpolations
+ Copyright Shane Barratt, Apache 2.0 license
+ """
+-import torch
++# import torch
+ from itertools import product
+ 
+ 
+@@ -20,7 +25,7 @@         self.values = values
+ 
+         assert isinstance(self.points, tuple) or isinstance(self.points, list)
+-        assert isinstance(self.values, torch.Tensor)
++        assert isinstance(self.values, ms.Tensor)
+ 
+         self.ms = list(self.values.shape)
+         self.n = len(self.points)
+@@ -28,7 +33,7 @@         assert len(self.ms) == self.n
+ 
+         for i, p in enumerate(self.points):
+-            assert isinstance(p, torch.Tensor)
++            assert isinstance(p, ms.Tensor)
+             assert p.shape[0] == self.values.shape[i]
+ 
+     def __call__(self, points_to_interp):
+@@ -44,7 +49,7 @@         dists = []
+         overalls = []
+         for p, x in zip(self.points, points_to_interp):
+-            idx_right = torch.bucketize(x, p)
++            idx_right = torch.bucketize(x, p)  # 'torch.bucketize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             idx_right[idx_right >= p.shape[0]] = p.shape[0] - 1
+             idx_left = (idx_right - 1).clamp(0, p.shape[0] - 1)
+             dist_left = x - p[idx_left]
+@@ -63,6 +68,6 @@             as_s = [idx[onoff] for onoff, idx in zip(indexer, idxs)]
+             bs_s = [dist[1 - onoff] for onoff, dist in zip(indexer, dists)]
+             numerator += self.values[as_s] * \
+-                torch.prod(torch.stack(bs_s), dim=0)
+-        denominator = torch.prod(torch.stack(overalls), dim=0)
++                mint.prod(mint.stack(bs_s), dim=0)
++        denominator = mint.prod(mint.stack(overalls), dim=0)
+         return numerator / denominator

@@ -1,0 +1,133 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Bring-Your-Own-Attention Network
+ 
+ A flexible network w/ dataclass based config for stacking NN blocks including
+@@ -279,7 +284,7 @@         model_cfg=model_cfgs[variant] if not cfg_variant else model_cfgs[cfg_variant],
+         feature_cfg=dict(flatten_sequential=True),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
+@@ -372,14 +377,14 @@     """ Bottleneck Transformer w/ ResNet26-T backbone.
+     """
+     kwargs.setdefault('img_size', 256)
+-    return _create_byoanet('botnet26t_256', 'botnet26t', pretrained=pretrained, **kwargs)
++    return _create_byoanet('botnet26t_256', 'botnet26t', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def sebotnet33ts_256(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ Bottleneck Transformer w/ a ResNet33-t backbone, SE attn for non Halo blocks, SiLU,
+     """
+-    return _create_byoanet('sebotnet33ts_256', 'sebotnet33ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('sebotnet33ts_256', 'sebotnet33ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -387,7 +392,7 @@     """ Bottleneck Transformer w/ ResNet50-T backbone, silu act.
+     """
+     kwargs.setdefault('img_size', 256)
+-    return _create_byoanet('botnet50ts_256', 'botnet50ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('botnet50ts_256', 'botnet50ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -395,7 +400,7 @@     """ Bottleneck Transformer w/ ResNet26-T backbone, silu act.
+     """
+     kwargs.setdefault('img_size', 256)
+-    return _create_byoanet('eca_botnext26ts_256', 'eca_botnext26ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('eca_botnext26ts_256', 'eca_botnext26ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -403,49 +408,49 @@     """ HaloNet-H1. Halo attention in all stages as per the paper.
+     NOTE: This runs very slowly!
+     """
+-    return _create_byoanet('halonet_h1', pretrained=pretrained, **kwargs)
++    return _create_byoanet('halonet_h1', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def halonet26t(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ HaloNet w/ a ResNet26-t backbone. Halo attention in final two stages
+     """
+-    return _create_byoanet('halonet26t', pretrained=pretrained, **kwargs)
++    return _create_byoanet('halonet26t', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def sehalonet33ts(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ HaloNet w/ a ResNet33-t backbone, SE attn for non Halo blocks, SiLU, 1-2 Halo in stage 2,3,4.
+     """
+-    return _create_byoanet('sehalonet33ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('sehalonet33ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def halonet50ts(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ HaloNet w/ a ResNet50-t backbone, silu act. Halo attention in final two stages
+     """
+-    return _create_byoanet('halonet50ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('halonet50ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def eca_halonext26ts(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ HaloNet w/ a ResNet26-t backbone, silu act. Halo attention in final two stages
+     """
+-    return _create_byoanet('eca_halonext26ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('eca_halonext26ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def lambda_resnet26t(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ Lambda-ResNet-26-T. Lambda layers w/ conv pos in last two stages.
+     """
+-    return _create_byoanet('lambda_resnet26t', pretrained=pretrained, **kwargs)
++    return _create_byoanet('lambda_resnet26t', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def lambda_resnet50ts(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ Lambda-ResNet-50-TS. SiLU act. Lambda layers w/ conv pos in last two stages.
+     """
+-    return _create_byoanet('lambda_resnet50ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('lambda_resnet50ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -453,25 +458,25 @@     """ Lambda-ResNet-26-R-T. Lambda layers w/ rel pos embed in last two stages.
+     """
+     kwargs.setdefault('img_size', 256)
+-    return _create_byoanet('lambda_resnet26rpt_256', pretrained=pretrained, **kwargs)
++    return _create_byoanet('lambda_resnet26rpt_256', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def haloregnetz_b(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ Halo + RegNetZ
+     """
+-    return _create_byoanet('haloregnetz_b', pretrained=pretrained, **kwargs)
++    return _create_byoanet('haloregnetz_b', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def lamhalobotnet50ts_256(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ Combo Attention (Lambda + Halo + Bot) Network
+     """
+-    return _create_byoanet('lamhalobotnet50ts_256', 'lamhalobotnet50ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('lamhalobotnet50ts_256', 'lamhalobotnet50ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+ def halo2botnet50ts_256(pretrained: bool = False, **kwargs) -> ByobNet:
+     """ Combo Attention (Halo + Halo + Bot) Network
+     """
+-    return _create_byoanet('halo2botnet50ts_256', 'halo2botnet50ts', pretrained=pretrained, **kwargs)
++    return _create_byoanet('halo2botnet50ts_256', 'halo2botnet50ts', pretrained=pretrained, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

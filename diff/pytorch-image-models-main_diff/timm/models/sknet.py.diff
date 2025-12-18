@@ -1,0 +1,208 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Selective Kernel Networks (ResNet base)
+ 
+ Paper: Selective Kernel Networks (https://arxiv.org/abs/1903.06586)
+@@ -11,7 +16,7 @@ import math
+ from typing import Optional, Type
+ 
+-from torch import nn as nn
++# from torch import nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import SelectiveKernel, ConvNormAct, create_attn
+@@ -20,7 +25,7 @@ from .resnet import ResNet
+ 
+ 
+-class SelectiveKernelBasic(nn.Module):
++class SelectiveKernelBasic(msnn.Cell):
+     expansion = 1
+ 
+     def __init__(
+@@ -28,19 +33,19 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             cardinality: int = 1,
+             base_width: int = 64,
+             sk_kwargs: Optional[dict] = None,
+             reduce_first: int = 1,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[nn.Module] = None,
+-            drop_path: Optional[nn.Module] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[msnn.Cell] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -48,7 +53,7 @@         super().__init__()
+ 
+         sk_kwargs = sk_kwargs or {}
+-        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)
++        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         assert cardinality == 1, 'BasicBlock only supports cardinality of 1'
+         assert base_width == 64, 'BasicBlock doest not support changing base width'
+         first_planes = planes // reduce_first
+@@ -64,7 +69,7 @@             drop_layer=drop_block,
+             **conv_kwargs,
+             **sk_kwargs,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.conv2 = ConvNormAct(
+             first_planes,
+             outplanes,
+@@ -72,17 +77,17 @@             dilation=dilation,
+             apply_act=False,
+             **conv_kwargs,
+-        )
+-        self.se = create_attn(attn_layer, outplanes, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.se = create_attn(attn_layer, outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act = act_layer(inplace=True)
+         self.downsample = downsample
+         self.drop_path = drop_path
+ 
+     def zero_init_last(self):
+         if getattr(self.conv2.bn, 'weight', None) is not None:
+-            nn.init.zeros_(self.conv2.bn.weight)
+-
+-    def forward(self, x):
++            nn.init.zeros_(self.conv2.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1(x)
+         x = self.conv2(x)
+@@ -97,7 +102,7 @@         return x
+ 
+ 
+-class SelectiveKernelBottleneck(nn.Module):
++class SelectiveKernelBottleneck(msnn.Cell):
+     expansion = 4
+ 
+     def __init__(
+@@ -105,19 +110,19 @@             inplanes: int,
+             planes: int,
+             stride: int = 1,
+-            downsample: Optional[nn.Module] = None,
++            downsample: Optional[msnn.Cell] = None,
+             cardinality: int = 1,
+             base_width: int = 64,
+             sk_kwargs: Optional[dict] = None,
+             reduce_first: int = 1,
+             dilation: int = 1,
+             first_dilation: Optional[int] = None,
+-            act_layer: Type[nn.Module] = nn.ReLU,
+-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
+-            attn_layer: Optional[Type[nn.Module]] = None,
+-            aa_layer: Optional[Type[nn.Module]] = None,
+-            drop_block: Optional[nn.Module] = None,
+-            drop_path: Optional[nn.Module] = None,
++            act_layer: Type[msnn.Cell] = nn.ReLU,
++            norm_layer: Type[msnn.Cell] = nn.BatchNorm2d,
++            attn_layer: Optional[Type[msnn.Cell]] = None,
++            aa_layer: Optional[Type[msnn.Cell]] = None,
++            drop_block: Optional[msnn.Cell] = None,
++            drop_path: Optional[msnn.Cell] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -125,13 +130,13 @@         super().__init__()
+ 
+         sk_kwargs = sk_kwargs or {}
+-        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)
++        conv_kwargs = dict(act_layer=act_layer, norm_layer=norm_layer, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         width = int(math.floor(planes * (base_width / 64)) * cardinality)
+         first_planes = width // reduce_first
+         outplanes = planes * self.expansion
+         first_dilation = first_dilation or dilation
+ 
+-        self.conv1 = ConvNormAct(inplanes, first_planes, kernel_size=1, **conv_kwargs)
++        self.conv1 = ConvNormAct(inplanes, first_planes, kernel_size=1, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.conv2 = SelectiveKernel(
+             first_planes,
+             width,
+@@ -142,18 +147,18 @@             drop_layer=drop_block,
+             **conv_kwargs,
+             **sk_kwargs,
+-        )
+-        self.conv3 = ConvNormAct(width, outplanes, kernel_size=1, apply_act=False, **conv_kwargs)
+-        self.se = create_attn(attn_layer, outplanes, **dd)
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.conv3 = ConvNormAct(width, outplanes, kernel_size=1, apply_act=False, **conv_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.se = create_attn(attn_layer, outplanes, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.act = act_layer(inplace=True)
+         self.downsample = downsample
+         self.drop_path = drop_path
+ 
+     def zero_init_last(self):
+         if getattr(self.conv3.bn, 'weight', None) is not None:
+-            nn.init.zeros_(self.conv3.bn.weight)
+-
+-    def forward(self, x):
++            nn.init.zeros_(self.conv3.bn.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x):
+         shortcut = x
+         x = self.conv1(x)
+         x = self.conv2(x)
+@@ -175,7 +180,7 @@         variant,
+         pretrained,
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def _cfg(url='', **kwargs):
+@@ -211,7 +216,7 @@     model_args = dict(
+         block=SelectiveKernelBasic, layers=[2, 2, 2, 2], block_args=dict(sk_kwargs=sk_kwargs),
+         zero_init_last=False)
+-    return _create_skresnet('skresnet18', pretrained, **dict(model_args, **kwargs))
++    return _create_skresnet('skresnet18', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -225,7 +230,7 @@     model_args = dict(
+         block=SelectiveKernelBasic, layers=[3, 4, 6, 3], block_args=dict(sk_kwargs=sk_kwargs),
+         zero_init_last=False)
+-    return _create_skresnet('skresnet34', pretrained, **dict(model_args, **kwargs))
++    return _create_skresnet('skresnet34', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -239,7 +244,7 @@     model_args = dict(
+         block=SelectiveKernelBottleneck, layers=[3, 4, 6, 3], block_args=dict(sk_kwargs=sk_kwargs),
+         zero_init_last=False)
+-    return _create_skresnet('skresnet50', pretrained, **dict(model_args, **kwargs))
++    return _create_skresnet('skresnet50', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -253,7 +258,7 @@     model_args = dict(
+         block=SelectiveKernelBottleneck, layers=[3, 4, 6, 3], stem_width=32, stem_type='deep', avg_down=True,
+         block_args=dict(sk_kwargs=sk_kwargs), zero_init_last=False)
+-    return _create_skresnet('skresnet50d', pretrained, **dict(model_args, **kwargs))
++    return _create_skresnet('skresnet50d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -265,5 +270,5 @@     model_args = dict(
+         block=SelectiveKernelBottleneck, layers=[3, 4, 6, 3], cardinality=32, base_width=4,
+         block_args=dict(sk_kwargs=sk_kwargs), zero_init_last=False)
+-    return _create_skresnet('skresnext50_32x4d', pretrained, **dict(model_args, **kwargs))
+-
++    return _create_skresnet('skresnext50_32x4d', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++

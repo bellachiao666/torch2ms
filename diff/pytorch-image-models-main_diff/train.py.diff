@@ -1,0 +1,278 @@
+--- pytorch+++ mindspore@@ -1,4 +1,9 @@ #!/usr/bin/env python3
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ ImageNet Training Script
+ 
+ This is intended to be a lean and easily modifiable ImageNet training script that reproduces ImageNet
+@@ -26,9 +31,8 @@ from datetime import datetime
+ from functools import partial
+ 
+-import torch
+-import torch.nn as nn
+-import torchvision.utils
++# import torch
++# import torch.nn as nn
+ import yaml
+ 
+ from timm import utils
+@@ -50,7 +54,7 @@     has_wandb = False
+ 
+ try:
+-    from functorch.compile import memory_efficient_fusion
++    # from functorch.compile import memory_efficient_fusion
+     has_functorch = True
+ except ImportError as e:
+     has_functorch = False
+@@ -433,7 +437,7 @@     if args_config.config:
+         with open(args_config.config, 'r') as f:
+             cfg = yaml.safe_load(f)
+-            parser.set_defaults(**cfg)
++            parser.set_defaults(**cfg)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     # The main arg parser parses the rest of the args, the usual
+     # defaults will have been overridden if config file specified.
+@@ -452,8 +456,9 @@         for module in args.device_modules:
+             importlib.import_module(module)
+ 
++    # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if torch.cuda.is_available():
+-        torch.backends.cuda.matmul.allow_tf32 = True
++        ms.Tensor.matmul.allow_tf32 = True
+         torch.backends.cudnn.benchmark = True
+ 
+     args.prefetcher = not args.no_prefetcher
+@@ -471,16 +476,16 @@     if args.model_dtype:
+         assert args.model_dtype in ('float32', 'float16', 'bfloat16')
+         model_dtype = getattr(torch, args.model_dtype)
+-        if model_dtype == torch.float16:
++        if model_dtype == ms.float16:
+             _logger.warning('float16 is not recommended for training, for half precision bfloat16 is recommended.')
+ 
+     # resolve AMP arguments based on PyTorch availability
+-    amp_dtype = torch.float16
++    amp_dtype = ms.float16
+     if args.amp:
+-        assert model_dtype is None or model_dtype == torch.float32, 'float32 model dtype must be used with AMP'
++        assert model_dtype is None or model_dtype == ms.float32, 'float32 model dtype must be used with AMP'
+         assert args.amp_dtype in ('float16', 'bfloat16')
+         if args.amp_dtype == 'bfloat16':
+-            amp_dtype = torch.bfloat16
++            amp_dtype = ms.bfloat16
+ 
+     utils.random_seed(args.seed, args.rank)
+ 
+@@ -518,13 +523,14 @@         checkpoint_path=args.initial_checkpoint,
+         **factory_kwargs,
+         **args.model_kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     if args.head_init_scale is not None:
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             model.get_classifier().weight.mul_(args.head_init_scale)
+             model.get_classifier().bias.mul_(args.head_init_scale)
+     if args.head_init_bias is not None:
+-        nn.init.constant_(model.get_classifier().bias, args.head_init_bias)
++        nn.init.constant_(model.get_classifier().bias, args.head_init_bias)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     if args.num_classes is None:
+         assert hasattr(model, 'num_classes'), 'Model must have `num_classes` attr if not set on cmd line/config.'
+@@ -576,7 +582,7 @@     if args.torchscript:
+         assert not args.torchcompile
+         assert not args.sync_bn, 'Cannot use SyncBatchNorm with torchscripted model'
+-        model = torch.jit.script(model)
++        model = ms.jit(model)
+ 
+     if not args.lr:
+         global_batch_size = args.batch_size * args.world_size * args.grad_accum_steps
+@@ -596,7 +602,7 @@         model,
+         **optimizer_kwargs(cfg=args),
+         **args.opt_kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     if utils.is_primary(args):
+         defaults = copy.deepcopy(optimizer.defaults)
+         defaults['weight_decay'] = args.weight_decay  # this isn't stored in optimizer.defaults
+@@ -610,14 +616,14 @@     loss_scaler = None
+     if args.amp:
+         amp_autocast = partial(torch.autocast, device_type=device.type, dtype=amp_dtype)
+-        if device.type in ('cuda',) and amp_dtype == torch.float16:
++        if device.type in ('cuda',) and amp_dtype == ms.float16:
+             # loss scaler only used for float16 (half) dtype, bfloat16 does not need it
+             loss_scaler = NativeScaler(device=device.type)
+         if utils.is_primary(args):
+             _logger.info('Using native Torch AMP. Training in mixed precision.')
+     else:
+         if utils.is_primary(args):
+-            _logger.info(f'AMP not enabled. Training in {model_dtype or torch.float32}.')
++            _logger.info(f'AMP not enabled. Training in {model_dtype or ms.float32}.')
+ 
+     # optionally resume from a checkpoint
+     resume_epoch = None
+@@ -647,7 +653,7 @@                 model_ema,
+                 backend=args.torchcompile,
+                 mode=args.torchcompile_mode,
+-            )
++            )  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # create the train and eval datasets
+     if args.data and not args.data_dir:
+@@ -701,7 +707,7 @@         mean=data_config['mean'],
+         std=data_config['std'],
+         pin_memory=args.pin_mem,
+-        img_dtype=model_dtype or torch.float32,
++        img_dtype=model_dtype or ms.float32,
+         device=device,
+         distributed=args.distributed,
+         use_prefetcher=args.prefetcher,
+@@ -758,7 +764,7 @@             from timm.data import NaFlexMixup
+             mixup_args.pop('mode')  # not supported
+             mixup_args.pop('cutmix_minmax')  # not supported
+-            naflex_mixup_fn = NaFlexMixup(**mixup_args)
++            naflex_mixup_fn = NaFlexMixup(**mixup_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Check if we have model's patch size for NaFlex mode
+         if model_patch_size is None:
+@@ -794,16 +800,16 @@             **patch_loader_kwargs,
+             **common_loader_kwargs,
+             **train_loader_kwargs,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     else:
+         # setup mixup / cutmix
+         collate_fn = None
+         if mixup_active:
+             if args.prefetcher:
+                 assert not num_aug_splits  # collate conflict (need to support de-interleaving in collate mixup)
+-                collate_fn = FastCollateMixup(**mixup_args)
++                collate_fn = FastCollateMixup(**mixup_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             else:
+-                mixup_fn = Mixup(**mixup_args)
++                mixup_fn = Mixup(**mixup_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # wrap dataset in AugMix helper
+         if num_aug_splits > 1:
+@@ -817,7 +823,7 @@             use_multi_epochs_loader=args.use_multi_epochs_loader,
+             **common_loader_kwargs,
+             **train_loader_kwargs,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     loader_eval = None
+     if args.val_split:
+@@ -843,7 +849,7 @@                 max_seq_len=args.naflex_max_seq_len,
+                 **common_loader_kwargs,
+                 **eval_loader_kwargs
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+             # Use standard loader
+             loader_eval = create_loader(
+@@ -851,7 +857,7 @@                 input_size=data_config['input_size'],
+                 **common_loader_kwargs,
+                 **eval_loader_kwargs,
+-            )
++            )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     # setup loss function
+     if args.jsd_loss:
+@@ -880,7 +886,7 @@     else:
+         train_loss_fn = nn.CrossEntropyLoss()
+     train_loss_fn = train_loss_fn.to(device=device)
+-    validate_loss_fn = nn.CrossEntropyLoss().to(device=device)
++    validate_loss_fn = nn.CrossEntropyLoss().to(device=device)  # 'torch.nn.CrossEntropyLoss.to' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # Setup training task (classification or distillation)
+     if args.kd_model_name is not None:
+@@ -943,7 +949,7 @@         assert has_compile, 'A version of torch w/ torch.compile() is required for --compile, possibly a nightly.'
+         if utils.is_primary(args):
+             _logger.info(f"Compiling task with backend={args.torchcompile}, mode={args.torchcompile_mode}")
+-        task = torch.compile(task, backend=args.torchcompile, mode=args.torchcompile_mode)
++        task = torch.compile(task, backend=args.torchcompile, mode=args.torchcompile_mode)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     # setup checkpoint saver and eval metric tracking
+     eval_metric = args.eval_metric if loader_eval is not None else 'loss'
+@@ -998,7 +1004,7 @@         optimizer,
+         **scheduler_kwargs(args, decreasing_metric=decreasing_metric),
+         updates_per_epoch=updates_per_epoch,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     start_epoch = 0
+     if args.start_epoch is not None:
+         # a specified start_epoch will always override the resume epoch
+@@ -1130,7 +1136,7 @@         pass
+ 
+     if args.distributed:
+-        torch.distributed.destroy_process_group()
++        torch.distributed.destroy_process_group()  # 'torch.distributed.destroy_process_group' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     if best_metric is not None:
+         # log best metric as tracked by checkpoint saver
+@@ -1146,6 +1152,7 @@         print(f'--result\n{json.dumps(display_results[-10:], indent=4)}')
+ 
+ 
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def train_one_epoch(
+         epoch,
+         model,
+@@ -1253,7 +1260,7 @@             if args.distributed:
+                 # scale gradient btw distributed ranks, each one can have different batch size
+                 global_batch_size = utils.reduce_tensor(
+-                    torch.tensor(batch_size, device=device, dtype=torch.float32),
++                    ms.Tensor(batch_size, device=device, dtype=ms.float32),
+                     1 # SUM
+                 )
+                 dist_scale = args.world_size * batch_size / global_batch_size
+@@ -1301,9 +1308,9 @@ 
+         if args.synchronize_step:
+             if device.type == 'cuda':
+-                torch.cuda.synchronize()
++                torch.cuda.synchronize()  # 'torch.cuda.synchronize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             elif device.type == 'npu':
+-                torch.npu.synchronize()
++                torch.npu.synchronize()  # 'torch.npu.synchronize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         time_now = time.time()
+ 
+         update_time_m.update(time.time() - update_start_time)
+@@ -1336,7 +1343,7 @@                         os.path.join(output_dir, 'train-batch-%d.jpg' % batch_idx),
+                         padding=0,
+                         normalize=True
+-                    )
++                    )  # 'torchvision.utils.save_image' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+         if saver is not None and args.recovery_interval and (
+                 (update_idx + 1) % args.recovery_interval == 0):
+@@ -1355,11 +1362,12 @@     loss_avg = losses_m.avg
+     if args.distributed:
+         # synchronize avg loss, each process keeps its own running avg
+-        loss_avg = torch.tensor([loss_avg], device=device, dtype=torch.float32)
++        loss_avg = ms.Tensor([loss_avg], device=device, dtype=ms.float32)
+         loss_avg = utils.reduce_tensor(loss_avg, args.world_size).item()
+     return OrderedDict([('loss', loss_avg)])
+ 
+ 
++# 'torch.device' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def validate(
+         model,
+         loader,
+@@ -1379,6 +1387,7 @@ 
+     end = time.time()
+     last_idx = len(loader) - 1
++    # 'torch.inference_mode' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     with torch.inference_mode():
+         for batch_idx, (input, target) in enumerate(loader):
+             last_batch = batch_idx == last_idx
+@@ -1410,9 +1419,9 @@                 reduced_loss = loss.data
+ 
+             if device.type == 'cuda':
+-                torch.cuda.synchronize()
++                torch.cuda.synchronize()  # 'torch.cuda.synchronize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             elif device.type == "npu":
+-                torch.npu.synchronize()
++                torch.npu.synchronize()  # 'torch.npu.synchronize' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+             batch_size = output.shape[0]
+             losses_m.update(reduced_loss.item(), batch_size)

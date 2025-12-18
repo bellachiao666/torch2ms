@@ -1,0 +1,96 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ BlurPool layer inspired by
+  - Kornia's Max_BlurPool2d
+@@ -8,16 +13,13 @@ from functools import partial
+ from math import comb  # Python 3.8
+ from typing import Callable, Optional, Type, Union
+-
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
++# import torch.nn as nn
+ 
+ from .padding import get_padding
+ from .typing import LayerType
+ 
+ 
+-class BlurPool2d(nn.Module):
++class BlurPool2d(msnn.Cell):
+     r"""Creates a module that computes blurs and downsample a given feature map.
+     See :cite:`zhang2019shiftinvar` for more details.
+     Corresponds to the Downsample class, which does blurring and subsampling
+@@ -48,10 +50,10 @@         self.padding = [get_padding(filt_size, stride, dilation=1)] * 4
+ 
+         # (0.5 + 0.5 x)^N => coefficients = C(N,k) / 2^N,  k = 0..N
+-        coeffs = torch.tensor(
++        coeffs = ms.Tensor(
+             [comb(filt_size - 1, k) for k in range(filt_size)],
+             device='cpu',
+-            dtype=torch.float32,
++            dtype=ms.float32,
+         ) / (2 ** (filt_size - 1))  # normalise so coefficients sum to 1
+         blur_filter = (coeffs[:, None] * coeffs[None, :])[None, None, :, :]
+         if channels is not None:
+@@ -63,18 +65,18 @@             persistent=False,
+         )
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+-        x = F.pad(x, self.padding, mode=self.pad_mode)
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
++        x = nn.functional.pad(x, self.padding, mode = self.pad_mode)
+         if self.channels is None:
+             channels = x.shape[1]
+             weight = self.filt.expand(channels, 1, self.filt_size, self.filt_size)
+         else:
+             channels = self.channels
+             weight = self.filt
+-        return F.conv2d(x, weight, stride=self.stride, groups=channels)
++        return nn.functional.conv2d(x, weight, stride = self.stride, groups = channels)
+ 
+ 
+-def _normalize_aa_layer(aa_layer: LayerType) -> Callable[..., nn.Module]:
++def _normalize_aa_layer(aa_layer: LayerType) -> Callable[..., msnn.Cell]:
+     """Map string shorthands to callables (class or partial)."""
+     if isinstance(aa_layer, str):
+         key = aa_layer.lower().replace('_', '').replace('-', '')
+@@ -89,14 +91,14 @@     return aa_layer
+ 
+ 
+-def _underlying_cls(layer_callable: Callable[..., nn.Module]):
++def _underlying_cls(layer_callable: Callable[..., msnn.Cell]):
+     """Return the class behind a callable (unwrap partial), else None."""
+     if isinstance(layer_callable, partial):
+         return layer_callable.func
+     return layer_callable if isinstance(layer_callable, type) else None
+ 
+ 
+-def _is_blurpool(layer_callable: Callable[..., nn.Module]) -> bool:
++def _is_blurpool(layer_callable: Callable[..., msnn.Cell]) -> bool:
+     """True if callable is BlurPool2d or a partial of it."""
+     cls = _underlying_cls(layer_callable)
+     try:
+@@ -112,10 +114,10 @@         channels: Optional[int] = None,
+         stride: int = 2,
+         enable: bool = True,
+-        noop: Optional[Type[nn.Module]] = nn.Identity,
++        noop: Optional[Type[msnn.Cell]] = msnn.Identity,
+         device=None,
+         dtype=None,
+-) -> Optional[nn.Module]:
++) -> Optional[msnn.Cell]:
+     """ Anti-aliasing factory that supports strings, classes, and partials. """
+     if not aa_layer or not enable:
+         return noop() if noop is not None else None
+@@ -137,7 +139,7 @@ 
+     # Try (channels, stride, [device, dtype]) first; fall back to (stride) only
+     try:
+-        return aa_layer(**call_kwargs)
++        return aa_layer(**call_kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     except TypeError:
+         # Some layers (e.g., AvgPool2d) may not accept 'channels' and need stride passed as kernel
+         return aa_layer(stride)

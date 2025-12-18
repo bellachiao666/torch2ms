@@ -1,0 +1,249 @@
+--- pytorch+++ mindspore@@ -1,5 +1,10 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """Tests for timm.layers.drop module (DropBlock, DropPath)."""
+-import torch
++# import torch
+ import pytest
+ 
+ from timm.layers.drop import drop_block_2d, DropBlock2d, drop_path, DropPath
+@@ -11,21 +16,21 @@     def test_drop_block_2d_output_shape(self):
+         """Test that output shape matches input shape."""
+         for h, w in [(7, 7), (4, 8), (10, 5), (3, 3)]:
+-            x = torch.ones((2, 3, h, w))
++            x = mint.ones((2, 3, h, w))
+             result = drop_block_2d(x, drop_prob=0.1, block_size=3)
+             assert result.shape == x.shape, f"Shape mismatch for input ({h}, {w})"
+ 
+     def test_drop_block_2d_no_drop_when_prob_zero(self):
+         """Test that no dropping occurs when drop_prob=0."""
+-        x = torch.ones((2, 3, 8, 8))
++        x = mint.ones((2, 3, 8, 8))
+         result = drop_block_2d(x, drop_prob=0.0, block_size=3)
+-        assert torch.allclose(result, x)
++        assert mint.allclose(result, x)
+ 
+     def test_drop_block_2d_approximate_keep_ratio(self):
+         """Test that the drop ratio is approximately correct."""
+-        torch.manual_seed(123)
++        torch.manual_seed(123)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         # Use large batch for statistical stability
+-        x = torch.ones((32, 16, 56, 56))
++        x = mint.ones((32, 16, 56, 56))
+         drop_prob = 0.1
+ 
+         # With scale_by_keep=False, kept values stay at 1.0 and dropped are 0.0
+@@ -42,16 +47,16 @@ 
+     def test_drop_block_2d_inplace(self):
+         """Test inplace operation."""
+-        x = torch.ones((2, 3, 8, 8))
++        x = mint.ones((2, 3, 8, 8))
+         x_clone = x.clone()
+-        torch.manual_seed(42)
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         result = drop_block_2d(x_clone, drop_prob=0.3, block_size=3, inplace=True)
+         assert result is x_clone, "Inplace should return the same tensor"
+ 
+     def test_drop_block_2d_couple_channels_true(self):
+         """Test couple_channels=True uses same mask for all channels."""
+-        torch.manual_seed(42)
+-        x = torch.ones((2, 4, 16, 16))
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        x = mint.ones((2, 4, 16, 16))
+         result = drop_block_2d(x, drop_prob=0.3, block_size=5, couple_channels=True)
+ 
+         # With couple_channels=True, all channels should have same drop pattern
+@@ -59,12 +64,12 @@             mask_c0 = (result[b, 0] == 0).float()
+             for c in range(1, x.shape[1]):
+                 mask_c = (result[b, c] == 0).float()
+-                assert torch.allclose(mask_c0, mask_c), f"Channel {c} has different mask than channel 0"
++                assert mint.allclose(mask_c0, mask_c), f"Channel {c} has different mask than channel 0"
+ 
+     def test_drop_block_2d_couple_channels_false(self):
+         """Test couple_channels=False uses independent mask per channel."""
+-        torch.manual_seed(42)
+-        x = torch.ones((2, 4, 16, 16))
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        x = mint.ones((2, 4, 16, 16))
+         result = drop_block_2d(x, drop_prob=0.3, block_size=5, couple_channels=False)
+ 
+         # With couple_channels=False, channels should have different patterns
+@@ -72,22 +77,22 @@         mask_c0 = (result[0, 0] == 0).float()
+         mask_c1 = (result[0, 1] == 0).float()
+         # They might occasionally be the same by chance, but very unlikely
+-        assert not torch.allclose(mask_c0, mask_c1), "Channels should have independent masks"
++        assert not mint.allclose(mask_c0, mask_c1), "Channels should have independent masks"
+ 
+     def test_drop_block_2d_with_noise(self):
+         """Test with_noise option adds gaussian noise to dropped regions."""
+-        torch.manual_seed(42)
+-        x = torch.ones((2, 3, 16, 16))
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        x = mint.ones((2, 3, 16, 16))
+         result = drop_block_2d(x, drop_prob=0.3, block_size=5, with_noise=True)
+ 
+         # With noise, dropped regions should have non-zero values from gaussian noise
+         # The result should contain values other than the scaled kept values
+-        unique_vals = torch.unique(result)
++        unique_vals = mint.unique(result)
+         assert len(unique_vals) > 2, "With noise should produce varied values"
+ 
+     def test_drop_block_2d_even_block_size(self):
+         """Test that even block sizes work correctly."""
+-        x = torch.ones((2, 3, 16, 16))
++        x = mint.ones((2, 3, 16, 16))
+         for block_size in [2, 4, 6]:
+             result = drop_block_2d(x, drop_prob=0.1, block_size=block_size)
+             assert result.shape == x.shape, f"Shape mismatch for block_size={block_size}"
+@@ -95,14 +100,14 @@     def test_drop_block_2d_asymmetric_input(self):
+         """Test with asymmetric H != W inputs."""
+         for h, w in [(8, 16), (16, 8), (7, 14), (14, 7)]:
+-            x = torch.ones((2, 3, h, w))
++            x = mint.ones((2, 3, h, w))
+             result = drop_block_2d(x, drop_prob=0.1, block_size=5)
+             assert result.shape == x.shape, f"Shape mismatch for ({h}, {w})"
+ 
+     def test_drop_block_2d_scale_by_keep(self):
+         """Test scale_by_keep parameter."""
+-        torch.manual_seed(42)
+-        x = torch.ones((2, 3, 16, 16))
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        x = mint.ones((2, 3, 16, 16))
+ 
+         # With scale_by_keep=True (default), kept values are scaled up
+         result_scaled = drop_block_2d(x.clone(), drop_prob=0.3, block_size=5, scale_by_keep=True)
+@@ -111,11 +116,11 @@         assert kept_vals_scaled.min() > 1.0, "Scaled values should be > 1.0"
+ 
+         # With scale_by_keep=False, kept values stay at original
+-        torch.manual_seed(42)
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         result_unscaled = drop_block_2d(x.clone(), drop_prob=0.3, block_size=5, scale_by_keep=False)
+         kept_vals_unscaled = result_unscaled[result_unscaled > 0]
+         # Unscaled values should be exactly 1.0
+-        assert torch.allclose(kept_vals_unscaled, torch.ones_like(kept_vals_unscaled)), \
++        assert mint.allclose(kept_vals_unscaled, mint.ones_like(kept_vals_unscaled)), \
+             "Unscaled values should be 1.0"
+ 
+ 
+@@ -140,44 +145,44 @@     def test_training_mode(self):
+         """Test that dropping only occurs in training mode."""
+         module = DropBlock2d(drop_prob=0.5, block_size=3)
+-        x = torch.ones((2, 3, 8, 8))
++        x = mint.ones((2, 3, 8, 8))
+ 
+         # In eval mode, should return input unchanged
+         module.eval()
+         result = module(x)
+-        assert torch.allclose(result, x), "Should not drop in eval mode"
++        assert mint.allclose(result, x), "Should not drop in eval mode"
+ 
+         # In train mode, should modify input
+         module.train()
+-        torch.manual_seed(42)
+-        result = module(x)
+-        assert not torch.allclose(result, x), "Should drop in train mode"
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        result = module(x)
++        assert not mint.allclose(result, x), "Should drop in train mode"
+ 
+     def test_couple_channels_parameter(self):
+         """Test couple_channels parameter is passed through."""
+-        x = torch.ones((2, 4, 16, 16))
++        x = mint.ones((2, 4, 16, 16))
+ 
+         # couple_channels=True (default)
+         module_coupled = DropBlock2d(drop_prob=0.3, block_size=5, couple_channels=True)
+         module_coupled.train()
+-        torch.manual_seed(42)
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         result_coupled = module_coupled(x)
+ 
+         # All channels should have same pattern
+         mask_c0 = (result_coupled[0, 0] == 0).float()
+         mask_c1 = (result_coupled[0, 1] == 0).float()
+-        assert torch.allclose(mask_c0, mask_c1)
++        assert mint.allclose(mask_c0, mask_c1)
+ 
+         # couple_channels=False
+         module_uncoupled = DropBlock2d(drop_prob=0.3, block_size=5, couple_channels=False)
+         module_uncoupled.train()
+-        torch.manual_seed(42)
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         result_uncoupled = module_uncoupled(x)
+ 
+         # Channels should have different patterns
+         mask_c0 = (result_uncoupled[0, 0] == 0).float()
+         mask_c1 = (result_uncoupled[0, 1] == 0).float()
+-        assert not torch.allclose(mask_c0, mask_c1)
++        assert not mint.allclose(mask_c0, mask_c1)
+ 
+ 
+ class TestDropPath:
+@@ -185,20 +190,20 @@ 
+     def test_no_drop_when_prob_zero(self):
+         """Test that no dropping occurs when drop_prob=0."""
+-        x = torch.ones((4, 8, 16, 16))
++        x = mint.ones((4, 8, 16, 16))
+         result = drop_path(x, drop_prob=0.0, training=True)
+-        assert torch.allclose(result, x)
++        assert mint.allclose(result, x)
+ 
+     def test_no_drop_when_not_training(self):
+         """Test that no dropping occurs when not training."""
+-        x = torch.ones((4, 8, 16, 16))
++        x = mint.ones((4, 8, 16, 16))
+         result = drop_path(x, drop_prob=0.5, training=False)
+-        assert torch.allclose(result, x)
++        assert mint.allclose(result, x)
+ 
+     def test_drop_path_scaling(self):
+         """Test that scale_by_keep properly scales kept paths."""
+-        torch.manual_seed(42)
+-        x = torch.ones((100, 8, 4, 4))  # Large batch for statistical stability
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        x = mint.ones((100, 8, 4, 4))  # Large batch for statistical stability
+         keep_prob = 0.8
+         drop_prob = 1 - keep_prob
+ 
+@@ -209,19 +214,19 @@         if kept_mask.any():
+             kept_vals = result[kept_mask, 0, 0, 0]
+             expected_scale = 1.0 / keep_prob
+-            assert torch.allclose(kept_vals, torch.full_like(kept_vals, expected_scale), atol=1e-5)
++            assert mint.allclose(kept_vals, mint.full_like(kept_vals, expected_scale), atol=1e-5)
+ 
+     def test_drop_path_no_scaling(self):
+         """Test that scale_by_keep=False does not scale."""
+-        torch.manual_seed(42)
+-        x = torch.ones((100, 8, 4, 4))
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        x = mint.ones((100, 8, 4, 4))
+         result = drop_path(x, drop_prob=0.2, training=True, scale_by_keep=False)
+ 
+         # Kept samples should remain at 1.0
+         kept_mask = (result[:, 0, 0, 0] != 0)
+         if kept_mask.any():
+             kept_vals = result[kept_mask, 0, 0, 0]
+-            assert torch.allclose(kept_vals, torch.ones_like(kept_vals))
++            assert mint.allclose(kept_vals, mint.ones_like(kept_vals))
+ 
+ 
+ class TestDropPathModule:
+@@ -230,14 +235,14 @@     def test_training_mode(self):
+         """Test that dropping only occurs in training mode."""
+         module = DropPath(drop_prob=0.5)
+-        x = torch.ones((32, 8, 4, 4))  # Larger batch for statistical reliability
++        x = mint.ones((32, 8, 4, 4))  # Larger batch for statistical reliability
+ 
+         module.eval()
+         result = module(x)
+-        assert torch.allclose(result, x), "Should not drop in eval mode"
++        assert mint.allclose(result, x), "Should not drop in eval mode"
+ 
+         module.train()
+-        torch.manual_seed(42)
++        torch.manual_seed(42)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         result = module(x)
+         # With 50% drop prob on 32 samples, very unlikely all survive
+         # Check that at least one sample has zeros (was dropped)

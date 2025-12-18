@@ -1,0 +1,132 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Optimizer Factory w/ custom Weight Decay & Layer Decay support
+ 
+ Hacked together by / Copyright 2021 Ross Wightman
+@@ -9,9 +14,7 @@ from fnmatch import fnmatch
+ import importlib
+ 
+-import torch
+-import torch.nn as nn
+-import torch.optim
++# import torch
+ 
+ from ._param_groups import param_groups_layer_decay, param_groups_weight_decay
+ from ._types import ParamsT, OptimType, OptimizerCallable
+@@ -203,13 +206,13 @@         if isinstance(opt_info.opt_class, str):
+             # Special handling for APEX and BNB optimizers
+             if opt_info.opt_class.startswith('apex.'):
+-                assert torch.cuda.is_available(), 'CUDA required for APEX optimizers'
++                assert torch.cuda.is_available(), 'CUDA required for APEX optimizers'  # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 try:
+                     opt_class = _import_class(opt_info.opt_class)
+                 except ImportError as e:
+                     raise ImportError('APEX optimizers require apex to be installed') from e
+             elif opt_info.opt_class.startswith('bitsandbytes.'):
+-                assert torch.cuda.is_available(), 'CUDA required for bitsandbytes optimizers'
++                assert torch.cuda.is_available(), 'CUDA required for bitsandbytes optimizers'  # 'torch.cuda.is_available' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 try:
+                     opt_class = _import_class(opt_info.opt_class)
+                 except ImportError as e:
+@@ -221,13 +224,14 @@ 
+         # Return class or partial with defaults
+         if bind_defaults and opt_info.defaults:
+-            opt_class = partial(opt_class, **opt_info.defaults)
++            opt_class = partial(opt_class, **opt_info.defaults)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         return opt_class
+ 
++    # 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def create_optimizer(
+             self,
+-            model_or_params: Union[nn.Module, ParamsT],
++            model_or_params: Union[msnn.Cell, ParamsT],
+             opt: str,
+             lr: Optional[float] = None,
+             weight_decay: float = 0.,
+@@ -239,7 +243,7 @@             layer_decay: Optional[float] = None,
+             layer_decay_min_scale: Optional[float] = None,
+             layer_decay_no_opt_scale: Optional[float] = None,
+-            param_group_fn: Optional[Callable[[nn.Module], ParamsT]] = None,
++            param_group_fn: Optional[Callable[[msnn.Cell], ParamsT]] = None,
+             **kwargs: Any,
+     ) -> torch.optim.Optimizer:
+         """Create an optimizer instance.
+@@ -268,7 +272,7 @@         """
+ 
+         # Get parameters to optimize
+-        if isinstance(model_or_params, nn.Module):
++        if isinstance(model_or_params, msnn.Cell):
+             # Extract parameters from a nn.Module, build param groups w/ weight-decay and/or layer-decay applied
+             no_weight_decay = getattr(model_or_params, 'no_weight_decay', lambda: set())()
+ 
+@@ -340,7 +344,7 @@ 
+         # Create optimizer
+         opt_class = self.get_optimizer_class(opt_info, bind_defaults=False)
+-        optimizer = opt_class(params, **opt_args)
++        optimizer = opt_class(params, **opt_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         # Apply Lookahead if requested
+         if use_lookahead:
+@@ -393,13 +397,13 @@     adam_optimizers = [
+         OptimInfo(
+             name='adam',
+-            opt_class=torch.optim.Adam,
++            opt_class=mint.optim.Adam,
+             description='torch.optim.Adam, Adaptive Moment Estimation',
+             has_betas=True
+         ),
+         OptimInfo(
+             name='adamw',
+-            opt_class=torch.optim.AdamW,
++            opt_class=mint.optim.AdamW,
+             description='torch.optim.AdamW, Adam with decoupled weight decay',
+             has_betas=True
+         ),
+@@ -1181,8 +1185,9 @@     return default_registry.get_optimizer_class(name, bind_defaults=bind_defaults)
+ 
+ 
++# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def create_optimizer_v2(
+-        model_or_params: Union[nn.Module, ParamsT],
++        model_or_params: Union[msnn.Cell, ParamsT],
+         opt: str = 'sgd',
+         lr: Optional[float] = None,
+         weight_decay: float = 0.,
+@@ -1194,7 +1199,7 @@         layer_decay: Optional[float] = None,
+         layer_decay_min_scale: float = 0.0,
+         layer_decay_no_opt_scale: Optional[float] = None,
+-        param_group_fn: Optional[Callable[[nn.Module], ParamsT]] = None,
++        param_group_fn: Optional[Callable[[msnn.Cell], ParamsT]] = None,
+         **kwargs: Any,
+ ) -> torch.optim.Optimizer:
+     """Create an optimizer instance via timm registry.
+@@ -1279,7 +1284,7 @@         layer_decay_no_opt_scale=layer_decay_no_opt_scale,
+         param_group_fn=param_group_fn,
+         **kwargs
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def optimizer_kwargs(cfg):
+@@ -1308,9 +1313,10 @@     return kwargs
+ 
+ 
++# 'torch.optim.Optimizer' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ def create_optimizer(
+         args,
+-        model: Union[nn.Module, ParamsT],
++        model: Union[msnn.Cell, ParamsT],
+         filter_bias_and_bn: bool = True,
+ ) -> torch.optim.Optimizer:
+     """ Legacy optimizer factory for backwards compatibility.
+@@ -1320,5 +1326,5 @@         model,
+         **optimizer_kwargs(cfg=args),
+         filter_bias_and_bn=filter_bias_and_bn,
+-    )
+-
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++

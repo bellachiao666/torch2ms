@@ -1,0 +1,71 @@
+--- pytorch+++ mindspore@@ -1,10 +1,15 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import argparse
+ import hashlib
+ import os
+ 
+ import mxnet as mx
+ import gluoncv
+-import torch
++# import torch
+ from timm import create_model
+ 
+ parser = argparse.ArgumentParser(description='Convert from MXNet')
+@@ -20,7 +25,7 @@     torch_net = create_model(torch_name)
+ 
+     mxp = [(k, v) for k, v in net.collect_params().items() if 'running' not in k]
+-    torchp = list(torch_net.named_parameters())
++    torchp = list(torch_net.named_parameters())  # 'torch_net.named_parameters' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     torch_params = {}
+ 
+     # convert parameters
+@@ -42,12 +47,12 @@         # ensure shapes match
+         assert all(t == m for t, m in zip(tv.shape, mv.shape))
+ 
+-        torch_tensor = torch.from_numpy(mv.data().asnumpy())
++        torch_tensor = torch.from_numpy(mv.data().asnumpy())  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         torch_params[tn] = torch_tensor
+ 
+     # convert buffers (batch norm running stats)
+     mxb = [(k, v) for k, v in net.collect_params().items() if any(x in k for x in ['running_mean', 'running_var'])]
+-    torchb = [(k, v) for k, v in torch_net.named_buffers() if 'num_batches' not in k]
++    torchb = [(k, v) for k, v in torch_net.named_buffers() if 'num_batches' not in k]  # 'torch_net.named_buffers' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     for (tn, tv), (mn, mv) in zip(torchb, mxb):
+         print(tn, mn)
+         print(tv.shape, mv.shape)
+@@ -58,12 +63,12 @@         if 'running_mean' in tn:
+             assert 'running_mean' in mn
+             
+-        torch_tensor = torch.from_numpy(mv.data().asnumpy())
++        torch_tensor = torch.from_numpy(mv.data().asnumpy())  # 'torch.from_numpy' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         torch_params[tn] = torch_tensor
+ 
+-    torch_net.load_state_dict(torch_params)
++    torch_net.load_state_dict(torch_params)  # 'torch_net.load_state_dict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     torch_filename = './%s.pth' % torch_name
+-    torch.save(torch_net.state_dict(), torch_filename)
++    torch.save(torch_net.state_dict(), torch_filename)  # 'torch_net.state_dict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 'torch.save' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     with open(torch_filename, 'rb') as f:
+         sha_hash = hashlib.sha256(f.read()).hexdigest()
+     final_filename = os.path.splitext(torch_filename)[0] + '-' + sha_hash[:8] + '.pth'
+@@ -73,12 +78,15 @@ 
+ def map_mx_to_torch_model(mx_name):
+     torch_name = mx_name.lower()
++    # 'torch_name.startswith' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     if torch_name.startswith('se_'):
+-        torch_name = torch_name.replace('se_', 'se')
++        torch_name = torch_name.replace('se_', 'se')  # 'torch_name.replace' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch_name.startswith' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif torch_name.startswith('senet_'):
+-        torch_name = torch_name.replace('senet_', 'senet')
++        torch_name = torch_name.replace('senet_', 'senet')  # 'torch_name.replace' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    # 'torch_name.startswith' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif torch_name.startswith('inceptionv3'):
+-        torch_name = torch_name.replace('inceptionv3', 'inception_v3')
++        torch_name = torch_name.replace('inceptionv3', 'inception_v3')  # 'torch_name.replace' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     torch_name = 'gluon_' + torch_name
+     return torch_name
+ 

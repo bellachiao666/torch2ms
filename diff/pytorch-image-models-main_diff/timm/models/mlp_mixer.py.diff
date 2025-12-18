@@ -1,0 +1,556 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ MLP-Mixer, ResMLP, and gMLP in PyTorch
+ 
+ This impl originally based on MLP-Mixer paper.
+@@ -42,8 +47,8 @@ from functools import partial
+ from typing import Any, Dict, List, Optional, Type, Union, Tuple
+ 
+-import torch
+-import torch.nn as nn
++# import torch
++# import torch.nn as nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import PatchEmbed, Mlp, GluMlp, GatedMlp, DropPath, lecun_normal_, to_2tuple
+@@ -56,7 +61,7 @@ __all__ = ['MixerBlock', 'MlpMixer']  # model_registry will add each entrypoint fn to this
+ 
+ 
+-class MixerBlock(nn.Module):
++class MixerBlock(msnn.Cell):
+     """Residual Block w/ token mixing and channel MLPs.
+ 
+     Based on: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+@@ -66,9 +71,9 @@             dim: int,
+             seq_len: int,
+             mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
+-            mlp_layer: Type[nn.Module] = Mlp,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            mlp_layer: Type[msnn.Cell] = Mlp,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop: float = 0.,
+             drop_path: float = 0.,
+             device=None,
+@@ -89,20 +94,20 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         tokens_dim, channels_dim = [int(x * dim) for x in to_2tuple(mlp_ratio)]
+-        self.norm1 = norm_layer(dim, **dd)
+-        self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop, **dd)
+-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-        self.norm2 = norm_layer(dim, **dd)
+-        self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass."""
+         x = x + self.drop_path(self.mlp_tokens(self.norm1(x).transpose(1, 2)).transpose(1, 2))
+         x = x + self.drop_path(self.mlp_channels(self.norm2(x)))
+         return x
+ 
+ 
+-class Affine(nn.Module):
++class Affine(msnn.Cell):
+     """Affine transformation layer."""
+ 
+     def __init__(self, dim: int, device=None, dtype=None) -> None:
+@@ -113,15 +118,15 @@         """
+         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+-        self.alpha = nn.Parameter(torch.ones((1, 1, dim), **dd))
+-        self.beta = nn.Parameter(torch.zeros((1, 1, dim), **dd))
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.alpha = ms.Parameter(mint.ones((1, 1, dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.beta = ms.Parameter(mint.zeros((1, 1, dim), **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Apply affine transformation."""
+-        return torch.addcmul(self.beta, self.alpha, x)
+-
+-
+-class ResBlock(nn.Module):
++        return torch.addcmul(self.beta, self.alpha, x)  # 'torch.addcmul' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++
++class ResBlock(msnn.Cell):
+     """Residual MLP block w/ LayerScale and Affine 'norm'.
+ 
+     Based on: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+@@ -131,9 +136,9 @@             dim: int,
+             seq_len: int,
+             mlp_ratio: float = 4,
+-            mlp_layer: Type[nn.Module] = Mlp,
+-            norm_layer: Type[nn.Module] = Affine,
+-            act_layer: Type[nn.Module] = nn.GELU,
++            mlp_layer: Type[msnn.Cell] = Mlp,
++            norm_layer: Type[msnn.Cell] = Affine,
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             init_values: float = 1e-4,
+             drop: float = 0.,
+             drop_path: float = 0.,
+@@ -156,22 +161,22 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         channel_dim = int(dim * mlp_ratio)
+-        self.norm1 = norm_layer(dim, **dd)
+-        self.linear_tokens = nn.Linear(seq_len, seq_len, **dd)
+-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-        self.norm2 = norm_layer(dim, **dd)
+-        self.mlp_channels = mlp_layer(dim, channel_dim, act_layer=act_layer, drop=drop, **dd)
+-        self.ls1 = nn.Parameter(init_values * torch.ones(dim, **dd))
+-        self.ls2 = nn.Parameter(init_values * torch.ones(dim, **dd))
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        self.norm1 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.linear_tokens = nn.Linear(seq_len, seq_len, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++        self.norm2 = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.mlp_channels = mlp_layer(dim, channel_dim, act_layer=act_layer, drop=drop, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls1 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.ls2 = ms.Parameter(init_values * mint.ones(dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass."""
+         x = x + self.drop_path(self.ls1 * self.linear_tokens(self.norm1(x).transpose(1, 2)).transpose(1, 2))
+         x = x + self.drop_path(self.ls2 * self.mlp_channels(self.norm2(x)))
+         return x
+ 
+ 
+-class SpatialGatingUnit(nn.Module):
++class SpatialGatingUnit(msnn.Cell):
+     """Spatial Gating Unit.
+ 
+     Based on: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
+@@ -180,7 +185,7 @@             self,
+             dim: int,
+             seq_len: int,
+-            norm_layer: Type[nn.Module] = nn.LayerNorm,
++            norm_layer: Type[msnn.Cell] = nn.LayerNorm,
+             device=None,
+             dtype=None,
+     ) -> None:
+@@ -194,16 +199,16 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         gate_dim = dim // 2
+-        self.norm = norm_layer(gate_dim, **dd)
+-        self.proj = nn.Linear(seq_len, seq_len, **dd)
++        self.norm = norm_layer(gate_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.proj = nn.Linear(seq_len, seq_len, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+     def init_weights(self) -> None:
+         """Initialize weights for projection gate."""
+         # special init for the projection gate, called as override by base model init
+-        nn.init.normal_(self.proj.weight, std=1e-6)
+-        nn.init.ones_(self.proj.bias)
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        nn.init.normal_(self.proj.weight, std=1e-6)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.ones_(self.proj.bias)  # 'torch.nn.init.ones_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Apply spatial gating."""
+         u, v = x.chunk(2, dim=-1)
+         v = self.norm(v)
+@@ -211,7 +216,7 @@         return u * v.transpose(-1, -2)
+ 
+ 
+-class SpatialGatingBlock(nn.Module):
++class SpatialGatingBlock(msnn.Cell):
+     """Residual Block w/ Spatial Gating.
+ 
+     Based on: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
+@@ -221,9 +226,9 @@             dim: int,
+             seq_len: int,
+             mlp_ratio: float = 4,
+-            mlp_layer: Type[nn.Module] = GatedMlp,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            mlp_layer: Type[msnn.Cell] = GatedMlp,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop: float = 0.,
+             drop_path: float = 0.,
+             device=None,
+@@ -244,8 +249,8 @@         dd = {'device': device, 'dtype': dtype}
+         super().__init__()
+         channel_dim = int(dim * mlp_ratio)
+-        self.norm = norm_layer(dim, **dd)
+-        sgu = partial(SpatialGatingUnit, seq_len=seq_len, **dd)
++        self.norm = norm_layer(dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        sgu = partial(SpatialGatingUnit, seq_len=seq_len, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.mlp_channels = mlp_layer(
+             dim,
+             channel_dim,
+@@ -253,16 +258,16 @@             gate_layer=sgu,
+             drop=drop,
+             **dd,
+-        )
+-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+-
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.drop_path = DropPath(drop_path) if drop_path > 0. else msnn.Identity()
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass."""
+         x = x + self.drop_path(self.mlp_channels(self.norm(x)))
+         return x
+ 
+ 
+-class MlpMixer(nn.Module):
++class MlpMixer(msnn.Cell):
+     """MLP-Mixer model architecture.
+ 
+     Based on: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+@@ -277,10 +282,10 @@             num_blocks: int = 8,
+             embed_dim: int = 512,
+             mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
+-            block_layer: Type[nn.Module] = MixerBlock,
+-            mlp_layer: Type[nn.Module] = Mlp,
+-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+-            act_layer: Type[nn.Module] = nn.GELU,
++            block_layer: Type[msnn.Cell] = MixerBlock,
++            mlp_layer: Type[msnn.Cell] = Mlp,
++            norm_layer: Type[msnn.Cell] = partial(nn.LayerNorm, eps=1e-6),
++            act_layer: Type[msnn.Cell] = nn.GELU,
+             drop_rate: float = 0.,
+             proj_drop_rate: float = 0.,
+             drop_path_rate: float = 0.,
+@@ -325,10 +330,10 @@             embed_dim=embed_dim,
+             norm_layer=norm_layer if stem_norm else None,
+             **dd,
+-        )
++        )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         reduction = self.stem.feat_ratio() if hasattr(self.stem, 'feat_ratio') else patch_size
+         # FIXME drop_path (stochastic depth scaling rule or all the same?)
+-        self.blocks = nn.Sequential(*[
++        self.blocks = msnn.SequentialCell(*[
+             block_layer(
+                 embed_dim,
+                 self.stem.num_patches,
+@@ -340,16 +345,16 @@                 drop_path=drop_path_rate,
+                 **dd,
+             )
+-            for _ in range(num_blocks)])
++            for _ in range(num_blocks)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.feature_info = [
+             dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=reduction) for i in range(num_blocks)]
+-        self.norm = norm_layer(embed_dim, **dd)
++        self.norm = norm_layer(embed_dim, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         self.head_drop = nn.Dropout(drop_rate)
+-        self.head = nn.Linear(embed_dim, self.num_classes, **dd) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
+ 
+         self.init_weights(nlhb=nlhb)
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def init_weights(self, nlhb: bool = False) -> None:
+         """Initialize model weights.
+ 
+@@ -359,7 +364,7 @@         head_bias = -math.log(self.num_classes) if nlhb else 0.
+         named_apply(partial(_init_weights, head_bias=head_bias), module=self)  # depth-first
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+         """Create regex patterns for parameter grouping.
+ 
+@@ -374,7 +379,7 @@             blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
+         )
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable: bool = True) -> None:
+         """Enable or disable gradient checkpointing.
+ 
+@@ -383,8 +388,8 @@         """
+         self.grad_checkpointing = enable
+ 
+-    @torch.jit.ignore
+-    def get_classifier(self) -> nn.Module:
++    @ms.jit
++    def get_classifier(self) -> msnn.Cell:
+         """Get the classifier module."""
+         return self.head
+ 
+@@ -400,17 +405,17 @@             assert global_pool in ('', 'avg')
+             self.global_pool = global_pool
+         device, dtype = self.head.weight.device, self.head.weight.dtype if hasattr(self.head, 'weight') else (None, None)
+-        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """Forward features that returns intermediates.
+ 
+         Args:
+@@ -433,11 +438,13 @@         B, _, height, width = x.shape
+         x = self.stem(x)
+ 
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             blocks = self.blocks
+         else:
+             blocks = self.blocks[:max_index + 1]
+         for i, blk in enumerate(blocks):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.grad_checkpointing and not torch.jit.is_scripting():
+                 x = checkpoint(blk, x)
+             else:
+@@ -478,14 +485,15 @@         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+         self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+ 
+-    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
++    def forward_features(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass through feature extraction layers."""
+         x = self.stem(x)
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if self.grad_checkpointing and not torch.jit.is_scripting():
+             x = checkpoint_seq(self.blocks, x)
+         else:
+@@ -493,7 +501,7 @@         x = self.norm(x)
+         return x
+ 
+-    def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
++    def forward_head(self, x: ms.Tensor, pre_logits: bool = False) -> ms.Tensor:
+         """Forward pass through classifier head.
+ 
+         Args:
+@@ -508,14 +516,14 @@         x = self.head_drop(x)
+         return x if pre_logits else self.head(x)
+ 
+-    def forward(self, x: torch.Tensor) -> torch.Tensor:
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         """Forward pass."""
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
+ 
+ 
+-def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: bool = False) -> None:
++def _init_weights(module: msnn.Cell, name: str, head_bias: float = 0., flax: bool = False) -> None:
+     """Mixer weight initialization (trying to match Flax defaults).
+ 
+     Args:
+@@ -526,29 +534,29 @@     """
+     if isinstance(module, nn.Linear):
+         if name.startswith('head'):
+-            nn.init.zeros_(module.weight)
+-            nn.init.constant_(module.bias, head_bias)
++            nn.init.zeros_(module.weight)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.constant_(module.bias, head_bias)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         else:
+             if flax:
+                 # Flax defaults
+                 lecun_normal_(module.weight)
+                 if module.bias is not None:
+-                    nn.init.zeros_(module.bias)
++                    nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             else:
+                 # like MLP init in vit (my original init)
+-                nn.init.xavier_uniform_(module.weight)
++                nn.init.xavier_uniform_(module.weight)  # 'torch.nn.init.xavier_uniform_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 if module.bias is not None:
+                     if 'mlp' in name:
+-                        nn.init.normal_(module.bias, std=1e-6)
++                        nn.init.normal_(module.bias, std=1e-6)  # 'torch.nn.init.normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                     else:
+-                        nn.init.zeros_(module.bias)
++                        nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(module, nn.Conv2d):
+         lecun_normal_(module.weight)
+         if module.bias is not None:
+-            nn.init.zeros_(module.bias)
++            nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif isinstance(module, (nn.LayerNorm, nn.BatchNorm2d, nn.GroupNorm)):
+-        nn.init.ones_(module.weight)
+-        nn.init.zeros_(module.bias)
++        nn.init.ones_(module.weight)  # 'torch.nn.init.ones_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++        nn.init.zeros_(module.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     elif hasattr(module, 'init_weights'):
+         # NOTE if a parent module contains init_weights method, it can override the init of the
+         # child modules as this will be called in depth-first order.
+@@ -581,7 +589,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -702,8 +710,8 @@     """ Mixer-S/32 224x224
+     Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=32, num_blocks=8, embed_dim=512, **kwargs)
+-    model = _create_mixer('mixer_s32_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=32, num_blocks=8, embed_dim=512, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_s32_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -712,8 +720,8 @@     """ Mixer-S/16 224x224
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=16, num_blocks=8, embed_dim=512, **kwargs)
+-    model = _create_mixer('mixer_s16_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=16, num_blocks=8, embed_dim=512, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_s16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -722,8 +730,8 @@     """ Mixer-B/32 224x224
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=32, num_blocks=12, embed_dim=768, **kwargs)
+-    model = _create_mixer('mixer_b32_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=32, num_blocks=12, embed_dim=768, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_b32_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -732,8 +740,8 @@     """ Mixer-B/16 224x224. ImageNet-1k pretrained weights.
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=16, num_blocks=12, embed_dim=768, **kwargs)
+-    model = _create_mixer('mixer_b16_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=16, num_blocks=12, embed_dim=768, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_b16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -742,8 +750,8 @@     """ Mixer-L/32 224x224.
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=32, num_blocks=24, embed_dim=1024, **kwargs)
+-    model = _create_mixer('mixer_l32_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=32, num_blocks=24, embed_dim=1024, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_l32_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -752,8 +760,8 @@     """ Mixer-L/16 224x224. ImageNet-1k pretrained weights.
+     Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+     """
+-    model_args = dict(patch_size=16, num_blocks=24, embed_dim=1024, **kwargs)
+-    model = _create_mixer('mixer_l16_224', pretrained=pretrained, **model_args)
++    model_args = dict(patch_size=16, num_blocks=24, embed_dim=1024, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('mixer_l16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -764,8 +772,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=(1.0, 4.0),
+-        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
+-    model = _create_mixer('gmixer_12_224', pretrained=pretrained, **model_args)
++        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmixer_12_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -776,8 +784,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=(1.0, 4.0),
+-        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
+-    model = _create_mixer('gmixer_24_224', pretrained=pretrained, **model_args)
++        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmixer_24_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -787,8 +795,8 @@     Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+     """
+     model_args = dict(
+-        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=4, block_layer=ResBlock, norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_12_224', pretrained=pretrained, **model_args)
++        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=4, block_layer=ResBlock, norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_12_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -799,8 +807,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=4,
+-        block_layer=partial(ResBlock, init_values=1e-5), norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_24_224', pretrained=pretrained, **model_args)
++        block_layer=partial(ResBlock, init_values=1e-5), norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_24_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -811,8 +819,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=36, embed_dim=384, mlp_ratio=4,
+-        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_36_224', pretrained=pretrained, **model_args)
++        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_36_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -823,8 +831,8 @@     """
+     model_args = dict(
+         patch_size=8, num_blocks=24, embed_dim=768, mlp_ratio=4,
+-        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
+-    model = _create_mixer('resmlp_big_24_224', pretrained=pretrained, **model_args)
++        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('resmlp_big_24_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -835,8 +843,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=30, embed_dim=128, mlp_ratio=6, block_layer=SpatialGatingBlock,
+-        mlp_layer=GatedMlp, **kwargs)
+-    model = _create_mixer('gmlp_ti16_224', pretrained=pretrained, **model_args)
++        mlp_layer=GatedMlp, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmlp_ti16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -847,8 +855,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=30, embed_dim=256, mlp_ratio=6, block_layer=SpatialGatingBlock,
+-        mlp_layer=GatedMlp, **kwargs)
+-    model = _create_mixer('gmlp_s16_224', pretrained=pretrained, **model_args)
++        mlp_layer=GatedMlp, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmlp_s16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -859,8 +867,8 @@     """
+     model_args = dict(
+         patch_size=16, num_blocks=30, embed_dim=512, mlp_ratio=6, block_layer=SpatialGatingBlock,
+-        mlp_layer=GatedMlp, **kwargs)
+-    model = _create_mixer('gmlp_b16_224', pretrained=pretrained, **model_args)
++        mlp_layer=GatedMlp, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    model = _create_mixer('gmlp_b16_224', pretrained=pretrained, **model_args)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 

@@ -1,0 +1,16 @@
+--- pytorch+++ mindspore@@ -1,10 +1,15 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Model / Layer Config singleton state
+ """
+ import os
+ import warnings
+ from typing import Any, Optional
+ 
+-import torch
++# import torch
+ 
+ __all__ = [
+     'is_exportable', 'is_scriptable', 'is_no_jit', 'use_fused_attn',

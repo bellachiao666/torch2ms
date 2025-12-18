@@ -1,0 +1,327 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """ Pooling-based Vision Transformer (PiT) in PyTorch
+ 
+ A PyTorch implement of Pooling-based Vision Transformers as described in
+@@ -16,8 +21,8 @@ from functools import partial
+ from typing import List, Optional, Sequence, Tuple, Union, Type, Any
+ 
+-import torch
+-from torch import nn
++# import torch
++# from torch import nn
+ 
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.layers import trunc_normal_, to_2tuple, calculate_drop_path_rates
+@@ -30,15 +35,15 @@ __all__ = ['PoolingVisionTransformer']  # model_registry will add each entrypoint fn to this
+ 
+ 
+-class SequentialTuple(nn.Sequential):
++class SequentialTuple(msnn.SequentialCell):
+     """ This module exists to work around torchscript typing issues list -> list"""
+-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
++    def forward(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
+         for module in self:
+             x = module(x)
+         return x
+ 
+ 
+-class Transformer(nn.Module):
++class Transformer(msnn.Cell):
+     def __init__(
+             self,
+             base_dim: int,
+@@ -49,7 +54,7 @@             proj_drop: float = .0,
+             attn_drop: float = .0,
+             drop_path_prob: Optional[List[float]] = None,
+-            norm_layer: Optional[Type[nn.Module]] = None,
++            norm_layer: Optional[Type[msnn.Cell]] = None,
+             device=None,
+             dtype=None,
+     ):
+@@ -58,8 +63,8 @@         embed_dim = base_dim * heads
+ 
+         self.pool = pool
+-        self.norm = norm_layer(embed_dim, **dd) if norm_layer else nn.Identity()
+-        self.blocks = nn.Sequential(*[
++        self.norm = norm_layer(embed_dim, **dd) if norm_layer else msnn.Identity()  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.blocks = msnn.SequentialCell(*[
+             Block(
+                 dim=embed_dim,
+                 num_heads=heads,
+@@ -71,9 +76,9 @@                 norm_layer=partial(nn.LayerNorm, eps=1e-6),
+                 **dd,
+             )
+-            for i in range(depth)])
+-
+-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
++            for i in range(depth)])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    def construct(self, x: Tuple[ms.Tensor, ms.Tensor]) -> Tuple[ms.Tensor, ms.Tensor]:
+         x, cls_tokens = x
+         token_length = cls_tokens.shape[1]
+         if self.pool is not None:
+@@ -81,7 +86,7 @@ 
+         B, C, H, W = x.shape
+         x = x.flatten(2).transpose(1, 2)
+-        x = torch.cat((cls_tokens, x), dim=1)
++        x = mint.cat((cls_tokens, x), dim=1)
+ 
+         x = self.norm(x)
+         x = self.blocks(x)
+@@ -93,7 +98,7 @@         return x, cls_tokens
+ 
+ 
+-class Pooling(nn.Module):
++class Pooling(msnn.Cell):
+     def __init__(
+             self,
+             in_feature: int,
+@@ -115,16 +120,16 @@             padding_mode=padding_mode,
+             groups=in_feature,
+             **dd,
+-        )
+-        self.fc = nn.Linear(in_feature, out_feature, **dd)
+-
+-    def forward(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
++        self.fc = nn.Linear(in_feature, out_feature, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
++
++    def construct(self, x, cls_token) -> Tuple[ms.Tensor, ms.Tensor]:
+         x = self.conv(x)
+         cls_token = self.fc(cls_token)
+         return x, cls_token
+ 
+ 
+-class ConvEmbedding(nn.Module):
++class ConvEmbedding(msnn.Cell):
+     def __init__(
+             self,
+             in_channels: int,
+@@ -153,14 +158,14 @@             padding=padding,
+             bias=True,
+             **dd,
+-        )
+-
+-    def forward(self, x):
++        )  # 存在 *args/**kwargs，需手动确认参数映射;
++
++    def construct(self, x):
+         x = self.conv(x)
+         return x
+ 
+ 
+-class PoolingVisionTransformer(nn.Module):
++class PoolingVisionTransformer(msnn.Cell):
+     """ Pooling-based Vision Transformer
+ 
+     A PyTorch implement of 'Rethinking Spatial Dimensions of Vision Transformers'
+@@ -200,10 +205,10 @@         self.num_tokens = 2 if distilled else 1
+         self.feature_info = []
+ 
+-        self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)
+-        self.pos_embed = nn.Parameter(torch.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))
+-        self.cls_token = nn.Parameter(torch.randn(1, self.num_tokens, embed_dim, **dd))
+-        self.pos_drop = nn.Dropout(p=pos_drop_drate)
++        self.patch_embed = ConvEmbedding(in_chans, embed_dim, img_size, patch_size, stride, **dd)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.pos_embed = ms.Parameter(mint.randn(1, embed_dim, self.patch_embed.height, self.patch_embed.width, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.cls_token = ms.Parameter(mint.randn(1, self.num_tokens, embed_dim, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.pos_drop = nn.Dropout(p = pos_drop_drate)
+ 
+         transformers = []
+         # stochastic depth decay rule
+@@ -218,7 +223,7 @@                     embed_dim,
+                     stride=2,
+                     **dd,
+-                )
++                )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             transformers += [Transformer(
+                 base_dims[i],
+                 depth[i],
+@@ -229,20 +234,20 @@                 attn_drop=attn_drop_rate,
+                 drop_path_prob=dpr[i],
+                 **dd,
+-            )]
++            )]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             prev_dim = embed_dim
+             self.feature_info += [dict(num_chs=prev_dim, reduction=(stride - 1) * 2**i, module=f'transformers.{i}')]
+ 
+-        self.transformers = SequentialTuple(*transformers)
+-        self.norm = nn.LayerNorm(base_dims[-1] * heads[-1], eps=1e-6, **dd)
++        self.transformers = SequentialTuple(*transformers)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++        self.norm = nn.LayerNorm(base_dims[-1] * heads[-1], eps=1e-6, **dd)  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.num_features = self.head_hidden_size = self.embed_dim = embed_dim
+ 
+         # Classifier head
+         self.head_drop = nn.Dropout(drop_rate)
+-        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.head_dist = None
+         if distilled:
+-            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else nn.Identity()
++            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else msnn.Identity()  # 存在 *args/**kwargs，需手动确认参数映射;
+         self.distilled_training = False  # must set this True to train w/ distillation token
+ 
+         trunc_normal_(self.pos_embed, std=.02)
+@@ -251,22 +256,22 @@ 
+     def _init_weights(self, m):
+         if isinstance(m, nn.LayerNorm):
+-            nn.init.constant_(m.bias, 0)
+-            nn.init.constant_(m.weight, 1.0)
+-
+-    @torch.jit.ignore
++            nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            nn.init.constant_(m.weight, 1.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    @ms.jit
+     def no_weight_decay(self):
+         return {'pos_embed', 'cls_token'}
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_distilled_training(self, enable=True):
+         self.distilled_training = enable
+ 
+-    @torch.jit.ignore
++    @ms.jit
+     def set_grad_checkpointing(self, enable=True):
+         assert not enable, 'gradient checkpointing not supported'
+ 
+-    def get_classifier(self) -> nn.Module:
++    def get_classifier(self) -> msnn.Cell:
+         if self.head_dist is not None:
+             return self.head, self.head_dist
+         else:
+@@ -278,19 +283,19 @@             self.global_pool = global_pool
+         device = self.head.weight.device if hasattr(self.head, 'weight') else None
+         dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
+-        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
++        self.head = nn.Linear(self.embed_dim, num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+         if self.head_dist is not None:
+-            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
++            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, dtype = dtype) if num_classes > 0 else msnn.Identity()  # 'torch.nn.Linear':没有对应的mindspore参数 'device' (position 3);
+ 
+     def forward_intermediates(
+             self,
+-            x: torch.Tensor,
++            x: ms.Tensor,
+             indices: Optional[Union[int, List[int]]] = None,
+             norm: bool = False,
+             stop_early: bool = False,
+             output_fmt: str = 'NCHW',
+             intermediates_only: bool = False,
+-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
++    ) -> Union[List[ms.Tensor], Tuple[ms.Tensor, List[ms.Tensor]]]:
+         """ Forward features that returns intermediates.
+ 
+         Args:
+@@ -313,6 +318,7 @@         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
+ 
+         last_idx = len(self.transformers) - 1
++        # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
+             stages = self.transformers
+         else:
+@@ -342,7 +348,7 @@         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
+         self.transformers = self.transformers[:max_index + 1]  # truncate blocks w/ stem as idx 0
+         if prune_norm:
+-            self.norm = nn.Identity()
++            self.norm = msnn.Identity()
+         if prune_head:
+             self.reset_classifier(0, '')
+         return take_indices
+@@ -355,7 +361,7 @@         cls_tokens = self.norm(cls_tokens)
+         return cls_tokens
+ 
+-    def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
++    def forward_head(self, x, pre_logits: bool = False) -> ms.Tensor:
+         if self.head_dist is not None:
+             assert self.global_pool == 'token'
+             x, x_dist = x[:, 0], x[:, 1]
+@@ -364,6 +370,7 @@             if not pre_logits:
+                 x = self.head(x)
+                 x_dist = self.head_dist(x_dist)
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if self.distilled_training and self.training and not torch.jit.is_scripting():
+                 # only return separate classification predictions when training in distilled mode
+                 return x, x_dist
+@@ -378,7 +385,7 @@                 x = self.head(x)
+             return x
+ 
+-    def forward(self, x):
++    def construct(self, x):
+         x = self.forward_features(x)
+         x = self.forward_head(x)
+         return x
+@@ -409,7 +416,7 @@         pretrained_filter_fn=checkpoint_filter_fn,
+         feature_cfg=dict(feature_cls='hook', out_indices=out_indices),
+         **kwargs,
+-    )
++    )  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     return model
+ 
+ 
+@@ -456,7 +463,7 @@         heads=[4, 8, 16],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -469,7 +476,7 @@         heads=[3, 6, 12],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -482,7 +489,7 @@         heads=[2, 4, 8],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -495,7 +502,7 @@         heads=[2, 4, 8],
+         mlp_ratio=4,
+     )
+-    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -509,7 +516,7 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -523,7 +530,7 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -537,7 +544,7 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model
+@@ -551,4 +558,4 @@         mlp_ratio=4,
+         distilled=True,
+     )
+-    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))
++    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
