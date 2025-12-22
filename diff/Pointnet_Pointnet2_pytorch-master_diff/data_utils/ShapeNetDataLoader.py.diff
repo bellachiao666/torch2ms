@@ -1,0 +1,22 @@
+--- pytorch+++ mindspore@@ -1,9 +1,14 @@ # *_*coding:utf-8 *_*
++import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import os
+ import json
+ import warnings
+ import numpy as np
+-from torch.utils.data import Dataset
++# from torch.utils.data import Dataset
+ warnings.filterwarnings('ignore')
+ 
+ def pc_normalize(pc):
+@@ -13,6 +18,7 @@     pc = pc / m
+     return pc
+ 
++# 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class PartNormalDataset(Dataset):
+     def __init__(self,root = './data/shapenetcore_partanno_segmentation_benchmark_v0_normal', npoints=2500, split='train', class_choice=None, normal_channel=False):
+         self.npoints = npoints

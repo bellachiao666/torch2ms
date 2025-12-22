@@ -1,0 +1,51 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import string
+ from typing import Any, Callable
+ 
+@@ -14,7 +19,7 @@         self.kwargs = kargs
+ 
+     def __call__(self, function: Callable):
+-        return function(*self.args, **self.kwargs)
++        return function(*self.args, **self.kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ test_layer_cases = [
+@@ -215,16 +220,16 @@             for do_manual_call in [True, False]:
+                 # Actually run einsum:
+                 if do_manual_call:
+-                    out_array = backend.einsum(predicted_pattern, *in_arrays_framework)
++                    out_array = backend.einsum(predicted_pattern, *in_arrays_framework)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                 else:
+-                    out_array = einsum(*in_arrays_framework, einops_pattern)
++                    out_array = einsum(*in_arrays_framework, einops_pattern)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+                 # Check shape:
+                 if tuple(out_array.shape) != out_shape:
+                     raise ValueError(f"Expected output shape {out_shape} but got {out_array.shape}")
+ 
+                 # Check values:
+-                true_out_array = np.einsum(true_pattern, *in_arrays)
++                true_out_array = np.einsum(true_pattern, *in_arrays)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                 predicted_out_array = backend.to_numpy(out_array)
+                 np.testing.assert_array_almost_equal(predicted_out_array, true_out_array, decimal=5)
+ 
+@@ -244,13 +249,13 @@             in_syms = [backend.create_symbol(in_shape) for in_shape in in_shapes]
+             in_data = [rstate.uniform(size=in_shape).astype("float32") for in_shape in in_shapes]
+ 
+-            expected_out_data = np.einsum(true_pattern, *in_data)
++            expected_out_data = np.einsum(true_pattern, *in_data)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+             for do_manual_call in [True, False]:
+                 if do_manual_call:
+-                    predicted_out_symbol = backend.einsum(predicted_pattern, *in_syms)
++                    predicted_out_symbol = backend.einsum(predicted_pattern, *in_syms)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                 else:
+-                    predicted_out_symbol = einsum(*in_syms, einops_pattern)
++                    predicted_out_symbol = einsum(*in_syms, einops_pattern)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+                 predicted_out_data = backend.eval_symbol(
+                     predicted_out_symbol,

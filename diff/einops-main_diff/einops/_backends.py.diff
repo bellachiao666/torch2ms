@@ -1,0 +1,103 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ Backends in `einops` are organized to meet the following requirements
+ - backends are not imported unless those are actually needed, because
+@@ -190,7 +195,7 @@         return self.np.expand_dims(x, new_position)
+ 
+     def einsum(self, pattern, *x):
+-        return self.np.einsum(pattern, *x)
++        return self.np.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class JaxBackend(NumpyBackend):
+@@ -215,11 +220,11 @@     framework_name = "torch"
+ 
+     def __init__(self):
+-        import torch
++        # import torch
+ 
+         self.torch = torch
+         # importing would register operations in torch._dynamo for torch.compile
+-        from . import _torch_specific  # noqa
++        # from . import _torch_specific  # noqa
+ 
+     def is_appropriate_type(self, tensor):
+         return isinstance(tensor, self.torch.Tensor)
+@@ -280,12 +285,12 @@         return x.dtype in [self.torch.float16, self.torch.float32, self.torch.float64, self.torch.bfloat16]
+ 
+     def layers(self):
+-        from .layers import torch
++        # from .layers import torch
+ 
+         return torch
+ 
+     def einsum(self, pattern, *x):
+-        return self.torch.einsum(pattern, *x)
++        return self.torch.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class CupyBackend(AbstractBackend):
+@@ -324,7 +329,7 @@         return x.dtype in ("float16", "float32", "float64", "float128", "bfloat16")
+ 
+     def einsum(self, pattern, *x):
+-        return self.cupy.einsum(pattern, *x)
++        return self.cupy.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class HashableTuple:
+@@ -412,7 +417,7 @@         return tensorflow
+ 
+     def einsum(self, pattern, *x):
+-        return self.tf.einsum(pattern, *x)
++        return self.tf.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class TFKerasBackend(AbstractBackend):
+@@ -519,7 +524,7 @@         for axis_position, axis_length in pos2len.items():
+             x = self.add_axis(x, axis_position)
+             repeats[axis_position] = axis_length
+-        return x.expand(*repeats)
++        return x.expand(*repeats)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def tile(self, x, repeats):
+         return x.repeat(repeats)
+@@ -539,7 +544,7 @@         return oneflow
+ 
+     def einsum(self, pattern, *x):
+-        return self.flow.einsum(pattern, *x)
++        return self.flow.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class PaddleBackend(AbstractBackend):
+@@ -605,7 +610,7 @@         return paddle
+ 
+     def einsum(self, pattern, *x):
+-        return self.paddle.einsum(pattern, *x)
++        return self.paddle.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def shape(self, x):
+         return tuple(x.shape)
+@@ -655,13 +660,13 @@         return x.repeat(repeats)
+ 
+     def concat(self, tensors, axis: int):
+-        return tensors[0].cat(*tensors[1:], dim=axis) if len(tensors) > 1 else tensors[0]
++        return tensors[0].cat(*tensors[1:], dim=axis) if len(tensors) > 1 else tensors[0]  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def is_float_type(self, x):
+         return self.tinygrad.dtypes.is_float(x.dtype)
+ 
+     def einsum(self, pattern, *x):
+-        return self.tinygrad.Tensor.einsum(pattern, *x)
++        return self.tinygrad.Tensor.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class PyTensorBackend(AbstractBackend):
+@@ -715,4 +720,4 @@         return self.pt.expand_dims(x, new_position)
+ 
+     def einsum(self, pattern, *x):
+-        return self.pt.einsum(pattern, *x)
++        return self.pt.einsum(pattern, *x)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -1,0 +1,97 @@
+import mindspore as ms
+import mindspore.nn as msnn
+import mindspore.ops as msops
+import mindspore.mint as mint
+from mindspore.mint import nn, ops
+""" Filter Response Norm in PyTorch
+
+Based on `Filter Response Normalization Layer` - https://arxiv.org/abs/1911.09737
+
+Hacked together by / Copyright 2021 Ross Wightman
+"""
+from typing import Optional, Type
+# import torch.nn as nn
+
+from .create_act import create_act_layer
+from .trace_utils import _assert
+
+
+def inv_instance_rms(x, eps: float = 1e-5):
+    rms = x.square().float().mean(dim=(2, 3), keepdim=True).add(eps).rsqrt().to(x.dtype)
+    return rms.expand(x.shape)
+
+
+class FilterResponseNormTlu2d(msnn.Cell):
+    def __init__(
+            self,
+            num_features: int,
+            apply_act: bool = True,
+            eps: float = 1e-5,
+            rms: bool = True,
+            device=None,
+            dtype=None,
+            **_,
+    ):
+        dd = {'device': device, 'dtype': dtype}
+        super().__init__()
+        self.apply_act = apply_act  # apply activation (non-linearity)
+        self.rms = rms
+        self.eps = eps
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.tau = ms.Parameter(mint.empty(num_features, **dd)) if apply_act else None  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.ones_(self.weight)  # 'torch.nn.init.ones_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        nn.init.zeros_(self.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        if self.tau is not None:
+            nn.init.zeros_(self.tau)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+
+    def construct(self, x):
+        _assert(x.dim() == 4, 'expected 4D input')
+        x_dtype = x.dtype
+        v_shape = (1, -1, 1, 1)
+        x = x * inv_instance_rms(x, self.eps)
+        x = x * self.weight.view(v_shape).to(dtype=x_dtype) + self.bias.view(v_shape).to(dtype=x_dtype)
+        return mint.maximum(x, self.tau.reshape(v_shape).to(dtype=x_dtype)) if self.tau is not None else x
+
+
+class FilterResponseNormAct2d(msnn.Cell):
+    def __init__(
+            self,
+            num_features: int,
+            apply_act: bool = True,
+            act_layer: Type[msnn.Cell] = nn.ReLU,
+            inplace: Optional[bool] = None,
+            rms: bool = True,
+            eps: float = 1e-5,
+            device=None,
+            dtype=None,
+            **_,
+    ):
+        dd = {'device': device, 'dtype': dtype}
+        super().__init__()
+        if act_layer is not None and apply_act:
+            self.act = create_act_layer(act_layer, inplace=inplace)
+        else:
+            self.act = msnn.Identity()
+        self.rms = rms
+        self.eps = eps
+        self.weight = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+        self.bias = ms.Parameter(mint.empty(num_features, **dd))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.ones_(self.weight)  # 'torch.nn.init.ones_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+        nn.init.zeros_(self.bias)  # 'torch.nn.init.zeros_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+
+    def construct(self, x):
+        _assert(x.dim() == 4, 'expected 4D input')
+        x_dtype = x.dtype
+        v_shape = (1, -1, 1, 1)
+        x = x * inv_instance_rms(x, self.eps)
+        x = x * self.weight.view(v_shape).to(dtype=x_dtype) + self.bias.view(v_shape).to(dtype=x_dtype)
+        return self.act(x)

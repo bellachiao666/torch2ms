@@ -1,0 +1,104 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ Author: Benny
+ Date: Nov 2019
+@@ -5,7 +10,7 @@ import argparse
+ import os
+ from data_utils.S3DISDataLoader import S3DISDataset
+-import torch
++# import torch
+ import datetime
+ import logging
+ from pathlib import Path
+@@ -100,10 +105,10 @@ 
+     trainDataLoader = torch.utils.data.DataLoader(TRAIN_DATASET, batch_size=BATCH_SIZE, shuffle=True, num_workers=10,
+                                                   pin_memory=True, drop_last=True,
+-                                                  worker_init_fn=lambda x: np.random.seed(x + int(time.time())))
++                                                  worker_init_fn=lambda x: np.random.seed(x + int(time.time())))  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     testDataLoader = torch.utils.data.DataLoader(TEST_DATASET, batch_size=BATCH_SIZE, shuffle=False, num_workers=10,
+-                                                 pin_memory=True, drop_last=True)
+-    weights = torch.Tensor(TRAIN_DATASET.labelweights).cuda()
++                                                 pin_memory=True, drop_last=True)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    weights = ms.Tensor(TRAIN_DATASET.labelweights).cuda()
+ 
+     log_string("The number of training data is: %d" % len(TRAIN_DATASET))
+     log_string("The number of test data is: %d" % len(TEST_DATASET))
+@@ -120,14 +125,14 @@     def weights_init(m):
+         classname = m.__class__.__name__
+         if classname.find('Conv2d') != -1:
+-            torch.nn.init.xavier_normal_(m.weight.data)
+-            torch.nn.init.constant_(m.bias.data, 0.0)
++            torch.nn.init.xavier_normal_(m.weight.data)  # 'torch.nn.init.xavier_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            torch.nn.init.constant_(m.bias.data, 0.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         elif classname.find('Linear') != -1:
+-            torch.nn.init.xavier_normal_(m.weight.data)
+-            torch.nn.init.constant_(m.bias.data, 0.0)
++            torch.nn.init.xavier_normal_(m.weight.data)  # 'torch.nn.init.xavier_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++            torch.nn.init.constant_(m.bias.data, 0.0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     try:
+-        checkpoint = torch.load(str(experiment_dir) + '/checkpoints/best_model.pth')
++        checkpoint = torch.load(str(experiment_dir) + '/checkpoints/best_model.pth')  # 'torch.load' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         start_epoch = checkpoint['epoch']
+         classifier.load_state_dict(checkpoint['model_state_dict'])
+         log_string('Use pretrain model')
+@@ -137,7 +142,7 @@         classifier = classifier.apply(weights_init)
+ 
+     if args.optimizer == 'Adam':
+-        optimizer = torch.optim.Adam(
++        optimizer = mint.optim.Adam(
+             classifier.parameters(),
+             lr=args.learning_rate,
+             betas=(0.9, 0.999),
+@@ -145,10 +150,10 @@             weight_decay=args.decay_rate
+         )
+     else:
+-        optimizer = torch.optim.SGD(classifier.parameters(), lr=args.learning_rate, momentum=0.9)
++        optimizer = torch.optim.SGD(classifier.parameters(), lr=args.learning_rate, momentum=0.9)  # 'torch.optim.SGD' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ 
+     def bn_momentum_adjust(m, momentum):
+-        if isinstance(m, torch.nn.BatchNorm2d) or isinstance(m, torch.nn.BatchNorm1d):
++        if isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
+             m.momentum = momentum
+ 
+     LEARNING_RATE_CLIP = 1e-5
+@@ -182,7 +187,7 @@ 
+             points = points.data.numpy()
+             points[:, :, :3] = provider.rotate_point_cloud_z(points[:, :, :3])
+-            points = torch.Tensor(points)
++            points = ms.Tensor(points)
+             points, target = points.float().cuda(), target.long().cuda()
+             points = points.transpose(2, 1)
+ 
+@@ -212,10 +217,11 @@                 'model_state_dict': classifier.state_dict(),
+                 'optimizer_state_dict': optimizer.state_dict(),
+             }
+-            torch.save(state, savepath)
++            torch.save(state, savepath)  # 'torch.save' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             log_string('Saving model....')
+ 
+         '''Evaluate on chopped scenes'''
++        # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+         with torch.no_grad():
+             num_batches = len(testDataLoader)
+             total_correct = 0
+@@ -230,7 +236,7 @@             log_string('---- EPOCH %03d EVALUATION ----' % (global_epoch + 1))
+             for i, (points, target) in tqdm(enumerate(testDataLoader), total=len(testDataLoader), smoothing=0.9):
+                 points = points.data.numpy()
+-                points = torch.Tensor(points)
++                points = ms.Tensor(points)
+                 points, target = points.float().cuda(), target.long().cuda()
+                 points = points.transpose(2, 1)
+ 
+@@ -283,7 +289,7 @@                     'model_state_dict': classifier.state_dict(),
+                     'optimizer_state_dict': optimizer.state_dict(),
+                 }
+-                torch.save(state, savepath)
++                torch.save(state, savepath)  # 'torch.save' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                 log_string('Saving model....')
+             log_string('Best mIoU: %f' % best_iou)
+         global_epoch += 1

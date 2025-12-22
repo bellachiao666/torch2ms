@@ -1,0 +1,21 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ __author__ = "Alex Rogozhnikov"
+ 
+ from typing import Any, Dict
+@@ -52,7 +57,7 @@         return {"pattern": self.pattern, "axes_lengths": self.axes_lengths}
+ 
+     def __setstate__(self, state):
+-        self.__init__(pattern=state["pattern"], **state["axes_lengths"])
++        self.__init__(pattern=state["pattern"], **state["axes_lengths"])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ class ReduceMixin:
+@@ -102,4 +107,4 @@         return {"pattern": self.pattern, "reduction": self.reduction, "axes_lengths": self.axes_lengths}
+ 
+     def __setstate__(self, state):
+-        self.__init__(pattern=state["pattern"], reduction=state["reduction"], **state["axes_lengths"])
++        self.__init__(pattern=state["pattern"], reduction=state["reduction"], **state["axes_lengths"])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

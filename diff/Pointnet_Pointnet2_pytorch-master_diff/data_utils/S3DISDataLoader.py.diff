@@ -1,0 +1,38 @@
+--- pytorch+++ mindspore@@ -1,10 +1,16 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import os
+ import numpy as np
+ 
+ from tqdm import tqdm
+-from torch.utils.data import Dataset
+-
+-
++# from torch.utils.data import Dataset
++
++
++# 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class S3DISDataset(Dataset):
+     def __init__(self, split='train', data_root='trainval_fullarea', num_point=4096, test_area=5, block_size=1.0, sample_rate=1.0, transform=None):
+         super().__init__()
+@@ -178,15 +184,15 @@     print('point data size:', point_data.__len__())
+     print('point data 0 shape:', point_data.__getitem__(0)[0].shape)
+     print('point label 0 shape:', point_data.__getitem__(0)[1].shape)
+-    import torch, time, random
++    # import torch, time, random
+     manual_seed = 123
+     random.seed(manual_seed)
+     np.random.seed(manual_seed)
+-    torch.manual_seed(manual_seed)
+-    torch.cuda.manual_seed_all(manual_seed)
++    torch.manual_seed(manual_seed)  # 'torch.manual_seed' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    torch.cuda.manual_seed_all(manual_seed)  # 'torch.cuda.manual_seed_all' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     def worker_init_fn(worker_id):
+         random.seed(manual_seed + worker_id)
+-    train_loader = torch.utils.data.DataLoader(point_data, batch_size=16, shuffle=True, num_workers=16, pin_memory=True, worker_init_fn=worker_init_fn)
++    train_loader = torch.utils.data.DataLoader(point_data, batch_size=16, shuffle=True, num_workers=16, pin_memory=True, worker_init_fn=worker_init_fn)  # 'torch.utils.data.DataLoader' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     for idx in range(4):
+         end = time.time()
+         for i, (input, target) in enumerate(train_loader):

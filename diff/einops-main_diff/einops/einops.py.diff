@@ -1,0 +1,46 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import functools
+ import itertools
+ import string
+@@ -410,6 +415,7 @@         )
+ 
+     axis_position_after_reduction: Dict[str, int] = {}
++    # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     for axis_name in itertools.chain(*left_composition):
+         if axis_name in rght.identifiers:
+             axis_position_after_reduction[axis_name] = len(axis_position_after_reduction)
+@@ -418,8 +424,8 @@         [axis_name2position[axis] for axis in composite_axis] for i, composite_axis in enumerate(rght_composition)
+     ]
+ 
+-    ordered_axis_left = list(itertools.chain(*left_composition))
+-    ordered_axis_rght = list(itertools.chain(*rght_composition))
++    ordered_axis_left = list(itertools.chain(*left_composition))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    ordered_axis_rght = list(itertools.chain(*rght_composition))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     reduced_axes = [axis for axis in ordered_axis_left if axis not in rght.identifiers]
+     order_after_transposition = [axis for axis in ordered_axis_rght if axis in left.identifiers] + reduced_axes
+     axes_permutation = [ordered_axis_left.index(axis) for axis in order_after_transposition]
+@@ -613,7 +619,7 @@         tensor of the same type as input. If possible, a view to the original tensor is returned.
+ 
+     """
+-    return reduce(tensor, pattern, reduction="rearrange", **axes_lengths)
++    return reduce(tensor, pattern, reduction="rearrange", **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @overload
+@@ -671,7 +677,7 @@         Tensor of the same type as input. If possible, a view to the original tensor is returned.
+ 
+     """
+-    return reduce(tensor, pattern, reduction="repeat", **axes_lengths)
++    return reduce(tensor, pattern, reduction="repeat", **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def parse_shape(x: Tensor, pattern: str) -> dict:
+@@ -936,4 +942,4 @@         )
+     tensors = tensors_and_pattern[:-1]
+     pattern = _compactify_pattern_for_einsum(pattern)
+-    return get_backend(tensors[0]).einsum(pattern, *tensors)
++    return get_backend(tensors[0]).einsum(pattern, *tensors)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

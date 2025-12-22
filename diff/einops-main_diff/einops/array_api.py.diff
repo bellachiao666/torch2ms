@@ -1,0 +1,21 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ from typing import List, Sequence, Tuple
+ 
+ from .einops import EinopsError, Reduction, Tensor, _apply_recipe_array_api, _prepare_transformation_recipe
+@@ -33,11 +38,11 @@ 
+ 
+ def repeat(tensor: Tensor, pattern: str, **axes_lengths) -> Tensor:
+-    return reduce(tensor, pattern, reduction="repeat", **axes_lengths)
++    return reduce(tensor, pattern, reduction="repeat", **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def rearrange(tensor: Tensor, pattern: str, **axes_lengths) -> Tensor:
+-    return reduce(tensor, pattern, reduction="rearrange", **axes_lengths)
++    return reduce(tensor, pattern, reduction="rearrange", **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def asnumpy(tensor: Tensor):

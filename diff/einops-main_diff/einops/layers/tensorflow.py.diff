@@ -1,0 +1,21 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ Comment about tensorflow layers:
+ unfortunately instructions on creation of TF layers change constantly,
+@@ -59,11 +64,11 @@     ):
+         self.pre_rearrange = None
+         if pre_reshape_pattern is not None:
+-            self.pre_rearrange = Rearrange(pre_reshape_pattern, **cast(dict, pre_reshape_lengths))
++            self.pre_rearrange = Rearrange(pre_reshape_pattern, **cast(dict, pre_reshape_lengths))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+         self.post_rearrange = None
+         if post_reshape_pattern is not None:
+-            self.post_rearrange = Rearrange(post_reshape_pattern, **cast(dict, post_reshape_lengths))
++            self.post_rearrange = Rearrange(post_reshape_pattern, **cast(dict, post_reshape_lengths))  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     def build(self, input_shape):
+         [weight_shape, weight_bound, bias_shape, bias_bound] = self._params

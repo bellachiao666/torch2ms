@@ -1,0 +1,40 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ """
+ Author: Benny
+ Date: Nov 2019
+@@ -6,7 +11,7 @@ import os
+ from data_utils.S3DISDataLoader import ScannetDatasetWholeScene
+ from data_utils.indoor3d_util import g_label2color
+-import torch
++# import torch
+ import logging
+ from pathlib import Path
+ import sys
+@@ -88,10 +93,11 @@     model_name = os.listdir(experiment_dir + '/logs')[0].split('.')[0]
+     MODEL = importlib.import_module(model_name)
+     classifier = MODEL.get_model(NUM_CLASSES).cuda()
+-    checkpoint = torch.load(str(experiment_dir) + '/checkpoints/best_model.pth')
++    checkpoint = torch.load(str(experiment_dir) + '/checkpoints/best_model.pth')  # 'torch.load' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     classifier.load_state_dict(checkpoint['model_state_dict'])
+     classifier = classifier.eval()
+ 
++    # 'torch.no_grad' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     with torch.no_grad():
+         scene_id = TEST_DATASET_WHOLE_SCENE.file_list
+         scene_id = [x[:-4] for x in scene_id]
+@@ -135,9 +141,9 @@                     batch_smpw[0:real_batch_size, ...] = scene_smpw[start_idx:end_idx, ...]
+                     batch_data[:, :, 3:6] /= 1.0
+ 
+-                    torch_data = torch.Tensor(batch_data)
+-                    torch_data = torch_data.float().cuda()
+-                    torch_data = torch_data.transpose(2, 1)
++                    torch_data = ms.Tensor(batch_data)
++                    torch_data = ms.float32().cuda()
++                    torch_data = mint.transpose(2, 1)
+                     seg_pred, _ = classifier(torch_data)
+                     batch_pred_label = seg_pred.contiguous().cpu().data.max(2)[1].numpy()
+ 

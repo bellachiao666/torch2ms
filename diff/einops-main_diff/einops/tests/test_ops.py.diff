@@ -1,0 +1,177 @@
+--- pytorch+++ mindspore@@ -1,3 +1,8 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import itertools
+ 
+ import numpy as np
+@@ -78,9 +83,9 @@ 
+     def operation(x):
+         if reduction == "rearrange":
+-            return rearrange(x, pattern, **axes_lengths)
++            return rearrange(x, pattern, **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         else:
+-            return reduce(x, pattern, reduction, **axes_lengths)
++            return reduce(x, pattern, reduction, **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     numpy_result = operation(numpy_input)
+     check_equal = np.array_equal
+@@ -102,12 +107,14 @@     x = np.arange(2 * 3 * 4 * 5 * 6).reshape([2, 3, 4, 5, 6])
+     for is_symbolic in [True, False]:
+         for backend in collect_test_backends(symbolic=is_symbolic, layers=False):
++            # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             for pattern in identity_patterns + list(itertools.chain(*equivalent_rearrange_patterns)):
+                 check_op_against_numpy(
+                     backend, x, pattern, axes_lengths={}, reduction="rearrange", is_symbolic=is_symbolic
+                 )
+ 
+             for reduction in ["min", "max", "sum"]:
++                # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                 for pattern in itertools.chain(*equivalent_reduction_patterns):
+                     check_op_against_numpy(
+                         backend, x, pattern, axes_lengths={}, reduction=reduction, is_symbolic=is_symbolic
+@@ -123,6 +130,7 @@         pytest.skip()
+ 
+     x = np.arange(2 * 3 * 4 * 5 * 6).reshape([2, 3, 4, 5, 6])
++    # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     for pattern in identity_patterns + list(itertools.chain(*equivalent_rearrange_patterns)):
+         expected = rearrange(x, pattern)
+         result = AA.rearrange(xp.from_dlpack(x), pattern)
+@@ -138,6 +146,7 @@         pytest.skip()
+ 
+     x = np.arange(2 * 3 * 4 * 5 * 6).reshape([2, 3, 4, 5, 6])
++    # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     for pattern in itertools.chain(*equivalent_reduction_patterns):
+         for reduction in ["min", "max", "sum"]:
+             expected = reduce(x, pattern, reduction=reduction)
+@@ -173,8 +182,8 @@     assert np.array_equal(x, result)
+ 
+     sizes = dict(zip("abcdef", shape))
+-    temp = rearrange(x, "a b c d e f -> (f d) c (e b) a", **sizes)
+-    result = rearrange(temp, "(f d) c (e b) a -> a b c d e f", **sizes)
++    temp = rearrange(x, "a b c d e f -> (f d) c (e b) a", **sizes)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    result = rearrange(temp, "(f d) c (e b) a -> a b c d e f", **sizes)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     assert np.array_equal(x, result)
+ 
+     x2 = np.arange(2 * 3 * 4).reshape([2, 3, 4])
+@@ -242,7 +251,7 @@                 ["(a a2) ... -> (a2 a) ...", dict(a2=1), input],
+             ]
+             for pattern, axes_lengths, expected_result in test_cases:
+-                result = reduce(backend.from_numpy(input.copy()), pattern, reduction=reduction, **axes_lengths)
++                result = reduce(backend.from_numpy(input.copy()), pattern, reduction=reduction, **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                 result = backend.to_numpy(result)
+                 assert np.allclose(result, expected_result), f"Failed at {pattern}"
+ 
+@@ -280,7 +289,7 @@                 shapes = [input.shape, [None for _ in input.shape]]
+                 for shape in shapes:
+                     sym = backend.create_symbol(shape)
+-                    result_sym = reduce(sym, pattern, reduction=reduction, **axes_lengths)
++                    result_sym = reduce(sym, pattern, reduction=reduction, **axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                     result = backend.eval_symbol(result_sym, [(sym, input)])
+                     assert np.allclose(result, expected_numpy_result)
+ 
+@@ -295,7 +304,7 @@                         else:
+                             shape.append(length)
+                     sym = backend.create_symbol(shape)
+-                    result_sym = reduce(sym, pattern, reduction=reduction, **_axes_lengths)
++                    result_sym = reduce(sym, pattern, reduction=reduction, **_axes_lengths)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+                     result = backend.eval_symbol(result_sym, [(sym, input)])
+                     assert np.allclose(result, expected_numpy_result)
+ 
+@@ -498,9 +507,9 @@     """Checks repeat pattern by running reduction"""
+     left, right = repeat_pattern.split("->")
+     reduce_pattern = right + "->" + left
+-    repeated = repeat(x, repeat_pattern, **sizes)
+-    reduced_min = reduce(repeated, reduce_pattern, reduction="min", **sizes)
+-    reduced_max = reduce(repeated, reduce_pattern, reduction="max", **sizes)
++    repeated = repeat(x, repeat_pattern, **sizes)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    reduced_min = reduce(repeated, reduce_pattern, reduction="min", **sizes)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++    reduced_max = reduce(repeated, reduce_pattern, reduction="max", **sizes)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+     assert np.array_equal(x, reduced_min)
+     assert np.array_equal(x, reduced_max)
+ 
+@@ -511,7 +520,7 @@     x1 = repeat(x, "a b c -> copy a b c ", copy=1)
+     assert np.array_equal(x[None], x1)
+     for pattern, axis_dimensions in repeat_test_cases:
+-        check_reversion(x, pattern, **axis_dimensions)
++        check_reversion(x, pattern, **axis_dimensions)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def test_repeat_imperatives():
+@@ -520,9 +529,9 @@         print("Repeat tests for ", backend.framework_name)
+ 
+         for pattern, axis_dimensions in repeat_test_cases:
+-            expected = repeat(x, pattern, **axis_dimensions)
++            expected = repeat(x, pattern, **axis_dimensions)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             converted = backend.from_numpy(x)
+-            repeated = repeat(converted, pattern, **axis_dimensions)
++            repeated = repeat(converted, pattern, **axis_dimensions)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             result = backend.to_numpy(repeated)
+             assert np.array_equal(result, expected)
+ 
+@@ -534,10 +543,10 @@         print("Repeat tests for ", backend.framework_name)
+ 
+         for pattern, axis_dimensions in repeat_test_cases:
+-            expected = repeat(x, pattern, **axis_dimensions)
++            expected = repeat(x, pattern, **axis_dimensions)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+             sym = backend.create_symbol(x.shape)
+-            result = backend.eval_symbol(repeat(sym, pattern, **axis_dimensions), [[sym, x]])
++            result = backend.eval_symbol(repeat(sym, pattern, **axis_dimensions), [[sym, x]])  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+             assert np.array_equal(result, expected)
+ 
+ 
+@@ -552,9 +561,9 @@     x = np.arange(2 * 3 * 5).reshape([2, 3, 5])
+ 
+     for pattern, axis_dimensions in repeat_test_cases:
+-        expected = repeat(x, pattern, **axis_dimensions)
+-
+-        result = AA.repeat(xp.from_dlpack(x), pattern, **axis_dimensions)
++        expected = repeat(x, pattern, **axis_dimensions)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++        result = AA.repeat(xp.from_dlpack(x), pattern, **axis_dimensions)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+         assert np.array_equal(AA.asnumpy(result + 0), expected)
+ 
+ 
+@@ -572,7 +581,7 @@ def test_anonymous_axes():
+     x = np.arange(1 * 2 * 4 * 6).reshape([1, 2, 4, 6])
+     for pattern, axis_dimensions in test_cases_repeat_anonymous:
+-        check_reversion(x, pattern, **axis_dimensions)
++        check_reversion(x, pattern, **axis_dimensions)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ def test_list_inputs():
+@@ -595,7 +604,7 @@ def test_torch_compile_with_dynamic_shape():
+     if not is_backend_tested("torch"):
+         pytest.skip()
+-    import torch
++    # import torch
+ 
+     # somewhat reasonable debug messages
+     torch._dynamo.config.verbose = True
+@@ -609,16 +618,16 @@         return x
+ 
+     # seems can't test static and dynamic in the same test run.
+-    func1_compiled_static = torch.compile(func1, dynamic=False, fullgraph=True)
+-    func1_compiled_dynamic = torch.compile(func1, dynamic=True, fullgraph=True)
+-
+-    x = torch.randn(size=[4, 5, 6, 3])
+-    assert torch.allclose(func1_compiled_static(x), func1(x), atol=1e-5)
+-    assert torch.allclose(func1_compiled_dynamic(x), func1(x), atol=1e-5)
++    func1_compiled_static = torch.compile(func1, dynamic=False, fullgraph=True)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++    func1_compiled_dynamic = torch.compile(func1, dynamic=True, fullgraph=True)  # 'torch.compile' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    x = mint.randn(size=[4, 5, 6, 3])
++    assert mint.allclose(func1_compiled_static(x), func1(x), atol=1e-5)
++    assert mint.allclose(func1_compiled_dynamic(x), func1(x), atol=1e-5)
+     # check with input of different dimensionality, and with all shape elements changed
+-    x = torch.randn(size=[6, 3, 4, 2, 3])
+-    assert torch.allclose(func1_compiled_static(x), func1(x), atol=1e-5)
+-    assert torch.allclose(func1_compiled_dynamic(x), func1(x), atol=1e-5)
++    x = mint.randn(size=[6, 3, 4, 2, 3])
++    assert mint.allclose(func1_compiled_static(x), func1(x), atol=1e-5)
++    assert mint.allclose(func1_compiled_dynamic(x), func1(x), atol=1e-5)
+ 
+ 
+ def bit_count(x):
