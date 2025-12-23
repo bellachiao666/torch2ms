@@ -1,0 +1,260 @@
+--- pytorch+++ mindspore@@ -1,14 +1,18 @@+import mindspore as ms
++import mindspore.nn as msnn
++import mindspore.ops as msops
++import mindspore.mint as mint
++from mindspore.mint import nn, ops
+ import re
+ from collections import OrderedDict
+ from functools import partial
+ from typing import Any, Optional
+ 
+-import torch
+-import torch.nn as nn
+-import torch.nn.functional as F
+-import torch.utils.checkpoint as cp
+-from torch import Tensor
+-from torch.nn import Module
++# import torch
++# import torch.nn as nn
++# import torch.utils.checkpoint as cp
++from mindspore import Tensor
++from mindspore.nn import Cell
+ 
+ from ..transforms._presets import ImageClassification
+ from ..utils import _log_api_usage_once
+@@ -29,58 +33,62 @@ ]
+ 
+ 
+-class _DenseLayer(nn.Module):
++class _DenseLayer(msnn.Cell):
+     def __init__(
+         self, num_input_features: int, growth_rate: int, bn_size: int, drop_rate: float, memory_efficient: bool = False
+     ) -> None:
+         super().__init__()
+         self.norm1 = nn.BatchNorm2d(num_input_features)
+-        self.relu1 = nn.ReLU(inplace=True)
+-        self.conv1 = nn.Conv2d(num_input_features, bn_size * growth_rate, kernel_size=1, stride=1, bias=False)
++        self.relu1 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
++        self.conv1 = nn.Conv2d(num_input_features, bn_size * growth_rate, kernel_size = 1, stride = 1, bias = False)
+ 
+         self.norm2 = nn.BatchNorm2d(bn_size * growth_rate)
+-        self.relu2 = nn.ReLU(inplace=True)
+-        self.conv2 = nn.Conv2d(bn_size * growth_rate, growth_rate, kernel_size=3, stride=1, padding=1, bias=False)
++        self.relu2 = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
++        self.conv2 = nn.Conv2d(bn_size * growth_rate, growth_rate, kernel_size = 3, stride = 1, padding = 1, bias = False)
+ 
+         self.drop_rate = float(drop_rate)
+         self.memory_efficient = memory_efficient
+ 
+-    def bn_function(self, inputs: list[Tensor]) -> Tensor:
+-        concated_features = torch.cat(inputs, 1)
++    def bn_function(self, inputs: list[ms.Tensor]) -> ms.Tensor:
++        concated_features = mint.cat(inputs, 1)
+         bottleneck_output = self.conv1(self.relu1(self.norm1(concated_features)))  # noqa: T484
+         return bottleneck_output
+ 
+     # todo: rewrite when torchscript supports any
+-    def any_requires_grad(self, input: list[Tensor]) -> bool:
++    def any_requires_grad(self, input: list[ms.Tensor]) -> bool:
+         for tensor in input:
+             if tensor.requires_grad:
+                 return True
+         return False
+ 
++    # 装饰器 'torch.jit.unused' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit.unused  # noqa: T484
+-    def call_checkpoint_bottleneck(self, input: list[Tensor]) -> Tensor:
++    def call_checkpoint_bottleneck(self, input: list[ms.Tensor]) -> ms.Tensor:
+         def closure(*inputs):
+             return self.bn_function(inputs)
+ 
+-        return cp.checkpoint(closure, *input, use_reentrant=False)
+-
++        return cp.checkpoint(closure, *input, use_reentrant=False)  # 'torch.utils.checkpoint.checkpoint' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;; 存在 *args/**kwargs，未转换，需手动确认参数映射;
++
++    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit._overload_method  # noqa: F811
+-    def forward(self, input: list[Tensor]) -> Tensor:  # noqa: F811
++    def construct(self, input: list[ms.Tensor]) -> ms.Tensor:  # noqa: F811
+         pass
+ 
++    # 装饰器 'torch.jit._overload_method' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+     @torch.jit._overload_method  # noqa: F811
+-    def forward(self, input: Tensor) -> Tensor:  # noqa: F811
++    def construct(self, input: ms.Tensor) -> ms.Tensor:  # noqa: F811
+         pass
+ 
+     # torchscript does not yet support *args, so we overload method
+     # allowing it to take either a List[Tensor] or single Tensor
+-    def forward(self, input: Tensor) -> Tensor:  # noqa: F811
++    def construct(self, input: ms.Tensor) -> ms.Tensor:  # noqa: F811
+         if isinstance(input, Tensor):
+             prev_features = [input]
+         else:
+             prev_features = input
+ 
+         if self.memory_efficient and self.any_requires_grad(prev_features):
++            # 'torch.jit.is_scripting' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             if torch.jit.is_scripting():
+                 raise Exception("Memory Efficient not supported in JIT")
+ 
+@@ -90,10 +98,11 @@ 
+         new_features = self.conv2(self.relu2(self.norm2(bottleneck_output)))
+         if self.drop_rate > 0:
+-            new_features = F.dropout(new_features, p=self.drop_rate, training=self.training)
++            new_features = nn.functional.dropout(new_features, p = self.drop_rate, training = self.training)
+         return new_features
+ 
+ 
++# 'torch.nn.ModuleDict' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+ class _DenseBlock(nn.ModuleDict):
+     _version = 2
+ 
+@@ -115,26 +124,26 @@                 drop_rate=drop_rate,
+                 memory_efficient=memory_efficient,
+             )
+-            self.add_module("denselayer%d" % (i + 1), layer)
+-
+-    def forward(self, init_features: Tensor) -> Tensor:
++            self.insert_child_to_cell("denselayer%d" % (i + 1), layer)  # 'torch.nn.Module.add_module':默认参数名不一致(position 1): PyTorch=module, MindSpore=cell;
++
++    def forward(self, init_features: ms.Tensor) -> ms.Tensor:
+         features = [init_features]
+         for name, layer in self.items():
+             new_features = layer(features)
+             features.append(new_features)
+-        return torch.cat(features, 1)
+-
+-
+-class _Transition(nn.Sequential):
++        return mint.cat(features, 1)
++
++
++class _Transition(msnn.SequentialCell):
+     def __init__(self, num_input_features: int, num_output_features: int) -> None:
+         super().__init__()
+         self.norm = nn.BatchNorm2d(num_input_features)
+-        self.relu = nn.ReLU(inplace=True)
+-        self.conv = nn.Conv2d(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False)
+-        self.pool = nn.AvgPool2d(kernel_size=2, stride=2)
+-
+-
+-class DenseNet(nn.Module):
++        self.relu = nn.ReLU()  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
++        self.conv = nn.Conv2d(num_input_features, num_output_features, kernel_size = 1, stride = 1, bias = False)
++        self.pool = nn.AvgPool2d(kernel_size = 2, stride = 2)
++
++
++class DenseNet(msnn.Cell):
+     r"""Densenet-BC model class, based on
+     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_.
+ 
+@@ -165,16 +174,17 @@         _log_api_usage_once(self)
+ 
+         # First convolution
+-        self.features = nn.Sequential(
++        self.features = msnn.SequentialCell(
++            [
+             OrderedDict(
+                 [
+-                    ("conv0", nn.Conv2d(3, num_init_features, kernel_size=7, stride=2, padding=3, bias=False)),
++                    ("conv0", nn.Conv2d(3, num_init_features, kernel_size = 7, stride = 2, padding = 3, bias = False)),
+                     ("norm0", nn.BatchNorm2d(num_init_features)),
+-                    ("relu0", nn.ReLU(inplace=True)),
+-                    ("pool0", nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
++                    ("relu0", nn.ReLU()),
++                    ("pool0", nn.MaxPool2d(kernel_size = 3, stride = 2, padding = 1)),
+                 ]
+             )
+-        )
++        ])  # 'torch.nn.ReLU':没有对应的mindspore参数 'inplace' (position 0);
+ 
+         # Each denseblock
+         num_features = num_init_features
+@@ -187,15 +197,15 @@                 drop_rate=drop_rate,
+                 memory_efficient=memory_efficient,
+             )
+-            self.features.add_module("denseblock%d" % (i + 1), block)
++            self.features.insert_child_to_cell("denseblock%d" % (i + 1), block)  # 'torch.nn.Module.add_module':默认参数名不一致(position 1): PyTorch=module, MindSpore=cell;
+             num_features = num_features + num_layers * growth_rate
+             if i != len(block_config) - 1:
+                 trans = _Transition(num_input_features=num_features, num_output_features=num_features // 2)
+-                self.features.add_module("transition%d" % (i + 1), trans)
++                self.features.insert_child_to_cell("transition%d" % (i + 1), trans)  # 'torch.nn.Module.add_module':默认参数名不一致(position 1): PyTorch=module, MindSpore=cell;
+                 num_features = num_features // 2
+ 
+         # Final batch norm
+-        self.features.add_module("norm5", nn.BatchNorm2d(num_features))
++        self.features.insert_child_to_cell("norm5", nn.BatchNorm2d(num_features))  # 'torch.nn.Module.add_module':默认参数名不一致(position 1): PyTorch=module, MindSpore=cell;
+ 
+         # Linear layer
+         self.classifier = nn.Linear(num_features, num_classes)
+@@ -203,23 +213,23 @@         # Official init from torch repo.
+         for m in self.modules():
+             if isinstance(m, nn.Conv2d):
+-                nn.init.kaiming_normal_(m.weight)
++                nn.init.kaiming_normal_(m.weight)  # 'torch.nn.init.kaiming_normal_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             elif isinstance(m, nn.BatchNorm2d):
+-                nn.init.constant_(m.weight, 1)
+-                nn.init.constant_(m.bias, 0)
++                nn.init.constant_(m.weight, 1)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+             elif isinstance(m, nn.Linear):
+-                nn.init.constant_(m.bias, 0)
+-
+-    def forward(self, x: Tensor) -> Tensor:
++                nn.init.constant_(m.bias, 0)  # 'torch.nn.init.constant_' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
++
++    def construct(self, x: ms.Tensor) -> ms.Tensor:
+         features = self.features(x)
+-        out = F.relu(features, inplace=True)
+-        out = F.adaptive_avg_pool2d(out, (1, 1))
+-        out = torch.flatten(out, 1)
++        out = nn.functional.relu(features, inplace = True)
++        out = nn.functional.adaptive_avg_pool2d(out, (1, 1))
++        out = mint.flatten(out, 1)
+         out = self.classifier(out)
+         return out
+ 
+ 
+-def _load_state_dict(model: nn.Module, weights: WeightsEnum, progress: bool) -> None:
++def _load_state_dict(model: msnn.Cell, weights: WeightsEnum, progress: bool) -> None:
+     # '.'s are no longer allowed in module names, but previous _DenseLayer
+     # has keys 'norm.1', 'relu.1', 'conv.1', 'norm.2', 'relu.2', 'conv.2'.
+     # They are also in the checkpoints in model_urls. This pattern is used
+@@ -249,7 +259,7 @@     if weights is not None:
+         _ovewrite_named_param(kwargs, "num_classes", len(weights.meta["categories"]))
+ 
+-    model = DenseNet(growth_rate, block_config, num_init_features, **kwargs)
++    model = DenseNet(growth_rate, block_config, num_init_features, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+     if weights is not None:
+         _load_state_dict(model=model, weights=weights, progress=progress)
+@@ -368,7 +378,7 @@     """
+     weights = DenseNet121_Weights.verify(weights)
+ 
+-    return _densenet(32, (6, 12, 24, 16), 64, weights, progress, **kwargs)
++    return _densenet(32, (6, 12, 24, 16), 64, weights, progress, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model()
+@@ -394,7 +404,7 @@     """
+     weights = DenseNet161_Weights.verify(weights)
+ 
+-    return _densenet(48, (6, 12, 36, 24), 96, weights, progress, **kwargs)
++    return _densenet(48, (6, 12, 36, 24), 96, weights, progress, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model()
+@@ -420,7 +430,7 @@     """
+     weights = DenseNet169_Weights.verify(weights)
+ 
+-    return _densenet(32, (6, 12, 32, 32), 64, weights, progress, **kwargs)
++    return _densenet(32, (6, 12, 32, 32), 64, weights, progress, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;
+ 
+ 
+ @register_model()
+@@ -446,4 +456,4 @@     """
+     weights = DenseNet201_Weights.verify(weights)
+ 
+-    return _densenet(32, (6, 12, 48, 32), 64, weights, progress, **kwargs)+    return _densenet(32, (6, 12, 48, 32), 64, weights, progress, **kwargs)  # 存在 *args/**kwargs，未转换，需手动确认参数映射;

@@ -63,7 +63,7 @@ class Attention(msnn.Cell):
             norm_layer: Normalization layer constructor for QK normalization if enabled.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = { 'dtype': dtype}
         dim_out = dim_out or dim
         head_dim = attn_head_dim
         if head_dim is None:
@@ -166,7 +166,7 @@ class AttentionRope(msnn.Cell):
             rotate_half: Use 'half' ROPE layout instead of default 'interleaved'
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         dim_out = dim_out or dim
         head_dim = attn_head_dim
         if head_dim is None:

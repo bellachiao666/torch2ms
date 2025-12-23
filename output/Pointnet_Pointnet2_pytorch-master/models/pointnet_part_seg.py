@@ -47,9 +47,9 @@ class get_model(msnn.Cell):
 
         point_cloud = point_cloud.transpose(2, 1)
 
-        out1 = nn.functional.relu(self.bn1(self.conv1(point_cloud)))
-        out2 = nn.functional.relu(self.bn2(self.conv2(out1)))
-        out3 = nn.functional.relu(self.bn3(self.conv3(out2)))
+        out1 = nn.ops.relu(self.bn1(self.conv1(point_cloud)))
+        out2 = nn.ops.relu(self.bn2(self.conv2(out1)))
+        out3 = nn.ops.relu(self.bn3(self.conv3(out2)))
 
         trans_feat = self.fstn(out3)
         x = out3.transpose(2, 1)

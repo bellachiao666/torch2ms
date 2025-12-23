@@ -33,7 +33,7 @@ _SCRIPTABLE = False
 
 
 # use torch.scaled_dot_product_attention where possible
-_HAS_FUSED_ATTN = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
+_HAS_FUSED_ATTN = hasattr(nn.functional, 'scaled_dot_product_attention')
 if 'TIMM_FUSED_ATTN' in os.environ:
     _USE_FUSED_ATTN = int(os.environ['TIMM_FUSED_ATTN'])
 else:

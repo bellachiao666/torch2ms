@@ -34,7 +34,7 @@ class RotAttentionPool2d(msnn.Cell):
     NOTE: While this impl does not require a fixed feature size, performance at differeing resolutions from
     train varies widely and falls off dramatically. I'm not sure if there is a way around this... -RW
     """
-    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    fused_attn: bool # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -53,7 +53,7 @@ class RotAttentionPool2d(msnn.Cell):
             device=None,
             dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         assert pool_type in ('', 'token')
         self.embed_dim = embed_dim = embed_dim or in_features

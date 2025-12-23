@@ -155,6 +155,38 @@
         }
       ]
     },
+    "add_module": {
+      "pytorch": "torch.nn.Module.add_module",
+      "mindspore": "mindspore.nn.Cell.insert_child_to_cell",
+      "params": [
+        {
+          "logical": "name",
+          "pytorch": {
+            "name": "name",
+            "default": null
+          },
+          "mindspore": {
+            "name": "name",
+            "default": null
+          },
+          "name_equal": true,
+          "default_equal": true
+        },
+        {
+          "logical": "module",
+          "pytorch": {
+            "name": "module",
+            "default": null
+          },
+          "mindspore": {
+            "name": "cell",
+            "default": null
+          },
+          "name_equal": false,
+          "default_equal": true
+        }
+      ]
+    },
     "addbmm": {
       "pytorch": "torch.addbmm",
       "mindspore": "mindspore.mint.addbmm",

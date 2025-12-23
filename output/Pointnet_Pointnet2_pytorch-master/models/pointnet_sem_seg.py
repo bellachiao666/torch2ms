@@ -24,9 +24,9 @@ class get_model(msnn.Cell):
         batchsize = x.size()[0]
         n_pts = x.size()[2]
         x, trans, trans_feat = self.feat(x)
-        x = nn.functional.relu(self.bn1(self.conv1(x)))
-        x = nn.functional.relu(self.bn2(self.conv2(x)))
-        x = nn.functional.relu(self.bn3(self.conv3(x)))
+        x = nn.ops.relu(self.bn1(self.conv1(x)))
+        x = nn.ops.relu(self.bn2(self.conv2(x)))
+        x = nn.ops.relu(self.bn3(self.conv3(x)))
         x = self.conv4(x)
         x = x.transpose(2,1).contiguous()
         x = mint.special.log_softmax(x.view(-1,self.k), dim=-1)

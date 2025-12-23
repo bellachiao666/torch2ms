@@ -60,7 +60,7 @@ class CoordAttn(msnn.Cell):
             dtype: Data type for tensors.
         """
 
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         self.has_skip = has_skip
         if not rd_channels:
@@ -140,7 +140,7 @@ class SimpleCoordAttn(msnn.Cell):
             device: Device to place tensors on.
             dtype: Data type for tensors.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         self.has_skip = has_skip
 
@@ -210,7 +210,7 @@ class EfficientLocalAttn(msnn.Cell):
             device: Device to place tensors on.
             dtype: Data type for tensors.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         self.has_skip = has_skip
 
@@ -292,7 +292,7 @@ class StripAttn(msnn.Cell):
             device: Device to place tensors on.
             dtype: Data type for tensors.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         self.has_skip = has_skip
         self.use_conv = use_conv

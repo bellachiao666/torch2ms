@@ -364,6 +364,12 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
         生成的新 AST 在 `code` 属性中包含 MindSpore API 调用及必要的注释。
     """
 
+    METHOD_ATTR_REMAP = {
+        # PyTorch Module 注册子模块 -> MindSpore Cell 注册子 Cell
+        "add_module": ("insert_child_to_cell", "torch.nn.Module.add_module"),
+        "register_module": ("insert_child_to_cell", "torch.nn.Module.register_module"),
+    }
+
     METADATA_DEPENDENCIES = (metadata.ParentNodeProvider,)
 
     def __init__(
@@ -865,6 +871,26 @@ class TorchToMindSporeTransformer(cst.CSTTransformer):
                 [f"'{wrapper_pt_full}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
             )
 
+        # 实例方法兜底映射（如 self.features.add_module -> insert_child_to_cell）
+        if isinstance(updated_node.func, cst.Attribute):
+            attr_name = updated_node.func.attr.value
+            if attr_name in self.METHOD_ATTR_REMAP:
+                new_attr, pt_ref = self.METHOD_ATTR_REMAP[attr_name]
+                api_conf = self.api_by_pt_full.get(pt_ref) or self.api_by_class.get(pt_ref.split(".")[-1])
+                if api_conf:
+                    new_args, notes = self._reconstruct_args(updated_node, api_conf)
+                else:
+                    new_args, notes = updated_node.args, []
+                if notes:
+                    self._record_note(original_node, notes)
+                if not api_conf:
+                    self._record_note(
+                        original_node,
+                        [f"'{pt_ref}' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;"],
+                    )
+                new_func = updated_node.func.with_changes(attr=cst.Name(new_attr))
+                return updated_node.with_changes(func=new_func, args=new_args)
+
         if pt_full_name and not api_conf:
             self._record_note(
                 original_node,
@@ -1244,6 +1270,90 @@ class TorchImportCleaner(cst.CSTTransformer):
         return updated_node.with_changes(names=tuple(new_names))
 
 
+class TorchImportConverter(cst.CSTTransformer):
+    """
+    将 `from torch ...` 中可映射的符号直接转成 MindSpore 导入，避免被整体注释。
+
+    仅转换映射表存在的符号，未覆盖的 torch 导入原样保留。
+    """
+
+    def __init__(self, api_map) -> None:
+        super().__init__()
+        self.api_by_pt_full = {conf["pytorch"]: conf for conf in api_map.values()}
+        self._torch_excludes = (
+            "torchvision",
+            "torchaudio",
+            "torchtext",
+            "torchdata",
+            "torchrl",
+            "torchmetrics",
+        )
+
+    def _split_ms_target(self, full_name: str) -> Optional[tuple[str, str]]:
+        """
+        将 mindspore 全路径拆成 (module, name)，便于 ImportFrom 构造。
+        """
+        if "." not in full_name:
+            return None
+        parts = full_name.rsplit(".", 1)
+        return parts[0], parts[1]
+
+    def _is_excluded_module(self, module: str) -> bool:
+        return module.startswith(self._torch_excludes)
+
+    def leave_ImportFrom(
+        self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
+    ) -> cst.BaseStatement:
+        if updated_node.module is None:
+            return updated_node
+
+        module_name = cst_helpers.get_full_name_for_node(updated_node.module)
+        if not module_name or not module_name.startswith("torch") or self._is_excluded_module(module_name):
+            return updated_node
+
+        remaining = []
+        new_imports = defaultdict(list)
+
+        for name in updated_node.names:
+            if isinstance(name, cst.ImportStar):
+                remaining.append(name)
+                continue
+
+            obj_name = name.name.value
+            alias = name.asname
+            pt_full = f"{module_name}.{obj_name}"
+            api_conf = self.api_by_pt_full.get(pt_full)
+            if not api_conf:
+                remaining.append(name)
+                continue
+
+            ms_full = api_conf["mindspore"]
+            split = self._split_ms_target(ms_full)
+            if not split:
+                remaining.append(name)
+                continue
+            ms_module, ms_obj = split
+            try:
+                module_expr = cst.parse_expression(ms_module)
+            except Exception:
+                remaining.append(name)
+                continue
+            new_alias = cst.ImportAlias(name=cst.Name(ms_obj), asname=alias)
+            new_imports[module_expr].append(new_alias)
+
+        stmts = []
+        if remaining:
+            stmts.append(updated_node.with_changes(names=tuple(remaining)))
+        for mod_expr, aliases in new_imports.items():
+            stmts.append(cst.ImportFrom(module=mod_expr, names=tuple(aliases)))
+
+        if not stmts:
+            return updated_node
+        if len(stmts) == 1:
+            return stmts[0]
+        return cst.FlattenSentinel(stmts)
+
+
 def _ensure_default_ms_imports(code: str) -> str:
     """
     确保转换后的代码包含统一的 mindspore 导入前缀。
@@ -1283,21 +1393,49 @@ def _comment_torch_imports(code: str) -> str:
     在清理无用导入后调用，对仍残留的 torch 导入做“软屏蔽”，方便人工审阅和
     逐步迁移，同时避免破坏原有缩进与换行格式。
     """
+    excludes = (
+        "torchvision",
+        "torchaudio",
+        "torchtext",
+        "torchdata",
+        "torchrl",
+        "torchmetrics",
+    )
+
+    def _is_pytorch_import(stripped: str) -> bool:
+        if stripped.startswith("from "):
+            module = stripped[5:].split("import", 1)[0].strip()
+            return module.startswith("torch") and not module.startswith(excludes)
+        if stripped.startswith("import "):
+            modules = [part.strip().split(" ")[0] for part in stripped[7:].split(",")]
+            has_torch = False
+            for mod in modules:
+                if not mod:
+                    continue
+                if mod.startswith(excludes):
+                    return False
+                if mod.startswith("torch"):
+                    has_torch = True
+                else:
+                    # 混合非 torch 导入时不处理
+                    return False
+            return has_torch
+        return False
+
     new_lines = []
     for line in code.splitlines(keepends=True):
         stripped = line.lstrip()
         if stripped.startswith("#"):
             new_lines.append(line)
             continue
-        if stripped.startswith("import ") or stripped.startswith("from "):
-            if "torch" in stripped:
-                indent_len = len(line) - len(stripped)
-                indent = line[:indent_len]
-                commented = f"{indent}# {stripped}"
-                if not commented.endswith("\n") and line.endswith("\n"):
-                    commented += "\n"
-                new_lines.append(commented)
-                continue
+        if _is_pytorch_import(stripped):
+            indent_len = len(line) - len(stripped)
+            indent = line[:indent_len]
+            commented = f"{indent}# {stripped}"
+            if not commented.endswith("\n") and line.endswith("\n"):
+                commented += "\n"
+            new_lines.append(commented)
+            continue
         new_lines.append(line)
     return "".join(new_lines)
 
@@ -1323,6 +1461,7 @@ def convert_code(code: str) -> str:
             use_mint=False,
         )
     )
+    transformed = transformed.visit(TorchImportConverter(API_MAP))
 
     # 清理已失效的 torch 导入，再对残留 torch 导入做软屏蔽。
     name_collector = _NameUsageCollector()
