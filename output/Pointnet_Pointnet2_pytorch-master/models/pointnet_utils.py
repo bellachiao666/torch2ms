@@ -3,6 +3,8 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
+from mspatch import Variable
 # import torch
 # import torch.nn as nn
 # from torch.autograd import Variable

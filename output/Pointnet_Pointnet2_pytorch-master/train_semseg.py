@@ -3,6 +3,7 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 """
 Author: Benny
 Date: Nov 2019
@@ -10,7 +11,6 @@ Date: Nov 2019
 import argparse
 import os
 from data_utils.S3DISDataLoader import S3DISDataset
-# import torch
 import datetime
 import logging
 from pathlib import Path

@@ -35,7 +35,7 @@ class ChannelAttn(msnn.Cell):
             device=None,
             dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         if not rd_channels:
             rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
@@ -128,7 +128,7 @@ class CbamModule(msnn.Cell):
             device=None,
             dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         self.channel = ChannelAttn(
             channels,
@@ -162,7 +162,7 @@ class LightCbamModule(msnn.Cell):
             device=None,
             dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = { 'dtype': dtype}
         super().__init__()
         self.channel = LightChannelAttn(
             channels,

@@ -4,11 +4,13 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 import os
 import json
 import warnings
 import numpy as np
 # from torch.utils.data import Dataset
+Dataset = torch.utils.data.Dataset
 warnings.filterwarnings('ignore')
 
 def pc_normalize(pc):
@@ -119,6 +121,5 @@ class PartNormalDataset(Dataset):
 
     def __len__(self):
         return len(self.datapath)
-
 
 

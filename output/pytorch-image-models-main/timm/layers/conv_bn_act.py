@@ -40,7 +40,7 @@ class ConvNormAct(msnn.Cell):
             device=None,
             dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         conv_kwargs = {**dd, **(conv_kwargs or {})}
         norm_kwargs = {**dd, **(norm_kwargs or {})}

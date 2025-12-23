@@ -3,13 +3,13 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 """
 Author: Benny
 Date: Nov 2019
 """
 import argparse
 import os
-# import torch
 import datetime
 import logging
 import sys

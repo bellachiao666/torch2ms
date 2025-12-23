@@ -42,7 +42,7 @@ class MultiQueryAttentionV2(msnn.Cell):
             dtype=None,
     ):
         """Initializer."""
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         dim_out = dim_out or dim
         self.num_heads = num_heads
@@ -107,7 +107,7 @@ class MultiQueryAttention2d(msnn.Cell):
     1. Projections in Attention is explicit written out as 1x1 Conv2D.
     2. Additional reshapes are introduced to bring a up to 3x speed up.
     """
-    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    fused_attn: bool  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -138,7 +138,7 @@ class MultiQueryAttention2d(msnn.Cell):
           kv_stride: Key and value stride size.
           dw_kernel_size: Spatial dimension of the depthwise kernel.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         dim_out = dim_out or dim
         self.num_heads = num_heads
@@ -336,7 +336,7 @@ class Attention2d(msnn.Cell):
             device=None,
             dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         dim_out = dim_out or dim
         dim_attn = dim_out if expand_first else dim

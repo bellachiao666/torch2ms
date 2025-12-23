@@ -171,7 +171,7 @@ class NormMlpClassifierHead(msnn.Cell):
             norm_layer: Normalization layer type.
             act_layer: MLP activation layer type (only used if hidden_size is not None).
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         self.in_features = in_features
         self.hidden_size = hidden_size
@@ -253,7 +253,7 @@ class ClNormMlpClassifierHead(msnn.Cell):
             norm_layer: Normalization layer type.
             act_layer: MLP activation layer type (only used if hidden_size is not None).
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
         self.in_features = in_features
         self.hidden_size = hidden_size

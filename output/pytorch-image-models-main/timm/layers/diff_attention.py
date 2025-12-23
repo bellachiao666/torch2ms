@@ -16,7 +16,7 @@ from typing import Optional, Type
 
 # import torch
 # import torch.nn as nn
-# import torch.nn.functional as F
+import mindspore.mint.nn.functional as F
 
 from .attention import maybe_add_mask
 from .config import use_fused_attn

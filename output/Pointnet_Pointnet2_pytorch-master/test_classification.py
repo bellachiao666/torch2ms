@@ -3,6 +3,7 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 """
 Author: Benny
 Date: Nov 2019
@@ -11,7 +12,6 @@ from data_utils.ModelNetDataLoader import ModelNetDataLoader
 import argparse
 import numpy as np
 import os
-# import torch
 import logging
 from tqdm import tqdm
 import sys

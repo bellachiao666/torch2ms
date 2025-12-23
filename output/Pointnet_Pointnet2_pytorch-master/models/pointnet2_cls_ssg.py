@@ -49,6 +49,6 @@ class get_loss(msnn.Cell):
         super(get_loss, self).__init__()
 
     def construct(self, pred, target, trans_feat):
-        total_loss = nn.functional.nll_loss(pred, target)
+        total_loss = nn.ops.nll_loss(pred, target)
 
         return total_loss

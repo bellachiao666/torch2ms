@@ -3,6 +3,7 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 """
 Author: Benny
 Date: Nov 2019
@@ -10,7 +11,6 @@ Date: Nov 2019
 
 import os
 import sys
-# import torch
 import numpy as np
 
 import datetime

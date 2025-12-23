@@ -59,7 +59,7 @@ class CondConv2d(msnn.Cell):
             device=None,
             dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {'dtype': dtype}
         super().__init__()
 
         self.in_channels = in_channels

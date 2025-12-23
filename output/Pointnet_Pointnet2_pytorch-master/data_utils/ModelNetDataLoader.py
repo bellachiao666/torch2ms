@@ -3,6 +3,7 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 '''
 @author: Xu Yan
 @file: ModelNet.py
@@ -15,6 +16,7 @@ import pickle
 
 from tqdm import tqdm
 # from torch.utils.data import Dataset
+Dataset = torch.utils.data.Dataset
 
 warnings.filterwarnings('ignore')
 

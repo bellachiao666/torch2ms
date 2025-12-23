@@ -3,11 +3,13 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 import os
 import numpy as np
 
 from tqdm import tqdm
 # from torch.utils.data import Dataset
+Dataset = torch.utils.data.Dataset
 
 
 # 'torch.utils.data.Dataset' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;

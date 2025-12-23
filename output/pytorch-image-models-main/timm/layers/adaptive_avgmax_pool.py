@@ -60,7 +60,7 @@ def select_adaptive_pool2d(x, pool_type='avg', output_size: _int_tuple_2_t = 1):
 
 class FastAdaptiveAvgPool(msnn.Cell):
     # 'torch.nn.functional' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
-    def __init__(self, flatten: bool = False, input_fmt: F = 'NCHW'):
+    def __init__(self, flatten: bool = False, input_fmt: nn.functional = 'NCHW'):
         super().__init__()
         self.flatten = flatten
         self.dim = get_spatial_dim(input_fmt)
@@ -162,7 +162,7 @@ class SelectAdaptivePool2d(msnn.Cell):
             elif pool_type == 'catavgmax':
                 self.pool = AdaptiveCatAvgMaxPool2d(output_size)
             elif pool_type == 'max':
-                self.pool = nn.AdaptiveMaxPool2d(output_size)  # 'torch.nn.AdaptiveMaxPool2d' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+                self.pool = nn.AdaptiveMaxPool2d(output_size)  
             elif pool_type == 'avg':
                 self.pool = nn.AdaptiveAvgPool2d(output_size)
             else:

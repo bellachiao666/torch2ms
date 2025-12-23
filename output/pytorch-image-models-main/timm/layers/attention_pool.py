@@ -4,7 +4,7 @@ import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
 from typing import Optional, Type
-
+from mindspore.text.modules.attentions import ScaledDotAttention
 # import torch
 # import torch.nn as nn
 # import torch.nn.functional as F
@@ -18,7 +18,7 @@ from .weight_init import trunc_normal_tf_
 class AttentionPoolLatent(msnn.Cell):
     """ Attention pooling w/ latent query
     """
-    fused_attn: torch.jit.Final[bool]  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+    fused_attn: bool  # 'torch.jit.Final' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
 
     def __init__(
             self,
@@ -40,7 +40,7 @@ class AttentionPoolLatent(msnn.Cell):
             device = None,
             dtype = None
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = { 'dtype': dtype}
         super().__init__()
         embed_dim = embed_dim or in_features
         out_features = out_features or in_features
@@ -100,7 +100,7 @@ class AttentionPoolLatent(msnn.Cell):
         q, k = self.q_norm(q), self.k_norm(k)
 
         if self.fused_attn:
-            x = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
+            x = ScaledDotAttention(q, k, v, attn_mask=attn_mask)  # 'torch.nn.functional.scaled_dot_product_attention' 未在映射表(api_mapping_out_excel.json)中找到，需手动确认;
         else:
             q = q * self.scale
             attn = q @ k.transpose(-2, -1)

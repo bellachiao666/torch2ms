@@ -3,6 +3,7 @@ import mindspore.nn as msnn
 import mindspore.ops as msops
 import mindspore.mint as mint
 from mindspore.mint import nn, ops
+import mspatch as torch
 """
 Author: Benny
 Date: Nov 2019
@@ -11,7 +12,6 @@ import argparse
 import os
 from data_utils.S3DISDataLoader import ScannetDatasetWholeScene
 from data_utils.indoor3d_util import g_label2color
-# import torch
 import logging
 from pathlib import Path
 import sys
