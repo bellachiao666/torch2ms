@@ -169,17 +169,19 @@ class _TorchImportCollector(cst.CSTVisitor):
         module_name = cst_helpers.get_full_name_for_node(node.module)
         if not module_name or not module_name.startswith("torch"):
             return
-
-        for name in node.names:
-            if isinstance(name, cst.ImportStar):
-                continue
-            alias = (
-                name.asname.name.value
-                if getattr(name, "asname", None)
-                else getattr(name, "evaluated_name", None)
-            ) or name.name.value
-            full_module = f"{module_name}.{name.name.value}"
-            self._maybe_record(full_module, alias)
+        if isinstance(node.names, cst.ImportStar):
+            print("import star:" , node.module.value if node.module else None)
+        else:
+            for name in node.names:
+                if isinstance(name, cst.ImportStar):
+                    continue
+                alias = (
+                    name.asname.name.value
+                    if getattr(name, "asname", None)
+                    else getattr(name, "evaluated_name", None)
+                ) or name.name.value
+                full_module = f"{module_name}.{name.name.value}"
+                self._maybe_record(full_module, alias)
 
 
 def collect_torch_aliases(module: cst.Module) -> dict:
@@ -1250,20 +1252,23 @@ class TorchImportCleaner(cst.CSTTransformer):
             return updated_node
 
         new_names = []
-        for name in updated_node.names:
-            if isinstance(name, cst.ImportStar):
-                # 星号导入保守保留
-                new_names.append(name)
-                continue
+        if isinstance(updated_node.names, cst.ImportStar):
+            print("import star:", updated_node.module.value if updated_node.module else None)
+        else:
+            for name in updated_node.names:
+                if isinstance(name, cst.ImportStar):
+                    # 星号导入保守保留
+                    new_names.append(name)
+                    continue
 
-            alias_name = (
-                name.asname.name.value
-                if getattr(name, "asname", None)
-                else getattr(name, "evaluated_name", None)
-            ) or name.name.value
+                alias_name = (
+                    name.asname.name.value
+                    if getattr(name, "asname", None)
+                    else getattr(name, "evaluated_name", None)
+                ) or name.name.value
 
-            if alias_name in self.used_names:
-                new_names.append(name)
+                if alias_name in self.used_names:
+                    new_names.append(name)
 
         if not new_names:
             return cst.RemoveFromParent()
