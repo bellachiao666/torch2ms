@@ -4,7 +4,7 @@
 
 ## 环境依赖
 - Python 3.9+
-- 安装依赖：`pip install libcst`
+- 安装依赖：`pip install libcst tqdm`
 
 ## 快速使用
 1. 将待转换的 PyTorch 代码放到 `input/torch_third_party/` 下（目录结构可自行扩展、文件名保持不变）。
